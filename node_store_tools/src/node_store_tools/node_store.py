@@ -21,17 +21,15 @@ class NodeStore:
         self.email = email
 
     def upload_module(self, module: str | ModuleType) -> None:
-        """Upload all functions and classes from a module to the specified API endpoint.
-
-        Args:
-            module (str | ModuleType): The module name or module object to upload.
-            email (str): The email of the author.
-            module (str | ModuleType): The module name or module object to upload.
-        """
         if isinstance(module, str):
             module = importlib.import_module(module)
+            
+        if hasattr(module, "__all__"):
+            items = ((k, module.__dict__[k]) for k in module.__all__)
+        else:
+            items = module.__dict__.items()
 
-        for k, v in module.__dict__.items():
+        for k, v in items:
             if k.startswith("_"):
                 continue
 

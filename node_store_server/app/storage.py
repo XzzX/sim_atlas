@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from node_store_tools.models import (
+from node_store_spec.models import (
     NodeFilter,
     SemanticSearchResponse,
 )

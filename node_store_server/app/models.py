@@ -1,4 +1,4 @@
-from node_store_tools.models import NodeResponse
+from node_store_spec.models import NodeResponse
 
 
 class NodeMetadata(NodeResponse):

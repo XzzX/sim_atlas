@@ -1,22 +1,17 @@
-import hashlib
 import importlib
-import inspect
-import textwrap
-from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import requests
 from node_store_spec.models import NodeRequest, NodeResponse, NodeType, PythonImport
 from python_workflow_definition.models import (
-    PythonWorkflowDefinitionInputNode,
-    PythonWorkflowDefinitionOutputNode,
     PythonWorkflowDefinitionWorkflow,
 )
 
 from node_store_tools.DotDict import DotDict
 
-from .parser import get_function_metadata
+from .parser import get_metadata
 
 
 class NodeStore:
@@ -40,21 +35,18 @@ class NodeStore:
             if k.startswith("_"):
                 continue
 
-            if inspect.isfunction(v):
-                response = self.upload_function(v)
-                if response.status_code == 200:
-                    print(f"✓ Stored function: {response.json()}")
-                else:
-                    print(f"✗ Failed function: {response.json()}")
+            try:
+                response = self.upload(v)
+            except Exception as e:
+                print(f"✗ {k}: {v}\n{e}")
+                continue
 
-            if isinstance(v, PythonWorkflowDefinitionWorkflow):
-                response = self.upload_python_workflow_definition(v)
-                if response.status_code == 200:
-                    print(f"✓ Stored PWD: {response.json()}")
-                else:
-                    print(f"✗ Failed PWD: {response.json()}")
+            if response.status_code == 200:
+                print(f"✓ {k}: {v}\n{response.json()}")
+            else:
+                print(f"✗ {k}: {v}\n{response.json()}")
 
-    def upload_function(self, func: Callable) -> requests.Response:
+    def upload(self, obj: Any) -> requests.Response:
         """Upload node metadata to the specified API endpoint.
 
         Args:
@@ -63,60 +55,31 @@ class NodeStore:
 
         from importlib.metadata import requires, version
 
-        if inspect.isfunction(func) or inspect.ismethod(func):
-            node_type = NodeType.FUNCTION
-            source_code = inspect.getsource(func)
-            source_code = textwrap.dedent(source_code.replace("\\r\\n", ""))
-            source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()
-        else:
-            raise ValueError("Provided node is neither a function nor a class")
+        metadata = get_metadata(obj)
 
-        metadata = get_function_metadata(func)
+        try:
+            python_import = PythonImport(
+                module=obj.__module__,
+                version=version(obj.__module__.partition(".")[0]),
+                qualname=obj.__qualname__,
+            )
+        except Exception:
+            python_import = None
+
+        try:
+            dependencies = requires(obj.__module__.partition(".")[0])
+        except Exception:
+            dependencies = None
 
         request_data = NodeRequest(
-            python_import=PythonImport(
-                module=func.__module__,
-                version=version(func.__module__.partition(".")[0]),
-                qualname=func.__qualname__,
-            ),
+            python_import=python_import,
             author=self.author,
             email=self.email,
             **metadata.model_dump(),
-            source_code=source_code,
-            source_code_hash=source_code_hash,
-            node_type=node_type,
-            dependencies=requires(func.__module__.partition(".")[0]),
+            dependencies=dependencies,
         )
 
-        response = requests.post(
-            f"{self.api_url}/nodes/",
-            json=request_data.model_dump(),
-        )
-        return response
-
-    def upload_python_workflow_definition(
-        self, workflow: PythonWorkflowDefinitionWorkflow
-    ) -> requests.Response:
-        source_code = workflow.dump_json()
-        source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()
-
-        arguments = {}
-        returns_unpacked = {}
-        for node in workflow.nodes:
-            if isinstance(node, PythonWorkflowDefinitionInputNode):
-                arguments[node.name] = None
-            if isinstance(node, PythonWorkflowDefinitionOutputNode):
-                returns_unpacked[node.name] = None
-
-        request_data = NodeRequest(
-            author=self.author,
-            email=self.email,
-            source_code=source_code,
-            source_code_hash=source_code_hash,
-            arguments=arguments,
-            returns_unpacked=returns_unpacked,
-            node_type=NodeType.PYTHON_WORKFLOW_DEFINITION,
-        )
+        print(request_data.model_dump())
 
         response = requests.post(
             f"{self.api_url}/nodes/",

@@ -4,7 +4,7 @@ import os
 import pickle
 
 from bson.binary import Binary
-from node_store_tools.models import (
+from node_store_spec.models import (
     NodeFilter,
     SemanticSearchResponse,
 )

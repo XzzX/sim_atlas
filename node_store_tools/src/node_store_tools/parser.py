@@ -1,82 +1,39 @@
 import inspect
-from typing import Annotated, get_args, get_origin
+from typing import Any
 
-from pydantic import BaseModel
-
-from node_store_tools.models import Annotation
-
-
-class FunctionMetadata(BaseModel):
-    docstring: str | None
-    arguments: dict[str, Annotation | None] | None
-    returns: Annotation | None
-    returns_unpacked: dict[str, Annotation | None] | None
+from .parsers.metadata import Metadata
+from .parsers.python_function import get_function_metadata
 
 
-def parse_annotation(annotation) -> Annotation:
-    """Parse a type annotation to extract datatype, unit, and quantity.
-
-    Args:
-        annotation: The type annotation to parse.
+def create_parser_mapping() -> dict[type, Any]:
+    """Create a mapping of object types to their corresponding parser functions.
 
     Returns:
-        Annotation: The parsed annotation details.
+        dict[type, Any]: A dictionary mapping object types to parser functions.
     """
+    parsers = {}
 
-    from typing import get_args, get_origin
+    try:
+        from .parsers import python_workflow_definition
 
-    if annotation is None:
-        return Annotation()
+        parsers.update(python_workflow_definition.parsers)
+    except ImportError:
+        pass
 
-    def get_name(obj):
-        return obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
+    try:
+        from .parsers import pyiron_workflow
 
-    origin = get_origin(annotation)
-    if origin is not Annotated:
-        return Annotation(datatype=get_name(annotation))
+        parsers.update(pyiron_workflow.parsers)
+    except ImportError:
+        pass
 
-    args = get_args(annotation)
-    annotation = Annotation(datatype=get_name(args[0]))
-    for arg in args[1:]:
-        if isinstance(arg, dict):
-            annotation.label = arg.get("label", annotation.unit)
-            annotation.unit = arg.get("unit", annotation.unit)
-            annotation.quantity = arg.get("quantity", annotation.quantity)
-    return annotation
+    return parsers
 
 
-def _parse_arguments(sig: inspect.Signature) -> dict[str, Annotation | None]:
-    arguments = {}
-    for param_name, param in sig.parameters.items():
-        arguments[param_name] = (
-            parse_annotation(param.annotation)
-            if param.annotation != inspect.Parameter.empty
-            else None
-        )
-    return arguments
+parsers = create_parser_mapping()
 
 
-def _parse_and_unpack_annotation(annotation) -> dict[str, Annotation | None]:
-    origin = get_origin(annotation)
-    args = get_args(annotation)
-
-    # unpack one level of Annotated
-    if origin is Annotated:
-        origin = get_origin(args[0])
-        args = get_args(args[0])
-
-    if origin is tuple:
-        annotations = {}
-        args = get_args(annotation)
-        for i, arg in enumerate(args):
-            ann = parse_annotation(arg)
-            annotations[ann.label if ann.label is not None else str(i)] = ann
-        return annotations
-
-    return {}
-
-
-def get_function_metadata(func: callable) -> FunctionMetadata:
+def get_metadata(obj: Any) -> Metadata:
     """Extract metadata from a function including its docstring, arguments, and return
     types.
 
@@ -87,21 +44,15 @@ def get_function_metadata(func: callable) -> FunctionMetadata:
         FunctionMetadata: The extracted metadata.
     """
 
-    sig = inspect.signature(func)
-    arguments = _parse_arguments(sig)
+    if inspect.isfunction(obj) or inspect.ismethod(obj):
+        return get_function_metadata(obj)
 
-    return_annotation = sig.return_annotation
-    returns = (
-        parse_annotation(return_annotation)
-        if return_annotation != inspect.Signature.empty
-        else None
-    )
+    for obj_type, parser_func in parsers.items():
+        if isinstance(obj, type):
+            if issubclass(obj, obj_type):
+                return parser_func(obj)
+        else:
+            if isinstance(obj, obj_type):
+                return parser_func(obj)
 
-    returns_unpacked = _parse_and_unpack_annotation(return_annotation)
-
-    return FunctionMetadata(
-        docstring=inspect.getdoc(func),
-        arguments=arguments,
-        returns=returns,
-        returns_unpacked=returns_unpacked,
-    )
+    raise ValueError(f"No parser available for the given object type: {type(obj)}")

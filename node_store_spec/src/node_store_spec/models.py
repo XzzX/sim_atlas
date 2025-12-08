@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class NodeType(StrEnum):
     FUNCTION = "function"
     PYTHON_WORKFLOW_DEFINITION = "pwd"
+    PYIRON_WORKFLOW_FUNCTION = "pyiron_workflow_function"
 
 
 class Annotation(BaseModel):

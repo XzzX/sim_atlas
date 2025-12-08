@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_mcp import FastApiMCP
-from node_store_tools.models import (
+from node_store_spec.models import (
     NodeFilter,
     NodeIndex,
     NodeRequest,

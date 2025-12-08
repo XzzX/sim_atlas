@@ -1,4 +1,4 @@
-name: node_store_server
+name: node_store_spec
 
 on:
   push:

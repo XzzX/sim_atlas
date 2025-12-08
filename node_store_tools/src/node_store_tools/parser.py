@@ -77,7 +77,8 @@ def _parse_and_unpack_annotation(annotation) -> dict[str, Annotation | None]:
 
 
 def get_function_metadata(func: callable) -> FunctionMetadata:
-    """Extract metadata from a function including its docstring, arguments, and return types.
+    """Extract metadata from a function including its docstring, arguments, and return
+    types.
 
     Args:
         func (callable): The function to extract metadata from.

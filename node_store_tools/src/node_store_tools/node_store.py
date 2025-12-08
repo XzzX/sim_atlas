@@ -7,6 +7,7 @@ from pathlib import Path
 from types import ModuleType
 
 import requests
+from node_store_spec.models import NodeRequest, NodeResponse, NodeType, PythonImport
 from python_workflow_definition.models import (
     PythonWorkflowDefinitionInputNode,
     PythonWorkflowDefinitionOutputNode,
@@ -14,9 +15,7 @@ from python_workflow_definition.models import (
 )
 
 from node_store_tools.DotDict import DotDict
-from node_store_tools.models import NodeRequest, NodeResponse, NodeType
 
-from .models import PythonImport
 from .parser import get_function_metadata
 
 
@@ -98,14 +97,6 @@ class NodeStore:
     def upload_python_workflow_definition(
         self, workflow: PythonWorkflowDefinitionWorkflow
     ) -> requests.Response:
-        """Upload all functions and classes from a PythonWorkflowDefinitionWorkflow to the specified API endpoint.
-
-        Args:
-            author (str): The author of the nodes.
-            email (str): The email of the author.
-            workflow (PythonWorkflowDefinitionWorkflow): The workflow definition to upload.
-        """
-
         source_code = workflow.dump_json()
         source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()
 

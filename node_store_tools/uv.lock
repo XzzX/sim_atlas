@@ -262,10 +262,25 @@ wheels = [
 ]
 
 [[package]]
+name = "node-store-spec"
+version = "0.1.0"
+source = { editable = "../node_store_spec" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = "==2.12.4" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "ruff", specifier = ">=0.14.8" }]
+
+[[package]]
 name = "node-store-tools"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "node-store-spec" },
     { name = "python-workflow-definition" },
 ]
 
@@ -278,7 +293,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "python-workflow-definition", specifier = ">=0.1.0" }]
+requires-dist = [
+    { name = "node-store-spec", editable = "../node_store_spec" },
+    { name = "python-workflow-definition", specifier = ">=0.1.0" },
+]
 
 [package.metadata.requires-dev]
 dev = [

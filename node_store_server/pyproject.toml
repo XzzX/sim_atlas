@@ -1,0 +1,40 @@
+[project]
+name = "node-store-server"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi-mcp>=0.4.0",
+    "fastapi[standard]>=0.122.0",
+    "node-store-tools",
+    "numpy>=1.21",
+    "openai>=2.8.1",
+    "pymongo>=4.15.4",
+    "python-dotenv>=1.2.1",
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.407",
+    "ruff>=0.14.6",
+]
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+
+[tool.uv.sources]
+node-store-tools = { path = "../node_store_tools", editable = true }

@@ -1,0 +1,24 @@
+[project]
+name = "node-store-spec"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.12.5",
+]
+
+[project.scripts]
+node-store-spec = "node_store_spec:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.8",
+]

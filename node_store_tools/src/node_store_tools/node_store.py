@@ -1,4 +1,5 @@
 import importlib
+import inspect
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -20,17 +21,47 @@ class NodeStore:
         self.author = author
         self.email = email
 
-    def upload_module(self, module: str | ModuleType) -> None:
+    def upload_module(
+        self, module: str | ModuleType, upload_included_modules: bool = False
+    ) -> None:
         if isinstance(module, str):
             module = importlib.import_module(module)
-            
+
         if hasattr(module, "__all__"):
             items = ((k, module.__dict__[k]) for k in module.__all__)
         else:
             items = module.__dict__.items()
 
+        module_root = module.__name__.partition(".")[0]
+
         for k, v in items:
+            if inspect.ismodule(v):
+                if (
+                    upload_included_modules
+                    and module_root == v.__name__.partition(".")[0]
+                ):
+                    self.upload_module(
+                        v, upload_included_modules=upload_included_modules
+                    )
+                continue
+
+            if not hasattr(v, "__module__"):
+                continue
+
+            if module_root != v.__module__.partition(".")[0]:
+                continue
+
             if k.startswith("_"):
+                continue
+
+            # print(
+            #     module.__package__,
+            #     v.__package__.partition(".")[0] if hasattr(v, "__package__") else None,
+            #     v.__module__.partition(".")[0] if hasattr(v, "__module__") else None,
+            # )
+
+            if inspect.ismodule(v) and upload_included_modules:
+                self.upload_module(v, upload_included_modules=upload_included_modules)
                 continue
 
             try:
@@ -51,18 +82,33 @@ class NodeStore:
             node (Node): The node metadata to upload.
         """
 
+        if isinstance(obj, NodeRequest):
+            response = requests.post(
+                f"{self.api_url}/nodes/",
+                json=obj.model_dump(),
+            )
+            return response
+
+        if inspect.ismodule(obj):
+            raise ValueError(
+                "Will not automatically upload modules. Use upload_module instead."
+            )
+
         from importlib.metadata import requires, version
 
         metadata = get_metadata(obj)
 
-        try:
-            python_import = PythonImport(
-                module=obj.__module__,
-                version=version(obj.__module__.partition(".")[0]),
-                qualname=obj.__qualname__,
-            )
-        except Exception:
-            python_import = None
+        def get_version(obj: Any) -> str | None:
+            try:
+                return version(obj.__module__.partition(".")[0])
+            except Exception:
+                return None
+
+        python_import = PythonImport(
+            module=obj.__module__,
+            version=get_version(obj),
+            qualname=obj.__qualname__,
+        )
 
         try:
             dependencies = requires(obj.__module__.partition(".")[0])
@@ -76,8 +122,6 @@ class NodeStore:
             **metadata.model_dump(),
             dependencies=dependencies,
         )
-
-        print(request_data.model_dump())
 
         response = requests.post(
             f"{self.api_url}/nodes/",

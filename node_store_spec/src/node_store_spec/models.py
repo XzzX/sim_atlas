@@ -7,6 +7,7 @@ class NodeType(StrEnum):
     FUNCTION = "function"
     PYTHON_WORKFLOW_DEFINITION = "pwd"
     PYIRON_WORKFLOW_FUNCTION = "pyiron_workflow_function"
+    PYIRON_CORE_NODE = "pyiron_core_node"
 
 
 class Annotation(BaseModel):

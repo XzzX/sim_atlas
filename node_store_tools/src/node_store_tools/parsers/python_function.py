@@ -1,13 +1,12 @@
 import inspect
-from collections.abc import Callable
-from typing import Annotated, get_args, get_origin
+from typing import Annotated, Any, get_args, get_origin
 
 from node_store_spec.models import Annotation, NodeType
 
 from .metadata import Metadata
 
 
-def parse_annotation(annotation) -> Annotation:
+def _parse_annotation(annotation) -> Annotation:
     """Parse a type annotation to extract datatype, unit, and quantity.
 
     Args:
@@ -43,7 +42,7 @@ def _parse_arguments(sig: inspect.Signature) -> dict[str, Annotation | None]:
     arguments = {}
     for param_name, param in sig.parameters.items():
         arguments[param_name] = (
-            parse_annotation(param.annotation)
+            _parse_annotation(param.annotation)
             if param.annotation != inspect.Parameter.empty
             else None
         )
@@ -63,37 +62,30 @@ def _parse_and_unpack_annotation(annotation) -> dict[str, Annotation | None]:
         annotations = {}
         args = get_args(annotation)
         for i, arg in enumerate(args):
-            ann = parse_annotation(arg)
+            ann = _parse_annotation(arg)
             annotations[ann.label if ann.label is not None else str(i)] = ann
         return annotations
 
     return {}
 
 
-def get_function_metadata(func: Callable) -> Metadata:
-    """Extract metadata from a function including its docstring, arguments, and return
-    types.
-
-    Args:
-        func (callable): The function to extract metadata from.
-
-    Returns:
-        FunctionMetadata: The extracted metadata.
-    """
+def parse(obj: Any) -> Metadata | None:
+    if not (inspect.isfunction(obj) or inspect.ismethod(obj)):
+        return None
 
     import hashlib
     import textwrap
 
-    source_code = inspect.getsource(func)
+    source_code = inspect.getsource(obj)
     source_code = textwrap.dedent(source_code.replace("\\r\\n", ""))
     source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()
 
-    sig = inspect.signature(func)
+    sig = inspect.signature(obj)
     arguments = _parse_arguments(sig)
 
     return_annotation = sig.return_annotation
     returns = (
-        parse_annotation(return_annotation)
+        _parse_annotation(return_annotation)
         if return_annotation != inspect.Signature.empty
         else None
     )
@@ -104,7 +96,7 @@ def get_function_metadata(func: Callable) -> Metadata:
         node_type=NodeType.FUNCTION,
         source_code=source_code,
         source_code_hash=source_code_hash,
-        docstring=inspect.getdoc(func),
+        docstring=inspect.getdoc(obj),
         arguments=arguments,
         returns=returns,
         returns_unpacked=returns_unpacked,

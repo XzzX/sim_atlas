@@ -1,3 +1,5 @@
+from typing import Any
+
 from node_store_spec.models import NodeType
 from python_workflow_definition.models import (
     PythonWorkflowDefinitionInputNode,
@@ -8,15 +10,18 @@ from python_workflow_definition.models import (
 from .metadata import Metadata
 
 
-def extract_metadata(workflow: PythonWorkflowDefinitionWorkflow) -> Metadata:
+def parse(obj: Any) -> Metadata | None:
+    if not isinstance(obj, PythonWorkflowDefinitionWorkflow):
+        return None
+
     import hashlib
 
-    source_code = workflow.dump_json()
+    source_code = obj.dump_json()
     source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()
 
     arguments = {}
     returns_unpacked = {}
-    for node in workflow.nodes:
+    for node in obj.nodes:
         if isinstance(node, PythonWorkflowDefinitionInputNode):
             arguments[node.name] = None
         if isinstance(node, PythonWorkflowDefinitionOutputNode):
@@ -29,8 +34,3 @@ def extract_metadata(workflow: PythonWorkflowDefinitionWorkflow) -> Metadata:
         returns_unpacked=returns_unpacked,
         node_type=NodeType.PYTHON_WORKFLOW_DEFINITION,
     )
-
-
-parsers = {
-    PythonWorkflowDefinitionWorkflow: extract_metadata,
-}

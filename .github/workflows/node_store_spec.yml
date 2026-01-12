@@ -33,5 +33,5 @@ jobs:
         run: uv run ruff format --check .
         working-directory: ./node_store_spec
         
-      # - name: Run pyright
-      #   run: uv run pyright
+      - name: Run pyright
+        run: uv run pyright

@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
-from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_mcp import FastApiMCP
 from node_store_spec.models import (
@@ -9,8 +8,6 @@ from node_store_spec.models import (
     NodeRequest,
     SemanticSearchResponse,
 )
-
-from app.security import has_write_access
 
 from .models import (
     NodeMetadata,

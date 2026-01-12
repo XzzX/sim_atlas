@@ -4,7 +4,6 @@ import os
 import pickle
 from collections.abc import Callable
 
-from bson.binary import Binary
 from node_store_spec.models import (
     NodeFilter,
     SemanticSearchResponse,

@@ -10,7 +10,7 @@ from node_store_spec.models import (
     SemanticSearchResponse,
 )
 
-from app.security import has_read_access
+from app.security import has_write_access
 
 from .models import (
     NodeMetadata,
@@ -99,9 +99,7 @@ async def read_node_index() -> list[str]:
 
 
 @app.post("/nodes/list")
-async def read_nodes(
-    key: Annotated[str, Depends(has_read_access)], filter: NodeFilter | None = None
-) -> list[NodeResponse]:
+async def read_nodes(filter: NodeFilter | None = None) -> list[NodeResponse]:
     return [NodeResponse(**x.model_dump()) for x in storage.filter(filter)]
 
 

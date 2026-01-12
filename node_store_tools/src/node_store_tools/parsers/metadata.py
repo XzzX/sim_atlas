@@ -9,6 +9,5 @@ class Metadata(BaseModel):
     source_code_hash: str
 
     docstring: str | None = None
-    arguments: dict[str, Annotation | None] | None = None
-    returns: Annotation | None = None
-    returns_unpacked: dict[str, Annotation | None] | None = None
+    inputs: dict[str, Annotation]
+    outputs: dict[str, Annotation]

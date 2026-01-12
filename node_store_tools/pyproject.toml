@@ -41,3 +41,6 @@ select = [
 [tool.uv.sources]
 node-store-spec = { path = "../node_store_spec", editable = true }
 
+[tool.pyright]
+typeCheckingMode = "basic"
+

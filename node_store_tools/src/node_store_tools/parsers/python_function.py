@@ -6,7 +6,7 @@ from node_store_spec.models import Annotation, NodeType
 from .metadata import Metadata
 
 
-def _parse_annotation(annotation) -> Annotation:
+def _parse_annotation(annotation: Any) -> Annotation:
     """Parse a type annotation to extract datatype, unit, and quantity.
 
     Args:
@@ -21,7 +21,7 @@ def _parse_annotation(annotation) -> Annotation:
     if annotation is None:
         return Annotation()
 
-    def get_name(obj):
+    def get_name(obj: Any) -> str:
         return obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
 
     origin = get_origin(annotation)
@@ -38,18 +38,18 @@ def _parse_annotation(annotation) -> Annotation:
     return annotation
 
 
-def _parse_arguments(sig: inspect.Signature) -> dict[str, Annotation | None]:
-    arguments = {}
+def _parse_arguments(sig: inspect.Signature) -> dict[str, Annotation]:
+    arguments: dict[str, Annotation] = {}
     for param_name, param in sig.parameters.items():
         arguments[param_name] = (
             _parse_annotation(param.annotation)
             if param.annotation != inspect.Parameter.empty
-            else None
+            else Annotation()
         )
     return arguments
 
 
-def _parse_and_unpack_annotation(annotation) -> dict[str, Annotation | None]:
+def _parse_and_unpack_annotation(annotation: Any) -> dict[str, Annotation]:
     origin = get_origin(annotation)
     args = get_args(annotation)
 
@@ -59,7 +59,7 @@ def _parse_and_unpack_annotation(annotation) -> dict[str, Annotation | None]:
         args = get_args(args[0])
 
     if origin is tuple:
-        annotations = {}
+        annotations: dict[str, Annotation] = {}
         args = get_args(annotation)
         for i, arg in enumerate(args):
             ann = _parse_annotation(arg)
@@ -81,23 +81,16 @@ def parse(obj: Any) -> Metadata | None:
     source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()
 
     sig = inspect.signature(obj)
-    arguments = _parse_arguments(sig)
+    inputs = _parse_arguments(sig)
 
     return_annotation = sig.return_annotation
-    returns = (
-        _parse_annotation(return_annotation)
-        if return_annotation != inspect.Signature.empty
-        else None
-    )
-
-    returns_unpacked = _parse_and_unpack_annotation(return_annotation)
+    outputs = _parse_and_unpack_annotation(return_annotation)
 
     return Metadata(
         node_type=NodeType.FUNCTION,
         source_code=source_code,
         source_code_hash=source_code_hash,
         docstring=inspect.getdoc(obj),
-        arguments=arguments,
-        returns=returns,
-        returns_unpacked=returns_unpacked,
+        inputs=inputs,
+        outputs=outputs,
     )

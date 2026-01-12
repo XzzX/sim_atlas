@@ -28,7 +28,7 @@ def parse(obj: Any) -> Metadata | None:
     return Metadata(
         source_code=source_code,
         source_code_hash=source_code_hash,
-        arguments=inputs,
-        returns_unpacked=outputs,
+        inputs=inputs,
+        outputs=outputs,
         node_type=NodeType.PYIRON_CORE_NODE,
     )

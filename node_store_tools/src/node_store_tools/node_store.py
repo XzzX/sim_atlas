@@ -1,16 +1,20 @@
 import importlib
 import inspect
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import requests
-from node_store_spec.models import NodeRequest, NodeResponse, NodeType, PythonImport
+from node_store_spec.models import (
+    NodeFilter,
+    NodeRequest,
+    NodeResponse,
+    NodeType,
+    SemanticSearchResponse,
+)
 from python_workflow_definition.models import (
     PythonWorkflowDefinitionWorkflow,
 )
-
-from node_store_tools.DotDict import DotDict
 
 from .parser import get_metadata
 
@@ -94,21 +98,11 @@ class NodeStore:
                 "Will not automatically upload modules. Use upload_module instead."
             )
 
-        from importlib.metadata import requires, version
+        from importlib.metadata import requires
 
         metadata = get_metadata(obj)
 
-        def get_version(obj: Any) -> str | None:
-            try:
-                return version(obj.__module__.partition(".")[0])
-            except Exception:
-                return None
-
-        python_import = PythonImport(
-            module=obj.__module__,
-            version=get_version(obj),
-            qualname=obj.__qualname__,
-        )
+        python_import = f"{obj.__module__}.{obj.__qualname__}"
 
         try:
             dependencies = requires(obj.__module__.partition(".")[0])
@@ -117,8 +111,8 @@ class NodeStore:
 
         request_data = NodeRequest(
             python_import=python_import,
-            author=self.author,
-            email=self.email,
+            author_name=self.author,
+            author_email=self.email,
             **metadata.model_dump(),
             dependencies=dependencies,
         )
@@ -129,7 +123,7 @@ class NodeStore:
         )
         return response
 
-    def get_function(self, node_id: str) -> dict:
+    def get_function(self, node_id: str) -> NodeResponse:
         """Retrieve node metadata from the specified API endpoint.
 
         Args:
@@ -138,7 +132,7 @@ class NodeStore:
             dict: The node metadata.
         """
         response = requests.get(f"{self.api_url}/nodes/{node_id}/")
-        return response.json()
+        return NodeResponse.model_validate(response.json())
 
     def download_python_workflow_definition(
         self, node_id: str, filename: Path | str
@@ -158,15 +152,21 @@ class NodeStore:
             f.write(metadata.source_code)
         return workflow
 
-    def get_function_index(self) -> dict:
+    def get_function_index(self) -> SimpleNamespace:
         response = requests.get(f"{self.api_url}/node-index/")
-        index = DotDict({})
-        for f in response.json():
-            entry = index.create_path(f"{f['module']}.{f['qualname']}")
-            entry.update(f)
-        return index
 
-    def search_function(self, query: str) -> list:
+        ns = SimpleNamespace()
+        for f in response.json():
+            key_list = f"{f['module']}.{f['qualname']}".split(".")
+            current = ns
+            for key in key_list:
+                if not hasattr(current, key):
+                    setattr(current, key, SimpleNamespace())
+                current = getattr(current, key)
+            current = f"{f['module']}.{f['qualname']}"
+        return ns
+
+    def search_function(self, query: str) -> list[NodeResponse]:
         """Search for nodes matching the query using semantic search.
 
         Args:
@@ -180,7 +180,7 @@ class NodeStore:
         )
         return response.json()
 
-    def semantic_search_function(self, query: str) -> list:
+    def semantic_search_function(self, query: str) -> list[SemanticSearchResponse]:
         """Search for nodes matching the query using semantic search.
 
         Args:
@@ -194,7 +194,7 @@ class NodeStore:
         )
         return response.json()
 
-    def filter(self, filter_params: dict | None = None) -> list:
+    def filter(self, filter_params: NodeFilter | None = None) -> list[NodeResponse]:
         """Filter nodes based on provided criteria.
 
         Args:

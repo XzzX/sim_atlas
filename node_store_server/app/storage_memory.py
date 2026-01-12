@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import pickle
+from collections.abc import Callable
 
 from bson.binary import Binary
 from node_store_spec.models import (
@@ -17,21 +18,21 @@ from .models import (
 from .storage import StorageInterface
 
 
-def cosine_similarity(vec1: Binary, vec2: Binary) -> float:
-    """Compute the cosine similarity between two BSON binary vectors.
+def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
+    """Compute the cosine similarity between two vectors.
 
     Args:
-        vec1 (Binary): The first BSON binary vector.
-        vec2 (Binary): The second BSON binary vector.
+        vec1 (list[float]): The first vector.
+        vec2 (list[float]): The second vector.
 
     Returns:
         float: The cosine similarity between the two vectors.
     """
     import numpy as np
 
-    # Convert BSON Binary to numpy arrays
-    array1 = np.array(vec1.as_vector().data)
-    array2 = np.array(vec2.as_vector().data)
+    # Convert to numpy arrays
+    array1 = np.array(vec1)
+    array2 = np.array(vec2)
 
     # Compute cosine similarity
     dot_product = np.dot(array1, array2)
@@ -75,169 +76,84 @@ class InMemoryStorage(StorageInterface):
         with open("in-memory.pkl", "wb") as f:
             pickle.dump(self._storage, f)
 
-    def create(self, node: NodeMetadata) -> str:
-        """
-        Create a new node metadata entry.
+    def __getitem__(self, key: str) -> NodeMetadata:
+        return self._storage[key]
 
-        Args:
-            node: The node metadata to store
-
-        Returns:
-            The unique hash of the node
-
-        Raises:
-            ValueError: If node already exists
-        """
-        node_hash = node.source_code_hash
-        if node_hash in self._storage:
-            raise ValueError(f"Node with hash {node_hash} already exists")
-        self._storage[node_hash] = node
+    def __setitem__(self, key: str, value: NodeMetadata) -> None:
+        self._storage[key] = value
         self._save_to_disk()
 
-        return node_hash
+    def __delitem__(self, key: str) -> None:
+        del self._storage[key]
+        self._save_to_disk()
 
-    def list(self, filter: NodeFilter | None = None) -> list[NodeMetadata]:
-        """
-        Retrieve all node metadata entries.
+    def __iter__(self):
+        return iter(self._storage)
 
-        Returns:
-            List of all node metadata
-        """
+    def __len__(self) -> int:
+        return len(self._storage)
 
+    def filter(self, filter: NodeFilter | None = None) -> list[NodeMetadata]:
         if filter is None:
             return list(self._storage.values())
 
-        if filter.input is None:
+        input_datatype_filter: Callable[[NodeMetadata], bool] = (
+            (lambda x: True)
+            if filter.input.datatype is None
+            else (
+                lambda x: filter.input.datatype
+                in (it.datatype for it in x.inputs.values())
+            )
+        )
+        input_unit_filter: Callable[[NodeMetadata], bool] = (
+            (lambda x: True)
+            if filter.input.unit is None
+            else (lambda x: filter.input.unit in (it.unit for it in x.inputs.values()))
+        )
+        input_quantity_filter: Callable[[NodeMetadata], bool] = (
+            (lambda x: True)
+            if filter.input.quantity is None
+            else (
+                lambda x: filter.input.quantity
+                in (it.quantity for it in x.inputs.values())
+            )
+        )
 
-            def input_filter(x):
-                return True
-        else:
-            input_datatype_filter = (
-                (lambda x: True)
-                if filter.input.datatype is None
-                else (
-                    lambda x: filter.input.datatype
-                    in (it.datatype for it in x.arguments)
-                )
+        output_datatype_filter: Callable[[NodeMetadata], bool] = (
+            (lambda x: True)
+            if filter.output.datatype is None
+            else (
+                lambda x: filter.output.datatype
+                in (it.datatype for it in x.outputs.values())
             )
-            input_unit_filter = (
-                (lambda x: True)
-                if filter.input.unit is None
-                else (lambda x: filter.input.unit in (it.unit for it in x.arguments))
+        )
+        output_unit_filter: Callable[[NodeMetadata], bool] = (
+            (lambda x: True)
+            if filter.output.unit is None
+            else (
+                lambda x: filter.output.unit in (it.unit for it in x.outputs.values())
             )
-            input_quantity_filter = (
-                (lambda x: True)
-                if filter.input.quantity is None
-                else (
-                    lambda x: filter.input.quantity
-                    in (it.quantity for it in x.arguments)
-                )
+        )
+        output_quantity_filter: Callable[[NodeMetadata], bool] = (
+            (lambda x: True)
+            if filter.output.quantity is None
+            else (
+                lambda x: filter.output.quantity
+                in (it.quantity for it in x.outputs.values())
             )
+        )
 
-            def input_filter(x):
-                return (
-                    input_datatype_filter(x)
-                    and input_unit_filter(x)
-                    and input_quantity_filter(x)
-                )
-
-        if filter.output is None:
-
-            def output_filter(x):
-                return True
-        else:
-            output_datatype_filter = (
-                (lambda x: True)
-                if filter.output.datatype is None
-                else (
-                    lambda x: filter.output.datatype
-                    in (it.datatype for it in x.returns)
-                )
-            )
-            output_unit_filter = (
-                (lambda x: True)
-                if filter.output.unit is None
-                else (lambda x: filter.output.unit in (it.unit for it in x.returns))
-            )
-            output_quantity_filter = (
-                (lambda x: True)
-                if filter.output.quantity is None
-                else (
-                    lambda x: filter.output.quantity
-                    in (it.quantity for it in x.returns)
-                )
+        def filter_item(item: NodeMetadata) -> bool:
+            return (
+                input_datatype_filter(item)
+                and input_unit_filter(item)
+                and input_quantity_filter(item)
+                and output_datatype_filter(item)
+                and output_unit_filter(item)
+                and output_quantity_filter(item)
             )
 
-            def output_filter(x):
-                return (
-                    output_datatype_filter(x)
-                    and output_unit_filter(x)
-                    and output_quantity_filter(x)
-                )
-
-        return [
-            item
-            for item in self._storage.values()
-            if input_filter(item) and output_filter(item)
-        ]
-
-    def read(self, node_hash: str) -> NodeMetadata | None:
-        """
-        Retrieve a specific node metadata entry by hash.
-
-        Args:
-            node_hash: The hash of the node to retrieve
-
-        Returns:
-            The node metadata if found, None otherwise
-        """
-        return self._storage.get(node_hash)
-
-    def exists(self, node_hash: str) -> bool:
-        """
-        Check if a node metadata entry exists by hash.
-
-        Args:
-            node_hash: The hash of the node to check
-        Returns:
-            True if the node exists, False otherwise
-        """
-        return node_hash in self._storage
-
-    def update(self, node_hash: str, node: NodeMetadata) -> bool:
-        """
-        Update an existing node metadata entry.
-
-        Args:
-            node_hash: The hash of the node to update
-            node: The updated node metadata
-
-        Returns:
-            True if the node was updated, False if not found
-        """
-        if node_hash not in self._storage:
-            return False
-
-        self._storage[node_hash] = node
-        self._save_to_disk()
-        return True
-
-    def delete(self, node_hash: str) -> bool:
-        """
-        Delete a node metadata entry.
-
-        Args:
-            node_hash: The hash of the node to delete
-
-        Returns:
-            True if the node was deleted, False if not found
-        """
-        if node_hash not in self._storage:
-            return False
-
-        del self._storage[node_hash]
-        self._save_to_disk()
-        return True
+        return [item for item in self._storage.values() if filter_item(item)]
 
     def search(self, query: str) -> list[NodeMetadata]:
         """
@@ -249,15 +165,14 @@ class InMemoryStorage(StorageInterface):
         Returns:
             List of matching node metadata
         """
-        results = []
+        results: list[NodeMetadata] = []
         query_lower = query.lower()
 
         for node in self._storage.values():
             # Search in qualname, module, and docstring
             searchable_text = " ".join(
                 [
-                    node.qualname or "",
-                    node.module or "",
+                    node.python_import or "",
                     node.docstring or "",
                     node.ai_docstring or "",
                 ]
@@ -285,7 +200,7 @@ class InMemoryStorage(StorageInterface):
         query_embedding = create_embedding(query)
 
         # Calculate similarities
-        similarities = []
+        similarities: list[SemanticSearchResponse] = []
         for _node_hash, node in self._storage.items():
             if node.embedding is not None:
                 similarity = cosine_similarity(query_embedding, node.embedding)

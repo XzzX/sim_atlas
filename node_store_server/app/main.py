@@ -1,14 +1,16 @@
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_mcp import FastApiMCP
 from node_store_spec.models import (
     NodeFilter,
-    NodeIndex,
     NodeRequest,
     SemanticSearchResponse,
 )
+
+from app.security import has_read_access
 
 from .models import (
     NodeMetadata,
@@ -53,65 +55,54 @@ async def root():
     return {"message": "Welcome to Node Store!", "status": "running"}
 
 
-@app.get("/node-index/", response_model=list[NodeIndex])
-async def read_node_index():
-    return [
-        NodeIndex(
-            module=item.module,
-            qualname=item.qualname,
-            source_code_hash=item.source_code_hash,
-        )
-        for item in storage.list()
-        if item.module and item.qualname
-    ]
-
-
-@app.post("/nodes/", response_model=str)
-async def create_node(node: NodeRequest):
-    """Create a new node metadata entry"""
-
-    if storage.exists(node.source_code_hash):
+@app.post("/nodes/")
+async def create_node(node: NodeRequest) -> NodeResponse:
+    if node.source_code_hash in storage:
         raise HTTPException(status_code=401, detail="Node already exists")
 
     node_metadata = NodeMetadata(**node.model_dump(), ai_docstring="")
 
     try:
-        return storage.create(node_metadata)
+        storage[node_metadata.source_code_hash] = node_metadata
+        return node_metadata
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@app.post("/nodes/list", response_model=list[NodeResponse])
-async def read_nodes(filter: NodeFilter | None = None):
-    """Retrieve all node metadata entries"""
-    return storage.list(filter)
-
-
-@app.get("/nodes/{node_hash}", response_model=NodeResponse)
-async def read_node(node_hash: str):
-    """Retrieve a specific node metadata entry by its hash"""
-    node = storage.read(node_hash)
+@app.get("/nodes/{node_hash}")
+async def read_node(node_hash: str) -> NodeResponse:
+    node = storage.get(node_hash, None)
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
     return node
 
 
-@app.put("/nodes/{node_hash}", response_model=NodeResponse)
-async def update_node(node_hash: str, node: NodeMetadata):
-    """Update an existing node metadata entry"""
-    success = storage.update(node_hash, node)
-    if not success:
+@app.put("/nodes/{node_hash}")
+async def update_node(node_hash: str, node: NodeMetadata) -> NodeResponse:
+    if node_hash not in storage:
         raise HTTPException(status_code=404, detail="node not found")
+    storage[node_hash] = node
     return node
 
 
 @app.delete("/nodes/{node_hash}")
 async def delete_node(node_hash: str):
-    """Delete a node metadata entry"""
-    success = storage.delete(node_hash)
-    if not success:
+    if node_hash not in storage:
         raise HTTPException(status_code=404, detail="node not found")
+    del storage[node_hash]
     return {"detail": "Node deleted"}
+
+
+@app.get("/node-index/")
+async def read_node_index() -> list[str]:
+    return [item.python_import for item in storage.values() if item.python_import]
+
+
+@app.post("/nodes/list")
+async def read_nodes(
+    key: Annotated[str, Depends(has_read_access)], filter: NodeFilter | None = None
+) -> list[NodeResponse]:
+    return [NodeResponse(**x.model_dump()) for x in storage.filter(filter)]
 
 
 @app.post("/nodes/search", response_model=list[NodeResponse])

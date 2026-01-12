@@ -1,10 +1,9 @@
-from bson.binary import Binary, BinaryVectorDtype
 from dotenv import dotenv_values
 
 config = dotenv_values(".env")
 
 
-def create_embedding(text: str) -> Binary:
+def create_embedding(text: str) -> list[float]:
     from openai import OpenAI
 
     # API configuration
@@ -25,13 +24,7 @@ def create_embedding(text: str) -> Binary:
         .embedding
     )
 
-    # Define a function to generate BSON vectors
-    def generate_bson_vector(vector, vector_dtype):
-        return Binary.from_vector(vector, vector_dtype)
-
-    # Generate BSON vector from the sample float32 embedding
-    bson_float32_embedding = generate_bson_vector(embedding, BinaryVectorDtype.FLOAT32)
-    return bson_float32_embedding
+    return embedding
 
 
 def create_ai_docstring(docstring: str, source_code: str) -> str:

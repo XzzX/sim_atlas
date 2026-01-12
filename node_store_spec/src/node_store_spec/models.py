@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class NodeType(StrEnum):
@@ -35,51 +35,41 @@ class Annotation(BaseModel):
 #     )
 
 
-class PythonImport(BaseModel):
-    module: str
-    qualname: str
-    version: str | None = None
-
-
 class NodeRequest(BaseModel):
     """How does a node look like when being posted to the API"""
 
-    author: str
-    email: str
+    author_name: str
+    author_email: str
 
     node_type: NodeType
 
-    python_import: PythonImport | None = None
+    python_import: str | None = None
     dependencies: list[str] | None = None
 
     source_code: str
     source_code_hash: str
 
-    docstring: str | None = None
-    arguments: dict[str, Annotation | None] | None = None
-    returns: Annotation | None = None
-    returns_unpacked: dict[str, Annotation | None] | None = None
+    docstring: str
+    inputs: dict[str, Annotation]
+    outputs: dict[str, Annotation]
 
 
 class NodeResponse(BaseModel):
-    """How does a node look like when being returned from the API"""
-
-    author: str
-    email: str
+    author_name: str
+    author_email: str
 
     node_type: NodeType
 
-    python_import: PythonImport | None = None
+    python_import: str | None = None
     dependencies: list[str] | None = None
 
     source_code: str
     source_code_hash: str
 
-    docstring: str | None = None
+    docstring: str
     ai_docstring: str
-    arguments: dict[str, Annotation | None] | None = None
-    returns: Annotation | None = None
-    returns_unpacked: dict[str, Annotation | None] | None = None
+    inputs: dict[str, Annotation]
+    outputs: dict[str, Annotation]
 
 
 class NodeIndex(BaseModel):
@@ -100,5 +90,5 @@ class ArgumentFilter(BaseModel):
 
 
 class NodeFilter(BaseModel):
-    input: ArgumentFilter | None = None
-    output: ArgumentFilter | None = None
+    input: ArgumentFilter = Field(default_factory=ArgumentFilter)
+    output: ArgumentFilter = Field(default_factory=ArgumentFilter)

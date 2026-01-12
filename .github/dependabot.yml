@@ -9,3 +9,6 @@ updates:
     directories: ["node_store_server", "node_store_spec", "node_store_tools"]
     schedule:
       interval: "weekly"
+    groups:
+      version-updates:
+        applies-to: version-updates

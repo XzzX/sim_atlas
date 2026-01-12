@@ -1,3 +1,5 @@
+import hashlib
+import inspect
 from typing import Any
 
 from node_store_spec.models import Annotation, NodeType
@@ -8,9 +10,6 @@ from .metadata import Metadata
 def parse(obj: Any) -> Metadata | None:
     if obj.__globals__["__name__"] != "pyiron_core.pyiron_workflow.simple_workflow":
         return None
-
-    import hashlib
-    import inspect
 
     source_code = inspect.getsource(obj)
     source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()

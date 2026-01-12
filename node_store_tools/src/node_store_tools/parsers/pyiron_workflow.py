@@ -1,3 +1,5 @@
+import hashlib
+import inspect
 from typing import Any
 
 from node_store_spec.models import NodeType
@@ -6,13 +8,10 @@ from .metadata import Metadata
 
 
 def parse(node: Any) -> Metadata | None:
-    from pyiron_workflow.nodes.function import Function
+    from pyiron_workflow.nodes.function import Function  # noqa: PLC0415
 
     if not (isinstance(node, type) and issubclass(node, Function)):
         return None
-
-    import hashlib
-    import inspect
 
     source_code = inspect.getsource(node.node_function)
     source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()

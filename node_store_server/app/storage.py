@@ -65,6 +65,6 @@ def get_storage_backend() -> StorageInterface:
         ValueError: If the configured backend is not supported
     """
 
-    from .storage_memory import InMemoryStorage
+    from .storage_memory import InMemoryStorage  # noqa: PLC0415
 
     return InMemoryStorage()

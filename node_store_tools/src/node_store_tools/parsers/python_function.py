@@ -1,4 +1,6 @@
+import hashlib
 import inspect
+import textwrap
 from typing import Annotated, Any, get_args, get_origin
 
 from node_store_spec.models import Annotation, NodeType
@@ -15,9 +17,6 @@ def _parse_annotation(annotation: Any) -> Annotation:
     Returns:
         Annotation: The parsed annotation details.
     """
-
-    from typing import get_args, get_origin
-
     if annotation is None:
         return Annotation()
 
@@ -72,9 +71,6 @@ def _parse_and_unpack_annotation(annotation: Any) -> dict[str, Annotation]:
 def parse(obj: Any) -> Metadata | None:
     if not (inspect.isfunction(obj) or inspect.ismethod(obj)):
         return None
-
-    import hashlib
-    import textwrap
 
     source_code = inspect.getsource(obj)
     source_code = textwrap.dedent(source_code.replace("\\r\\n", ""))

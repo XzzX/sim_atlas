@@ -1,5 +1,7 @@
 import importlib
 import inspect
+from http import HTTPStatus
+from importlib.metadata import requires
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
@@ -25,7 +27,7 @@ class NodeStore:
         self.author = author
         self.email = email
 
-    def upload_module(
+    def upload_module(  # noqa: PLR0912
         self, module: str | ModuleType, upload_included_modules: bool = False
     ) -> None:
         if isinstance(module, str):
@@ -58,12 +60,6 @@ class NodeStore:
             if k.startswith("_"):
                 continue
 
-            # print(
-            #     module.__package__,
-            #     v.__package__.partition(".")[0] if hasattr(v, "__package__") else None,
-            #     v.__module__.partition(".")[0] if hasattr(v, "__module__") else None,
-            # )
-
             if inspect.ismodule(v) and upload_included_modules:
                 self.upload_module(v, upload_included_modules=upload_included_modules)
                 continue
@@ -74,7 +70,7 @@ class NodeStore:
                 print(f"✗ {k}: {v}\n{e}")
                 continue
 
-            if response.status_code == 200:
+            if response.status_code == HTTPStatus.OK:
                 print(f"✓ {k}: {v}\n{response.json()}")
             else:
                 print(f"✗ {k}: {v}\n{response.json()}")
@@ -97,8 +93,6 @@ class NodeStore:
             raise ValueError(
                 "Will not automatically upload modules. Use upload_module instead."
             )
-
-        from importlib.metadata import requires
 
         metadata = get_metadata(obj)
 
@@ -138,7 +132,7 @@ class NodeStore:
         self, node_id: str, filename: Path | str
     ) -> PythonWorkflowDefinitionWorkflow:
         response = requests.get(f"{self.api_url}/nodes/{node_id}/")
-        if response.status_code != 200:
+        if response.status_code != HTTPStatus.OK:
             raise ValueError(f"Node with ID {node_id} not found.")
         metadata = NodeResponse.model_validate(response.json())
         if metadata.node_type != NodeType.PYTHON_WORKFLOW_DEFINITION:

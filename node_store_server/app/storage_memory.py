@@ -4,6 +4,7 @@ import os
 import pickle
 from collections.abc import Callable
 
+import numpy as np
 from node_store_spec.models import (
     NodeFilter,
     SemanticSearchResponse,
@@ -27,7 +28,6 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
     Returns:
         float: The cosine similarity between the two vectors.
     """
-    import numpy as np
 
     # Convert to numpy arrays
     array1 = np.array(vec1)
@@ -70,7 +70,6 @@ class InMemoryStorage(StorageInterface):
 
     def _save_to_disk(self) -> None:
         """Save the current storage state to disk"""
-        import pickle
 
         with open("in-memory.pkl", "wb") as f:
             pickle.dump(self._storage, f)

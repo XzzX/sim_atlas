@@ -1,11 +1,10 @@
 from dotenv import dotenv_values
+from openai import OpenAI
 
 config = dotenv_values(".env")
 
 
 def create_embedding(text: str) -> list[float]:
-    from openai import OpenAI
-
     # API configuration
     api_key = config["LLM_API_KEY"] or ""
     base_url = config["LLM_API_URL"] or ""
@@ -28,8 +27,6 @@ def create_embedding(text: str) -> list[float]:
 
 
 def create_ai_docstring(docstring: str, source_code: str) -> str:
-    from openai import OpenAI
-
     # API configuration
     api_key = config["LLM_API_KEY"] or ""
     base_url = config["LLM_API_URL"] or ""

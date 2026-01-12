@@ -467,10 +467,7 @@ dependencies = [
 requires-dist = [{ name = "pydantic", specifier = "==2.12.4" }]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "pyright", specifier = ">=1.1.408" },
-    { name = "ruff", specifier = ">=0.14.8" },
-]
+dev = [{ name = "ruff", specifier = ">=0.14.8" }]
 
 [[package]]
 name = "node-store-tools"

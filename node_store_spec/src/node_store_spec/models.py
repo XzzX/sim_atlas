@@ -17,24 +17,6 @@ class Annotation(BaseModel):
     quantity: str | None = None
 
 
-# class Argument(BaseModel):
-#     name: str
-#     datatype: str | None = None
-#     unit: str | None = Field(None, pattern=r"^https://qudt\.org/vocab/unit/[\w]+$")
-#     quantity: str | None = Field(
-#         None, pattern=r"^https://qudt\.org/vocab/quantitykind/[\w]+$"
-#     )
-
-
-# class Return(BaseModel):
-#     name: str | None = None
-#     datatype: str | None = None
-#     unit: str | None = Field(None, pattern=r"^https://qudt\.org/vocab/unit/[\w]+$")
-#     quantity: str | None = Field(
-#         None, pattern=r"^https://qudt\.org/vocab/quantitykind/[\w]+$"
-#     )
-
-
 class NodeRequest(BaseModel):
     """How does a node look like when being posted to the API"""
 

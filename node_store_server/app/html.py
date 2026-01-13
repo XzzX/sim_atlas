@@ -17,56 +17,64 @@ def render_node_html(node: NodeMetadata) -> str:
     collapse_id = f"collapse-{node.source_code_hash[:8]}"
 
     inputs_html = ""
-    for name, annotation in node.inputs.items():
-        inputs_html += f"<li><strong>{escape_html(name)}</strong>: "
-        if annotation.label:
-            inputs_html += f"{escape_html(annotation.label)} "
-        if annotation.datatype:
-            inputs_html += f"({escape_html(annotation.datatype)}) "
-        if annotation.unit:
-            inputs_html += f"[{escape_html(annotation.unit)}] "
-        if annotation.quantity:
-            inputs_html += f"- {escape_html(annotation.quantity)} "
-        inputs_html += "</li>"
+    if node.inputs:
+        for name, annotation in node.inputs.items():
+            inputs_html += f"<li><strong>{escape_html(name)}</strong><ul>"
+            if annotation.label:
+                inputs_html += f"<li>Label: {escape_html(annotation.label)}</li>"
+            if annotation.datatype:
+                inputs_html += (
+                    f"<li>Type: <code>{escape_html(annotation.datatype)}</code></li>"
+                )
+            if annotation.unit:
+                inputs_html += f"<li>Unit: {escape_html(annotation.unit)}</li>"
+            if annotation.quantity:
+                inputs_html += f"<li>Quantity: {escape_html(annotation.quantity)}</li>"
+            inputs_html += "</ul></li>"
+    else:
+        inputs_html = "<li class='text-muted'>No inputs</li>"
 
     outputs_html = ""
-    for name, annotation in node.outputs.items():
-        outputs_html += f"<li><strong>{escape_html(name)}</strong>: "
-        if annotation.label:
-            outputs_html += f"{escape_html(annotation.label)} "
-        if annotation.datatype:
-            outputs_html += f"({escape_html(annotation.datatype)}) "
-        if annotation.unit:
-            outputs_html += f"[{escape_html(annotation.unit)}] "
-        if annotation.quantity:
-            outputs_html += f"- {escape_html(annotation.quantity)} "
-        outputs_html += "</li>"
+    if node.outputs:
+        for name, annotation in node.outputs.items():
+            outputs_html += f"<li><strong>{escape_html(name)}</strong><ul>"
+            if annotation.label:
+                outputs_html += f"<li>Label: {escape_html(annotation.label)}</li>"
+            if annotation.datatype:
+                outputs_html += (
+                    f"<li>Type: <code>{escape_html(annotation.datatype)}</code></li>"
+                )
+            if annotation.unit:
+                outputs_html += f"<li>Unit: {escape_html(annotation.unit)}</li>"
+            if annotation.quantity:
+                outputs_html += f"<li>Quantity: {escape_html(annotation.quantity)}</li>"
+            outputs_html += "</ul></li>"
+    else:
+        outputs_html = "<li class='text-muted'>No outputs</li>"
 
     node_html = f"""
-    <div class="card mb-4">
-        <div class="card-body">
+    <div class="card mb-4" style="cursor: pointer;">
+        <div 
+            class="card-body" 
+            role="button" 
+            data-bs-toggle="collapse" 
+            data-bs-target="#{collapse_id}" 
+            aria-expanded="false" 
+            aria-controls="{collapse_id}">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <div>
+                <div class="flex-grow-1">
                     <h5 class="card-title mb-0">{escape_html(node.python_import or "Unnamed Node")}</h5>
                     <h6 class="card-subtitle text-muted small">Author: {escape_html(node.author_name)} ({escape_html(node.author_email)})</h6>
                     <p class="card-text text-muted small mb-0 mt-1">Type: {escape_html(node.node_type)}</p>
                 </div>
-                <div class="d-flex gap-2">
-                    <a href="/nodes-detail/{node.source_code_hash}" class="btn btn-sm btn-outline-primary">Details</a>
-                    <button 
-                        class="btn btn-sm btn-outline-secondary" 
-                        type="button" 
-                        data-bs-toggle="collapse" 
-                        data-bs-target="#{collapse_id}" 
-                        aria-expanded="false" 
-                        aria-controls="{collapse_id}">
-                        Preview
-                    </button>
+                <div class="d-flex gap-2" style="flex-shrink: 0;">
+                    <span class="badge bg-secondary" style="align-self: center;">Click to expand</span>
                 </div>
             </div>
+        </div>
             
-            <div class="collapse mt-3" id="{collapse_id}">
-                <hr>
+        <div class="collapse" id="{collapse_id}">
+            <div class="card-body border-top">
                 <p class="card-text">{escape_html(node.docstring).replace(chr(10), "<br>")}</p>
                 <hr>
                 <h6>Inputs:</h6>

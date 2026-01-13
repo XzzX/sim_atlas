@@ -65,7 +65,7 @@ def _parse_and_unpack_annotation(annotation: Any) -> dict[str, Annotation]:
             annotations[ann.label if ann.label is not None else str(i)] = ann
         return annotations
 
-    return {}
+    return {"return": _parse_annotation(annotation)}
 
 
 def parse(obj: Any) -> Metadata | None:

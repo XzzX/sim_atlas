@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

@@ -1,3 +1,5 @@
+from node_store_spec.models import Annotation
+
 from .models import NodeMetadata
 
 
@@ -13,44 +15,30 @@ def escape_html(text: str) -> str:
 
 
 def render_node_html(node: NodeMetadata) -> str:
-    """Render a NodeResponse as a collapsible card"""
+    def render_annotation_html(name: str, annotation: Annotation) -> str:
+        outputs_html = f"<li><strong>{escape_html(name)}</strong><ul>"
+        if annotation.label:
+            outputs_html += f"<li>Label: {escape_html(annotation.label)}</li>"
+        if annotation.datatype:
+            outputs_html += (
+                f"<li>Type: <code>{escape_html(annotation.datatype)}</code></li>"
+            )
+        if annotation.unit:
+            outputs_html += f"<li>Unit: {escape_html(annotation.unit)}</li>"
+        if annotation.quantity:
+            outputs_html += f"<li>Quantity: {escape_html(annotation.quantity)}</li>"
+        outputs_html += "</ul></li>"
+        return outputs_html
+
     collapse_id = f"collapse-{node.source_code_hash[:8]}"
 
     inputs_html = ""
-    if node.inputs:
-        for name, annotation in node.inputs.items():
-            inputs_html += f"<li><strong>{escape_html(name)}</strong><ul>"
-            if annotation.label:
-                inputs_html += f"<li>Label: {escape_html(annotation.label)}</li>"
-            if annotation.datatype:
-                inputs_html += (
-                    f"<li>Type: <code>{escape_html(annotation.datatype)}</code></li>"
-                )
-            if annotation.unit:
-                inputs_html += f"<li>Unit: {escape_html(annotation.unit)}</li>"
-            if annotation.quantity:
-                inputs_html += f"<li>Quantity: {escape_html(annotation.quantity)}</li>"
-            inputs_html += "</ul></li>"
-    else:
-        inputs_html = "<li class='text-muted'>No inputs</li>"
+    for name, annotation in node.inputs.items():
+        inputs_html += render_annotation_html(name, annotation)
 
     outputs_html = ""
-    if node.outputs:
-        for name, annotation in node.outputs.items():
-            outputs_html += f"<li><strong>{escape_html(name)}</strong><ul>"
-            if annotation.label:
-                outputs_html += f"<li>Label: {escape_html(annotation.label)}</li>"
-            if annotation.datatype:
-                outputs_html += (
-                    f"<li>Type: <code>{escape_html(annotation.datatype)}</code></li>"
-                )
-            if annotation.unit:
-                outputs_html += f"<li>Unit: {escape_html(annotation.unit)}</li>"
-            if annotation.quantity:
-                outputs_html += f"<li>Quantity: {escape_html(annotation.quantity)}</li>"
-            outputs_html += "</ul></li>"
-    else:
-        outputs_html = "<li class='text-muted'>No outputs</li>"
+    for name, annotation in node.outputs.items():
+        outputs_html += render_annotation_html(name, annotation)
 
     node_html = f"""
     <div class="card mb-4" style="cursor: pointer;">

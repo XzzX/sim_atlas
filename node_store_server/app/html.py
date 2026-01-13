@@ -1,5 +1,3 @@
-from typing import Optional
-
 from node_store_spec.models import Annotation, NodeType
 from python_workflow_definition.models import PythonWorkflowDefinitionWorkflow
 
@@ -19,7 +17,7 @@ def escape_html(text: str) -> str:
 
 def parse_workflow_from_source(
     source_code: str,
-) -> Optional[PythonWorkflowDefinitionWorkflow]:
+) -> PythonWorkflowDefinitionWorkflow | None:
     """Try to parse source code as a PythonWorkflowDefinitionWorkflow"""
     try:
         workflow = PythonWorkflowDefinitionWorkflow.model_validate_json(source_code)
@@ -45,42 +43,47 @@ def workflow_to_mermaid(workflow: PythonWorkflowDefinitionWorkflow) -> str:
 
     # Create edges
     for edge in workflow.edges:
-        source_port = edge.sourcePort or ""
-        target_port = edge.targetPort or ""
+        source_port = (
+            "".join(c for c in (edge.sourcePort or "") if c.isalnum() or c in " _-")
+            if edge.sourcePort
+            else ""
+        )
+        target_port = (
+            "".join(c for c in (edge.targetPort or "") if c.isalnum() or c in " _-")
+            if edge.targetPort
+            else ""
+        )
 
         if source_port and target_port:
-            label = f"{escape_html(source_port)} → {escape_html(target_port)}"
+            label = f"{source_port} → {target_port}"
             lines.append(f"    {edge.source} -->|{label}| {edge.target}")
         elif source_port:
-            lines.append(
-                f"    {edge.source} -->|{escape_html(source_port)}| {edge.target}"
-            )
+            lines.append(f"    {edge.source} -->|{source_port}| {edge.target}")
         elif target_port:
-            lines.append(
-                f"    {edge.source} -->|{escape_html(target_port)}| {edge.target}"
-            )
+            lines.append(f"    {edge.source} -->|{target_port}| {edge.target}")
         else:
             lines.append(f"    {edge.source} --> {edge.target}")
 
     return "\n".join(lines)
 
 
-def render_node_html(node: NodeMetadata) -> str:
-    def render_annotation_html(name: str, annotation: Annotation) -> str:
-        outputs_html = f"<li><strong>{escape_html(name)}</strong><ul>"
-        if annotation.label:
-            outputs_html += f"<li>Label: {escape_html(annotation.label)}</li>"
-        if annotation.datatype:
-            outputs_html += (
-                f"<li>Type: <code>{escape_html(annotation.datatype)}</code></li>"
-            )
-        if annotation.unit:
-            outputs_html += f"<li>Unit: {escape_html(annotation.unit)}</li>"
-        if annotation.quantity:
-            outputs_html += f"<li>Quantity: {escape_html(annotation.quantity)}</li>"
-        outputs_html += "</ul></li>"
-        return outputs_html
+def render_annotation_html(name: str, annotation: Annotation) -> str:
+    outputs_html = f"<li><strong>{escape_html(name)}</strong><ul>"
+    if annotation.label:
+        outputs_html += f"<li>Label: {escape_html(annotation.label)}</li>"
+    if annotation.datatype:
+        outputs_html += (
+            f"<li>Type: <code>{escape_html(annotation.datatype)}</code></li>"
+        )
+    if annotation.unit:
+        outputs_html += f"<li>Unit: {escape_html(annotation.unit)}</li>"
+    if annotation.quantity:
+        outputs_html += f"<li>Quantity: {escape_html(annotation.quantity)}</li>"
+    outputs_html += "</ul></li>"
+    return outputs_html
 
+
+def render_node_html(node: NodeMetadata) -> str:
     collapse_id = f"collapse-{node.source_code_hash[:8]}"
 
     inputs_html = ""
@@ -92,22 +95,29 @@ def render_node_html(node: NodeMetadata) -> str:
         outputs_html += render_annotation_html(name, annotation)
 
     node_html = f"""
-    <div class="card mb-4" style="cursor: pointer;">
-        <div 
-            class="card-body" 
-            role="button" 
-            data-bs-toggle="collapse" 
-            data-bs-target="#{collapse_id}" 
-            aria-expanded="false" 
-            aria-controls="{collapse_id}">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
                 <div class="flex-grow-1">
                     <h5 class="card-title mb-0">{escape_html(node.python_import or "Unnamed Node")}</h5>
                     <h6 class="card-subtitle text-muted small">Author: {escape_html(node.author_name)} ({escape_html(node.author_email)})</h6>
                     <p class="card-text text-muted small mb-0 mt-1">Type: {escape_html(node.node_type)}</p>
                 </div>
-                <div class="d-flex gap-2" style="flex-shrink: 0;">
-                    <span class="badge bg-secondary" style="align-self: center;">Click to expand</span>
+                <div class="d-flex gap-2 ms-3" style="flex-shrink: 0;">
+                    <button 
+                        class="btn btn-sm btn-outline-secondary"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#{collapse_id}"
+                        aria-expanded="false"
+                        aria-controls="{collapse_id}">
+                        ▼ Expand
+                    </button>
+                    <a 
+                        href="/nodes-detail/{node.source_code_hash}" 
+                        class="btn btn-sm btn-outline-primary">
+                        Details →
+                    </a>
                 </div>
             </div>
         </div>
@@ -239,32 +249,14 @@ def render_node_detail_page(node: NodeMetadata) -> str:
     inputs_html = ""
     if node.inputs:
         for name, annotation in node.inputs.items():
-            inputs_html += f"<li><strong>{escape_html(name)}</strong>: "
-            if annotation.label:
-                inputs_html += f"{escape_html(annotation.label)} "
-            if annotation.datatype:
-                inputs_html += f"<code>{escape_html(annotation.datatype)}</code> "
-            if annotation.unit:
-                inputs_html += f"[{escape_html(annotation.unit)}] "
-            if annotation.quantity:
-                inputs_html += f"- {escape_html(annotation.quantity)}"
-            inputs_html += "</li>"
+            inputs_html += render_annotation_html(name, annotation)
     else:
         inputs_html = "<li class='text-muted'>No inputs</li>"
 
     outputs_html = ""
     if node.outputs:
         for name, annotation in node.outputs.items():
-            outputs_html += f"<li><strong>{escape_html(name)}</strong>: "
-            if annotation.label:
-                outputs_html += f"{escape_html(annotation.label)} "
-            if annotation.datatype:
-                outputs_html += f"<code>{escape_html(annotation.datatype)}</code> "
-            if annotation.unit:
-                outputs_html += f"[{escape_html(annotation.unit)}] "
-            if annotation.quantity:
-                outputs_html += f"- {escape_html(annotation.quantity)}"
-            outputs_html += "</li>"
+            outputs_html += render_annotation_html(name, annotation)
     else:
         outputs_html = "<li class='text-muted'>No outputs</li>"
 

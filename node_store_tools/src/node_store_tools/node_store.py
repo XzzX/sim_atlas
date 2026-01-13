@@ -96,15 +96,12 @@ class NodeStore:
 
         metadata = get_metadata(obj)
 
-        python_import = f"{obj.__module__}.{obj.__qualname__}"
-
         try:
             dependencies = requires(obj.__module__.partition(".")[0])
         except Exception:
             dependencies = None
 
         request_data = NodeRequest(
-            python_import=python_import,
             author_name=self.author,
             author_email=self.email,
             **metadata.model_dump(),

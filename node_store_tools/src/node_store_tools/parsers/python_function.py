@@ -84,9 +84,10 @@ def parse(obj: Any) -> Metadata | None:
 
     return Metadata(
         node_type=NodeType.FUNCTION,
+        python_import=f"{obj.__module__}.{obj.__qualname__}",
         source_code=source_code,
         source_code_hash=source_code_hash,
-        docstring=inspect.getdoc(obj),
+        docstring=inspect.getdoc(obj) or "",
         inputs=inputs,
         outputs=outputs,
     )

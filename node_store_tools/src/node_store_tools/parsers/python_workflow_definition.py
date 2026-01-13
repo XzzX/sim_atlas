@@ -15,7 +15,7 @@ def parse(obj: Any) -> Metadata | None:
     if not isinstance(obj, PythonWorkflowDefinitionWorkflow):
         return None
 
-    source_code: str = obj.dump_json()
+    source_code: str = obj.model_dump_json()
     source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()
 
     inputs: dict[str, Annotation] = {}
@@ -27,9 +27,11 @@ def parse(obj: Any) -> Metadata | None:
             outputs[node.name] = Annotation()
 
     return Metadata(
+        node_type=NodeType.PYTHON_WORKFLOW_DEFINITION,
+        python_import=None,
         source_code=source_code,
         source_code_hash=source_code_hash,
+        docstring="",
         inputs=inputs,
         outputs=outputs,
-        node_type=NodeType.PYTHON_WORKFLOW_DEFINITION,
     )

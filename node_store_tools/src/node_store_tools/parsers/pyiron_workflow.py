@@ -2,15 +2,18 @@ import hashlib
 import inspect
 from typing import Any
 
-from node_store_spec.models import NodeType
+from node_store_spec.models import Annotation, NodeType
 
 from .metadata import Metadata
 
 
 def parse(node: Any) -> Metadata | None:
+    if not isinstance(node, type):
+        return None
+
     from pyiron_workflow.nodes.function import Function  # noqa: PLC0415
 
-    if not (isinstance(node, type) and issubclass(node, Function)):
+    if not issubclass(node, Function):
         return None
 
     source_code = inspect.getsource(node.node_function)
@@ -19,14 +22,16 @@ def parse(node: Any) -> Metadata | None:
     inputs = {}
     outputs = {}
     for k, _ in node.preview_inputs().items():
-        inputs[k] = None
+        inputs[k] = Annotation()
     for k, _ in node.preview_outputs().items():
-        outputs[k] = None
+        outputs[k] = Annotation()
 
     return Metadata(
+        node_type=NodeType.PYIRON_WORKFLOW_FUNCTION,
+        python_import=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
         source_code=source_code,
         source_code_hash=source_code_hash,
+        docstring=node.node_function.__doc__ or "",
         inputs=inputs,
         outputs=outputs,
-        node_type=NodeType.PYIRON_WORKFLOW_FUNCTION,
     )

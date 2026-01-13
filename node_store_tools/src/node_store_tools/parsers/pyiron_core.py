@@ -8,6 +8,8 @@ from .metadata import Metadata
 
 
 def parse(obj: Any) -> Metadata | None:
+    if not hasattr(obj, "__globals__"):
+        return None
     if obj.__globals__["__name__"] != "pyiron_core.pyiron_workflow.simple_workflow":
         return None
 
@@ -25,9 +27,11 @@ def parse(obj: Any) -> Metadata | None:
         outputs[k] = Annotation(label=k, datatype=v.type)
 
     return Metadata(
+        node_type=NodeType.PYIRON_CORE_NODE,
+        python_import=f"{obj.__module__}.{obj.__qualname__}",
         source_code=source_code,
         source_code_hash=source_code_hash,
+        docstring=instance.__doc__ or "",
         inputs=inputs,
         outputs=outputs,
-        node_type=NodeType.PYIRON_CORE_NODE,
     )

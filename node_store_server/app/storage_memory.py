@@ -60,6 +60,8 @@ class InMemoryStorage(StorageInterface):
             except Exception:
                 pass  # If loading fails, start with empty storage
 
+        print(f"InMemoryStorage initialized with {len(self._storage)} items.")
+
     def connect(self) -> None:
         """Initialize the in-memory storage"""
         self._connected = True

@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from fastapi_mcp import FastApiMCP
 from node_store_spec.models import (
     NodeFilter,
@@ -9,6 +11,7 @@ from node_store_spec.models import (
     SemanticSearchResponse,
 )
 
+from .html import render_search_page
 from .models import (
     NodeMetadata,
     NodeResponse,
@@ -46,10 +49,14 @@ app.add_middleware(
 )
 
 
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return {"message": "Welcome to Node Store!", "status": "running"}
+@app.get("/", response_class=HTMLResponse)
+async def root(query: str | None = None):
+    """Root endpoint - Search interface"""
+
+    nodes = storage.search(query) if query else []
+    search_page = render_search_page(query or "", nodes)
+
+    return search_page
 
 
 @app.post("/nodes/")

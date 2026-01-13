@@ -1,4 +1,7 @@
-from node_store_spec.models import Annotation
+from typing import Optional
+
+from node_store_spec.models import Annotation, NodeType
+from python_workflow_definition.models import PythonWorkflowDefinitionWorkflow
 
 from .models import NodeMetadata
 
@@ -12,6 +15,54 @@ def escape_html(text: str) -> str:
         .replace('"', "&quot;")
         .replace("'", "&#39;")
     )
+
+
+def parse_workflow_from_source(
+    source_code: str,
+) -> Optional[PythonWorkflowDefinitionWorkflow]:
+    """Try to parse source code as a PythonWorkflowDefinitionWorkflow"""
+    try:
+        workflow = PythonWorkflowDefinitionWorkflow.model_validate_json(source_code)
+        return workflow
+    except Exception:
+        return None
+
+
+def workflow_to_mermaid(workflow: PythonWorkflowDefinitionWorkflow) -> str:
+    """Convert a PythonWorkflowDefinitionWorkflow to a mermaidjs diagram"""
+    lines = ["flowchart TD"]
+
+    # Create nodes
+    for node in workflow.nodes:
+        if node.type == "input":
+            lines.append(f'    {node.id}["Input: {escape_html(node.name)}"]')
+        elif node.type == "output":
+            lines.append(f'    {node.id}["Output: {escape_html(node.name)}"]')
+        elif node.type == "function":
+            # Extract function name from module.function format
+            func_name = node.value.split(".")[-1]
+            lines.append(f'    {node.id}["{escape_html(func_name)}"]')
+
+    # Create edges
+    for edge in workflow.edges:
+        source_port = edge.sourcePort or ""
+        target_port = edge.targetPort or ""
+
+        if source_port and target_port:
+            label = f"{escape_html(source_port)} → {escape_html(target_port)}"
+            lines.append(f"    {edge.source} -->|{label}| {edge.target}")
+        elif source_port:
+            lines.append(
+                f"    {edge.source} -->|{escape_html(source_port)}| {edge.target}"
+            )
+        elif target_port:
+            lines.append(
+                f"    {edge.source} -->|{escape_html(target_port)}| {edge.target}"
+            )
+        else:
+            lines.append(f"    {edge.source} --> {edge.target}")
+
+    return "\n".join(lines)
 
 
 def render_node_html(node: NodeMetadata) -> str:
@@ -226,6 +277,21 @@ def render_node_detail_page(node: NodeMetadata) -> str:
     else:
         dependencies_html = "<p class='text-muted'>No dependencies</p>"
 
+    # Generate workflow diagram if this is a PWD node
+    workflow_diagram_html = ""
+    if node.node_type == NodeType.PYTHON_WORKFLOW_DEFINITION:
+        workflow = parse_workflow_from_source(node.source_code)
+        if workflow:
+            mermaid_diagram = workflow_to_mermaid(workflow)
+            workflow_diagram_html = f"""
+            <div class='detail-card'>
+                <h3 class='section-title'>Workflow Diagram</h3>
+                <div class="mermaid" style="background-color: white; padding: 1rem; border-radius: 0.3rem; overflow-x: auto;">
+{mermaid_diagram}
+                </div>
+            </div>
+            """
+
     page = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -350,6 +416,8 @@ def render_node_detail_page(node: NodeMetadata) -> str:
                 {dependencies_html}
             </div>
 
+            {workflow_diagram_html}
+
             <div class='detail-card'>
                 <h3 class='section-title'>Source Code</h3>
                 <pre style='background-color: #f5f5f5; padding: 1rem; border-radius: 0.3rem; overflow-x: auto;'><code>{escape_html(node.source_code)}</code></pre>
@@ -357,6 +425,11 @@ def render_node_detail_page(node: NodeMetadata) -> str:
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+        <script>
+            mermaid.initialize({{ startOnLoad: true }});
+            mermaid.contentLoaded();
+        </script>
     </body>
     </html>
     """

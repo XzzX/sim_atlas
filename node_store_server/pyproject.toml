@@ -12,6 +12,7 @@ dependencies = [
     "openai>=2.8.1",
     "pymongo>=4.15.4",
     "python-dotenv>=1.2.1",
+    "python-workflow-definition>=0.1.2",
 ]
 
 [dependency-groups]

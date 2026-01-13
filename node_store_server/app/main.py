@@ -10,7 +10,7 @@ from node_store_spec.models import (
     SemanticSearchResponse,
 )
 
-from .html import render_search_page
+from .html import render_search_page, render_node_detail_page
 from .models import (
     NodeMetadata,
     NodeResponse,
@@ -56,6 +56,15 @@ async def root(query: str | None = None):
     search_page = render_search_page(query or "", nodes)
 
     return search_page
+
+
+@app.get("/nodes-detail/{node_hash}", response_class=HTMLResponse)
+async def read_node_html(node_hash: str):
+    """Get detailed HTML view of a node"""
+    node = storage.get(node_hash, None)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    return render_node_detail_page(node)
 
 
 @app.post("/nodes/")

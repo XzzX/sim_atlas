@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
-import ReactFlow, {
+import {
+  ReactFlow,
   addEdge,
   type Connection,
   type Edge,
@@ -10,8 +11,12 @@ import ReactFlow, {
   MiniMap,
   Controls,
   Background,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+  MarkerType,
+  useReactFlow,
+  getOutgoers,
+  ReactFlowProvider,
+} from '@xyflow/react';
+import "./globals.css";
 import './App.css';
 
 import WorkflowNode from "./components/workflow-node";
@@ -38,21 +43,54 @@ const initialNodes: Node[] = [
 ];
 
 const initialEdges: Edge[] = [
-  // { id: 'e1-2', source: '1', sourceHandle: 'source-1', target: '2', targetHandle: 'target-1' },
-  // { id: 'e2-3', source: '2', sourceHandle: 'source-1', target: '3', targetHandle: 'target-1' },
+  {
+    id: 'e1-2', source: '1', sourceHandle: 'source-1', target: '2', targetHandle: 'target-1', markerEnd: {
+      type: MarkerType.ArrowClosed, width: 20,
+      height: 20,
+    }
+  },
+  { id: 'e2-3', source: '2', sourceHandle: 'source-1', target: '3', targetHandle: 'target-1', markerEnd: { type: MarkerType.ArrowClosed } },
 ];
 
 const nodeTypes: NodeTypes = {
   WorkflowNode: WorkflowNode,
 };
 
-function App() {
+function Flow() {
+  const { getNodes, getEdges } = useReactFlow();
+
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [],
+  );
+
+  const isValidConnection = useCallback(
+    (connection: Edge | Connection) => {
+      // we are using getNodes and getEdges helpers here
+      // to make sure we create isValidConnection function only once
+      const nodes = getNodes();
+      const edges = getEdges();
+      const target = nodes.find((node) => node.id === connection.target);
+      const hasCycle = (node: Node, visited = new Set<string>()): boolean => {
+        if (visited.has(node.id)) return false;
+
+        visited.add(node.id);
+
+        for (const outgoer of getOutgoers(node, nodes, edges)) {
+          if (outgoer.id === connection.source) return true;
+          if (hasCycle(outgoer, visited)) return true;
+        }
+
+        return false;
+      };
+
+      if (!target || target.id === connection.source) return false;
+      return !hasCycle(target);
+    },
+    [getNodes, getEdges],
   );
 
   return (
@@ -63,13 +101,22 @@ function App() {
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
+      // isValidConnection={isValidConnection}
       fitView
     >
       <Background />
-      {/* <Controls />
-      <MiniMap /> */}
+      <Controls />
+      <MiniMap />
     </ReactFlow>
   );
 }
 
-export default App;
+function FlowWithProvider() {
+  return (
+    <ReactFlowProvider>
+      <Flow />
+    </ReactFlowProvider>
+  );
+}
+
+export default FlowWithProvider;

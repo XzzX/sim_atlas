@@ -9,17 +9,22 @@ import {
 import { BaseHandle } from "@/components/base-handle";
 import { Rocket } from "lucide-react";
 import { memo } from "react";
-import { type NodeProps, Position } from "reactflow";
+import { type NodeProps, Position, Handle, ReactFlowProvider } from "@xyflow/react";
 
 const WorkflowNode = memo(() => {
     return (
-        <BaseNode>
-            <BaseNodeContent>
-                <BaseHandle id="target-1" type="target" position={Position.Left} />
-                <div>A node with two handles</div>
-                <BaseHandle id="source-1" type="source" position={Position.Right} />
-            </BaseNodeContent>
-        </BaseNode>
+        <ReactFlowProvider>
+            <BaseNode>
+                <BaseNodeHeader>
+                    <BaseNodeHeaderTitle>Workflow Node</BaseNodeHeaderTitle>
+                </BaseNodeHeader>
+                <BaseNodeContent>
+                    <BaseHandle id="target-1" type="target" position={Position.Left} />
+                    <div>A node with two handles</div>
+                    <BaseHandle id="source-1" type="source" position={Position.Right} />
+                </BaseNodeContent>
+            </BaseNode>
+        </ReactFlowProvider>
     );
 });
 

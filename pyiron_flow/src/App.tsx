@@ -18,112 +18,64 @@ import {
   ControlButton,
   Panel,
   type ReactFlowInstance,
+  getNodesBounds,
 } from '@xyflow/react';
 import "./globals.css";
 import './App.css';
 
+import dagre from '@dagrejs/dagre';
+
 import WorkflowNode from "./components/workflow-node";
-
-const initialNodes: Node[] = [
-  {
-    id: '1',
-    data: {
-      "author_name": "John Doe",
-      "author_email": "john.doe@example.com",
-      "node_type": "function",
-      "python_import": "my_nodes.sam.get_speed",
-      "dependencies": null,
-      "source_code": "def get_speed(\n    distance: float,\n    time: float,\n) -> float:\n    speed = distance / time\n    return speed\n",
-      "source_code_hash": "5ad2cfd1830c6c1aa9ce88e008056a099e1970d0954408be9914cc154cd496fa",
-      "docstring": "",
-      "ai_docstring": "",
-      "inputs": {
-        "distance": {
-          "label": null,
-          "datatype": "float",
-          "unit": null,
-          "quantity": null
-        },
-        "time": {
-          "label": null,
-          "datatype": "float",
-          "unit": null,
-          "quantity": null
-        }
-      },
-      "outputs": {
-        "return": {
-          "label": null,
-          "datatype": "float",
-          "unit": null,
-          "quantity": null
-        }
-      }
-    },
-    position: { x: -150, y: 0 },
-    type: 'WorkflowNode',
-  },
-  {
-    id: '2',
-    data: {
-      "author_name": "John Doe",
-      "author_email": "john.doe@example.com",
-      "node_type": "function",
-      "python_import": "my_nodes.sam.get_kinetic_energy",
-      "dependencies": null,
-      "source_code": "def get_kinetic_energy(\n    mass: float,\n    velocity: float,\n) -> float:\n    return 0.5 * mass * velocity**2\n",
-      "source_code_hash": "ce29e7286c653c46872d341a68deec1c4e72f82c8b9b45303429457492ca4514",
-      "docstring": "",
-      "ai_docstring": "",
-      "inputs": {
-        "mass": {
-          "label": null,
-          "datatype": "float",
-          "unit": null,
-          "quantity": null
-        },
-        "velocity": {
-          "label": null,
-          "datatype": "float",
-          "unit": null,
-          "quantity": null
-        }
-      },
-      "outputs": {
-        "return": {
-          "label": null,
-          "datatype": "float",
-          "unit": null,
-          "quantity": null
-        }
-      }
-    },
-    position: { x: 150, y: 0 },
-    type: 'WorkflowNode',
-  },
-
-];
-
-const initialEdges: Edge[] = [
-  // {
-  //   id: 'e1-2', source: '1', sourceHandle: 'source-1', target: '2', targetHandle: 'target-1', markerEnd: {
-  //     type: MarkerType.ArrowClosed, width: 20,
-  //     height: 20,
-  //   }
-  // },
-  // { id: 'e2-3', source: '2', sourceHandle: 'source-1', target: '3', targetHandle: 'target-1', markerEnd: { type: MarkerType.ArrowClosed } },
-];
+import { initialNodes, initialEdges } from './initialElements';
 
 const nodeTypes: NodeTypes = {
   WorkflowNode: WorkflowNode,
 };
 
 function Flow() {
-  const { getNodes, getEdges } = useReactFlow();
+  const { getNodes, getEdges, getNodesBounds } = useReactFlow();
+
+  const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
+    const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+    dagreGraph.setGraph({ rankdir: 'LR' });
+
+    nodes.forEach((node) => {
+      dagreGraph.setNode(node.id, getNodesBounds([node]));
+    });
+
+    edges.forEach((edge) => {
+      dagreGraph.setEdge(edge.source, edge.target);
+    });
+
+    dagre.layout(dagreGraph);
+
+    const newNodes = nodes.map((node) => {
+      const { width, height } = getNodesBounds([node])
+      const nodeWithPosition = dagreGraph.node(node.id);
+      const newNode = {
+        ...node,
+        // We are shifting the dagre node position (anchor=center center) to the top left
+        // so it matches the React Flow node anchor point (top left).
+        position: {
+          x: nodeWithPosition.x - width / 2,
+          y: nodeWithPosition.y - height / 2,
+        },
+      };
+
+      return newNode;
+    });
+
+    return { nodes: newNodes, edges };
+  };
+
+  const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+    initialNodes,
+    initialEdges,
+  );
 
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -163,6 +115,19 @@ function Flow() {
     }
   }, [rfInstance]);
 
+  const onLayout = useCallback(
+    () => {
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+        nodes,
+        edges,
+      );
+
+      setNodes([...layoutedNodes]);
+      setEdges([...layoutedEdges]);
+    },
+    [nodes, edges],
+  );
+
   return (
     <ReactFlow
       nodeTypes={nodeTypes}
@@ -183,6 +148,9 @@ function Flow() {
       </Controls>
       <MiniMap />
       <Panel position="top-right">
+        <button onClick={onLayout}>
+          layout
+        </button>
         <button onClick={onExport}>
           export
         </button>

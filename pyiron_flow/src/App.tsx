@@ -17,6 +17,7 @@ import {
   ReactFlowProvider,
   ControlButton,
   Panel,
+  type ReactFlowInstance,
 } from '@xyflow/react';
 import "./globals.css";
 import './App.css';
@@ -120,7 +121,7 @@ const nodeTypes: NodeTypes = {
 function Flow() {
   const { getNodes, getEdges } = useReactFlow();
 
-  const [rfInstance, setRfInstance] = useState(null);
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
@@ -170,7 +171,7 @@ function Flow() {
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
-      // isValidConnection={isValidConnection}
+      isValidConnection={isValidConnection}
       onInit={setRfInstance}
       fitView
     >

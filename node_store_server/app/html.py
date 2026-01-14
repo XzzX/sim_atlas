@@ -276,11 +276,17 @@ def render_node_detail_page(node: NodeMetadata) -> str:
         if workflow:
             mermaid_diagram = workflow_to_mermaid(workflow)
             workflow_diagram_html = f"""
-            <div class='detail-card'>
-                <h3 class='section-title'>Workflow Diagram</h3>
-                <div class="mermaid" style="background-color: white; padding: 1rem; border-radius: 0.3rem; overflow-x: auto;">
+            <div class='detail-card' style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+                <h3 class='section-title' style="margin: 1.5rem 1.5rem 1rem 1.5rem;">Workflow Diagram</h3>
+                <div class="mermaid" style="background-color: white; padding: 2rem; flex: 1; min-height: 800px; border-radius: 0.3rem; display: flex; align-items: center; justify-content: center;">
 {mermaid_diagram}
                 </div>
+                <style>
+                    .mermaid svg {{
+                        width: 100%;
+                        height: 100%;
+                    }}
+                </style>
             </div>
             """
 
@@ -418,9 +424,30 @@ def render_node_detail_page(node: NodeMetadata) -> str:
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
         <script>
-            mermaid.initialize({{ startOnLoad: true }});
+            mermaid.initialize({{ 
+                startOnLoad: true
+            }});
             mermaid.contentLoaded();
+            
+            // Enable pan and zoom on mermaid diagrams
+            setTimeout(function() {{
+                var svgs = document.querySelectorAll('.mermaid svg');
+                svgs.forEach(function(svg) {{
+                    if (!svg.hasAttribute('data-panZoom-enabled')) {{
+                        svgPanZoom(svg, {{
+                            zoomEnabled: true,
+                            controlIconsEnabled: true,
+                            fit: true,
+                            center: true,
+                            minZoom: 0.5,
+                            maxZoom: 10
+                        }});
+                        svg.setAttribute('data-panZoom-enabled', 'true');
+                    }}
+                }});
+            }}, 100);
         </script>
     </body>
     </html>

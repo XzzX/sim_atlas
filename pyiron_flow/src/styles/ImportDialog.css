@@ -1,0 +1,115 @@
+.import-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.import-dialog {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 600px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.import-dialog h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+}
+
+.import-drop-zone {
+    position: relative;
+    border: 2px dashed #ccc;
+    border-radius: 6px;
+    background-color: #f9f9f9;
+    transition: all 0.3s ease;
+    min-height: 300px;
+}
+
+.import-drop-zone.active {
+    border-color: #4f46e5;
+    background-color: #eef2ff;
+}
+
+.import-drop-zone.active .drag-overlay {
+    display: flex;
+}
+
+.import-textarea {
+    width: 100%;
+    height: 100%;
+    min-height: 300px;
+    border: none;
+    outline: none;
+    padding: 12px;
+    font-family: monospace;
+    font-size: 14px;
+    resize: none;
+    background-color: transparent;
+    box-sizing: border-box;
+}
+
+.drag-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(79, 70, 229, 0.1);
+    border-radius: 4px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    color: #4f46e5;
+    font-size: 16px;
+    pointer-events: none;
+}
+
+.import-dialog-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.load-button,
+.exit-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.load-button {
+    background-color: #4f46e5;
+    color: white;
+}
+
+.load-button:hover {
+    background-color: #4338ca;
+}
+
+.exit-button {
+    background-color: #e5e7eb;
+    color: #333;
+}
+
+.exit-button:hover {
+    background-color: #d1d5db;
+}

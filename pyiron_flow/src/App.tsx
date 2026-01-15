@@ -19,7 +19,9 @@ import {
   Panel,
   type ReactFlowInstance,
   getNodesBounds,
+  SelectionMode,
 } from '@xyflow/react';
+import { Button } from "@/components/ui/button"
 import "./globals.css";
 import './App.css';
 
@@ -27,6 +29,8 @@ import dagre from '@dagrejs/dagre';
 
 import WorkflowNode from "./components/workflow-node";
 import { initialNodes, initialEdges } from './initialElements';
+import { ImportDialog } from './components/ImportDialog';
+import { convertWorkflow } from './workflow_converter';
 
 const nodeTypes: NodeTypes = {
   WorkflowNode: WorkflowNode,
@@ -76,6 +80,7 @@ function Flow() {
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -128,6 +133,16 @@ function Flow() {
     [nodes, edges],
   );
 
+  const onImport = useCallback(
+    (text: string) => {
+      const { nodes, edges } = convertWorkflow(text);
+      setNodes(nodes);
+      setEdges(edges);
+
+    },
+    [setNodes, setEdges],
+  );
+
   return (
     <ReactFlow
       nodeTypes={nodeTypes}
@@ -138,6 +153,10 @@ function Flow() {
       onConnect={onConnect}
       isValidConnection={isValidConnection}
       onInit={setRfInstance}
+      panOnScroll
+      selectionOnDrag
+      panOnDrag={false}
+      selectionMode={SelectionMode.Partial}
       fitView
     >
       <Background />
@@ -148,16 +167,21 @@ function Flow() {
       </Controls>
       <MiniMap />
       <Panel position="top-right">
-        <button onClick={onLayout}>
+        <Button className="btn btn-primary" onClick={onLayout}>
           layout
-        </button>
-        <button onClick={onExport}>
+        </Button>
+        <Button onClick={onExport}>
           export
-        </button>
-        {/* <button onClick={onImport}>
+        </Button>
+        <Button onClick={() => setIsImportDialogOpen(true)}>
           import
-        </button> */}
+        </Button>
       </Panel>
+      <ImportDialog
+        isOpen={isImportDialogOpen}
+        onClose={() => setIsImportDialogOpen(false)}
+        onLoad={onImport}
+      />
     </ReactFlow>
   );
 }

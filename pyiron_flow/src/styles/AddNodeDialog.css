@@ -16,7 +16,7 @@
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 13px rgba(0, 0, 0, 0.1);
     padding: 24px;
-    max-width: 500px;
+    max-width: 600px;
     width: 90%;
     max-height: 80vh;
     display: flex;
@@ -31,12 +31,40 @@
     color: #111827;
 }
 
+.search-section {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 .search-input {
+    flex: 1;
     padding: 8px 12px;
     border: 1px solid #d1d5db;
     border-radius: 4px;
     font-size: 14px;
     font-family: inherit;
+}
+
+.filter-toggle {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background-color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.filter-toggle:hover {
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.filter-toggle:active {
+    transform: scale(0.98);
 }
 
 .search-input:focus {
@@ -100,4 +128,89 @@
 .add-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.filters-section {
+    padding: 12px;
+    background-color: #f9fafb;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filter-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    text-transform: uppercase;
+}
+
+.filter-options {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #374151;
+}
+
+.radio-label input[type="radio"] {
+    cursor: pointer;
+    accent-color: #3b82f6;
+}
+
+.filter-select {
+    padding: 6px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 13px;
+    background-color: white;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.filter-select:hover {
+    border-color: #9ca3af;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.clear-filters-btn {
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background-color: white;
+    color: #374151;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.clear-filters-btn:hover {
+    background-color: #f3f4f6;
+}
+
+.no-results {
+    padding: 24px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 14px;
 }

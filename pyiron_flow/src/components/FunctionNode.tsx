@@ -1,15 +1,12 @@
 import {
     BaseNode,
     BaseNodeContent,
-    BaseNodeFooter,
     BaseNodeHeader,
     BaseNodeHeaderTitle,
 } from "@/components/base-node";
-import { Button } from "@/components/ui/button";
-import { InfoIcon } from 'lucide-react'
 import { LabeledHandle } from "@/components/labeled-handle";
-import { type NodeProps, Position, Handle, ReactFlowProvider } from "@xyflow/react";
-import { type NodeResponse } from "./NodeResponse"
+import { Position } from "@xyflow/react";
+import { type NodeResponse } from "../interfaces/NodeResponse"
 
 import {
     NodeTooltip,
@@ -17,7 +14,7 @@ import {
     NodeTooltipTrigger,
 } from "@/components/node-tooltip";
 
-const WorkflowNode = function ({ data }: { data: NodeResponse }) {
+const FunctionNode = function ({ data }: { data: NodeResponse }) {
 
     return (
         <NodeTooltip>
@@ -64,4 +61,4 @@ const WorkflowNode = function ({ data }: { data: NodeResponse }) {
     );
 };
 
-export default WorkflowNode;
+export default FunctionNode;

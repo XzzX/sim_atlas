@@ -23,15 +23,15 @@ import './App.css';
 
 import dagre from '@dagrejs/dagre';
 
-import WorkflowNode from "./components/workflow-node";
+import FunctionNode from "./components/FunctionNode";
 import { initialNodes, initialEdges } from './initialElements';
 import { ImportDialog } from './components/ImportDialog';
 import { AddNodeDialog } from './components/AddNodeDialog';
 import { convertWorkflow } from './workflow_converter';
-import { type NodeResponse } from './components/NodeResponse';
+import { type NodeResponse } from './interfaces/NodeResponse';
 
 const nodeTypes: NodeTypes = {
-  WorkflowNode: WorkflowNode,
+  WorkflowNode: FunctionNode,
 };
 
 function Flow() {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import '../styles/AddNodeDialog.css';
-import { nodes } from '../NodeStore';
-import { type NodeResponse } from './NodeResponse';
+import { nodes } from '../interfaces/NodeStore';
+import { type NodeResponse } from '../interfaces/NodeResponse';
 import { ChevronDown } from 'lucide-react';
 
 interface AddNodeDialogProps {

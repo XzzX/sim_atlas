@@ -1,4 +1,4 @@
-import type { NodeResponse } from './components/NodeResponse';
+import type { NodeResponse } from './NodeResponse';
 
 async function fetchNodesList(): Promise<NodeResponse[]> {
     try {

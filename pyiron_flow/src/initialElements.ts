@@ -3,7 +3,7 @@ import {
     type Edge,
     type Node,
 } from '@xyflow/react';
-import { nodes } from './NodeStore';
+import { nodes } from './interfaces/NodeStore';
 
 export const initialNodes: Node[] = [
     {

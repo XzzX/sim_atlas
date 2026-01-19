@@ -1,4 +1,4 @@
-import * as PWD from "./PythonWorkflowDefinition";
+import * as PWD from "./interfaces/PythonWorkflowDefinition";
 
 export function convertWorkflow(text: string) {
     try {

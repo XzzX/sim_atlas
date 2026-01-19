@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -9,16 +9,12 @@ import {
   useNodesState,
   useEdgesState,
   MiniMap,
-  Controls,
   Background,
-  MarkerType,
   useReactFlow,
   getOutgoers,
   ReactFlowProvider,
-  ControlButton,
   Panel,
   type ReactFlowInstance,
-  getNodesBounds,
   SelectionMode,
 } from '@xyflow/react';
 import { Button } from "@/components/ui/button"
@@ -83,7 +79,7 @@ function Flow() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    (params: Connection) => { setEdges((eds) => addEdge(params, eds)); },
     [],
   );
 
@@ -153,33 +149,30 @@ function Flow() {
       onConnect={onConnect}
       isValidConnection={isValidConnection}
       onInit={setRfInstance}
-      panOnScroll
-      selectionOnDrag
-      panOnDrag={false}
       selectionMode={SelectionMode.Partial}
       fitView
     >
       <Background />
-      <Controls>
+      {/* <Controls>
         <ControlButton onClick={() => alert('Something magical just happened. ✨')}>
           A
         </ControlButton>
-      </Controls>
+      </Controls> */}
       <MiniMap />
       <Panel position="top-right">
-        <Button className="btn btn-primary" onClick={onLayout}>
+        <Button className="outline" onClick={onLayout}>
           layout
         </Button>
         <Button onClick={onExport}>
           export
         </Button>
-        <Button onClick={() => setIsImportDialogOpen(true)}>
+        <Button onClick={() => { setIsImportDialogOpen(true); }}>
           import
         </Button>
       </Panel>
       <ImportDialog
         isOpen={isImportDialogOpen}
-        onClose={() => setIsImportDialogOpen(false)}
+        onClose={() => { setIsImportDialogOpen(false); }}
         onLoad={onImport}
       />
     </ReactFlow>

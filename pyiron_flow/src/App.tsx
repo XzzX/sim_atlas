@@ -16,6 +16,9 @@ import {
   Panel,
   type ReactFlowInstance,
   SelectionMode,
+  type FinalConnectionState,
+  type OnConnectStartParams,
+  Handle,
 } from '@xyflow/react';
 import { Button } from "@/components/ui/button"
 import "./globals.css";
@@ -28,7 +31,8 @@ import { initialNodes, initialEdges } from './initialElements';
 import { ImportDialog } from './components/ImportDialog';
 import { AddNodeDialog } from './components/AddNodeDialog';
 import { convertWorkflow } from './workflow_converter';
-import { type NodeResponse } from './interfaces/NodeResponse';
+import { type NodeResponse, type Annotation } from './interfaces/NodeResponse';
+import { annotationMatchesFilter, type FilterState } from './interfaces/FilterState';
 
 const nodeTypes: NodeTypes = {
   WorkflowNode: FunctionNode,
@@ -81,10 +85,46 @@ function Flow() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isAddNodeDialogOpen, setIsAddNodeDialogOpen] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [dialogInitialFilters, setDialogInitialFilters] = useState<Partial<FilterState>>({});
+  const [pendingConnection, setPendingConnection] = useState<Handle | null>(null);
 
   const onConnect = useCallback(
     (params: Connection) => { setEdges((eds) => addEdge(params, eds)); },
-    [],
+    [setEdges],
+  );
+
+  const onConnectEnd = useCallback(
+    (_: React.MouseEvent | React.TouchEvent, connectionState: FinalConnectionState) => {
+      if (connectionState.isValid) {
+        // let the built-in onConnect handle the connection if we ended on a handle
+        return;
+      }
+      console.log(connectionState)
+
+      if (!rfInstance) return;
+
+      setContextMenuPos(rfInstance.screenToFlowPosition({ x: connectionState.to.x, y: connectionState.to.y }));
+
+      const io_ports = connectionState.fromHandle?.type == 'source' ? connectionState.fromNode.data.outputs : connectionState.fromNode.data.inputs;
+      const annotation: Annotation = io_ports[connectionState.fromHandle?.id || ''];
+
+      console.log(io_ports)
+      console.log(annotation)
+
+      const filter: FilterState = {
+        datatype: annotation.datatype,
+        unit: annotation.unit,
+        quantity: annotation.quantity,
+        // If coming from an output, look for nodes with matching inputs
+        // If coming from an input, look for nodes with matching outputs
+        filterType: connectionState.fromHandle?.type == 'source' ? 'inputs' : 'outputs',
+      };
+      setDialogInitialFilters(filter);
+      setPendingConnection(connectionState.fromHandle);
+      setContextMenuPos(rfInstance.screenToFlowPosition({ x: connectionState.to.x, y: connectionState.to.y }));
+      setIsAddNodeDialogOpen(true);
+    },
+    [rfInstance],
   );
 
   const isValidConnection = useCallback(
@@ -151,8 +191,9 @@ function Flow() {
       // Check if click is on empty space (not on a node or edge)
       if (event.target === event.currentTarget) {
         if (rfInstance) {
-          const { x, y } = rfInstance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
-          setContextMenuPos({ x, y });
+          setContextMenuPos(rfInstance.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
+          setDialogInitialFilters({});
+          setPendingConnection(null)
           setIsAddNodeDialogOpen(true);
         }
       }
@@ -172,6 +213,29 @@ function Flow() {
         };
         setNodes([...nodes, newNode]);
         setContextMenuPos(null);
+
+        if (pendingConnection) {
+          const io_ports = pendingConnection.type == 'source' ? nodeData.inputs : nodeData.outputs;
+          const filtered_ports = Object.entries(io_ports).find(([, v]) => annotationMatchesFilter(v, dialogInitialFilters));
+          if (!filtered_ports) {
+            return;
+          }
+
+          const newEdge: Edge = {
+            id: `e${pendingConnection.nodeId}.${pendingConnection.id}-${newId}.${pendingConnection.type === 'source' ? 'input' : 'output'}`,
+            source: pendingConnection.type === 'source' ? pendingConnection.nodeId : newId,
+            target: pendingConnection.type === 'source' ? newId : pendingConnection.nodeId,
+            sourceHandle: pendingConnection.type === 'source' ? pendingConnection.id : filtered_ports[0],
+            targetHandle: pendingConnection.type === 'source' ? filtered_ports[0] : pendingConnection.id,
+            markerEnd: {
+              type: 'arrowclosed',
+              width: 20,
+              height: 20,
+            },
+          };
+          setEdges([...edges, newEdge])
+          setPendingConnection(null);
+        }
       }
     },
     [contextMenuPos, nodes, rfInstance, setNodes],
@@ -185,6 +249,7 @@ function Flow() {
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
+      onConnectEnd={onConnectEnd}
       isValidConnection={isValidConnection}
       onInit={setRfInstance}
       selectionMode={SelectionMode.Partial}
@@ -216,8 +281,12 @@ function Flow() {
       />
       <AddNodeDialog
         isOpen={isAddNodeDialogOpen}
-        onClose={() => { setIsAddNodeDialogOpen(false); }}
+        onClose={() => {
+          setIsAddNodeDialogOpen(false);
+          setDialogInitialFilters({});
+        }}
         onAdd={onAddNode}
+        initialFilters={dialogInitialFilters}
       />
     </ReactFlow>
   );

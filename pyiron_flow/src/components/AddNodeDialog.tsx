@@ -4,29 +4,28 @@ import '../styles/AddNodeDialog.css';
 import { nodes } from '../interfaces/NodeStore';
 import { type NodeResponse } from '../interfaces/NodeResponse';
 import { ChevronDown } from 'lucide-react';
+import { annotationMatchesFilter, type FilterState } from '../interfaces/FilterState';
 
 interface AddNodeDialogProps {
     isOpen: boolean;
     onClose: () => void;
     onAdd: (nodeData: NodeResponse) => void;
+    initialFilters: Partial<FilterState>;
 }
 
-interface FilterState {
-    datatype: string;
-    unit: string;
-    quantity: string;
-    filterType: 'inputs' | 'outputs' | 'both';
-}
-
-export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({ isOpen, onClose, onAdd }) => {
+export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({ isOpen, onClose, onAdd, initialFilters }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showFilters, setShowFilters] = useState(false);
-    const [filters, setFilters] = useState<FilterState>({
-        datatype: '',
-        unit: '',
-        quantity: '',
-        filterType: 'both',
-    });
+    const [filters, setFilters] = useState<Partial<FilterState>>(initialFilters);
+
+    // Update filters when initialFilters change
+    useEffect(() => {
+        setFilters(initialFilters);
+        // Show filters if there are initial filters set
+        if (initialFilters.datatype || initialFilters.unit || initialFilters.quantity) {
+            setShowFilters(true);
+        }
+    }, [initialFilters]);
 
     // Extract unique filter values from all nodes
     const availableFilters = useMemo(() => {
@@ -66,17 +65,10 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({ isO
                 return true;
             }
 
-            const matchesFilter = (annotation: Record<string, unknown>) => {
-                if (filters.datatype && annotation.datatype !== filters.datatype) return false;
-                if (filters.unit && annotation.unit !== filters.unit) return false;
-                if (filters.quantity && annotation.quantity !== filters.quantity) return false;
-                return true;
-            };
-
             const inputsMatch = filters.filterType !== 'outputs' &&
-                Object.values(node.inputs).some(matchesFilter);
+                Object.values(node.inputs).some((annotation) => annotationMatchesFilter(annotation, filters));
             const outputsMatch = filters.filterType !== 'inputs' &&
-                Object.values(node.outputs).some(matchesFilter);
+                Object.values(node.outputs).some((annotation) => annotationMatchesFilter(annotation, filters));
 
             return filters.filterType === 'both' ? (inputsMatch || outputsMatch) : (inputsMatch || outputsMatch);
         });

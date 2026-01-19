@@ -26,7 +26,9 @@ import dagre from '@dagrejs/dagre';
 import WorkflowNode from "./components/workflow-node";
 import { initialNodes, initialEdges } from './initialElements';
 import { ImportDialog } from './components/ImportDialog';
+import { AddNodeDialog } from './components/AddNodeDialog';
 import { convertWorkflow } from './workflow_converter';
+import { type NodeResponse } from './components/NodeResponse';
 
 const nodeTypes: NodeTypes = {
   WorkflowNode: WorkflowNode,
@@ -77,6 +79,8 @@ function Flow() {
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isAddNodeDialogOpen, setIsAddNodeDialogOpen] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
 
   const onConnect = useCallback(
     (params: Connection) => { setEdges((eds) => addEdge(params, eds)); },
@@ -139,6 +143,40 @@ function Flow() {
     [setNodes, setEdges],
   );
 
+  const onPaneContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      // Prevent default context menu
+      event.preventDefault();
+
+      // Check if click is on empty space (not on a node or edge)
+      if (event.target === event.currentTarget) {
+        if (rfInstance) {
+          const { x, y } = rfInstance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+          setContextMenuPos({ x, y });
+          setIsAddNodeDialogOpen(true);
+        }
+      }
+    },
+    [rfInstance],
+  );
+
+  const onAddNode = useCallback(
+    (nodeData: NodeResponse) => {
+      if (contextMenuPos && rfInstance) {
+        const newId = String(Math.max(...nodes.map(n => parseInt(n.id) || 0), 0) + 1);
+        const newNode: Node = {
+          id: newId,
+          data: nodeData,
+          position: { x: contextMenuPos.x, y: contextMenuPos.y },
+          type: 'WorkflowNode',
+        };
+        setNodes([...nodes, newNode]);
+        setContextMenuPos(null);
+      }
+    },
+    [contextMenuPos, nodes, rfInstance, setNodes],
+  );
+
   return (
     <ReactFlow
       nodeTypes={nodeTypes}
@@ -150,6 +188,7 @@ function Flow() {
       isValidConnection={isValidConnection}
       onInit={setRfInstance}
       selectionMode={SelectionMode.Partial}
+      onPaneContextMenu={onPaneContextMenu}
       fitView
     >
       <Background />
@@ -174,6 +213,11 @@ function Flow() {
         isOpen={isImportDialogOpen}
         onClose={() => { setIsImportDialogOpen(false); }}
         onLoad={onImport}
+      />
+      <AddNodeDialog
+        isOpen={isAddNodeDialogOpen}
+        onClose={() => { setIsAddNodeDialogOpen(false); }}
+        onAdd={onAddNode}
       />
     </ReactFlow>
   );

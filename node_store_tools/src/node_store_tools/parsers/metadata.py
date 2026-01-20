@@ -1,3 +1,5 @@
+from typing import Annotated, Any, get_args, get_origin
+
 from node_store_spec.models import Annotation, NodeType
 from pydantic import BaseModel
 
@@ -12,3 +14,32 @@ class Metadata(BaseModel):
     docstring: str
     inputs: dict[str, Annotation]
     outputs: dict[str, Annotation]
+
+
+def _parse_annotation(annotation: Any) -> Annotation:
+    """Parse a type annotation to extract datatype, unit, and quantity.
+
+    Args:
+        annotation: The type annotation to parse.
+
+    Returns:
+        Annotation: The parsed annotation details.
+    """
+    if annotation is None:
+        return Annotation()
+
+    def get_name(obj: Any) -> str:
+        return obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
+
+    origin = get_origin(annotation)
+    if origin is not Annotated:
+        return Annotation(datatype=get_name(annotation))
+
+    args = get_args(annotation)
+    annotation = Annotation(datatype=get_name(args[0]))
+    for arg in args[1:]:
+        if isinstance(arg, dict):
+            annotation.label = arg.get("label", annotation.unit)
+            annotation.unit = arg.get("unit", annotation.unit)
+            annotation.quantity = arg.get("quantity", annotation.quantity)
+    return annotation

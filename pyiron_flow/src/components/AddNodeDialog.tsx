@@ -160,7 +160,7 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({ isO
                         <div className="filter-group">
                             <label>Datatype:</label>
                             <select
-                                value={filters.datatype}
+                                value={filters.datatype ?? ''}
                                 onChange={(e) => setFilters({ ...filters, datatype: e.target.value })}
                                 className="filter-select"
                             >
@@ -174,7 +174,7 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({ isO
                         <div className="filter-group">
                             <label>Unit:</label>
                             <select
-                                value={filters.unit}
+                                value={filters.unit ?? ''}
                                 onChange={(e) => setFilters({ ...filters, unit: e.target.value })}
                                 className="filter-select"
                             >
@@ -188,7 +188,7 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({ isO
                         <div className="filter-group">
                             <label>Quantity:</label>
                             <select
-                                value={filters.quantity}
+                                value={filters.quantity ?? ''}
                                 onChange={(e) => setFilters({ ...filters, quantity: e.target.value })}
                                 className="filter-select"
                             >
@@ -211,7 +211,7 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({ isO
                     {filteredNodes.length > 0 ? (
                         filteredNodes.map((node) => (
                             <div
-                                key={node.python_import}
+                                key={node.source_code_hash}
                                 className="node-item"
                                 onClick={() => { handleAdd(node); }}
                             >

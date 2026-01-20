@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -19,6 +19,7 @@ import {
   type FinalConnectionState,
   type OnConnectStartParams,
   Handle,
+  reconnectEdge,
 } from '@xyflow/react';
 import { Button } from "@/components/ui/button"
 import "./globals.css";
@@ -79,6 +80,7 @@ function Flow() {
     initialEdges,
   );
 
+  const edgeReconnectSuccessful = useRef(true);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
@@ -227,11 +229,6 @@ function Flow() {
             target: pendingConnection.type === 'source' ? newId : pendingConnection.nodeId,
             sourceHandle: pendingConnection.type === 'source' ? pendingConnection.id : filtered_ports[0],
             targetHandle: pendingConnection.type === 'source' ? filtered_ports[0] : pendingConnection.id,
-            markerEnd: {
-              type: 'arrowclosed',
-              width: 20,
-              height: 20,
-            },
           };
           setEdges([...edges, newEdge])
           setPendingConnection(null);
@@ -241,6 +238,23 @@ function Flow() {
     [contextMenuPos, nodes, rfInstance, setNodes],
   );
 
+  const onReconnectStart = useCallback(() => {
+    edgeReconnectSuccessful.current = false;
+  }, []);
+
+  const onReconnect = useCallback((oldEdge: Edge, newConnection: Connection) => {
+    edgeReconnectSuccessful.current = true;
+    setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
+  }, []);
+
+  const onReconnectEnd = useCallback((_: MouseEvent, edge: Edge) => {
+    if (!edgeReconnectSuccessful.current) {
+      setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+    }
+
+    edgeReconnectSuccessful.current = true;
+  }, []);
+
   return (
     <ReactFlow
       nodeTypes={nodeTypes}
@@ -248,12 +262,22 @@ function Flow() {
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
+      onReconnect={onReconnect}
+      onReconnectStart={onReconnectStart}
+      onReconnectEnd={onReconnectEnd}
       onConnect={onConnect}
       onConnectEnd={onConnectEnd}
       isValidConnection={isValidConnection}
       onInit={setRfInstance}
       selectionMode={SelectionMode.Partial}
       onPaneContextMenu={onPaneContextMenu}
+      defaultEdgeOptions={{
+        'markerEnd': {
+          'type': 'arrowclosed',
+          'width': 20,
+          'height': 20,
+        }
+      }}
       fitView
     >
       <Background />
@@ -288,7 +312,7 @@ function Flow() {
         onAdd={onAddNode}
         initialFilters={dialogInitialFilters}
       />
-    </ReactFlow>
+    </ReactFlow >
   );
 }
 

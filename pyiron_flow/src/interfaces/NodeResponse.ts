@@ -37,6 +37,7 @@ export interface Inputs {
   [k: string]: Annotation;
 }
 export interface Annotation {
+  has_default_value: boolean;
   label?: Label;
   datatype?: Datatype;
   unit?: Unit;

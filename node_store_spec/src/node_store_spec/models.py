@@ -11,6 +11,7 @@ class NodeType(StrEnum):
 
 
 class Annotation(BaseModel):
+    has_default_value: bool = False
     label: str | None = None
     datatype: str | None = None
     unit: str | None = None

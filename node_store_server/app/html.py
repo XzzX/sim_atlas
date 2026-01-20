@@ -281,10 +281,10 @@ def render_node_detail_page(node: NodeMetadata) -> str:
                 <div class="mermaid" style="background-color: white; padding: 2rem; flex: 1; min-height: 800px; border-radius: 0.3rem; display: flex; align-items: center; justify-content: center;">
 {mermaid_diagram}
                 </div>
-                <style>
+                <style width=100%>
                     .mermaid svg {{
-                        width: 100%;
-                        height: 100%;
+                        width: 100% !important;
+                        height: 100% !important;
                     }}
                 </style>
             </div>

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -21,6 +21,7 @@ import {
   Handle,
   reconnectEdge,
   type OnConnectStart,
+  type OnInit,
 } from '@xyflow/react';
 import { Button } from "@/components/ui/button"
 import "./globals.css";
@@ -41,7 +42,7 @@ const nodeTypes: NodeTypes = {
   WorkflowNode: FunctionNode,
 };
 
-function Flow() {
+function Flow({ initialNodes, initialEdges }: { initialNodes: Node[]; initialEdges: Edge[] }) {
   const { getNodes, getEdges, getNodesBounds } = useReactFlow();
 
   const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
@@ -84,8 +85,8 @@ function Flow() {
 
   const edgeReconnectSuccessful = useRef(true);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isAddNodeDialogOpen, setIsAddNodeDialogOpen] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -244,12 +245,21 @@ function Flow() {
 
   const onImport = useCallback(
     (text: string) => {
-      const { nodes, edges } = convertWorkflow(text);
+      let { nodes, edges } = convertWorkflow(text);
       setNodes(nodes);
       setEdges(edges);
+      if (!rfInstance) return;
+      nodes = rfInstance.getNodes();
+      edges = rfInstance.getEdges();
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+        nodes,
+        edges,
+      );
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
 
     },
-    [setNodes, setEdges],
+    [setNodes, setEdges, rfInstance],
   );
 
   const onPaneContextMenu = useCallback(
@@ -322,6 +332,18 @@ function Flow() {
     edgeReconnectSuccessful.current = true;
   }, []);
 
+  const onInit: OnInit = useCallback((instance: ReactFlowInstance) => {
+    setRfInstance(instance);
+    const nodes = instance.getNodes();
+    const edges = instance.getEdges();
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      nodes,
+      edges,
+    );
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  }, []);
+
   return (
     <HighlightHandleContext value={highlightHandle}>
       <ReactFlow
@@ -337,7 +359,7 @@ function Flow() {
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
         isValidConnection={isValidConnection}
-        onInit={setRfInstance}
+        onInit={onInit}
         selectionMode={SelectionMode.Partial}
         onPaneContextMenu={onPaneContextMenu}
         defaultEdgeOptions={{
@@ -386,10 +408,10 @@ function Flow() {
   );
 }
 
-function FlowWithProvider() {
+function FlowWithProvider({ initialNodes, initialEdges }: { initialNodes: Node[]; initialEdges: Edge[] }) {
   return (
     <ReactFlowProvider>
-      <Flow />
+      <Flow initialNodes={initialNodes} initialEdges={initialEdges} />
     </ReactFlowProvider>
   );
 }

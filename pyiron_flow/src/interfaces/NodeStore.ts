@@ -1,5 +1,19 @@
 import type { NodeResponse } from './NodeResponse';
 
+export async function fetchWorkflow(wf_hash: string): Promise<string> {
+    try {
+        const response = await fetch(`http://localhost:8000/nodes/${wf_hash}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return data?.source_code ?? '';
+    } catch (error) {
+        console.error('Error fetching workflow:', error);
+        throw error;
+    }
+}
+
 async function fetchNodesList(): Promise<NodeResponse[]> {
     try {
         const response = await fetch('http://localhost:8000/nodes/list', {

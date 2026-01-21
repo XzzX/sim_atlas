@@ -27,6 +27,23 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({ isO
         }
     }, [initialFilters]);
 
+    // Handle Escape key to close dialog
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                handleCancel();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen]);
+
     // Extract unique filter values from all nodes
     const availableFilters = useMemo(() => {
         const datatypes = new Set<string>();

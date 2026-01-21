@@ -20,6 +20,7 @@ import {
   type OnConnectStartParams,
   Handle,
   reconnectEdge,
+  type OnConnectStart,
 } from '@xyflow/react';
 import { Button } from "@/components/ui/button"
 import "./globals.css";
@@ -34,6 +35,7 @@ import { AddNodeDialog } from './components/AddNodeDialog';
 import { convertWorkflow } from './workflow_converter';
 import { type NodeResponse, type Annotation } from './interfaces/NodeResponse';
 import { annotationMatchesFilter, type FilterState } from './interfaces/FilterState';
+import { HighlightHandleContext } from './HighlightHandleContext';
 
 const nodeTypes: NodeTypes = {
   WorkflowNode: FunctionNode,
@@ -89,29 +91,94 @@ function Flow() {
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [dialogInitialFilters, setDialogInitialFilters] = useState<Partial<FilterState>>({});
   const [pendingConnection, setPendingConnection] = useState<Handle | null>(null);
+  const [highlightHandle, setHighlightHandle] = useState<Partial<FilterState> | undefined>(undefined);
+
+  const get_port_annotation = (rfInstance: ReactFlowInstance | null, nodeId: string, handleId: string, handleType: 'source' | 'target'): Annotation | null => {
+    if (!rfInstance) return null;
+
+    const node = rfInstance.getNode(nodeId);
+    if (!node) return null;
+    const data = node.data as NodeResponse;
+    const io_ports = handleType == 'source' ? data.outputs : data.inputs;
+    const annotation: Annotation = io_ports[handleId];
+    return annotation;
+  }
+
+  const is_connection_type_correct = (source_annotation: Annotation | null, target_annotation: Annotation | null): boolean => {
+    if (!source_annotation || !target_annotation) {
+      return true;
+    }
+    if (source_annotation.datatype && source_annotation.datatype !== target_annotation.datatype) {
+      return false;
+    }
+    if (source_annotation.unit && source_annotation.unit !== target_annotation.unit) {
+      return false;
+    }
+    if (source_annotation.quantity && source_annotation.quantity !== target_annotation.quantity) {
+      return false;
+    }
+
+    return true;
+  }
 
   const onConnect = useCallback(
-    (params: Connection) => { setEdges((eds) => addEdge(params, eds)); },
-    [setEdges],
+    (params: Connection) => {
+      const source_annotation = get_port_annotation(rfInstance, params.source, params.sourceHandle ?? '', 'source');
+      const target_annotation = get_port_annotation(rfInstance, params.target, params.targetHandle ?? '', 'target');
+
+      const edge: Edge = {
+        id: `e${params.source}.${params.sourceHandle ?? ''}-${params.target}.${params.targetHandle ?? ''}`,
+        source: params.source,
+        target: params.target,
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
+        style: is_connection_type_correct(source_annotation, target_annotation) ? {} : {
+          strokeWidth: 2,
+          stroke: '#FF0072',
+        }
+      }
+      setEdges((eds) => addEdge(edge, eds));
+    },
+    [setEdges, rfInstance],
+  );
+
+  const onConnectStart: OnConnectStart = useCallback(
+    (event, params) => {
+      if (!rfInstance) return;
+
+      const node = rfInstance.getNode(params.nodeId);
+      if (!node) return;
+      const data = node.data as NodeResponse;
+      const io_ports = params.handleType == 'source' ? data.outputs : data.inputs;
+      const annotation: Annotation = io_ports[params.handleId];
+
+      const filter: FilterState = {
+        datatype: annotation.datatype,
+        unit: annotation.unit,
+        quantity: annotation.quantity,
+        // If coming from an output, look for nodes with matching inputs
+        // If coming from an input, look for nodes with matching outputs
+        filterType: params.handleType == 'source' ? 'inputs' : 'outputs',
+      };
+      setHighlightHandle(filter);
+    },
+    [rfInstance],
   );
 
   const onConnectEnd = useCallback(
     (_: React.MouseEvent | React.TouchEvent, connectionState: FinalConnectionState) => {
+      setHighlightHandle(undefined);
+
       if (connectionState.isValid) {
         // let the built-in onConnect handle the connection if we ended on a handle
         return;
       }
-      console.log(connectionState)
-
       if (!rfInstance) return;
 
       setContextMenuPos(rfInstance.screenToFlowPosition({ x: connectionState.to.x, y: connectionState.to.y }));
 
       const io_ports = connectionState.fromHandle?.type == 'source' ? connectionState.fromNode.data.outputs : connectionState.fromNode.data.inputs;
       const annotation: Annotation = io_ports[connectionState.fromHandle?.id || ''];
-
-      console.log(io_ports)
-      console.log(annotation)
 
       const filter: FilterState = {
         datatype: annotation.datatype,
@@ -256,63 +323,66 @@ function Flow() {
   }, []);
 
   return (
-    <ReactFlow
-      nodeTypes={nodeTypes}
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onReconnect={onReconnect}
-      onReconnectStart={onReconnectStart}
-      onReconnectEnd={onReconnectEnd}
-      onConnect={onConnect}
-      onConnectEnd={onConnectEnd}
-      isValidConnection={isValidConnection}
-      onInit={setRfInstance}
-      selectionMode={SelectionMode.Partial}
-      onPaneContextMenu={onPaneContextMenu}
-      defaultEdgeOptions={{
-        'markerEnd': {
-          'type': 'arrowclosed',
-          'width': 20,
-          'height': 20,
-        }
-      }}
-      fitView
-    >
-      <Background />
-      {/* <Controls>
+    <HighlightHandleContext value={highlightHandle}>
+      <ReactFlow
+        nodeTypes={nodeTypes}
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onReconnect={onReconnect}
+        onReconnectStart={onReconnectStart}
+        onReconnectEnd={onReconnectEnd}
+        onConnect={onConnect}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
+        isValidConnection={isValidConnection}
+        onInit={setRfInstance}
+        selectionMode={SelectionMode.Partial}
+        onPaneContextMenu={onPaneContextMenu}
+        defaultEdgeOptions={{
+          'markerEnd': {
+            'type': 'arrowclosed',
+            'width': 20,
+            'height': 20,
+          }
+        }}
+        fitView
+      >
+        <Background />
+        {/* <Controls>
         <ControlButton onClick={() => alert('Something magical just happened. ✨')}>
           A
         </ControlButton>
       </Controls> */}
-      <MiniMap />
-      <Panel position="top-right">
-        <Button className="outline" onClick={onLayout}>
-          layout
-        </Button>
-        <Button onClick={onExport}>
-          export
-        </Button>
-        <Button onClick={() => { setIsImportDialogOpen(true); }}>
-          import
-        </Button>
-      </Panel>
-      <ImportDialog
-        isOpen={isImportDialogOpen}
-        onClose={() => { setIsImportDialogOpen(false); }}
-        onLoad={onImport}
-      />
-      <AddNodeDialog
-        isOpen={isAddNodeDialogOpen}
-        onClose={() => {
-          setIsAddNodeDialogOpen(false);
-          setDialogInitialFilters({});
-        }}
-        onAdd={onAddNode}
-        initialFilters={dialogInitialFilters}
-      />
-    </ReactFlow >
+        <MiniMap />
+        <Panel position="top-right">
+          <Button className="outline" onClick={onLayout}>
+            layout
+          </Button>
+          <Button onClick={onExport}>
+            export
+          </Button>
+          <Button onClick={() => { setIsImportDialogOpen(true); }}>
+            import
+          </Button>
+        </Panel>
+        <ImportDialog
+          isOpen={isImportDialogOpen}
+          onClose={() => { setIsImportDialogOpen(false); }}
+          onLoad={onImport}
+        />
+        <AddNodeDialog
+          isOpen={isAddNodeDialogOpen}
+          onClose={() => {
+            setIsAddNodeDialogOpen(false);
+            setDialogInitialFilters({});
+          }}
+          onAdd={onAddNode}
+          initialFilters={dialogInitialFilters}
+        />
+      </ReactFlow >
+    </HighlightHandleContext>
   );
 }
 

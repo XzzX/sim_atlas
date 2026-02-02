@@ -277,7 +277,12 @@ def render_node_detail_page(node: NodeMetadata) -> str:
             mermaid_diagram = workflow_to_mermaid(workflow)
             workflow_diagram_html = f"""
             <div class='detail-card' style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
-                <h3 class='section-title' style="margin: 1.5rem 1.5rem 1rem 1.5rem;">Workflow Diagram</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin: 1.5rem 1.5rem 1rem 1.5rem;">
+                    <h3 class='section-title' style="margin: 0;">Workflow Diagram</h3>
+                    <a href='/ide/?wf_hash={node.source_code_hash}' class='btn btn-sm btn-outline-primary' target='_blank'>
+                        Open Web IDE →
+                    </a>
+                </div>
                 <div class="mermaid" style="background-color: white; padding: 2rem; flex: 1; min-height: 800px; border-radius: 0.3rem; display: flex; align-items: center; justify-content: center;">
 {mermaid_diagram}
                 </div>

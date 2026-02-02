@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@anywidget/react": "^0.2.0",
+    "@anywidget/vite": "^0.2.2",
     "@dagrejs/dagre": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@tailwindcss/vite": "^4.1.18",

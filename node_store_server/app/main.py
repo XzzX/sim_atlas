@@ -15,6 +15,7 @@ from .models import (
     NodeMetadata,
     NodeResponse,
 )
+from fastapi.staticfiles import StaticFiles
 from .storage import get_storage_backend
 
 # Get the configured storage backend
@@ -56,6 +57,9 @@ async def root(query: str | None = None):
     search_page = render_search_page(query or "", nodes)
 
     return search_page
+
+
+app.mount("/ide", StaticFiles(directory="ide", html=True), name="ide")
 
 
 @app.get("/nodes-detail/{node_hash}", response_class=HTMLResponse)

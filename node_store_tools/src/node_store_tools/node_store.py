@@ -63,15 +63,10 @@ class NodeStore:
                 continue
 
             try:
-                response = self.upload(v)
+                self.upload(v)
             except Exception as e:
-                # print(f"✗ {k}: {v}\n{e}")
+                print(f"✗ {k}: {v}\n{e}")
                 continue
-
-            # if response.status_code == HTTPStatus.OK:
-            #     print(f"✓ {k}: {v}")
-            # else:
-            #     print(f"✗ {k}: {v}\n{response.json()}")
 
     def upload(self, obj: Any) -> requests.Response:
         """Upload node metadata to the specified API endpoint.

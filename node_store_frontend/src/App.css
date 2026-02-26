@@ -1,0 +1,69 @@
+.app {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.navbar {
+  border-bottom: 1px solid #dee2e6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.node-card {
+  border: 1px solid #dee2e6;
+  height: 100%;
+}
+
+.search-results {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.facet-filter {
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #dee2e6;
+}
+
+.form-check {
+  padding-left: 0;
+}
+
+.form-check-input {
+  margin-top: 0.3rem;
+}
+
+.form-check-label {
+  margin-left: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.node-detail-view {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.node-detail-view pre {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.node-detail-view .btn-close-detail {
+  padding: 0.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.node-detail-view .btn-close-detail:hover {
+  background-color: #f0f0f0;
+}
+
+@media (max-width: 991px) {
+  .search-results {
+    order: -1;
+  }
+}

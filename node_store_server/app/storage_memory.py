@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import os
 import pickle
-from collections.abc import Callable
 
 import numpy as np
 
 from .ai import create_embedding
 from .models import (
-    NodeFilter,
     NodeMetadata,
     NodeResponse,
     NodeType,
@@ -47,17 +45,16 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
 class InMemoryStorage(StorageInterface):
     """In-memory storage implementation for node metadata"""
 
-    def __init__(self):
+    def __init__(self, start_clean: bool = False) -> None:
         self._storage: dict[str, NodeMetadata] = {}
         self._connected = False
 
-        # Load from file if it exists
-        # if os.path.exists("in-memory.pkl"):
-        #     try:
-        #         with open("in-memory.pkl", "rb") as f:
-        #             self._storage = pickle.load(f)
-        #     except Exception:
-        #         pass  # If loading fails, start with empty storage
+        if not start_clean and os.path.exists("in-memory.pkl"):
+            try:
+                with open("in-memory.pkl", "rb") as f:
+                    self._storage = pickle.load(f)
+            except Exception:
+                pass  # If loading fails, start with empty storage
 
         print(f"InMemoryStorage initialized with {len(self._storage)} items.")
 

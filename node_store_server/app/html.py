@@ -233,7 +233,7 @@ def render_search_page(query: str, results: list[ScoredSearchResponse]) -> str:
         
         <div class='container-main container'>
             {results_html}
-            {f"<div class='welcome-text'><p class='lead'>Enter a search query to find nodes</p></div>" if not query else ""}
+            {"<div class='welcome-text'><p class='lead'>Enter a search query to find nodes</p></div>" if not query else ""}
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

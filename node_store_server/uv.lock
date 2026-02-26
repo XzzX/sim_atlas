@@ -695,7 +695,7 @@ wheels = [
 
 [[package]]
 name = "mcp"
-version = "1.22.0"
+version = "1.23.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -713,9 +713,9 @@ dependencies = [
     { name = "typing-inspection" },
     { name = "uvicorn", marker = "sys_platform != 'emscripten'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a3/a2/c5ec0ab38b35ade2ae49a90fada718fbc76811dc5aa1760414c6aaa6b08a/mcp-1.22.0.tar.gz", hash = "sha256:769b9ac90ed42134375b19e777a2858ca300f95f2e800982b3e2be62dfc0ba01", size = 471788, upload-time = "2025-11-20T20:11:28.095Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/25/1a/9c8a5362e3448d585081d6c7aa95898a64e0ac59d3e26169ae6c3ca5feaf/mcp-1.23.0.tar.gz", hash = "sha256:84e0c29316d0a8cf0affd196fd000487ac512aa3f771b63b2ea864e22961772b", size = 596506, upload-time = "2025-12-02T13:40:02.558Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/bb/711099f9c6bb52770f56e56401cdfb10da5b67029f701e0df29362df4c8e/mcp-1.22.0-py3-none-any.whl", hash = "sha256:bed758e24df1ed6846989c909ba4e3df339a27b4f30f1b8b627862a4bade4e98", size = 175489, upload-time = "2025-11-20T20:11:26.542Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/b2/28739ce409f98159c0121eab56e69ad71546c4f34ac8b42e58c03f57dccc/mcp-1.23.0-py3-none-any.whl", hash = "sha256:5a645cf111ed329f4619f2629a3f15d9aabd7adc2ea09d600d31467b51ecb64f", size = 231427, upload-time = "2025-12-02T13:40:00.738Z" },
 ]
 
 [[package]]
@@ -1054,9 +1054,9 @@ dependencies = [
     { name = "numpy" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b2/ce/c44244e40f695f3069bdf97820b13cf23e40a063e4e0ecd0a7ea93fffe5e/python_workflow_definition-0.1.2.tar.gz", hash = "sha256:b44c89d920bfe3f5ef8e92425609abc5b75a0ba453c319f8339dc2b9e1b4ae4e", size = 1298623 }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/ce/c44244e40f695f3069bdf97820b13cf23e40a063e4e0ecd0a7ea93fffe5e/python_workflow_definition-0.1.2.tar.gz", hash = "sha256:b44c89d920bfe3f5ef8e92425609abc5b75a0ba453c319f8339dc2b9e1b4ae4e", size = 1298623, upload-time = "2025-12-04T13:29:09.247Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5e/e9/625f2f6e5a1eb619961c6ec2e73a05fc262ae923dcfefa58dfc0e7538683/python_workflow_definition-0.1.2-py2.py3-none-any.whl", hash = "sha256:4214e507de54926a0566fe9476f4fe0242b78925aab8173f709316356f9ad3f2", size = 23343 },
+    { url = "https://files.pythonhosted.org/packages/5e/e9/625f2f6e5a1eb619961c6ec2e73a05fc262ae923dcfefa58dfc0e7538683/python_workflow_definition-0.1.2-py2.py3-none-any.whl", hash = "sha256:4214e507de54926a0566fe9476f4fe0242b78925aab8173f709316356f9ad3f2", size = 23343, upload-time = "2025-12-04T13:29:07.884Z" },
 ]
 
 [[package]]

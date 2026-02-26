@@ -52,7 +52,7 @@ app.add_middleware(
 async def root(query: str | None = None) -> HTMLResponse:
     """Root endpoint - Search interface"""
 
-    nodes = storage.search(query)
+    nodes = storage.search(query) if query else storage.filter()
     search_page = render_search_page(query or "", nodes)
 
     return HTMLResponse(content=search_page)

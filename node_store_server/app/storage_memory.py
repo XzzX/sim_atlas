@@ -91,13 +91,17 @@ class InMemoryStorage(StorageInterface):
 
     def filter(
         self, qualname: str | None = None, type: NodeType | None = None
-    ) -> list[NodeMetadata]:
+    ) -> list[ScoredSearchResponse]:
         def filter_item(item: NodeMetadata) -> bool:
             return (
                 qualname.lower() in item.python_import.lower() if qualname else True
             ) and (item.node_type == type if type else True)
 
-        return [item for item in self._storage.values() if filter_item(item)]
+        return [
+            ScoredSearchResponse(score=1.0, node=item)
+            for item in self._storage.values()
+            if filter_item(item)
+        ]
 
     def search(self, query: str) -> list[ScoredSearchResponse]:
         """

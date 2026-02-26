@@ -1,6 +1,12 @@
 from python_workflow_definition.models import PythonWorkflowDefinitionWorkflow
 
-from .models import Annotation, NodeMetadata, NodeType, ScoredSearchResponse
+from .models import (
+    Annotation,
+    NodeMetadata,
+    NodeResponse,
+    NodeType,
+    ScoredSearchResponse,
+)
 
 
 def escape_html(text: str) -> str:
@@ -82,7 +88,7 @@ def render_annotation_html(name: str, annotation: Annotation) -> str:
     return outputs_html
 
 
-def render_node_html(node: NodeMetadata) -> str:
+def render_node_html(node: NodeResponse) -> str:
     collapse_id = f"collapse-{node.source_code_hash[:8]}"
 
     inputs_html = ""

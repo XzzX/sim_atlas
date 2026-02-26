@@ -22,7 +22,7 @@ class StorageInterface(MutableMapping[str, NodeMetadata], ABC):
     @abstractmethod
     def filter(
         self, qualname: str | None = None, type: NodeType | None = None
-    ) -> list[NodeMetadata]:
+    ) -> list[ScoredSearchResponse]:
         pass
 
     @abstractmethod

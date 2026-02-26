@@ -84,16 +84,18 @@ const FunctionNode = function ({ data }: { data: NodeResponse }) {
         filterType: 'inputs',
     }
 
+    console.log(data.inputs, data.outputs);
+
     return (
         <NodeTooltip>
             <NodeTooltipContent position={Position.Top} className="text-left" style={{ whiteSpace: 'pre-wrap' }}>
                 <div>
                     <strong>Inputs:</strong>
-                    {Object.entries(data.inputs).length > 0 ? (
+                    {data.inputs.length > 0 ? (
                         <ul className="ml-4">
-                            {Object.entries(data.inputs).map(([k, v]) => (
-                                <li key={k}>
-                                    <strong>{k}</strong>: {JSON.stringify(v, null, 2)}
+                            {data.inputs.map((value, index) => (
+                                <li key={index}>
+                                    <strong>{value.label} Hallo</strong>: {JSON.stringify(value, null, 2)}
                                 </li>
                             ))}
                         </ul>
@@ -103,11 +105,11 @@ const FunctionNode = function ({ data }: { data: NodeResponse }) {
                 </div>
                 <div>
                     <strong>Outputs:</strong>
-                    {Object.entries(data.outputs).length > 0 ? (
+                    {data.outputs.length > 0 ? (
                         <ul className="ml-4">
-                            {Object.entries(data.outputs).map(([k, v]) => (
-                                <li key={k}>
-                                    <strong>{k}</strong>: {JSON.stringify(v, null, 2)}
+                            {data.outputs.map((value, index) => (
+                                <li key={index}>
+                                    <strong>{value.label}</strong>: {JSON.stringify(value, null, 2)}
                                 </li>
                             ))}
                         </ul>
@@ -127,27 +129,27 @@ const FunctionNode = function ({ data }: { data: NodeResponse }) {
                 <BaseNodeContent className='pl-0 pr-0 pt-3 pb-3'>
                     <div className="flex flex-row">
                         <div className="flex-1">
-                            {Object.entries(data.inputs).map(([k, v]) => (
+                            {data.inputs.map((value, index) => (
                                 <InputHandle
-                                    id={`${v.label ?? k}`}
-                                    title={k}
+                                    id={value.label}
+                                    title={value.label}
                                     type="target"
                                     position={Position.Left}
-                                    key={k}
+                                    key={index}
                                     connectionCount={1}
-                                    annotation={v}
+                                    annotation={value}
                                 />
                             ))}
                         </div>
                         <div className="flex-1">
-                            {Object.entries(data.outputs).map(([k, v]) => (
+                            {data.outputs.map((value, index) => (
                                 <OutputHandle
-                                    id={`${v.label ?? k}`}
-                                    title={k}
+                                    id={value.label}
+                                    title={value.label}
                                     type="source"
                                     position={Position.Right}
-                                    key={k}
-                                    annotation={v}
+                                    key={index}
+                                    annotation={value}
                                 />
                             ))}
                         </div>

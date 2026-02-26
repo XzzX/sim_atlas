@@ -18,20 +18,23 @@ def parse(obj: Any) -> Metadata | None:
 
     instance = obj()
 
-    inputs = {}
+    inputs = []
     for k, v in instance.inputs.items():
-        inputs[k] = Annotation(label=k, datatype=v.type)
+        ann = Annotation(label=k, datatype=v.type)
+        inputs.append(ann)
 
-    outputs = {}
+    outputs = []
     for k, v in instance.outputs.items():
-        outputs[k] = Annotation(label=k, datatype=v.type)
+        ann = Annotation(label=k, datatype=v.type)
+        outputs.append(ann)
 
     return Metadata(
         node_type=NodeType.PYIRON_CORE_NODE,
-        python_import=f"{obj.__module__}.{obj.__qualname__}",
+        python_import=f"{instance._func.__module__}.{instance._func.__qualname__}",
         source_code=source_code,
         source_code_hash=source_code_hash,
-        docstring=instance.__doc__ or "",
+        docstring=instance._func.__doc__ or "",
+        keywords=instance._func.__module__.split("."),
         inputs=inputs,
         outputs=outputs,
     )

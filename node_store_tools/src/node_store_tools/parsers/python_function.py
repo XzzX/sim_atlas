@@ -8,18 +8,20 @@ from node_store_spec.models import Annotation, NodeType
 from .metadata import Metadata, _parse_annotation
 
 
-def _parse_arguments(sig: inspect.Signature) -> dict[str, Annotation]:
-    arguments: dict[str, Annotation] = {}
+def _parse_arguments(sig: inspect.Signature) -> list[Annotation]:
+    arguments: list[Annotation] = []
     for param_name, param in sig.parameters.items():
-        arguments[param_name] = (
+        ann = (
             _parse_annotation(param.annotation)
             if param.annotation != inspect.Parameter.empty
             else Annotation()
         )
+        ann.label = param_name
+        arguments.append(ann)
     return arguments
 
 
-def _parse_and_unpack_annotation(annotation: Any) -> dict[str, Annotation]:
+def _parse_and_unpack_annotation(annotation: Any) -> list[Annotation]:
     origin = get_origin(annotation)
     args = get_args(annotation)
 
@@ -29,18 +31,22 @@ def _parse_and_unpack_annotation(annotation: Any) -> dict[str, Annotation]:
         args = get_args(args[0])
 
     if origin is tuple:
-        annotations: dict[str, Annotation] = {}
+        annotations: list[Annotation] = []
         args = get_args(annotation)
         for i, arg in enumerate(args):
             ann = _parse_annotation(arg)
-            annotations[ann.label if ann.label is not None else str(i)] = ann
+            ann.label = ann.label if ann.label is not None else str(i)
+            annotations.append(ann)
         return annotations
 
-    return {"return": _parse_annotation(annotation)}
+    ann = _parse_annotation(annotation)
+    if not ann.label:
+        ann.label = "return"
+    return [ann]
 
 
 def parse(obj: Any) -> Metadata | None:
-    if not (inspect.isfunction(obj) or inspect.ismethod(obj)):
+    if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
         return None
 
     source_code = inspect.getsource(obj)
@@ -59,6 +65,7 @@ def parse(obj: Any) -> Metadata | None:
         source_code=source_code,
         source_code_hash=source_code_hash,
         docstring=inspect.getdoc(obj) or "",
+        keywords=obj.__module__.split("."),
         inputs=inputs,
         outputs=outputs,
     )

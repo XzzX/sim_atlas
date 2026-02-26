@@ -41,3 +41,4 @@ export function findByPythonImport(nodes: NodeResponse[], python_import: string)
 }
 
 export const nodes = await fetchNodesList();
+console.log('Fetched nodes:', nodes);

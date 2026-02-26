@@ -1,7 +1,6 @@
-from node_store_spec.models import Annotation, NodeType
 from python_workflow_definition.models import PythonWorkflowDefinitionWorkflow
 
-from .models import NodeMetadata
+from .models import Annotation, NodeMetadata, NodeType, ScoredSearchResponse
 
 
 def escape_html(text: str) -> str:
@@ -87,12 +86,12 @@ def render_node_html(node: NodeMetadata) -> str:
     collapse_id = f"collapse-{node.source_code_hash[:8]}"
 
     inputs_html = ""
-    for name, annotation in node.inputs.items():
-        inputs_html += render_annotation_html(name, annotation)
+    for inp in node.inputs:
+        inputs_html += render_annotation_html(inp.label or "", inp)
 
     outputs_html = ""
-    for name, annotation in node.outputs.items():
-        outputs_html += render_annotation_html(name, annotation)
+    for outp in node.outputs:
+        outputs_html += render_annotation_html(outp.label or "", outp)
 
     node_html = f"""
     <div class="card mb-4">
@@ -141,12 +140,12 @@ def render_node_html(node: NodeMetadata) -> str:
     return node_html
 
 
-def render_search_results_html(results: list[NodeMetadata]) -> str:
+def render_search_results_html(results: list[ScoredSearchResponse]) -> str:
     if results:
         results_html = "<h2 class='mt-5 mb-4'>Search Results</h2>"
         results_html += "<div class='row'>"
         for node in results:
-            results_html += render_node_html(node)
+            results_html += render_node_html(node.node)
         results_html += "</div>"
     else:
         results_html = "<div class='alert alert-info mt-5' role='alert'>No results found for your search.</div>"
@@ -154,7 +153,7 @@ def render_search_results_html(results: list[NodeMetadata]) -> str:
     return results_html
 
 
-def render_search_page(query: str, results: list[NodeMetadata]):
+def render_search_page(query: str, results: list[ScoredSearchResponse]) -> str:
     results_html = render_search_results_html(results)
 
     page = f"""
@@ -248,15 +247,15 @@ def render_node_detail_page(node: NodeMetadata) -> str:
     """Render a detailed view of a single node"""
     inputs_html = ""
     if node.inputs:
-        for name, annotation in node.inputs.items():
-            inputs_html += render_annotation_html(name, annotation)
+        for inp in node.inputs:
+            inputs_html += render_annotation_html(inp.label or "", inp)
     else:
         inputs_html = "<li class='text-muted'>No inputs</li>"
 
     outputs_html = ""
     if node.outputs:
-        for name, annotation in node.outputs.items():
-            outputs_html += render_annotation_html(name, annotation)
+        for outp in node.outputs:
+            outputs_html += render_annotation_html(outp.label or "", outp)
     else:
         outputs_html = "<li class='text-muted'>No outputs</li>"
 

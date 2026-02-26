@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class NodeType(StrEnum):
     FUNCTION = "function"
-    PYTHON_WORKFLOW_DEFINITION = "pwd"
+    PYTHON_WORKFLOW_DEFINITION = "python_workflow_definition"
     PYIRON_WORKFLOW_FUNCTION = "pyiron_workflow_function"
     PYIRON_CORE_NODE = "pyiron_core_node"
 
@@ -29,12 +29,14 @@ class NodeRequest(BaseModel):
     python_import: str | None = None
     dependencies: list[str] | None = None
 
+    keywords: list[str]
+
     source_code: str
     source_code_hash: str
 
     docstring: str
-    inputs: dict[str, Annotation]
-    outputs: dict[str, Annotation]
+    inputs: list[Annotation]
+    outputs: list[Annotation]
 
 
 class NodeResponse(BaseModel):
@@ -46,13 +48,15 @@ class NodeResponse(BaseModel):
     python_import: str | None = None
     dependencies: list[str] | None = None
 
+    keywords: list[str]
+
     source_code: str
     source_code_hash: str
 
     docstring: str
     ai_docstring: str
-    inputs: dict[str, Annotation]
-    outputs: dict[str, Annotation]
+    inputs: list[Annotation]
+    outputs: list[Annotation]
 
 
 class NodeIndex(BaseModel):

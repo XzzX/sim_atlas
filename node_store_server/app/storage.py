@@ -3,12 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
 
-from node_store_spec.models import (
-    NodeFilter,
-    SemanticSearchResponse,
+from .models import (
+    NodeMetadata,
+    NodeType,
+    ScoredSearchResponse,
 )
-
-from .models import NodeMetadata
 
 
 class StorageInterface(MutableMapping[str, NodeMetadata], ABC):
@@ -21,11 +20,13 @@ class StorageInterface(MutableMapping[str, NodeMetadata], ABC):
         pass
 
     @abstractmethod
-    def filter(self, filter: NodeFilter | None = None) -> list[NodeMetadata]:
+    def filter(
+        self, qualname: str | None = None, type: NodeType | None = None
+    ) -> list[NodeMetadata]:
         pass
 
     @abstractmethod
-    def search(self, query: str) -> list[NodeMetadata]:
+    def search(self, query: str) -> list[ScoredSearchResponse]:
         """
         Search for nodes matching the given query.
 
@@ -40,7 +41,7 @@ class StorageInterface(MutableMapping[str, NodeMetadata], ABC):
     @abstractmethod
     def search_semantic(
         self, query: str, limit: int = 10
-    ) -> list[SemanticSearchResponse]:
+    ) -> list[ScoredSearchResponse]:
         """
         Perform semantic search on node metadata.
 

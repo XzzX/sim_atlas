@@ -1,21 +1,20 @@
+import datetime as dt
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
-from node_store_spec.models import (
-    NodeFilter,
-    NodeRequest,
-    SemanticSearchResponse,
-)
 
 from .html import render_node_detail_page, render_search_page
 from .models import (
     NodeMetadata,
+    NodeRequest,
     NodeResponse,
+    NodeType,
+    ScoredSearchResponse,
 )
-from fastapi.staticfiles import StaticFiles
 from .storage import get_storage_backend
 
 # Get the configured storage backend
@@ -49,35 +48,62 @@ app.add_middleware(
 )
 
 
-@app.get("/", response_class=HTMLResponse)
-async def root(query: str | None = None):
+@app.get("/", include_in_schema=False)
+async def root(query: str | None = None) -> HTMLResponse:
     """Root endpoint - Search interface"""
 
-    nodes = storage.search(query) if query else []
+    nodes = storage.search(query)
     search_page = render_search_page(query or "", nodes)
 
-    return search_page
+    return HTMLResponse(content=search_page)
 
 
 app.mount("/ide", StaticFiles(directory="ide", html=True), name="ide")
 
 
-@app.get("/nodes-detail/{node_hash}", response_class=HTMLResponse)
-async def read_node_html(node_hash: str):
+@app.get("/nodes-detail/{node_hash}", include_in_schema=False)
+async def read_node_html(node_hash: str) -> HTMLResponse:
     """Get detailed HTML view of a node"""
     print("node_hash", node_hash)
     node = storage.get(node_hash, None)
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
-    return render_node_detail_page(node)
+    return HTMLResponse(content=render_node_detail_page(node))
 
 
-@app.post("/nodes/")
+api_router = APIRouter(prefix="/api/v1")
+
+
+@api_router.get("/nodes", tags=["nodes"], response_model=list[NodeResponse])
+async def list_nodes(qualname: str | None = None, type: NodeType | None = None):
+    return storage.filter(qualname, type)
+
+
+@api_router.get("/nodes/{node_hash}", tags=["nodes"])
+async def read_node(node_hash: str) -> NodeResponse:
+    node = storage.get(node_hash, None)
+    if not node:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
+        )
+    return node
+
+
+@api_router.post("/nodes", tags=["nodes"])
 async def create_node(node: NodeRequest) -> NodeResponse:
     if node.source_code_hash in storage:
-        raise HTTPException(status_code=401, detail="Node already exists")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Node already exists"
+        )
 
-    node_metadata = NodeMetadata(**node.model_dump(), ai_docstring="")
+    timestamp = dt.datetime.now(dt.UTC)
+    node_metadata = NodeMetadata(
+        **node.model_dump(),
+        ai_docstring="",
+        creator_name="Sebastian",
+        creator_email="asdf@asdf.de",
+        creation_timestamp=timestamp.isoformat(),
+    )
 
     try:
         storage[node_metadata.source_code_hash] = node_metadata
@@ -86,41 +112,27 @@ async def create_node(node: NodeRequest) -> NodeResponse:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@app.get("/nodes/{node_hash}")
-async def read_node(node_hash: str) -> NodeResponse:
-    node = storage.get(node_hash, None)
-    if not node:
-        raise HTTPException(status_code=404, detail="Node not found")
-    return node
-
-
-@app.put("/nodes/{node_hash}")
+@api_router.put("/nodes/{node_hash}", tags=["nodes"])
 async def update_node(node_hash: str, node: NodeMetadata) -> NodeResponse:
     if node_hash not in storage:
-        raise HTTPException(status_code=404, detail="node not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
+        )
     storage[node_hash] = node
     return node
 
 
-@app.delete("/nodes/{node_hash}")
+@api_router.delete("/nodes/{node_hash}", tags=["nodes"])
 async def delete_node(node_hash: str):
     if node_hash not in storage:
-        raise HTTPException(status_code=404, detail="node not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
+        )
     del storage[node_hash]
     return {"detail": "Node deleted"}
 
 
-@app.get("/node-index/")
-async def read_node_index() -> list[str]:
-    return [item.python_import for item in storage.values() if item.python_import]
-
-
-@app.post("/nodes/list")
-async def read_nodes(filter: NodeFilter | None = None) -> list[NodeResponse]:
-    return [NodeResponse(**x.model_dump()) for x in storage.filter(filter)]
-
-
-@app.post("/nodes/search", response_model=list[NodeResponse])
+@api_router.post("/search", response_model=list[ScoredSearchResponse], tags=["search"])
 async def search_nodes(query: str):
     """
     Search for nodes matching the given criteria.
@@ -131,9 +143,10 @@ async def search_nodes(query: str):
     return storage.search(query)
 
 
-@app.post(
-    "/nodes/semantic_search",
-    response_model=list[SemanticSearchResponse],
+@api_router.post(
+    "/semantic_search",
+    response_model=list[ScoredSearchResponse],
+    tags=["search"],
     operation_id="semantic_search",
 )
 async def semantic_search(query: str):
@@ -146,6 +159,8 @@ async def semantic_search(query: str):
     """
     return storage.search_semantic(query, 10)
 
+
+app.include_router(api_router)
 
 # Create an MCP server based on this app
 mcp = FastApiMCP(

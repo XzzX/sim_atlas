@@ -30,6 +30,7 @@ class NodeStore:
     def upload_module(  # noqa: PLR0912
         self, module: str | ModuleType, upload_included_modules: bool = False
     ) -> None:
+        print(f"Uploading module {module}...")
         if isinstance(module, str):
             module = importlib.import_module(module)
 
@@ -38,23 +39,20 @@ class NodeStore:
         else:
             items = module.__dict__.items()
 
-        module_root = module.__name__.partition(".")[0]
-
         for k, v in items:
             if inspect.ismodule(v):
-                if (
-                    upload_included_modules
-                    and module_root == v.__name__.partition(".")[0]
-                ):
+                if upload_included_modules and v.__name__.startswith(module.__name__):
                     self.upload_module(
                         v, upload_included_modules=upload_included_modules
                     )
+                else:
+                    print(f"Skipping module {v.__name__} ({module.__name__}).")
                 continue
 
             if not hasattr(v, "__module__"):
                 continue
 
-            if module_root != v.__module__.partition(".")[0]:
+            if not v.__module__.startswith(module.__name__):
                 continue
 
             if k.startswith("_"):
@@ -67,13 +65,13 @@ class NodeStore:
             try:
                 response = self.upload(v)
             except Exception as e:
-                print(f"✗ {k}: {v}\n{e}")
+                # print(f"✗ {k}: {v}\n{e}")
                 continue
 
-            if response.status_code == HTTPStatus.OK:
-                print(f"✓ {k}: {v}\n{response.json()}")
-            else:
-                print(f"✗ {k}: {v}\n{response.json()}")
+            # if response.status_code == HTTPStatus.OK:
+            #     print(f"✓ {k}: {v}")
+            # else:
+            #     print(f"✗ {k}: {v}\n{response.json()}")
 
     def upload(self, obj: Any) -> requests.Response:
         """Upload node metadata to the specified API endpoint.

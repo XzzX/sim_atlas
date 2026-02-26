@@ -11,9 +11,11 @@ class Metadata(BaseModel):
     source_code: str
     source_code_hash: str
 
+    keywords: list[str]
+
     docstring: str
-    inputs: dict[str, Annotation]
-    outputs: dict[str, Annotation]
+    inputs: list[Annotation]
+    outputs: list[Annotation]
 
 
 def _parse_annotation(annotation: Any) -> Annotation:
@@ -39,7 +41,7 @@ def _parse_annotation(annotation: Any) -> Annotation:
     annotation = Annotation(datatype=get_name(args[0]))
     for arg in args[1:]:
         if isinstance(arg, dict):
-            annotation.label = arg.get("label", annotation.unit)
+            annotation.label = arg.get("label", annotation.label)
             annotation.unit = arg.get("unit", annotation.unit)
             annotation.quantity = arg.get("quantity", annotation.quantity)
     return annotation

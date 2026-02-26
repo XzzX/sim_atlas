@@ -5,15 +5,14 @@ import pickle
 from collections.abc import Callable
 
 import numpy as np
-from node_store_spec.models import (
-    NodeFilter,
-    SemanticSearchResponse,
-)
 
 from .ai import create_embedding
 from .models import (
+    NodeFilter,
     NodeMetadata,
     NodeResponse,
+    NodeType,
+    ScoredSearchResponse,
 )
 from .storage import StorageInterface
 
@@ -53,12 +52,12 @@ class InMemoryStorage(StorageInterface):
         self._connected = False
 
         # Load from file if it exists
-        if os.path.exists("in-memory.pkl"):
-            try:
-                with open("in-memory.pkl", "rb") as f:
-                    self._storage = pickle.load(f)
-            except Exception:
-                pass  # If loading fails, start with empty storage
+        # if os.path.exists("in-memory.pkl"):
+        #     try:
+        #         with open("in-memory.pkl", "rb") as f:
+        #             self._storage = pickle.load(f)
+        #     except Exception:
+        #         pass  # If loading fails, start with empty storage
 
         print(f"InMemoryStorage initialized with {len(self._storage)} items.")
 
@@ -93,69 +92,17 @@ class InMemoryStorage(StorageInterface):
     def __len__(self) -> int:
         return len(self._storage)
 
-    def filter(self, filter: NodeFilter | None = None) -> list[NodeMetadata]:
-        if filter is None:
-            return list(self._storage.values())
-
-        input_datatype_filter: Callable[[NodeMetadata], bool] = (
-            (lambda x: True)
-            if filter.input.datatype is None
-            else (
-                lambda x: filter.input.datatype
-                in (it.datatype for it in x.inputs.values())
-            )
-        )
-        input_unit_filter: Callable[[NodeMetadata], bool] = (
-            (lambda x: True)
-            if filter.input.unit is None
-            else (lambda x: filter.input.unit in (it.unit for it in x.inputs.values()))
-        )
-        input_quantity_filter: Callable[[NodeMetadata], bool] = (
-            (lambda x: True)
-            if filter.input.quantity is None
-            else (
-                lambda x: filter.input.quantity
-                in (it.quantity for it in x.inputs.values())
-            )
-        )
-
-        output_datatype_filter: Callable[[NodeMetadata], bool] = (
-            (lambda x: True)
-            if filter.output.datatype is None
-            else (
-                lambda x: filter.output.datatype
-                in (it.datatype for it in x.outputs.values())
-            )
-        )
-        output_unit_filter: Callable[[NodeMetadata], bool] = (
-            (lambda x: True)
-            if filter.output.unit is None
-            else (
-                lambda x: filter.output.unit in (it.unit for it in x.outputs.values())
-            )
-        )
-        output_quantity_filter: Callable[[NodeMetadata], bool] = (
-            (lambda x: True)
-            if filter.output.quantity is None
-            else (
-                lambda x: filter.output.quantity
-                in (it.quantity for it in x.outputs.values())
-            )
-        )
-
+    def filter(
+        self, qualname: str | None = None, type: NodeType | None = None
+    ) -> list[NodeMetadata]:
         def filter_item(item: NodeMetadata) -> bool:
             return (
-                input_datatype_filter(item)
-                and input_unit_filter(item)
-                and input_quantity_filter(item)
-                and output_datatype_filter(item)
-                and output_unit_filter(item)
-                and output_quantity_filter(item)
-            )
+                qualname.lower() in item.python_import.lower() if qualname else True
+            ) and (item.node_type == type if type else True)
 
         return [item for item in self._storage.values() if filter_item(item)]
 
-    def search(self, query: str) -> list[NodeMetadata]:
+    def search(self, query: str) -> list[ScoredSearchResponse]:
         """
         Search for nodes matching the given query.
 
@@ -165,27 +112,27 @@ class InMemoryStorage(StorageInterface):
         Returns:
             List of matching node metadata
         """
-        results: list[NodeMetadata] = []
-        query_lower = query.lower()
 
-        for node in self._storage.values():
-            # Search in qualname, module, and docstring
-            searchable_text = " ".join(
-                [
-                    node.python_import or "",
-                    node.docstring or "",
-                    node.ai_docstring or "",
-                ]
-            ).lower()
+        def skip_node(query: str, node: NodeMetadata) -> bool:
+            return query.lower() not in node.python_import.lower()
 
-            if query_lower in searchable_text:
-                results.append(node)
+        scored_results = [
+            ScoredSearchResponse(score=1.0, node=node)
+            for node in self._storage.values()
+            if not skip_node(query, node)
+        ]
 
-        return results
+        sorted_results = sorted(scored_results, key=lambda x: x.score, reverse=False)
+
+        facets: dict[str, int] = {}
+        for result in sorted_results:
+            facets[result.node.node_type] = facets.get(result.node.node_type, 0) + 1
+
+        return sorted_results
 
     def search_semantic(
         self, query: str, limit: int = 10
-    ) -> list[SemanticSearchResponse]:
+    ) -> list[ScoredSearchResponse]:
         """
         Perform semantic search on node metadata.
 
@@ -200,12 +147,12 @@ class InMemoryStorage(StorageInterface):
         query_embedding = create_embedding(query)
 
         # Calculate similarities
-        similarities: list[SemanticSearchResponse] = []
+        similarities: list[ScoredSearchResponse] = []
         for _node_hash, node in self._storage.items():
             if node.embedding is not None:
                 similarity = cosine_similarity(query_embedding, node.embedding)
                 similarities.append(
-                    SemanticSearchResponse(
+                    ScoredSearchResponse(
                         score=similarity,
                         node=NodeResponse(**node.model_dump()),
                     )

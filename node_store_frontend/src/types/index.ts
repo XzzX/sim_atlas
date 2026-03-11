@@ -37,8 +37,9 @@ export interface ScoredSearchResponse {
   node: NodeMetadata;
 }
 
-export interface FacetFilters {
-  nodeType?: NodeType[];
+export interface FilterOptions {
+  category?: string;
+  type?: NodeType[];
   author?: string[];
   keywords?: string[];
   inputDatatype?: string[];

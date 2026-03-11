@@ -9,8 +9,6 @@ import {
   Tab,
   Tabs,
   Table,
-  Nav,
-  Navbar,
 } from "react-bootstrap";
 import { NodeMetadata } from "../types/index";
 import {

@@ -16,8 +16,10 @@
     "lucide-react": "^0.575.0",
     "react": "^19.2.4",
     "react-bootstrap": "^2.10.10",
+    "react-bootstrap-typeahead": "^6.4.1",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^7.13.1"
+    "react-router-dom": "^7.13.1",
+    "use-debounce": "^10.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

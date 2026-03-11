@@ -1,8 +1,25 @@
 import React, { useMemo, useState } from "react";
-import { Form, Button, Row, Col, Card, Collapse } from "react-bootstrap";
-import { Typeahead } from "react-bootstrap-typeahead";
 import { NodeType, FilterOptions, ScoredSearchResponse } from "../types/index";
-import { X } from "lucide-react";
+import { Funnel, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxChip,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox";
+import {
+  CollapsibleContent,
+  CollapsibleRoot,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface FacetedSearchProps {
   nodes: ScoredSearchResponse[];
@@ -98,170 +115,151 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
   );
 
   return (
-    <Card className="shadow-sm">
-      <Card.Header className="d-flex justify-content-between align-items-center">
-        <span className="fw-semibold">Filters</span>
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          onClick={() => setShowFilters((prev) => !prev)}
-          aria-expanded={showFilters}
-        >
-          {showFilters ? "Hide" : "Show"}
-        </Button>
-      </Card.Header>
-      <Collapse in={showFilters}>
-        <Card.Body>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            {activeFilterCount > 0 && (
-              <Button
-                variant="link"
-                size="sm"
-                onClick={onClearFilters}
-                className="p-0"
-              >
-                <X size={16} className="me-1" style={{ display: "inline" }} />
-                Clear All
-              </Button>
-            )}
-          </div>
+    <Card>
+      <CardHeader className="flex-row items-center justify-between gap-2">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <Funnel className="size-4" />
+          Filters
+        </CardTitle>
+        <CollapsibleRoot open={showFilters} onOpenChange={setShowFilters}>
+          <CollapsibleTrigger render={<Button variant="outline" size="sm" />}>
+            {showFilters ? "Hide" : "Show"}
+          </CollapsibleTrigger>
+        </CollapsibleRoot>
+      </CardHeader>
+      <CollapsibleRoot open={showFilters} onOpenChange={setShowFilters}>
+        <CollapsibleContent>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                {activeFilterCount} active filters
+              </p>
+              {activeFilterCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={onClearFilters}>
+                  <X className="mr-1 size-4" />
+                  Clear all
+                </Button>
+              )}
+            </div>
 
-          <Row className="g-3">
-            <Col md={6} lg={4} xl={3}>
-              <Form.Label>Node Type</Form.Label>
-              <Typeahead
-                id="node-type-filter"
-                multiple
-                clearButton
-                options={nodeTypeOptions}
-                selected={filters.type || []}
-                onChange={(selected) => {
-                  const updated = selected
-                    .map((option) => String(option))
-                    .filter((option): option is NodeType =>
-                      Object.values(NodeType).includes(option as NodeType),
-                    );
-                  onFilterChange({ ...filters, type: updated });
-                }}
-                placeholder="Select node types..."
-                renderMenuItemChildren={(option) => {
-                  const value = String(option) as NodeType;
-                  return (
-                    <>
-                      {value} ({facets.nodeTypes.get(value) || 0})
-                    </>
-                  );
-                }}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <FacetPopover
+                label="Node Type"
+                values={nodeTypeOptions}
+                selected={(filters.type || []).map((value) => String(value))}
+                counts={(value) => facets.nodeTypes.get(value as NodeType) || 0}
+                onValueChange={(values) =>
+                  onFilterChange({
+                    ...filters,
+                    type: values.filter((v) =>
+                      Object.values(NodeType).includes(v as NodeType),
+                    ) as NodeType[],
+                  })
+                }
               />
-            </Col>
-
-            <Col md={6} lg={4} xl={3}>
-              <Form.Label>Author</Form.Label>
-              <Typeahead
-                id="author-filter"
-                multiple
-                clearButton
-                options={authorOptions}
+              <FacetPopover
+                label="Author"
+                values={authorOptions}
                 selected={filters.author || []}
-                onChange={(selected) => {
-                  onFilterChange({
-                    ...filters,
-                    author: selected.map((option) => String(option)),
-                  });
-                }}
-                placeholder="Select authors..."
-                renderMenuItemChildren={(option) => {
-                  const value = String(option);
-                  return (
-                    <>
-                      {value} ({facets.authors.get(value) || 0})
-                    </>
-                  );
-                }}
+                counts={(value) => facets.authors.get(value) || 0}
+                onValueChange={(values) =>
+                  onFilterChange({ ...filters, author: values })
+                }
               />
-            </Col>
-
-            <Col md={6} lg={4} xl={3}>
-              <Form.Label>Keywords</Form.Label>
-              <Typeahead
-                id="keywords-filter"
-                multiple
-                clearButton
-                options={keywordOptions}
+              <FacetPopover
+                label="Keywords"
+                values={keywordOptions}
                 selected={filters.keywords || []}
-                onChange={(selected) => {
-                  onFilterChange({
-                    ...filters,
-                    keywords: selected.map((option) => String(option)),
-                  });
-                }}
-                placeholder="Select keywords..."
-                renderMenuItemChildren={(option) => {
-                  const value = String(option);
-                  return (
-                    <>
-                      {value} ({facets.keywords.get(value) || 0})
-                    </>
-                  );
-                }}
+                counts={(value) => facets.keywords.get(value) || 0}
+                onValueChange={(values) =>
+                  onFilterChange({ ...filters, keywords: values })
+                }
               />
-            </Col>
-          </Row>
-          <Row className="g-3">
-            <Col md={6} lg={4} xl={3}>
-              <Form.Label>Input Type</Form.Label>
-              <Typeahead
-                id="input-datatype-filter"
-                multiple
-                clearButton
-                options={inputDatatypeOptions}
+              <FacetPopover
+                label="Input Type"
+                values={inputDatatypeOptions}
                 selected={filters.inputDatatype || []}
-                onChange={(selected) => {
-                  onFilterChange({
-                    ...filters,
-                    inputDatatype: selected.map((option) => String(option)),
-                  });
-                }}
-                placeholder="Select input types..."
-                renderMenuItemChildren={(option) => {
-                  const value = String(option);
-                  return (
-                    <>
-                      {value} ({facets.inputDatatypes.get(value) || 0})
-                    </>
-                  );
-                }}
+                counts={(value) => facets.inputDatatypes.get(value) || 0}
+                onValueChange={(values) =>
+                  onFilterChange({ ...filters, inputDatatype: values })
+                }
               />
-            </Col>
-
-            <Col md={6} lg={4} xl={3}>
-              <Form.Label>Output Type</Form.Label>
-              <Typeahead
-                id="output-datatype-filter"
-                multiple
-                clearButton
-                options={outputDatatypeOptions}
+              <FacetPopover
+                label="Output Type"
+                values={outputDatatypeOptions}
                 selected={filters.outputDatatype || []}
-                onChange={(selected) => {
-                  onFilterChange({
-                    ...filters,
-                    outputDatatype: selected.map((option) => String(option)),
-                  });
-                }}
-                placeholder="Select output types..."
-                renderMenuItemChildren={(option) => {
-                  const value = String(option);
-                  return (
-                    <>
-                      {value} ({facets.outputDatatypes.get(value) || 0})
-                    </>
-                  );
-                }}
+                counts={(value) => facets.outputDatatypes.get(value) || 0}
+                onValueChange={(values) =>
+                  onFilterChange({ ...filters, outputDatatype: values })
+                }
               />
-            </Col>
-          </Row>
-        </Card.Body>
-      </Collapse>
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </CollapsibleRoot>
     </Card>
   );
 };
+
+interface FacetPopoverProps {
+  label: string;
+  values: string[];
+  selected: string[];
+  counts: (value: string) => number;
+  onValueChange: (values: string[]) => void;
+}
+
+function FacetPopover({
+  label,
+  values,
+  selected,
+  counts,
+  onValueChange,
+}: FacetPopoverProps) {
+  const anchor = useComboboxAnchor();
+
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <Combobox
+        multiple
+        autoHighlight
+        items={values}
+        value={selected}
+        onValueChange={onValueChange}
+      >
+        <ComboboxChips ref={anchor} className="w-full">
+          <ComboboxValue>
+            {(selectedValues: string[]) => (
+              <React.Fragment>
+                {selectedValues.map((value: string) => (
+                  <ComboboxChip key={value}>{value}</ComboboxChip>
+                ))}
+                <ComboboxChipsInput
+                  placeholder={`Search ${label.toLowerCase()}...`}
+                />
+              </React.Fragment>
+            )}
+          </ComboboxValue>
+        </ComboboxChips>
+        <ComboboxContent anchor={anchor}>
+          <ComboboxEmpty>No options</ComboboxEmpty>
+          <ComboboxList>
+            {(item: string) => (
+              <ComboboxItem key={item} value={item}>
+                <div className="flex items-center justify-between gap-2 w-full">
+                  <span className="max-w-40 truncate">{item}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {counts(item)}
+                  </span>
+                </div>
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    </div>
+  );
+}

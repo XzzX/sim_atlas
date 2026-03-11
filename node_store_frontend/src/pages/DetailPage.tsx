@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Container, Spinner, Alert } from "react-bootstrap";
 import { nodeAPI } from "../services/api";
 import { NodeMetadata } from "../types/index";
 import { NodeDetailView } from "../components/NodeDetailView";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 export const DetailPage: React.FC = () => {
   const { nodeHash } = useParams<{ nodeHash: string }>();
@@ -42,25 +43,20 @@ export const DetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div
-        className="d-flex justify-content-center align-items-center"
-        style={{ minHeight: "100vh" }}
-      >
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
+      <div className="grid min-h-screen place-items-center">
+        <div className="size-10 animate-spin rounded-full border-2 border-muted border-t-foreground" />
       </div>
     );
   }
 
   if (error || !node) {
     return (
-      <Container className="py-5">
-        <Alert variant="danger">{error || "Node not found"}</Alert>
-        <a href="/" className="btn btn-secondary">
+      <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center gap-4 px-4">
+        <Alert variant="destructive">{error || "Node not found"}</Alert>
+        <Button variant="outline" onClick={handleClose}>
           Back to Search
-        </a>
-      </Container>
+        </Button>
+      </main>
     );
   }
 

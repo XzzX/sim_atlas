@@ -1,15 +1,4 @@
 import React from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Badge,
-  Button,
-  Card,
-  Tab,
-  Tabs,
-  Table,
-} from "react-bootstrap";
 import { NodeMetadata } from "../types/index";
 import {
   Code,
@@ -20,6 +9,15 @@ import {
   Zap,
   ArrowLeft,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  TabsContent,
+  TabsList,
+  TabsRoot,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 interface NodeDetailViewProps {
   node: NodeMetadata;
@@ -41,320 +39,241 @@ export const NodeDetailView: React.FC<NodeDetailViewProps> = ({
   };
 
   return (
-    <Container className="py-4">
-      <Row className="mb-2">
-        <Col>
-          <Button
-            variant="link"
-            className="p-0 mb-3 d-flex align-items-center"
-            onClick={onClose}
-            style={{ color: "#0d6efd", textDecoration: "none" }}
-          >
-            <ArrowLeft size={18} className="me-2" />
-            Back to Search
-          </Button>
-        </Col>
-      </Row>
+    <main className="mx-auto w-full max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
+      <Button variant="ghost" className="mb-1" onClick={onClose}>
+        <ArrowLeft size={18} className="mr-2" />
+        Back to Search
+      </Button>
 
-      <Row className="mb-4">
-        <Col>
-          <h1 className="mb-3">{node.python_import}</h1>
+      <div>
+        <h1 className="mb-3 text-2xl font-semibold tracking-tight">
+          {node.python_import}
+        </h1>
+        <div className="mb-1 flex flex-wrap gap-2">
+          <Badge variant="secondary">{node.node_type}</Badge>
+          {node.node_type === "function" && (
+            <Badge variant="outline">Function</Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="h-full">
+          <CardContent className="space-y-4 pt-4">
+            <div>
+              <p className="mb-1 flex items-center text-xs text-muted-foreground">
+                <User size={14} className="mr-2" />
+                Author
+              </p>
+              <p className="font-medium">{node.author_name}</p>
+              <p className="text-sm text-muted-foreground">
+                {node.author_email}
+              </p>
+            </div>
+            <div className="h-px bg-border" />
+            <div>
+              <p className="mb-1 flex items-center text-xs text-muted-foreground">
+                <User size={14} className="mr-2" />
+                Creator
+              </p>
+              <p className="font-medium">{node.creator_name}</p>
+              <p className="text-sm text-muted-foreground">
+                {node.creator_email}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="h-full">
+          <CardContent className="space-y-4 pt-4">
+            <div>
+              <p className="mb-1 flex items-center text-xs text-muted-foreground">
+                <Calendar size={14} className="mr-2" />
+                Created
+              </p>
+              <p className="font-medium">
+                {formatDate(node.creation_timestamp)}
+              </p>
+            </div>
+            <div className="h-px bg-border" />
+            <div>
+              <p className="mb-1 flex items-center text-xs text-muted-foreground">
+                <Code size={14} className="mr-2" />
+                Source Hash
+              </p>
+              <code className="break-all text-sm">{node.source_code_hash}</code>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Documentation</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="mb-3">
-            <Badge bg="info" className="me-2" style={{ fontSize: "0.9rem" }}>
-              {node.node_type}
-            </Badge>
-            {node.node_type === "function" && (
-              <Badge bg="secondary" style={{ fontSize: "0.9rem" }}>
-                Function
-              </Badge>
-            )}
+            <h3 className="mb-1 text-sm font-semibold text-muted-foreground">
+              Description
+            </h3>
+            <p>{node.docstring || "No description available"}</p>
           </div>
-        </Col>
-      </Row>
+          {node.ai_docstring && (
+            <div>
+              <h3 className="mb-1 text-sm font-semibold text-muted-foreground">
+                AI Generated Summary
+              </h3>
+              <div className="rounded-md border bg-muted/40 p-3">
+                <p className="mb-0">{node.ai_docstring}</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Metadata Row */}
-      <Row className="mb-4">
-        <Col md={6} className="mb-3">
-          <Card className="h-100 shadow-sm">
-            <Card.Body>
-              <div className="mb-3">
-                <small className="text-muted d-block mb-1">
-                  <User
-                    size={14}
-                    className="me-2"
-                    style={{ display: "inline" }}
-                  />
-                  Author
-                </small>
-                <p className="mb-0">
-                  <strong>{node.author_name}</strong>
-                </p>
-                <small className="text-muted">{node.author_email}</small>
-              </div>
-              <hr />
-              <div className="mb-0">
-                <small className="text-muted d-block mb-1">
-                  <User
-                    size={14}
-                    className="me-2"
-                    style={{ display: "inline" }}
-                  />
-                  Creator
-                </small>
-                <p className="mb-0">
-                  <strong>{node.creator_name}</strong>
-                </p>
-                <small className="text-muted">{node.creator_email}</small>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={6} className="mb-3">
-          <Card className="h-100 shadow-sm">
-            <Card.Body>
-              <div>
-                <small className="text-muted d-block mb-1">
-                  <Calendar
-                    size={14}
-                    className="me-2"
-                    style={{ display: "inline" }}
-                  />
-                  Created
-                </small>
-                <p className="mb-0">
-                  <strong>{formatDate(node.creation_timestamp)}</strong>
-                </p>
-              </div>
-              <hr />
-              <div>
-                <small className="text-muted d-block mb-1">
-                  <Code
-                    size={14}
-                    className="me-2"
-                    style={{ display: "inline" }}
-                  />
-                  Source Hash
-                </small>
-                <code className="small">{node.source_code_hash}</code>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <TabsRoot defaultValue="inputs">
+        <TabsList>
+          <TabsTrigger value="inputs">
+            <Zap size={14} className="mr-2" />
+            Inputs ({node.inputs.length})
+          </TabsTrigger>
+          <TabsTrigger value="outputs">
+            <Box size={14} className="mr-2" />
+            Outputs ({node.outputs.length})
+          </TabsTrigger>
+          <TabsTrigger value="dependencies">
+            <GitBranch size={14} className="mr-2" />
+            Dependencies ({node.dependencies ? node.dependencies.length : 0})
+          </TabsTrigger>
+          <TabsTrigger value="source">
+            <Code size={14} className="mr-2" />
+            Source Code
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Documentation */}
-      <Row className="mb-4">
-        <Col>
-          <Card className="shadow-sm">
-            <Card.Header className="bg-light">
-              <h5 className="mb-0">Documentation</h5>
-            </Card.Header>
-            <Card.Body>
-              <div className="mb-3">
-                <h6 className="text-muted">Description</h6>
-                <p>{node.docstring || "No description available"}</p>
-              </div>
-              {node.ai_docstring && (
-                <div>
-                  <h6 className="text-muted">AI Generated Summary</h6>
-                  <div className="alert alert-light">
-                    <p className="mb-0">{node.ai_docstring}</p>
-                  </div>
+        <TabsContent value="inputs">
+          <Card>
+            <CardContent className="pt-4">
+              {node.inputs.length === 0 ? (
+                <p className="mb-0 text-muted-foreground">No inputs</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="py-2 pr-3">Label</th>
+                        <th className="py-2 pr-3">Data Type</th>
+                        <th className="py-2 pr-3">Unit</th>
+                        <th className="py-2 pr-3">Quantity</th>
+                        <th className="py-2 pr-3">Default</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {node.inputs.map((input, idx) => (
+                        <tr key={idx} className="border-b last:border-b-0">
+                          <td className="py-2 pr-3">
+                            <code>{input.label || "-"}</code>
+                          </td>
+                          <td className="py-2 pr-3">
+                            {input.datatype ? (
+                              <Badge variant="outline">{input.datatype}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
+                          <td className="py-2 pr-3">{input.unit || "-"}</td>
+                          <td className="py-2 pr-3">{input.quantity || "-"}</td>
+                          <td className="py-2 pr-3">
+                            {input.has_default_value ? (
+                              <Badge variant="success">Yes</Badge>
+                            ) : (
+                              <Badge variant="outline">No</Badge>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
-            </Card.Body>
+            </CardContent>
           </Card>
-        </Col>
-      </Row>
+        </TabsContent>
 
-      {/* Details Tabs */}
-      <Row>
-        <Col>
-          <Tabs defaultActiveKey="inputs" id="node-detail-tabs">
-            {/* Inputs Tab */}
-            <Tab
-              eventKey="inputs"
-              title={
-                <>
-                  <Zap
-                    size={14}
-                    className="me-2"
-                    style={{ display: "inline" }}
-                  />
-                  Inputs ({node.inputs.length})
-                </>
-              }
-            >
-              <Card className="border-0 border-top">
-                <Card.Body>
-                  {node.inputs.length === 0 ? (
-                    <p className="text-muted mb-0">No inputs</p>
-                  ) : (
-                    <Table striped hover responsive className="mb-0">
-                      <thead>
-                        <tr>
-                          <th>Label</th>
-                          <th>Data Type</th>
-                          <th>Unit</th>
-                          <th>Quantity</th>
-                          <th>Default</th>
+        <TabsContent value="outputs">
+          <Card>
+            <CardContent className="pt-4">
+              {node.outputs.length === 0 ? (
+                <p className="mb-0 text-muted-foreground">No outputs</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="py-2 pr-3">Label</th>
+                        <th className="py-2 pr-3">Data Type</th>
+                        <th className="py-2 pr-3">Unit</th>
+                        <th className="py-2 pr-3">Quantity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {node.outputs.map((output, idx) => (
+                        <tr key={idx} className="border-b last:border-b-0">
+                          <td className="py-2 pr-3">
+                            <code>{output.label || "-"}</code>
+                          </td>
+                          <td className="py-2 pr-3">
+                            {output.datatype ? (
+                              <Badge variant="outline">{output.datatype}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
+                          <td className="py-2 pr-3">{output.unit || "-"}</td>
+                          <td className="py-2 pr-3">
+                            {output.quantity || "-"}
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {node.inputs.map((input, idx) => (
-                          <tr key={idx}>
-                            <td>
-                              <code>{input.label || "-"}</code>
-                            </td>
-                            <td>
-                              {input.datatype ? (
-                                <Badge bg="secondary">{input.datatype}</Badge>
-                              ) : (
-                                <span className="text-muted">-</span>
-                              )}
-                            </td>
-                            <td>
-                              <small>{input.unit || "-"}</small>
-                            </td>
-                            <td>
-                              <small>{input.quantity || "-"}</small>
-                            </td>
-                            <td>
-                              {input.has_default_value ? (
-                                <Badge bg="success">Yes</Badge>
-                              ) : (
-                                <Badge bg="light" text="dark">
-                                  No
-                                </Badge>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  )}
-                </Card.Body>
-              </Card>
-            </Tab>
-
-            {/* Outputs Tab */}
-            <Tab
-              eventKey="outputs"
-              title={
-                <>
-                  <Box
-                    size={14}
-                    className="me-2"
-                    style={{ display: "inline" }}
-                  />
-                  Outputs ({node.outputs.length})
-                </>
-              }
-            >
-              <Card className="border-0 border-top">
-                <Card.Body>
-                  {node.outputs.length === 0 ? (
-                    <p className="text-muted mb-0">No outputs</p>
-                  ) : (
-                    <Table striped hover responsive className="mb-0">
-                      <thead>
-                        <tr>
-                          <th>Label</th>
-                          <th>Data Type</th>
-                          <th>Unit</th>
-                          <th>Quantity</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {node.outputs.map((output, idx) => (
-                          <tr key={idx}>
-                            <td>
-                              <code>{output.label || "-"}</code>
-                            </td>
-                            <td>
-                              {output.datatype ? (
-                                <Badge bg="secondary">{output.datatype}</Badge>
-                              ) : (
-                                <span className="text-muted">-</span>
-                              )}
-                            </td>
-                            <td>
-                              <small>{output.unit || "-"}</small>
-                            </td>
-                            <td>
-                              <small>{output.quantity || "-"}</small>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  )}
-                </Card.Body>
-              </Card>
-            </Tab>
-
-            {/* Dependencies Tab */}
-            <Tab
-              eventKey="dependencies"
-              title={
-                <>
-                  <GitBranch
-                    size={14}
-                    className="me-2"
-                    style={{ display: "inline" }}
-                  />
-                  Dependencies (
-                  {node.dependencies ? node.dependencies.length : 0})
-                </>
-              }
-            >
-              <Card className="border-0 border-top">
-                <Card.Body>
-                  {!node.dependencies || node.dependencies.length === 0 ? (
-                    <p className="text-muted mb-0">No dependencies</p>
-                  ) : (
-                    <div>
-                      {node.dependencies.map((dep, idx) => (
-                        <div key={idx} className="mb-2">
-                          <code className="d-block p-2 bg-light rounded">
-                            {dep}
-                          </code>
-                        </div>
                       ))}
-                    </div>
-                  )}
-                </Card.Body>
-              </Card>
-            </Tab>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-            {/* Source Code Tab */}
-            <Tab
-              eventKey="source"
-              title={
-                <>
-                  <Code
-                    size={14}
-                    className="me-2"
-                    style={{ display: "inline" }}
-                  />
-                  Source Code
-                </>
-              }
-            >
-              <Card className="border-0 border-top">
-                <Card.Body>
-                  <pre
-                    className="bg-light p-3 rounded overflow-auto"
-                    style={{ maxHeight: "500px" }}
-                  >
-                    <code>{node.source_code}</code>
-                  </pre>
-                </Card.Body>
-              </Card>
-            </Tab>
-          </Tabs>
-        </Col>
-      </Row>
-    </Container>
+        <TabsContent value="dependencies">
+          <Card>
+            <CardContent className="pt-4">
+              {!node.dependencies || node.dependencies.length === 0 ? (
+                <p className="mb-0 text-muted-foreground">No dependencies</p>
+              ) : (
+                <div className="space-y-2">
+                  {node.dependencies.map((dep, idx) => (
+                    <code
+                      key={idx}
+                      className="block rounded-md bg-muted px-2 py-1"
+                    >
+                      {dep}
+                    </code>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="source">
+          <Card>
+            <CardContent className="pt-4">
+              <pre className="max-h-[500px] overflow-auto rounded-md bg-muted p-3 text-sm">
+                <code>{node.source_code}</code>
+              </pre>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </TabsRoot>
+    </main>
   );
 };

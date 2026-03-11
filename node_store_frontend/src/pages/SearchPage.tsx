@@ -1,25 +1,17 @@
 import React, { useState, useEffect } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Form,
-  InputGroup,
-  Spinner,
-  Alert,
-} from "react-bootstrap";
 import { Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 import { nodeAPI } from "../services/api";
 import {
   NodeMetadata,
-  ScoredSearchResponse,
   FilterOptions,
+  ScoredSearchResponse,
 } from "../types/index";
 import { FacetedSearch } from "../components/FacetedSearch";
 import { NodeCard } from "../components/NodeCard";
-import "../App.css";
+import { Alert } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
 
 export const SearchPage: React.FC = () => {
   const navigate = useNavigate();
@@ -74,96 +66,72 @@ export const SearchPage: React.FC = () => {
   };
 
   return (
-    <>
-      {/* Main Content */}
+    <main className="mx-auto w-full max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="h-11 pl-9"
+          placeholder="Search nodes by name, description, or functionality..."
+          value={searchQuery}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            setSearchQuery(e.target.value);
+            debouncedSearch();
+          }}
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
+            e.key === "Enter" && immediateSearch()
+          }
+        />
+      </div>
 
-      <Container className="py-4">
-        {/* Search Bar */}
-        <Row className="mb-4">
-          <Col lg={12} className="mx-auto">
-            <div className="mb-3">
-              <InputGroup size="lg" className="shadow-sm">
-                <InputGroup.Text className="bg-light">
-                  <Search size={18} />
-                </InputGroup.Text>
-                <Form.Control
-                  placeholder="Search nodes by name, description, or functionality..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    debouncedSearch();
-                  }}
-                  onKeyDown={(e) => e.key === "Enter" && immediateSearch()}
-                />
-              </InputGroup>
-            </div>
-          </Col>
-        </Row>
+      {error && (
+        <Alert
+          variant="destructive"
+          className="flex items-center justify-between gap-2"
+        >
+          <span>{error}</span>
+          <button
+            className="text-sm underline underline-offset-2"
+            type="button"
+            onClick={() => setError(null)}
+          >
+            Dismiss
+          </button>
+        </Alert>
+      )}
 
-        {/* Error Alert */}
-        {error && (
-          <Row className="mb-3">
-            <Col lg={8} className="mx-auto">
-              <Alert
-                variant="danger"
-                onClose={() => setError(null)}
-                dismissible
-              >
-                {error}
-              </Alert>
-            </Col>
-          </Row>
+      <FacetedSearch
+        nodes={allNodes}
+        filters={filters}
+        onFilterChange={(filterOptions) => {
+          setFilters(filterOptions);
+          void debouncedSearch();
+        }}
+        onClearFilters={handleClearFilters}
+      />
+
+      <section className="min-h-[400px] rounded-xl border bg-card p-3 sm:p-4">
+        {loading ? (
+          <div className="flex min-h-56 flex-col items-center justify-center gap-3">
+            <div className="size-8 animate-spin rounded-full border-2 border-muted border-t-foreground" />
+            <p className="text-sm text-muted-foreground">Loading nodes...</p>
+          </div>
+        ) : allNodes.length === 0 ? (
+          <Alert variant="info">
+            No nodes found. Try adjusting your search query or filters.
+          </Alert>
+        ) : (
+          <div className="grid gap-3">
+            {allNodes.map((result) => (
+              <NodeCard
+                key={result.node.source_code_hash}
+                node={result.node}
+                score={result.score}
+                onSelect={handleNodeSelect}
+              />
+            ))}
+          </div>
         )}
-
-        {/* Filters Box */}
-        <Row className="mb-3">
-          <Col lg={12}>
-            <FacetedSearch
-              nodes={allNodes}
-              filters={filters}
-              onFilterChange={(filterOptions) => {
-                setFilters(filterOptions);
-                void debouncedSearch();
-              }}
-              onClearFilters={handleClearFilters}
-            />
-          </Col>
-        </Row>
-
-        {/* Search Results */}
-        <Row className="g-4">
-          <Col lg={12}>
-            <div className="search-results">
-              {loading ? (
-                <div className="text-center py-5">
-                  <Spinner animation="border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </Spinner>
-                  <p className="mt-3 text-muted">Loading nodes...</p>
-                </div>
-              ) : allNodes.length === 0 ? (
-                <Alert variant="info">
-                  No nodes found. Try adjusting your search query or filters.
-                </Alert>
-              ) : (
-                <>
-                  <Row className="g-3">
-                    {allNodes.map((result) => (
-                      <Col key={result.node.source_code_hash} md={12} lg={12}>
-                        <NodeCard
-                          node={result.node}
-                          score={result.score}
-                          onSelect={handleNodeSelect}
-                        />
-                      </Col>
-                    ))}
-                  </Row>
-                </>
-              )}
-            </div>
-          </Col>
-        </Row>
-      </Container>
-    </>
+      </section>
+    </main>
   );
 };

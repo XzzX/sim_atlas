@@ -2,7 +2,6 @@ import axios from "axios";
 import {
   NodeMetadata,
   ScoredSearchResponse,
-  NodeType,
   FilterOptions,
 } from "../types/index";
 

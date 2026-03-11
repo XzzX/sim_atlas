@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi-mcp>=0.4.0",
     "fastapi[standard]>=0.122.0",
-    "node-store-spec>=0.1.0",
+    "numba>=0.64.0",
     "numpy>=1.21",
     "openai>=2.8.1",
     "pymongo>=4.15.4",

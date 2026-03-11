@@ -25,6 +25,7 @@ class NodeRequest(BaseModel):
     author_email: str
 
     node_type: NodeType
+    category: str
 
     python_import: str
     dependencies: list[str] | None = None
@@ -48,6 +49,7 @@ class NodeResponse(BaseModel):
     creation_timestamp: str
 
     node_type: NodeType
+    category: str
 
     python_import: str
     dependencies: list[str] | None = None

@@ -4,15 +4,15 @@ import os
 import pickle
 
 import numpy as np
+from numba import njit
 
 from .ai import create_embedding
 from .models import (
     NodeMetadata,
     NodeResponse,
-    NodeType,
     ScoredSearchResponse,
 )
-from .storage import StorageInterface
+from .storage import FilterOptions, StorageInterface
 
 
 def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
@@ -40,6 +40,31 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
 
     similarity = dot_product / (norm1 * norm2)
     return similarity
+
+
+class NodeFilter:
+    def __init__(self, filter_options: FilterOptions) -> None:
+        self.category = (
+            filter_options.category.lower() if filter_options.category else None
+        )
+        self.type = filter_options.type if filter_options.type else None
+        self.author = filter_options.author if filter_options.author else None
+        self.keywords = filter_options.keywords if filter_options.keywords else None
+
+    def __call__(self, node: NodeMetadata) -> bool:
+        if self.category and not node.category.startswith(self.category):
+            return False
+
+        if self.type and node.node_type not in self.type:
+            return False
+
+        if self.author and node.author_name not in self.author:
+            return False
+
+        if self.keywords and not any(kw in node.keywords for kw in self.keywords):
+            return False
+
+        return True
 
 
 class InMemoryStorage(StorageInterface):
@@ -89,21 +114,18 @@ class InMemoryStorage(StorageInterface):
     def __len__(self) -> int:
         return len(self._storage)
 
-    def filter(
-        self, qualname: str | None = None, type: NodeType | None = None
-    ) -> list[ScoredSearchResponse]:
-        def filter_item(item: NodeMetadata) -> bool:
-            return (
-                qualname.lower() in item.python_import.lower() if qualname else True
-            ) and (item.node_type == type if type else True)
+    def filter(self, filter: FilterOptions) -> list[ScoredSearchResponse]:
+        item_filter: NodeFilter = NodeFilter(filter)
 
         return [
             ScoredSearchResponse(score=1.0, node=item)
             for item in self._storage.values()
-            if filter_item(item)
+            if item_filter(item)
         ]
 
-    def search(self, query: str) -> list[ScoredSearchResponse]:
+    def search(
+        self, query: str | None, filter: FilterOptions
+    ) -> list[ScoredSearchResponse]:
         """
         Search for nodes matching the given query.
 
@@ -114,20 +136,24 @@ class InMemoryStorage(StorageInterface):
             List of matching node metadata
         """
 
-        def skip_node(query: str, node: NodeMetadata) -> bool:
-            return query.lower() not in node.python_import.lower()
+        from .fuzzy_scoring import weighted_fuzzy_match
 
-        scored_results = [
-            ScoredSearchResponse(score=1.0, node=node)
-            for node in self._storage.values()
-            if not skip_node(query, node)
-        ]
+        item_filter: NodeFilter = NodeFilter(filter)
+        filtered_nodes = (item for item in self._storage.values() if item_filter(item))
 
-        sorted_results = sorted(scored_results, key=lambda x: x.score, reverse=False)
+        scored_results = (
+            ScoredSearchResponse(
+                score=score,
+                node=item,
+            )
+            for score, item in (
+                (weighted_fuzzy_match(query, item.python_import)[0], item)
+                for item in filtered_nodes
+            )
+            if score > 0.0  # Only include results with a positive score
+        )
 
-        facets: dict[str, int] = {}
-        for result in sorted_results:
-            facets[result.node.node_type] = facets.get(result.node.node_type, 0) + 1
+        sorted_results = sorted(scored_results, key=lambda x: x.score, reverse=True)
 
         return sorted_results
 

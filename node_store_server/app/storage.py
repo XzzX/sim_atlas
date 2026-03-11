@@ -2,12 +2,21 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
+from dataclasses import dataclass
 
 from .models import (
     NodeMetadata,
     NodeType,
     ScoredSearchResponse,
 )
+
+
+@dataclass
+class FilterOptions:
+    category: str | None = None
+    type: list[NodeType] | None = None
+    author: list[str] | None = None
+    keywords: list[str] | None = None
 
 
 class StorageInterface(MutableMapping[str, NodeMetadata], ABC):
@@ -20,18 +29,19 @@ class StorageInterface(MutableMapping[str, NodeMetadata], ABC):
         pass
 
     @abstractmethod
-    def filter(
-        self, qualname: str | None = None, type: NodeType | None = None
-    ) -> list[ScoredSearchResponse]:
+    def filter(self, filter: FilterOptions) -> list[ScoredSearchResponse]:
         pass
 
     @abstractmethod
-    def search(self, query: str) -> list[ScoredSearchResponse]:
+    def search(
+        self, query: str | None, filter: FilterOptions
+    ) -> list[ScoredSearchResponse]:
         """
         Search for nodes matching the given query.
 
         Args:
             query: search query string
+            filter: filter options
 
         Returns:
             List of matching node metadata

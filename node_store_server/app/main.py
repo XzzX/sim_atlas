@@ -15,7 +15,7 @@ from .models import (
     NodeType,
     ScoredSearchResponse,
 )
-from .storage import get_storage_backend
+from .storage import FilterOptions, get_storage_backend
 
 # Get the configured storage backend
 storage = get_storage_backend()
@@ -47,36 +47,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/", include_in_schema=False)
-async def root(query: str | None = None) -> HTMLResponse:
-    """Root endpoint - Search interface"""
-
-    nodes = storage.search(query) if query else storage.filter()
-    search_page = render_search_page(query or "", nodes)
-
-    return HTMLResponse(content=search_page)
-
-
-app.mount("/ide", StaticFiles(directory="ide", html=True), name="ide")
-
-
-@app.get("/nodes-detail/{node_hash}", include_in_schema=False)
-async def read_node_html(node_hash: str) -> HTMLResponse:
-    """Get detailed HTML view of a node"""
-    print("node_hash", node_hash)
-    node = storage.get(node_hash, None)
-    if not node:
-        raise HTTPException(status_code=404, detail="Node not found")
-    return HTMLResponse(content=render_node_detail_page(node))
-
-
 api_router = APIRouter(prefix="/api/v1")
-
-
-@api_router.get("/nodes", tags=["nodes"], response_model=list[NodeResponse])
-async def list_nodes(qualname: str | None = None, type: NodeType | None = None):
-    return storage.filter(qualname, type)
 
 
 @api_router.get("/nodes/{node_hash}", tags=["nodes"])
@@ -133,14 +104,9 @@ async def delete_node(node_hash: str):
 
 
 @api_router.post("/search", response_model=list[ScoredSearchResponse], tags=["search"])
-async def search_nodes(query: str):
-    """
-    Search for nodes matching the given criteria.
-
-    Request body should be a dictionary with field-value pairs:
-    {"author": "John Doe", "email": "john@example.com"}
-    """
-    return storage.search(query)
+async def search_nodes(query: str, filter_options: FilterOptions | None = None):
+    filter_options = filter_options or FilterOptions()
+    return storage.search(query, filter_options)
 
 
 @api_router.post(
@@ -161,6 +127,8 @@ async def semantic_search(query: str):
 
 
 app.include_router(api_router)
+
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
 # Create an MCP server based on this app
 mcp = FastApiMCP(

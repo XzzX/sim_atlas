@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 class Metadata(BaseModel):
     node_type: NodeType
+    category: str
 
     python_import: str | None
     source_code: str

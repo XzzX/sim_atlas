@@ -102,7 +102,7 @@ class NodeStore:
         )
 
         response = requests.post(
-            f"{self.api_url}/nodes/",
+            f"{self.api_url}/nodes",
             json=request_data.model_dump(),
         )
         return response
@@ -186,8 +186,7 @@ class NodeStore:
         Returns:
             list: A list of node metadata matching the filter criteria.
         """
-        response = requests.post(
-            f"{self.api_url}/nodes/list",
-            json=filter_params,
+        response = requests.get(
+            f"{self.api_url}/nodes",
         )
         return response.json()

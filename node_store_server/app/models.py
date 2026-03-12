@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class NodeType(StrEnum):
@@ -76,17 +76,6 @@ class ScoredSearchResponse(BaseModel):
     node: NodeResponse
 
 
-class ArgumentFilter(BaseModel):
-    datatype: str | None = None
-    unit: str | None = None
-    quantity: str | None = None
-
-
-class NodeFilter(BaseModel):
-    input: ArgumentFilter = Field(default_factory=ArgumentFilter)
-    output: ArgumentFilter = Field(default_factory=ArgumentFilter)
-
-
 class NodeMetadata(NodeResponse):
     embedding: list[float] | None = None
 
@@ -96,6 +85,9 @@ class Filter(BaseModel):
     type: list[NodeType] | None = None
     author: list[str] | None = None
     keywords: list[str] | None = None
+    datatypes: list[str] | None = None
+    units: list[str] | None = None
+    quantities: list[str] | None = None
 
 
 class FilterOptions(BaseModel):
@@ -103,3 +95,6 @@ class FilterOptions(BaseModel):
     type: set[NodeType]
     author: set[str]
     keywords: set[str]
+    datatypes: set[str]
+    units: set[str]
+    quantities: set[str]

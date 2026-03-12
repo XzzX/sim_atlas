@@ -127,6 +127,12 @@ class InMemoryStorage(StorageInterface):
                 type={node.node_type},
                 author={node.author_name},
                 keywords=set(node.keywords),
+                datatypes={input.datatype for input in node.inputs if input.datatype}
+                | {output.datatype for output in node.outputs if output.datatype},
+                units={input.unit for input in node.inputs if input.unit}
+                | {output.unit for output in node.outputs if output.unit},
+                quantities={input.quantity for input in node.inputs if input.quantity}
+                | {output.quantity for output in node.outputs if output.quantity},
             )
 
         def merge_category(
@@ -146,9 +152,12 @@ class InMemoryStorage(StorageInterface):
 
             return FilterOptions(
                 category=merged_categories,
-                type=options1.type.union(options2.type),
-                author=options1.author.union(options2.author),
-                keywords=options1.keywords.union(options2.keywords),
+                type=options1.type | options2.type,
+                author=options1.author | options2.author,
+                keywords=options1.keywords | options2.keywords,
+                datatypes=options1.datatypes | options2.datatypes,
+                units=options1.units | options2.units,
+                quantities=options1.quantities | options2.quantities,
             )
 
         return reduce(
@@ -187,7 +196,7 @@ class InMemoryStorage(StorageInterface):
             if item.score > 0.0
         )
 
-        sorted_items = sorted(scored_items, key=lambda x: x.score, reverse=True)
+        sorted_items = sorted(scored_items, key=lambda x: x.score, reverse=True)[:10]
 
         return sorted_items
 

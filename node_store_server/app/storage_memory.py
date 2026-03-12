@@ -2,17 +2,19 @@ from __future__ import annotations
 
 import os
 import pickle
+from functools import reduce
 
 import numpy as np
-from numba import njit
 
 from .ai import create_embedding
 from .models import (
+    Filter,
+    FilterOptions,
     NodeMetadata,
     NodeResponse,
     ScoredSearchResponse,
 )
-from .storage import FilterOptions, StorageInterface
+from .storage import StorageInterface
 
 
 def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
@@ -43,7 +45,7 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
 
 
 class NodeFilter:
-    def __init__(self, filter_options: FilterOptions) -> None:
+    def __init__(self, filter_options: Filter) -> None:
         self.category = (
             filter_options.category.lower() if filter_options.category else None
         )
@@ -114,7 +116,47 @@ class InMemoryStorage(StorageInterface):
     def __len__(self) -> int:
         return len(self._storage)
 
-    def filter(self, filter: FilterOptions) -> list[ScoredSearchResponse]:
+    def get_filter_options(self) -> FilterOptions:
+        def extract_categories(category: str) -> dict[str, set[str]]:
+            parts = category.split(".")
+            return {">".join(parts[:i]): {v} for i, v in enumerate(parts)}
+
+        def extract_filter_options(node: NodeMetadata) -> FilterOptions:
+            return FilterOptions(
+                category=extract_categories(node.python_import),
+                type={node.node_type},
+                author={node.author_name},
+                keywords=set(node.keywords),
+            )
+
+        def merge_category(
+            accumulator: dict[str, set[str]], new_element: tuple[str, set[str]]
+        ) -> dict[str, set[str]]:
+            key, value = new_element
+            accumulator.setdefault(key, set()).update(value)
+            return accumulator
+
+        def merge_filter_options(
+            options1: FilterOptions, options2: FilterOptions
+        ) -> FilterOptions:
+            merged_categories = {**options1.category}
+            merged_categories = reduce(
+                merge_category, options2.category.items(), merged_categories
+            )
+
+            return FilterOptions(
+                category=merged_categories,
+                type=options1.type.union(options2.type),
+                author=options1.author.union(options2.author),
+                keywords=options1.keywords.union(options2.keywords),
+            )
+
+        return reduce(
+            merge_filter_options,
+            (extract_filter_options(node) for node in self._storage.values()),
+        )
+
+    def filter(self, filter: Filter) -> list[ScoredSearchResponse]:
         item_filter: NodeFilter = NodeFilter(filter)
 
         return [
@@ -123,39 +165,31 @@ class InMemoryStorage(StorageInterface):
             if item_filter(item)
         ]
 
-    def search(
-        self, query: str | None, filter: FilterOptions
-    ) -> list[ScoredSearchResponse]:
-        """
-        Search for nodes matching the given query.
-
-        Args:
-            query: search query string
-
-        Returns:
-            List of matching node metadata
-        """
-
-        from .fuzzy_scoring import weighted_fuzzy_match
-
+    def search(self, query: str | None, filter: Filter) -> list[ScoredSearchResponse]:
         item_filter: NodeFilter = NodeFilter(filter)
-        filtered_nodes = (item for item in self._storage.values() if item_filter(item))
+        filtered_items = (item for item in self._storage.values() if item_filter(item))
 
-        scored_results = (
-            ScoredSearchResponse(
-                score=score,
-                node=item,
+        def score_item(query: str, item: NodeMetadata) -> float:
+            if query in item.python_import:
+                return 1.0
+            if query in item.docstring:
+                return 0.5
+            return 0.0
+
+        scored_items = (
+            item
+            for item in (
+                ScoredSearchResponse(
+                    score=score_item(query, item) if query else 1.0, node=item
+                )
+                for item in filtered_items
             )
-            for score, item in (
-                (weighted_fuzzy_match(query, item.python_import)[0], item)
-                for item in filtered_nodes
-            )
-            if score > 0.0  # Only include results with a positive score
+            if item.score > 0.0
         )
 
-        sorted_results = sorted(scored_results, key=lambda x: x.score, reverse=True)
+        sorted_items = sorted(scored_items, key=lambda x: x.score, reverse=True)
 
-        return sorted_results
+        return sorted_items
 
     def search_semantic(
         self, query: str, limit: int = 10

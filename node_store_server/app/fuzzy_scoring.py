@@ -1,5 +1,6 @@
 import math
-from numba import jit
+
+from numba import jit  # pyright: ignore[reportUnknownVariableType]
 
 
 @jit

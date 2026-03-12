@@ -89,3 +89,17 @@ class NodeFilter(BaseModel):
 
 class NodeMetadata(NodeResponse):
     embedding: list[float] | None = None
+
+
+class Filter(BaseModel):
+    category: str | None = None
+    type: list[NodeType] | None = None
+    author: list[str] | None = None
+    keywords: list[str] | None = None
+
+
+class FilterOptions(BaseModel):
+    category: dict[str, set[str]]
+    type: set[NodeType]
+    author: set[str]
+    keywords: set[str]

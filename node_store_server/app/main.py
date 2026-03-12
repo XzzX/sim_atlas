@@ -3,19 +3,18 @@ from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
 
-from .html import render_node_detail_page, render_search_page
 from .models import (
+    Filter,
+    FilterOptions,
     NodeMetadata,
     NodeRequest,
     NodeResponse,
-    NodeType,
     ScoredSearchResponse,
 )
-from .storage import FilterOptions, get_storage_backend
+from .storage import get_storage_backend
 
 # Get the configured storage backend
 storage = get_storage_backend()
@@ -103,9 +102,15 @@ async def delete_node(node_hash: str):
     return {"detail": "Node deleted"}
 
 
+@api_router.get("/filter_options", response_model=FilterOptions, tags=["search"])
+async def get_filter_options():
+    return storage.get_filter_options()
+
+
 @api_router.post("/search", response_model=list[ScoredSearchResponse], tags=["search"])
-async def search_nodes(query: str, filter_options: FilterOptions | None = None):
-    filter_options = filter_options or FilterOptions()
+async def search_nodes(query: str | None = None, filter_options: Filter | None = None):
+    query = query.strip() if query else ""
+    filter_options = filter_options or Filter()
     return storage.search(query, filter_options)
 
 

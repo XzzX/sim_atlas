@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { nodeAPI } from "../services/api";
+import { simAtlasAPI } from "../services/api";
 import { NodeMetadata } from "../types/index";
 import { NodeDetailView } from "../components/NodeDetailView";
 import { Alert } from "@/components/ui/alert";
@@ -24,7 +24,7 @@ export const DetailPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const fetchedNode = await nodeAPI.getNode(nodeHash);
+        const fetchedNode = await simAtlasAPI.getNode(nodeHash);
         setNode(fetchedNode);
       } catch (err) {
         setError("Failed to load node details. Please try again.");

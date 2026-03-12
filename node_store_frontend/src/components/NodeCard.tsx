@@ -22,9 +22,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   score,
   onSelect,
 }) => {
-  const importParts = node.python_import.split(".");
-  const shortName = importParts[importParts.length - 1] || node.python_import;
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -41,7 +38,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
       <CardHeader className="bg-muted/40">
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="mb-2 text-lg">{shortName}</CardTitle>
+            <CardTitle className="mb-2 text-lg">{node.python_import}</CardTitle>
             <Badge variant="secondary" className="mr-2">
               {node.node_type}
             </Badge>

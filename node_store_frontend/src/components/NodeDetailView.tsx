@@ -1,5 +1,5 @@
 import React from "react";
-import { NodeMetadata } from "../types/index";
+import { NodeMetadata, NodeType } from "../types/index";
 import {
   Code,
   User,
@@ -51,7 +51,7 @@ export const NodeDetailView: React.FC<NodeDetailViewProps> = ({
         </h1>
         <div className="mb-1 flex flex-wrap gap-2">
           <Badge variant="secondary">{node.node_type}</Badge>
-          {node.node_type === "function" && (
+          {node.node_type === NodeType.FUNCTION && (
             <Badge variant="outline">Function</Badge>
           )}
         </div>
@@ -172,7 +172,7 @@ export const NodeDetailView: React.FC<NodeDetailViewProps> = ({
                       {node.inputs.map((input, idx) => (
                         <tr key={idx} className="border-b last:border-b-0">
                           <td className="py-2 pr-3">
-                            <code>{input.label || "-"}</code>
+                            <code>{input.label ?? "-"}</code>
                           </td>
                           <td className="py-2 pr-3">
                             {input.datatype ? (
@@ -181,8 +181,8 @@ export const NodeDetailView: React.FC<NodeDetailViewProps> = ({
                               <span className="text-muted-foreground">-</span>
                             )}
                           </td>
-                          <td className="py-2 pr-3">{input.unit || "-"}</td>
-                          <td className="py-2 pr-3">{input.quantity || "-"}</td>
+                          <td className="py-2 pr-3">{input.unit ?? "-"}</td>
+                          <td className="py-2 pr-3">{input.quantity ?? "-"}</td>
                           <td className="py-2 pr-3">
                             {input.has_default_value ? (
                               <Badge variant="success">Yes</Badge>
@@ -220,7 +220,7 @@ export const NodeDetailView: React.FC<NodeDetailViewProps> = ({
                       {node.outputs.map((output, idx) => (
                         <tr key={idx} className="border-b last:border-b-0">
                           <td className="py-2 pr-3">
-                            <code>{output.label || "-"}</code>
+                            <code>{output.label ?? "-"}</code>
                           </td>
                           <td className="py-2 pr-3">
                             {output.datatype ? (
@@ -229,9 +229,9 @@ export const NodeDetailView: React.FC<NodeDetailViewProps> = ({
                               <span className="text-muted-foreground">-</span>
                             )}
                           </td>
-                          <td className="py-2 pr-3">{output.unit || "-"}</td>
+                          <td className="py-2 pr-3">{output.unit ?? "-"}</td>
                           <td className="py-2 pr-3">
-                            {output.quantity || "-"}
+                            {output.quantity ?? "-"}
                           </td>
                         </tr>
                       ))}

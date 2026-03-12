@@ -7,7 +7,6 @@ import {
   NodeMetadata,
   Filter,
   FilterOptions,
-  SearchFilters,
   ScoredSearchResponse,
 } from "../types/index";
 import { FacetedSearch } from "../components/FacetedSearch";
@@ -21,34 +20,35 @@ const EMPTY_FILTER_OPTIONS: FilterOptions = {
   type: [],
   author: [],
   keywords: [],
+  datatypes: [],
+  units: [],
+  quantities: [],
 };
 
-export const SearchPage: React.FC = () => {
+interface SearchPageProps {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+}
+
+export const SearchPage: React.FC<SearchPageProps> = ({
+  searchQuery,
+  setSearchQuery,
+}) => {
   const navigate = useNavigate();
   const [allNodes, setAllNodes] = useState<ScoredSearchResponse[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState<SearchFilters>({});
+  // const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState<Filter>({});
   const [availableFilterOptions, setAvailableFilterOptions] =
     useState<FilterOptions>(EMPTY_FILTER_OPTIONS);
   const [category, setCategory] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const toApiFilter = (searchFilters: SearchFilters): Filter => ({
-    type: searchFilters.type,
-    author: searchFilters.author,
-    keywords: searchFilters.keywords,
-  });
-
   const performSearch = async () => {
     try {
       setLoading(true);
       setError(null);
-      const results = await simAtlasAPI.search(
-        searchQuery,
-        category,
-        toApiFilter(filters),
-      );
+      const results = await simAtlasAPI.search(searchQuery, category, filters);
       setAllNodes(results);
     } catch (err) {
       setError("Search failed. Please try again.");
@@ -67,10 +67,9 @@ export const SearchPage: React.FC = () => {
     void performSearch();
   };
 
-  // Fetch all nodes on component mount
-  // useEffect(() => {
-  //   void performSearch("");
-  // }, []);
+  useEffect(() => {
+    void debouncedSearch();
+  }, []);
 
   useEffect(() => {
     const loadFilterOptions = async () => {
@@ -95,7 +94,7 @@ export const SearchPage: React.FC = () => {
   };
 
   const handleNodeSelect = (node: NodeMetadata) => {
-    navigate(`/node/${node.source_code_hash}`);
+    void navigate(`/node/${node.source_code_hash}`);
   };
 
   return (

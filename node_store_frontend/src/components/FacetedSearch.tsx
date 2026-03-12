@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   NodeType,
   FilterOptions,
-  SearchFilters,
   ScoredSearchResponse,
+  Filter,
 } from "../types/index";
 import { Funnel, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,28 +28,19 @@ import {
 
 interface FacetedSearchProps {
   nodes: ScoredSearchResponse[];
-  filters: SearchFilters;
+  filters: Filter;
   availableFilterOptions: FilterOptions;
-  onFilterChange: (filters: SearchFilters) => void;
+  onFilterChange: (filters: Filter) => void;
   onClearFilters: () => void;
 }
 
 export const FacetedSearch: React.FC<FacetedSearchProps> = ({
-  nodes,
   filters,
   availableFilterOptions,
   onFilterChange,
   onClearFilters,
 }) => {
   const [showFilters, setShowFilters] = useState(true);
-
-  const nodeTypeOptions = availableFilterOptions.type
-    .slice()
-    .sort((a, b) => a.localeCompare(b));
-  const authorOptions = availableFilterOptions.author.slice().sort();
-  const keywordOptions = availableFilterOptions.keywords.slice().sort();
-  const inputDatatypeOptions: string[] = [];
-  const outputDatatypeOptions: string[] = [];
 
   return (
     <Card>
@@ -77,47 +68,65 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <FacetPopover
                 label="Node Type"
-                values={nodeTypeOptions}
-                selected={(filters.type || []).map((value) => String(value))}
+                values={availableFilterOptions.type.map((t) => String(t))}
+                selected={(filters.type ?? []).map((value) => String(value))}
                 onValueChange={(values) =>
-                  onFilterChange({
-                    ...filters,
-                    type: values.filter((v) =>
-                      Object.values(NodeType).includes(v as NodeType),
-                    ) as NodeType[],
-                  })
+                  onFilterChange({ ...filters, type: values as NodeType[] })
                 }
               />
               <FacetPopover
                 label="Author"
-                values={authorOptions}
-                selected={filters.author || []}
+                values={availableFilterOptions.author}
+                selected={filters.author ?? []}
                 onValueChange={(values) =>
-                  onFilterChange({ ...filters, author: values })
+                  onFilterChange({
+                    ...filters,
+                    author: values,
+                  })
                 }
               />
               <FacetPopover
                 label="Keywords"
-                values={keywordOptions}
-                selected={filters.keywords || []}
+                values={availableFilterOptions.keywords ?? []}
+                selected={filters.keywords ?? []}
                 onValueChange={(values) =>
-                  onFilterChange({ ...filters, keywords: values })
+                  onFilterChange({
+                    ...filters,
+                    keywords: values,
+                  })
                 }
               />
               <FacetPopover
-                label="Input Type"
-                values={inputDatatypeOptions}
-                selected={filters.inputDatatype || []}
+                label="Datatype"
+                values={availableFilterOptions.datatypes ?? []}
+                selected={filters.datatypes ?? []}
                 onValueChange={(values) =>
-                  onFilterChange({ ...filters, inputDatatype: values })
+                  onFilterChange({
+                    ...filters,
+                    datatypes: values,
+                  })
                 }
               />
               <FacetPopover
-                label="Output Type"
-                values={outputDatatypeOptions}
-                selected={filters.outputDatatype || []}
+                label="Unit"
+                values={availableFilterOptions.units ?? []}
+                selected={filters.units ?? []}
                 onValueChange={(values) =>
-                  onFilterChange({ ...filters, outputDatatype: values })
+                  onFilterChange({
+                    ...filters,
+                    units: values,
+                  })
+                }
+              />
+              <FacetPopover
+                label="Quantity"
+                values={availableFilterOptions.quantities ?? []}
+                selected={filters.quantities ?? []}
+                onValueChange={(values) =>
+                  onFilterChange({
+                    ...filters,
+                    quantities: values,
+                  })
                 }
               />
             </div>

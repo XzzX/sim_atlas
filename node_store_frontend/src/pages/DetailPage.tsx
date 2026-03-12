@@ -34,11 +34,11 @@ export const DetailPage: React.FC = () => {
       }
     };
 
-    fetchNode();
+    void fetchNode();
   }, [nodeHash]);
 
   const handleClose = () => {
-    navigate("/");
+    void navigate("/");
   };
 
   if (loading) {
@@ -52,7 +52,7 @@ export const DetailPage: React.FC = () => {
   if (error || !node) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center gap-4 px-4">
-        <Alert variant="destructive">{error || "Node not found"}</Alert>
+        <Alert variant="destructive">{error && "Node not found"}</Alert>
         <Button variant="outline" onClick={handleClose}>
           Back to Search
         </Button>

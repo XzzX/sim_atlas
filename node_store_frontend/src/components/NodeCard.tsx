@@ -82,7 +82,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
                     <tr key={idx} className="border-b last:border-b-0">
                       <td className="py-1">
                         <code className="text-[0.68rem]">
-                          {input.label || "-"}
+                          {input.label ?? "-"}
                         </code>
                       </td>
                       <td className="py-1">
@@ -120,7 +120,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
                     <tr key={idx} className="border-b last:border-b-0">
                       <td className="py-1">
                         <code className="text-[0.68rem]">
-                          {output.label || "-"}
+                          {output.label ?? "-"}
                         </code>
                       </td>
                       <td className="py-1">

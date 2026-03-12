@@ -1,12 +1,12 @@
 export enum NodeType {
-  Function = "function",
-  PythonWorkflowDefinition = "python_workflow_definition",
-  PyironWorkflowFunction = "pyiron_workflow_function",
-  PyironCoreNode = "pyiron_core_node",
+  FUNCTION = "function",
+  PYTHON_WORKFLOW_DEFINITION = "python_workflow_definition",
+  PYIRON_WORKFLOW_FUNCTION = "pyiron_workflow_function",
+  PYIRON_CORE_NODE = "pyiron_core_node",
 }
 
 export interface Annotation {
-  has_default_value?: boolean; // default: false
+  has_default_value?: boolean; // default False in Pydantic
   label?: string | null;
   datatype?: string | null;
   unit?: string | null;
@@ -54,6 +54,7 @@ export interface NodeResponse {
 
   docstring: string;
   ai_docstring: string;
+
   inputs: Annotation[];
   outputs: Annotation[];
 }
@@ -69,17 +70,6 @@ export interface ScoredSearchResponse {
   node: NodeResponse;
 }
 
-export interface ArgumentFilter {
-  datatype?: string | null;
-  unit?: string | null;
-  quantity?: string | null;
-}
-
-export interface NodeFilter {
-  input?: ArgumentFilter; // default: {}
-  output?: ArgumentFilter; // default: {}
-}
-
 export interface NodeMetadata extends NodeResponse {
   embedding?: number[] | null;
 }
@@ -89,20 +79,17 @@ export interface Filter {
   type?: NodeType[] | null;
   author?: string[] | null;
   keywords?: string[] | null;
+  datatypes?: string[] | null;
+  units?: string[] | null;
+  quantities?: string[] | null;
 }
 
-export interface SearchFilters extends Filter {
-  inputDatatype?: string[] | null;
-  outputDatatype?: string[] | null;
-}
-
-/**
- * JSON-safe API shape:
- * Python sets are serialized as arrays in JSON.
- */
 export interface FilterOptions {
-  category: Record<string, string[]>;
-  type: NodeType[];
-  author: string[];
+  category: Record<string, string[]>; // dict[str, set[str]] -> Record<string, string[]>
+  type: NodeType[]; // set[NodeType] -> NodeType[]
+  author: string[]; // set[str] -> string[]
   keywords: string[];
+  datatypes: string[];
+  units: string[];
+  quantities: string[];
 }

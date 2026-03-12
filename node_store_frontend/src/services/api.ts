@@ -18,12 +18,12 @@ const api = axios.create({
 export const simAtlasAPI = {
   getNode: async (nodeHash: string): Promise<NodeMetadata> => {
     const response = await api.get(`/nodes/${nodeHash}`);
-    return response.data;
+    return response.data as NodeMetadata;
   },
 
   getFilterOptions: async (): Promise<FilterOptions> => {
     const response = await api.get("/filter_options");
-    return response.data;
+    return response.data as FilterOptions;
   },
 
   search: async (
@@ -38,7 +38,7 @@ export const simAtlasAPI = {
         params: { query },
       },
     );
-    return response.data;
+    return response.data as ScoredSearchResponse[];
   },
 };
 

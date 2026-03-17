@@ -16,13 +16,13 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Set up Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       # Install dependencies using clean install
@@ -66,10 +66,9 @@ jobs:
       # Upload build artifacts for deployment jobs
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
-        working-directory: ./frontend
         with:
           name: build-output
-          path: dist/
+          path: frontend/dist/
           retention-days: 1
 
   dependency-audit:

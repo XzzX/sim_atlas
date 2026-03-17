@@ -2,8 +2,7 @@ import hashlib
 import inspect
 from typing import Any
 
-from node_store_spec.models import Annotation, NodeType
-
+from ..models import Annotation, NodeType
 from .metadata import Metadata
 
 

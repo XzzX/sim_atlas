@@ -7,17 +7,17 @@ from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import requests
-from node_store_spec.models import (
-    NodeFilter,
-    NodeRequest,
-    NodeResponse,
-    NodeType,
-    SemanticSearchResponse,
-)
 from python_workflow_definition.models import (
     PythonWorkflowDefinitionWorkflow,
 )
 
+from .models import (
+    Filter,
+    NodeRequest,
+    NodeResponse,
+    NodeType,
+    ScoredSearchResponse,
+)
 from .parser import get_metadata
 
 
@@ -31,6 +31,13 @@ class NodeStore:
         self, module: str | ModuleType, upload_included_modules: bool = False
     ) -> None:
         print(f"Uploading module {module}...")
+        try:
+            if isinstance(module, str):
+                module = importlib.import_module(module)
+        except Exception as e:
+            print(f"✗ Failed to import module {module}: {e}")
+            return
+
         if isinstance(module, str):
             module = importlib.import_module(module)
 
@@ -45,8 +52,6 @@ class NodeStore:
                     self.upload_module(
                         v, upload_included_modules=upload_included_modules
                     )
-                else:
-                    print(f"Skipping module {v.__name__} ({module.__name__}).")
                 continue
 
             if not hasattr(v, "__module__"):
@@ -164,7 +169,7 @@ class NodeStore:
         )
         return response.json()
 
-    def semantic_search_function(self, query: str) -> list[SemanticSearchResponse]:
+    def semantic_search_function(self, query: str) -> list[ScoredSearchResponse]:
         """Search for nodes matching the query using semantic search.
 
         Args:
@@ -178,7 +183,7 @@ class NodeStore:
         )
         return response.json()
 
-    def filter(self, filter_params: NodeFilter | None = None) -> list[NodeResponse]:
+    def filter(self, filter_params: Filter | None = None) -> list[NodeResponse]:
         """Filter nodes based on provided criteria.
 
         Args:

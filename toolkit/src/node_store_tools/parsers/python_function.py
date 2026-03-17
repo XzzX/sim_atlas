@@ -3,8 +3,7 @@ import inspect
 import textwrap
 from typing import Annotated, Any, get_args, get_origin
 
-from node_store_spec.models import Annotation, NodeType
-
+from ..models import Annotation, NodeType
 from .metadata import Metadata, _parse_annotation
 
 

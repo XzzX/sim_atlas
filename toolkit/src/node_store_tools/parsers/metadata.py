@@ -1,7 +1,8 @@
 from typing import Annotated, Any, get_args, get_origin
 
-from node_store_spec.models import Annotation, NodeType
 from pydantic import BaseModel
+
+from ..models import Annotation, NodeType
 
 
 class Metadata(BaseModel):

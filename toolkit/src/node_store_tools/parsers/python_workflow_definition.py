@@ -1,13 +1,13 @@
 import hashlib
 from typing import Any
 
-from node_store_spec.models import Annotation, NodeType
 from python_workflow_definition.models import (
     PythonWorkflowDefinitionInputNode,
     PythonWorkflowDefinitionOutputNode,
     PythonWorkflowDefinitionWorkflow,
 )
 
+from ..models import Annotation, NodeType
 from .metadata import Metadata
 
 

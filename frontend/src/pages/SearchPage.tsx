@@ -14,6 +14,7 @@ import { NodeCard } from "../components/NodeCard";
 import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { CategoryFilter } from "@/components/CategoryFilter";
+import { Card, CardContent } from "@/components/ui/card";
 
 const EMPTY_FILTER_OPTIONS: FilterOptions = {
   category: {},
@@ -99,21 +100,43 @@ export const SearchPage: React.FC<SearchPageProps> = ({
 
   return (
     <main className="mx-auto w-full max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          className="h-11 pl-9"
-          placeholder="Search nodes by name, description, or functionality..."
-          value={searchQuery}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            setSearchQuery(e.target.value);
-            debouncedSearch();
+      <Card>
+        <CardContent className="space-y-4 border-b">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="h-11 pl-9"
+            placeholder="Search nodes by name, description, or functionality..."
+            value={searchQuery}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              setSearchQuery(e.target.value);
+              debouncedSearch();
+            }}
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
+              e.key === "Enter" && immediateSearch()
+            }
+          />
+        </CardContent>
+
+        <CategoryFilter
+          category={category}
+          categoryOptions={availableFilterOptions.category}
+          onCategoryChange={(category) => {
+            setCategory(category);
+            void debouncedSearch();
           }}
-          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
-            e.key === "Enter" && immediateSearch()
-          }
         />
-      </div>
+
+        <FacetedSearch
+          nodes={allNodes}
+          filters={filters}
+          availableFilterOptions={availableFilterOptions}
+          onFilterChange={(filterOptions) => {
+            setFilters(filterOptions);
+            void debouncedSearch();
+          }}
+          onClearFilters={handleClearFilters}
+        />
+      </Card>
       {error && (
         <Alert
           variant="destructive"
@@ -129,24 +152,6 @@ export const SearchPage: React.FC<SearchPageProps> = ({
           </button>
         </Alert>
       )}
-      <CategoryFilter
-        category={category}
-        categoryOptions={availableFilterOptions.category}
-        onCategoryChange={(category) => {
-          setCategory(category);
-          void debouncedSearch();
-        }}
-      />
-      <FacetedSearch
-        nodes={allNodes}
-        filters={filters}
-        availableFilterOptions={availableFilterOptions}
-        onFilterChange={(filterOptions) => {
-          setFilters(filterOptions);
-          void debouncedSearch();
-        }}
-        onClearFilters={handleClearFilters}
-      />
       <section className="min-h-[400px] rounded-xl border bg-card p-3 sm:p-4">
         {loading ? (
           <div className="flex min-h-56 flex-col items-center justify-center gap-3">

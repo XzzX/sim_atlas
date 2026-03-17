@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDownIcon, DotIcon } from "lucide-react";
 import React from "react";
+import { CardContent } from "./ui/card";
 
 const category_options: Record<string, string[]> = {
   "": ["pyiron_core"],
@@ -371,32 +372,34 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
     </React.Fragment>
   ));
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
-        {breadcrumbs}{" "}
-        <BreadcrumbItem>
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1">
-              ...
-              <ChevronDownIcon className="size-3.5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuGroup>
-                {(optionsByPath[category] || []).map((option) => (
-                  <DropdownMenuItem
-                    key={option}
-                    onClick={() =>
-                      onCategoryChange(appendPath(category, option))
-                    }
-                  >
-                    {option}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+    <CardContent className="border-b">
+      <Breadcrumb>
+        <BreadcrumbList>
+          {breadcrumbs}{" "}
+          <BreadcrumbItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1">
+                ...
+                <ChevronDownIcon className="size-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuGroup>
+                  {(optionsByPath[category] || []).map((option) => (
+                    <DropdownMenuItem
+                      key={option}
+                      onClick={() =>
+                        onCategoryChange(appendPath(category, option))
+                      }
+                    >
+                      {option}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    </CardContent>
   );
 };

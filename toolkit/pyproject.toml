@@ -5,7 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "node-store-spec",
     "python-workflow-definition>=0.1.0",
 ]
 
@@ -46,9 +45,6 @@ select = [
 ignore = [
     "E501",  # line too long
 ]
-
-[tool.uv.sources]
-node-store-spec = { path = "../node_store_spec", editable = true }
 
 [tool.pyright]
 typeCheckingMode = "basic"

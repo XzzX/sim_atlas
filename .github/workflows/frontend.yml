@@ -21,6 +21,7 @@ jobs:
       # Set up Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v6
+        working-directory: ./frontend
         with:
           node-version: '24'
           cache: 'npm'

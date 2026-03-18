@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "simflow"
+version = "0.0.0"
+dependencies = ["anywidget"]
+readme = "README.md"
+requires-python = ">=3.12"
+
+# Dependency groups (recognized by `uv`). For more details, visit:
+# https://peps.python.org/pep-0735/
+[dependency-groups]
+dev = [
+    "watchfiles",
+    "jupyterlab",
+    "ipykernel>=7.1.0",
+    "jupyter>=1.1.1",
+    "notebook>=7.5.3",
+    "jupyter-core>=5.9.1",
+    "marimo[recommended]>=0.19.6",
+]
+
+
+[tool.hatch.build]
+only-packages = true
+artifacts = ["src/simflow/static/*"]
+
+[tool.hatch.build.hooks.jupyter-builder]
+build-function = "hatch_jupyter_builder.npm_builder"
+ensured-targets = ["src/simflow/static/widget.js"]
+skip-if-exists = ["src/simflow/static/widget.js"]
+dependencies = ["hatch-jupyter-builder>=0.5.0"]
+
+[tool.hatch.build.hooks.jupyter-builder.build-kwargs]
+npm = "npm"
+build_cmd = "build"

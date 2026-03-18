@@ -4,7 +4,7 @@ from http import HTTPStatus
 from importlib.metadata import requires
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
-from typing import Any
+from typing import Any, Literal
 
 import requests
 from python_workflow_definition.models import (
@@ -28,7 +28,9 @@ class NodeStore:
         self.email = email
 
     def upload_module(  # noqa: PLR0912
-        self, module: str | ModuleType, upload_included_modules: bool = False
+        self,
+        module: str | ModuleType,
+        recursive: Literal["no", "import", "filesystem"] = "no",
     ) -> None:
         print(f"Uploading module {module}...")
         try:
@@ -38,8 +40,22 @@ class NodeStore:
             print(f"✗ Failed to import module {module}: {e}")
             return
 
-        if isinstance(module, str):
-            module = importlib.import_module(module)
+        if recursive == "filesystem":
+            module_path = Path(module.__path__[0])
+            submodule_paths = module_path.glob("**/*.py")
+            submodule_paths = (
+                path for path in submodule_paths if not path.name.startswith("_")
+            )
+            submodule_paths = (
+                module.__name__
+                + "."
+                + ".".join(
+                    str(path.relative_to(module_path).with_suffix("")).split("/")
+                )
+                for path in submodule_paths
+            )
+            for submodule_path in submodule_paths:
+                self.upload_module(submodule_path)
 
         if hasattr(module, "__all__"):
             items = ((k, module.__dict__[k]) for k in module.__all__)
@@ -48,10 +64,8 @@ class NodeStore:
 
         for k, v in items:
             if inspect.ismodule(v):
-                if upload_included_modules and v.__name__.startswith(module.__name__):
-                    self.upload_module(
-                        v, upload_included_modules=upload_included_modules
-                    )
+                if recursive == "import" and v.__name__.startswith(module.__name__):
+                    self.upload_module(v, recursive=recursive)
                 continue
 
             if not hasattr(v, "__module__"):
@@ -61,10 +75,6 @@ class NodeStore:
                 continue
 
             if k.startswith("_"):
-                continue
-
-            if inspect.ismodule(v) and upload_included_modules:
-                self.upload_module(v, upload_included_modules=upload_included_modules)
                 continue
 
             try:

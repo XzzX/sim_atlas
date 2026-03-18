@@ -1,13 +1,11 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   NodeType,
   FilterOptions,
   ScoredSearchResponse,
   Filter,
 } from "../types/index";
-import { Funnel, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import {
   Combobox,
   ComboboxChips,
@@ -20,11 +18,6 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@/components/ui/combobox";
-import {
-  CollapsibleContent,
-  CollapsibleRoot,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Label } from "./ui/label";
 
 interface FacetedSearchProps {
@@ -39,7 +32,6 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
   filters,
   availableFilterOptions,
   onFilterChange,
-  onClearFilters,
 }) => {
   return (
     <CardContent className="space-y-4">

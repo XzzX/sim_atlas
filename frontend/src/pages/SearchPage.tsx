@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 import { simAtlasAPI } from "../services/api";
@@ -12,12 +11,9 @@ import {
 import { FacetedSearch } from "../components/FacetedSearch";
 import { NodeCard } from "../components/NodeCard";
 import { Alert } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
 import { CategoryFilter } from "@/components/CategoryFilter";
-import AutoCompleteGroudpedItems from "@/components/SearchBar";
 import {
   Card,
-  CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
@@ -70,11 +66,6 @@ export const SearchPage: React.FC<SearchPageProps> = ({
   const debouncedSearch = useDebouncedCallback(() => {
     void performSearch();
   }, 500);
-
-  const immediateSearch = () => {
-    debouncedSearch.cancel();
-    void performSearch();
-  };
 
   useEffect(() => {
     void debouncedSearch();

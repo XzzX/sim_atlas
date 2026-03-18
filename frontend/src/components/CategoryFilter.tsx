@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDownIcon, ChevronRight, DotIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRight } from "lucide-react";
 import React from "react";
 import { CardContent } from "./ui/card";
 import { Label } from "./ui/label";

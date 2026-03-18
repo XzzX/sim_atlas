@@ -1,6 +1,8 @@
 from dotenv import dotenv_values
 from openai import OpenAI
 
+from app.models import NodeMetadata
+
 config = dotenv_values(".env")
 
 
@@ -45,7 +47,8 @@ def create_ai_docstring(docstring: str, source_code: str) -> str:
                     "content": f"""
 Refine the existing docstring based on the source code of the function.
 Extract information about the function's purpose, parameters, and return values.
-Only return the docstring, nothing else.
+Only return the docstring, nothing else. Do not print the function signature and remove the quotes if present. 
+If the docstring is already good, just return it without changes.
 
 docstring:
 {docstring}
@@ -70,3 +73,8 @@ source code:
         docstring = docstring.strip()
 
     return docstring
+
+
+def enrich_metadata_with_ai(metadata: NodeMetadata) -> NodeMetadata:
+    ai_docstring = create_ai_docstring(metadata.docstring, metadata.source_code)
+    return metadata.model_copy(update={"ai_docstring": ai_docstring})

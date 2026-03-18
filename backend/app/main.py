@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
 
+from .ai import enrich_metadata_with_ai
 from .models import (
     Filter,
     FilterOptions,
@@ -121,14 +122,24 @@ async def search_nodes(query: str | None = None, filter_options: Filter | None =
     operation_id="semantic_search",
 )
 async def semantic_search(query: str):
-    """
-    Perform semantic search on node metadata.
-
-    Args:
-        query: Natural language search query
-        limit: Maximum number of results (default: 10)
-    """
     return storage.search_semantic(query, 10)
+
+
+@api_router.post(
+    "/enrich",
+    tags=["ai"],
+)
+async def enrich_node(node_hash: str) -> NodeResponse:
+    node = storage.get(node_hash, None)
+    if not node:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
+        )
+
+    node = enrich_metadata_with_ai(node)
+    storage[node_hash] = node
+
+    return node
 
 
 app.include_router(api_router)

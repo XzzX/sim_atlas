@@ -32,8 +32,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Node Store",
-    description="A metadata storage system for nodes",
+    title="Simulation Atlas",
+    description="One place to store all your simulation knowledge. Upload your functions, search for existing ones, and let AI enrich your documentation.",
     version="0.0.0",
     lifespan=lifespan,
 )

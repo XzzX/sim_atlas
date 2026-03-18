@@ -73,7 +73,7 @@ class NodeStore:
                 print(f"✗ {k}: {v}\n{e}")
                 continue
 
-    def upload(self, obj: Any) -> requests.Response:
+    def upload(self, obj: Any, **kwargs: dict[str, Any]) -> requests.Response:
         """Upload node metadata to the specified API endpoint.
 
         Args:
@@ -99,12 +99,17 @@ class NodeStore:
         except Exception:
             dependencies = None
 
-        request_data = NodeRequest(
-            author_name=self.author,
-            author_email=self.email,
-            **metadata.model_dump(),
-            dependencies=dependencies,
+        metadata_dict = metadata.model_dump()
+        metadata_dict.update(
+            {
+                "author_name": self.author,
+                "author_email": self.email,
+                "dependencies": dependencies,
+            }
         )
+        metadata_dict.update(kwargs)
+
+        request_data = NodeRequest.model_validate(metadata_dict)
 
         response = requests.post(
             f"{self.api_url}/nodes",

@@ -11,9 +11,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDownIcon, DotIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRight, DotIcon } from "lucide-react";
 import React from "react";
 import { CardContent } from "./ui/card";
+import { Label } from "./ui/label";
 
 const category_options: Record<string, string[]> = {
   "": ["pyiron_core"],
@@ -342,41 +343,44 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
     path: arr.slice(0, i + 1).join(">"),
     prev: arr.slice(0, i).join(">"),
   }));
-  const breadcrumbs = subPaths.map((subPath) => (
-    <React.Fragment key={subPath.path}>
-      <BreadcrumbItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-1">
-            {subPath.elem}
-            <ChevronDownIcon className="size-3.5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuGroup>
-              {(optionsByPath[subPath.prev] || []).map((option) => (
-                <DropdownMenuItem
-                  key={option}
-                  onClick={() =>
-                    onCategoryChange(appendPath(subPath.prev, option))
-                  }
-                >
-                  {option}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </BreadcrumbItem>
-      <BreadcrumbSeparator>
-        <DotIcon />
-      </BreadcrumbSeparator>
-    </React.Fragment>
-  ));
+  const breadcrumbs =
+    category !== "" &&
+    subPaths.map((subPath) => (
+      <React.Fragment key={subPath.path}>
+        <BreadcrumbItem className="border rounded-md bg-popover p-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-1">
+              {subPath.elem}
+              <ChevronDownIcon className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuGroup>
+                {(optionsByPath[subPath.prev] || []).map((option) => (
+                  <DropdownMenuItem
+                    key={option}
+                    onClick={() =>
+                      onCategoryChange(appendPath(subPath.prev, option))
+                    }
+                  >
+                    {option}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </BreadcrumbItem>
+        <BreadcrumbSeparator>
+          <ChevronRight />
+        </BreadcrumbSeparator>
+      </React.Fragment>
+    ));
   return (
-    <CardContent className="border-b">
+    <CardContent className="border-b  pb-4 space-y-2">
+      <Label>Category Filter</Label>
       <Breadcrumb>
         <BreadcrumbList>
           {breadcrumbs}{" "}
-          <BreadcrumbItem>
+          <BreadcrumbItem className="border rounded-md bg-popover p-2">
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-1">
                 ...

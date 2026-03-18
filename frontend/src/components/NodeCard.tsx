@@ -32,10 +32,10 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
   return (
     <Card
-      className="h-full cursor-pointer transition-all hover:border-2 hover:border-foreground/30 hover:shadow-[0_8px_16px_rgba(0,0,0,0.1)]"
+      className="h-full cursor-pointer pt-0 border-1 border-chart-1"
       onClick={() => onSelect?.(node)}
     >
-      <CardHeader className="bg-muted/40">
+      <CardHeader className="bg-chart-1 pb-2">
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="mb-2 text-lg">{node.python_import}</CardTitle>
@@ -48,19 +48,21 @@ export const NodeCard: React.FC<NodeCardProps> = ({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <p
-          className="mb-3 whitespace-pre-wrap break-words text-sm text-muted-foreground"
-          title={node.docstring}
-        >
-          {node.docstring || "No description available"}
-        </p>
-
+      <CardContent className="space-y-4">
+        <div className="mb-3">
+          <h3 className="mb-1 text-sm font-semibold text-muted-foreground">
+            Description
+          </h3>
+          <p>{node.docstring || "No description available"}</p>
+        </div>
         {node.ai_docstring && (
-          <div className="mb-3 rounded-md border bg-muted/40 p-2">
-            <small className="text-muted-foreground">
-              <strong>AI Summary:</strong> {node.ai_docstring}
-            </small>
+          <div>
+            <h3 className="mb-1 text-sm font-semibold text-muted-foreground">
+              AI Generated Summary
+            </h3>
+            <div className="rounded-md border bg-muted/40 p-3">
+              <p className="mb-0">{node.ai_docstring}</p>
+            </div>
           </div>
         )}
 
@@ -177,7 +179,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
           </div>
         )}
       </CardContent>
-      <CardFooter className="grid grid-cols-2 gap-2 bg-muted/30 text-xs text-muted-foreground">
+      <CardFooter className="grid grid-cols-2 gap-2 bg-chart-1 text-xs text-muted-foreground">
         <small className="flex items-center">
           <User size={12} className="mr-1" />
           <span className={cn("truncate")}>{node.author_name}</span>

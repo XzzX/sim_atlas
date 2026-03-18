@@ -25,6 +25,7 @@ import {
   CollapsibleRoot,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Label } from "./ui/label";
 
 interface FacetedSearchProps {
   nodes: ScoredSearchResponse[];
@@ -41,7 +42,8 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
   onClearFilters,
 }) => {
   return (
-    <CardContent className="space-y-3">
+    <CardContent className="space-y-4">
+      <Label>Facet Filters</Label>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <FacetPopover
           label="Node Type"
@@ -157,9 +159,7 @@ function FacetPopover({
           <ComboboxList>
             {(item: string) => (
               <ComboboxItem key={item} value={item}>
-                <div className="flex items-center justify-between gap-2 w-full">
-                  <span className="max-w-40 truncate">{item}</span>
-                </div>
+                {item}
               </ComboboxItem>
             )}
           </ComboboxList>

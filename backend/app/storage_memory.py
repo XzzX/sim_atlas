@@ -52,6 +52,11 @@ class NodeFilter:
         self.type = filter_options.type if filter_options.type else None
         self.author = filter_options.author if filter_options.author else None
         self.keywords = filter_options.keywords if filter_options.keywords else None
+        self.datatypes = filter_options.datatypes if filter_options.datatypes else None
+        self.units = filter_options.units if filter_options.units else None
+        self.quantities = (
+            filter_options.quantities if filter_options.quantities else None
+        )
 
     def __call__(self, node: NodeMetadata) -> bool:
         if self.category and not node.category.startswith(self.category):
@@ -64,6 +69,27 @@ class NodeFilter:
             return False
 
         if self.keywords and not any(kw in node.keywords for kw in self.keywords):
+            return False
+
+        if self.datatypes and not any(
+            dt in self.datatypes
+            for dt in [input.datatype for input in node.inputs]
+            + [output.datatype for output in node.outputs]
+        ):
+            return False
+
+        if self.units and not any(
+            unit in self.units
+            for unit in [input.unit for input in node.inputs]
+            + [output.unit for output in node.outputs]
+        ):
+            return False
+
+        if self.quantities and not any(
+            quantity in self.quantities
+            for quantity in [input.quantity for input in node.inputs]
+            + [output.quantity for output in node.outputs]
+        ):
             return False
 
         return True

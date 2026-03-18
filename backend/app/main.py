@@ -144,7 +144,8 @@ async def enrich_node(node_hash: str) -> NodeResponse:
 
 app.include_router(api_router)
 
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+app.mount("/ide", StaticFiles(directory="./static/ide", html=True), name="ide")
+app.mount("/", StaticFiles(directory="./static/frontend", html=True), name="frontend")
 
 # Create an MCP server based on this app
 mcp = FastApiMCP(

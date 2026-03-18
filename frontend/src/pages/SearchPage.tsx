@@ -19,6 +19,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import SearchBar from "@/components/SearchBar";
+import { Toaster } from "@/components/ui/sonner";
 
 const EMPTY_FILTER_OPTIONS: FilterOptions = {
   category: {},
@@ -171,6 +172,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({
           </div>
         )}
       </section>
+      <Toaster />
     </main>
   );
 };

@@ -1,15 +1,28 @@
 import React from "react";
-import { NodeMetadata } from "../types/index";
-import { User, Calendar } from "lucide-react";
+import { NodeMetadata, NodeType } from "../types/index";
+import {
+  User,
+  Calendar,
+  ClipboardCopyIcon,
+  ExternalLinkIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
+  CardAction,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { Button } from "./ui/button";
+import { toast } from "sonner";
+import { data } from "react-router-dom";
+
+function generatePythonImportCommand(pythonImport: string) {
+  return `import ${pythonImport}`;
+}
 
 interface NodeCardProps {
   node: NodeMetadata;
@@ -35,7 +48,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
       className="h-full cursor-pointer pt-0 border-1 border-chart-1"
       onClick={() => onSelect?.(node)}
     >
-      <CardHeader className="bg-chart-1 pb-2">
+      <CardHeader className="bg-chart-1 pb-2 pt-4">
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="mb-2 text-lg">{node.python_import}</CardTitle>
@@ -47,13 +60,44 @@ export const NodeCard: React.FC<NodeCardProps> = ({
             )}
           </div>
         </div>
+        <CardAction>
+          {node.python_import && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                void navigator.clipboard.writeText(
+                  generatePythonImportCommand(node.python_import),
+                );
+                toast.success("Python import copied to clipboard");
+              }}
+            >
+              <ClipboardCopyIcon />
+            </Button>
+          )}
+          {node.node_type === NodeType.PYTHON_WORKFLOW_DEFINITION && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open("ide/?wf_hash=" + node.source_code_hash);
+              }}
+            >
+              <ExternalLinkIcon />
+            </Button>
+          )}
+        </CardAction>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="mb-3">
           <h3 className="mb-1 text-sm font-semibold text-muted-foreground">
             Description
           </h3>
-          <p>{node.docstring || "No description available"}</p>
+          <p className="whitespace-pre-wrap">
+            {node.docstring || "No description available"}
+          </p>
         </div>
         {node.ai_docstring && (
           <div>
@@ -61,7 +105,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
               AI Generated Summary
             </h3>
             <div className="rounded-md border bg-muted/40 p-3">
-              <p className="mb-0">{node.ai_docstring}</p>
+              <p className="mb-0 whitespace-pre-wrap">{node.ai_docstring}</p>
             </div>
           </div>
         )}

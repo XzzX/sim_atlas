@@ -16,6 +16,10 @@ export default {
         target: "http://localhost:8000",
         changeOrigin: true,
       },
+      "/ide": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
     },
   },
 } satisfies UserConfig;

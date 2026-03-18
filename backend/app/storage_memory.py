@@ -58,7 +58,7 @@ class NodeFilter:
             filter_options.quantities if filter_options.quantities else None
         )
 
-    def __call__(self, node: NodeMetadata) -> bool:
+    def __call__(self, node: NodeMetadata) -> bool:  # noqa: PLR0911
         if self.category and not node.category.startswith(self.category):
             return False
 
@@ -85,7 +85,7 @@ class NodeFilter:
         ):
             return False
 
-        if self.quantities and not any(
+        if self.quantities and not any(  # noqa: SIM103
             quantity in self.quantities
             for quantity in [input.quantity for input in node.inputs]
             + [output.quantity for output in node.outputs]

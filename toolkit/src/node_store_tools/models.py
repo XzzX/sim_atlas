@@ -19,18 +19,20 @@ class Annotation(BaseModel):
 
 
 class NodeRequest(BaseModel):
-    """How does a node look like when being posted to the API"""
-
     author_name: str
     author_email: str
 
+    name: str
     node_type: NodeType
     category: str
+    keywords: list[str]
+
+    homepage_url: str = ""
+    documentation_url: str = ""
+    source_url: str = ""
 
     python_import: str
     dependencies: list[str] | None = None
-
-    keywords: list[str]
 
     source_code: str
     source_code_hash: str
@@ -48,13 +50,17 @@ class NodeResponse(BaseModel):
     creator_email: str
     creation_timestamp: str
 
+    name: str
     node_type: NodeType
     category: str
+    keywords: list[str]
+
+    homepage_url: str
+    documentation_url: str
+    source_url: str
 
     python_import: str
     dependencies: list[str] | None = None
-
-    keywords: list[str]
 
     source_code: str
     source_code_hash: str

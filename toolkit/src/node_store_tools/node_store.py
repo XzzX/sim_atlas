@@ -1,7 +1,7 @@
 import importlib
+import importlib.metadata
 import inspect
 from http import HTTPStatus
-from importlib.metadata import requires
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any, Literal
@@ -19,6 +19,7 @@ from .models import (
     ScoredSearchResponse,
 )
 from .parser import get_metadata
+import contextlib
 
 
 class NodeStore:
@@ -102,22 +103,39 @@ class NodeStore:
                 "Will not automatically upload modules. Use upload_module instead."
             )
 
+        general_metadata: dict[str, Any] = {
+            "author_name": self.author,
+            "author_email": self.email,
+        }
+
+        with contextlib.suppress(Exception):
+            dependencies = importlib.metadata.requires(obj.__module__.partition(".")[0])
+            if dependencies is not None:
+                general_metadata["dependencies"] = dependencies
+
+        with contextlib.suppress(Exception):
+            project_url = importlib.metadata.metadata(
+                obj.__module__.partition(".")[0]
+            ).json.get("project_url")
+            if project_url is not None:
+                for item in project_url:
+                    key, url = item.split(", ")
+                    if key.lower() in ["homepage"]:
+                        general_metadata["homepage_url"] = url
+                        continue
+                    if key.lower() in ["documentation"]:
+                        general_metadata["documentation_url"] = url
+                        continue
+                    if key.lower() in ["source", "code", "repository", "github"]:
+                        general_metadata["source_url"] = url
+                        continue
+
         metadata = get_metadata(obj)
-
-        try:
-            dependencies = requires(obj.__module__.partition(".")[0])
-        except Exception:
-            dependencies = None
-
         metadata_dict = metadata.model_dump()
-        metadata_dict.update(
-            {
-                "author_name": self.author,
-                "author_email": self.email,
-                "dependencies": dependencies,
-            }
-        )
+        metadata_dict.update(general_metadata)
         metadata_dict.update(kwargs)
+        if v := metadata_dict.get("python_import"):
+            metadata_dict["name"] = v
 
         request_data = NodeRequest.model_validate(metadata_dict)
 

@@ -17,13 +17,18 @@ export interface NodeRequest {
   author_name: string;
   author_email: string;
 
+  name: string;
   node_type: NodeType;
   category: string;
 
+  keywords: string[];
+
+  homepage_url: string;
+  documentation_url: string;
+  source_url: string;
+
   python_import: string;
   dependencies?: string[] | null;
-
-  keywords: string[];
 
   source_code: string;
   source_code_hash: string;
@@ -41,13 +46,18 @@ export interface NodeResponse {
   creator_email: string;
   creation_timestamp: string;
 
+  name: string;
   node_type: NodeType;
   category: string;
 
+  keywords: string[];
+
+  homepage_url: string;
+  documentation_url: string;
+  source_url: string;
+
   python_import: string;
   dependencies?: string[] | null;
-
-  keywords: string[];
 
   source_code: string;
   source_code_hash: string;

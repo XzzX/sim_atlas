@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { simAtlasAPI } from "../services/api";
 import { NodeMetadata } from "../types/index";
-import { NodeDetailView } from "../components/NodeDetailView";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 

@@ -1,7 +1,6 @@
 import React from "react";
 import { NodeMetadata, NodeType } from "../types/index";
 import {
-  User,
   Calendar,
   ClipboardCopyIcon,
   ExternalLinkIcon,
@@ -12,22 +11,21 @@ import {
   Zap,
   HouseIcon,
   BookIcon,
+  BookAIcon,
+  FilePlusCornerIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardAction,
   CardContent,
+  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
-import { data } from "react-router-dom";
-import { ButtonGroup } from "./ui/button-group";
-import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import { TabsContent, TabsList, Tabs, TabsTrigger } from "./ui/tabs";
 
 function generatePythonImportCommand(pythonImport: string) {
@@ -37,16 +35,9 @@ function generatePythonImportCommand(pythonImport: string) {
 interface NodeCardProps {
   node: NodeMetadata;
   score?: number;
-  onSelect?: (node: NodeMetadata) => void;
 }
 
-export const NodeCard: React.FC<NodeCardProps> = ({
-  node,
-  score,
-  onSelect,
-}) => {
-  const [useAISummary, setUseAISummary] = React.useState(false);
-
+export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -68,22 +59,20 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   };
 
   return (
-    <Card
-      className="h-full cursor-pointer pt-0 border-1 border-chart-1"
-      // onClick={() => onSelect?.(node)}
-    >
+    <Card className="h-full pt-0 border-1 border-chart-1">
       <CardHeader className="bg-chart-1 pb-2 pt-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="mb-2 text-lg">{node.python_import}</CardTitle>
-            <Badge variant="secondary" className="mr-2">
-              {node.node_type}
-            </Badge>
-            {score !== undefined && (
-              <Badge variant="success">Score: {score.toFixed(2)}</Badge>
-            )}
-          </div>
-        </div>
+        <CardTitle className="text-lg">{node.python_import}</CardTitle>
+        <CardDescription>
+          <small>{node.source_code_hash}</small>
+        </CardDescription>
+        <CardDescription>
+          <Badge variant="secondary" className="mr-2">
+            {node.node_type}
+          </Badge>
+          {score !== undefined && (
+            <Badge variant="success">Score: {score.toFixed(2)}</Badge>
+          )}
+        </CardDescription>
         <CardAction className="space-x-2">
           {node.homepage_url && (
             <Button
@@ -367,15 +356,23 @@ export const NodeCard: React.FC<NodeCardProps> = ({
           </div>
         )}
       </CardContent>
-      <CardFooter className="grid grid-cols-2 gap-2 bg-chart-1 text-xs text-muted-foreground">
-        <small className="flex items-center">
-          <User size={12} className="mr-1" />
-          <span className={cn("truncate")}>{node.author_name}</span>
-        </small>
-        <small className="flex items-center justify-end">
+      <CardFooter className="grid grid-cols-3 gap-2 bg-chart-1">
+        <div className="flex items-center">
+          <BookAIcon size={12} className="mr-1" />
+          <span>
+            {node.author_name} ({node.author_email})
+          </span>
+        </div>
+        <div className="flex items-center justify-center">
+          <FilePlusCornerIcon size={12} className="mr-1" />
+          <span>
+            {node.creator_name} ({node.creator_email})
+          </span>
+        </div>
+        <div className="flex items-center justify-end">
           <Calendar size={12} className="mr-1" />
           {formatDate(node.creation_timestamp)}
-        </small>
+        </div>
       </CardFooter>
     </Card>
   );

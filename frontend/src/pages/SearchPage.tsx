@@ -27,13 +27,18 @@ export const SearchCard: React.FC<SearchCardProps> = ({
   suggestions,
   availableFilterOptions,
 }) => {
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<string>("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const [category, setCategory] = useState<string>(searchParams.get("c") ?? "");
   const [filters, setFilters] = useState<Filter>({});
 
   const handleSearch = () => {
     onSearchChange(query, category, filters);
   };
+
+  useEffect(() => {
+    handleSearch();
+  }, []);
 
   return (
     <Card>
@@ -47,7 +52,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         query={query}
         onQueryChange={(v) => {
           setQuery(v);
-          handleSearch();
+          setSearchParams({ q: v, c: category });
+          onSearchChange(v, category, filters);
         }}
         items={suggestions}
       />
@@ -56,7 +62,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         categoryOptions={availableFilterOptions.category}
         onCategoryChange={(v) => {
           setCategory(v);
-          handleSearch();
+          setSearchParams({ q: query, c: v });
+          onSearchChange(query, v, filters);
         }}
       />
       <FacetedSearch
@@ -64,7 +71,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         availableFilterOptions={availableFilterOptions}
         onFilterChange={(v) => {
           setFilters(v);
-          handleSearch();
+          onSearchChange(query, category, v);
         }}
       />
     </Card>
@@ -145,10 +152,6 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
     },
     500,
   );
-
-  useEffect(() => {
-    void debouncedSearch("", "", {});
-  }, []);
 
   useEffect(() => {
     const loadFilterOptions = async () => {

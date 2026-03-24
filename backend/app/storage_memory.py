@@ -205,9 +205,9 @@ class InMemoryStorage(StorageInterface):
         filtered_items = (item for item in self._storage.values() if item_filter(item))
 
         def score_item(query: str, item: NodeMetadata) -> float:
-            if query in item.python_import:
+            if query in item.python_import.lower():
                 return 1.0
-            if query in item.docstring:
+            if query in item.docstring.lower():
                 return 0.5
             return 0.0
 
@@ -215,7 +215,7 @@ class InMemoryStorage(StorageInterface):
             item
             for item in (
                 ScoredSearchResponse(
-                    score=score_item(query, item) if query else 1.0, node=item
+                    score=score_item(query.lower(), item) if query else 1.0, node=item
                 )
                 for item in filtered_items
             )

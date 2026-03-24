@@ -1,3 +1,4 @@
+import contextlib
 import importlib
 import importlib.metadata
 import inspect
@@ -19,7 +20,6 @@ from .models import (
     ScoredSearchResponse,
 )
 from .parser import get_metadata
-import contextlib
 
 
 class NodeStore:

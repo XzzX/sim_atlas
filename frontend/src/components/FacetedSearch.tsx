@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  NodeType,
-  FilterOptions,
-  ScoredSearchResponse,
-  Filter,
-} from "../types/index";
+import { NodeType, FilterOptions, Filter } from "../types/index";
 import { CardContent } from "@/components/ui/card";
 import {
   Combobox,
@@ -21,11 +16,9 @@ import {
 import { Label } from "./ui/label";
 
 interface FacetedSearchProps {
-  nodes: ScoredSearchResponse[];
   filters: Filter;
   availableFilterOptions: FilterOptions;
   onFilterChange: (filters: Filter) => void;
-  onClearFilters: () => void;
 }
 
 export const FacetedSearch: React.FC<FacetedSearchProps> = ({

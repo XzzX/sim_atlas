@@ -32,32 +32,32 @@ function generatePythonImportCommand(pythonImport: string) {
   return `import ${pythonImport}`;
 }
 
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+const handleDownload = (filename: string, content: string) => {
+  const blob = new Blob([content], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+
+  URL.revokeObjectURL(url);
+};
+
 interface NodeCardProps {
   node: NodeMetadata;
   score?: number;
 }
 
 export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const handleDownload = (filename: string, content: string) => {
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <Card className="h-full pt-0 border-1 border-chart-1">
       <CardHeader className="bg-chart-1 pb-2 pt-4">

@@ -16,6 +16,26 @@ import {
 import SearchBar from "@/components/SearchBar";
 import { Toaster } from "@/components/ui/sonner";
 
+const EMPTY_FILTER: Filter = {
+  category: "",
+  type: [],
+  author: [],
+  keywords: [],
+  datatypes: [],
+  units: [],
+  quantities: [],
+};
+
+const EMPTY_FILTER_OPTIONS: FilterOptions = {
+  category: {},
+  type: [],
+  author: [],
+  keywords: [],
+  datatypes: [],
+  units: [],
+  quantities: [],
+};
+
 interface SearchCardProps {
   onSearchChange: (query: string, category: string, filters: Filter) => void;
   availableFilterOptions: FilterOptions;
@@ -30,7 +50,15 @@ export const SearchCard: React.FC<SearchCardProps> = ({
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [category, setCategory] = useState<string>(searchParams.get("c") ?? "");
-  const [filters, setFilters] = useState<Filter>({});
+  const [filters, setFilters] = useState<Filter>({
+    category: searchParams.get("category") ?? EMPTY_FILTER.category,
+    type: searchParams.getAll("type") ?? EMPTY_FILTER.type,
+    author: searchParams.getAll("author") ?? EMPTY_FILTER.author,
+    keywords: searchParams.getAll("keywords") ?? EMPTY_FILTER.keywords,
+    datatypes: searchParams.getAll("datatypes") ?? EMPTY_FILTER.datatypes,
+    units: searchParams.getAll("units") ?? EMPTY_FILTER.units,
+    quantities: searchParams.getAll("quantities") ?? EMPTY_FILTER.quantities,
+  });
 
   const handleSearch = () => {
     onSearchChange(query, category, filters);
@@ -52,7 +80,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         query={query}
         onQueryChange={(v) => {
           setQuery(v);
-          setSearchParams({ q: v, c: category });
+          setSearchParams({ q: v, c: category, ...filters });
           onSearchChange(v, category, filters);
         }}
         items={suggestions}
@@ -62,7 +90,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         categoryOptions={availableFilterOptions.category}
         onCategoryChange={(v) => {
           setCategory(v);
-          setSearchParams({ q: query, c: v });
+          setSearchParams({ q: query, c: v, ...filters });
           onSearchChange(query, v, filters);
         }}
       />
@@ -71,6 +99,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
         availableFilterOptions={availableFilterOptions}
         onFilterChange={(v) => {
           setFilters(v);
+          setSearchParams({ q: query, c: category, ...v });
           onSearchChange(query, category, v);
         }}
       />
@@ -108,16 +137,6 @@ const Content: React.FC<ContentProps> = ({ loading, items }) => {
       )}
     </section>
   );
-};
-
-const EMPTY_FILTER_OPTIONS: FilterOptions = {
-  category: {},
-  type: [],
-  author: [],
-  keywords: [],
-  datatypes: [],
-  units: [],
-  quantities: [],
 };
 
 interface SearchPageProps {
@@ -166,11 +185,6 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
 
     void loadFilterOptions();
   }, []);
-
-  const handleClearFilters = () => {
-    setFilters({});
-    void debouncedSearch("", "", {});
-  };
 
   return (
     <main className="mx-auto w-full max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">

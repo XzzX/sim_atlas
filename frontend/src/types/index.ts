@@ -85,13 +85,13 @@ export interface NodeMetadata extends NodeResponse {
 }
 
 export interface Filter {
-  category?: string | null;
-  type?: NodeType[] | null;
-  author?: string[] | null;
-  keywords?: string[] | null;
-  datatypes?: string[] | null;
-  units?: string[] | null;
-  quantities?: string[] | null;
+  category: string;
+  type: string[];
+  author: string[];
+  keywords: string[];
+  datatypes: string[];
+  units: string[];
+  quantities: string[];
 }
 
 export interface FilterOptions {

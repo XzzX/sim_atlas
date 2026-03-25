@@ -2,43 +2,39 @@ import contextlib
 import importlib
 import importlib.metadata
 import inspect
+import logging
 from http import HTTPStatus
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
+from types import ModuleType
 from typing import Any, Literal
 
 import requests
-from python_workflow_definition.models import (
-    PythonWorkflowDefinitionWorkflow,
-)
 
 from .models import (
-    Filter,
     NodeRequest,
-    NodeResponse,
-    NodeType,
-    ScoredSearchResponse,
 )
 from .parser import get_metadata
 
+logger = logging.getLogger("SimAtlas")
+
 
 class NodeStore:
-    def __init__(self, api_url: str, author: str, email: str) -> None:
+    def __init__(self, api_url: str, api_key: str | None = None) -> None:
         self.api_url = api_url
-        self.author = author
-        self.email = email
+        self.api_key = api_key
 
     def upload_module(  # noqa: PLR0912
         self,
         module: str | ModuleType,
+        update_existing: bool = False,
         recursive: Literal["no", "import", "filesystem"] = "no",
+        **kwargs: dict[str, Any],
     ) -> None:
-        print(f"Uploading module {module}...")
         try:
             if isinstance(module, str):
                 module = importlib.import_module(module)
         except Exception as e:
-            print(f"✗ Failed to import module {module}: {e}")
+            logger.error(f"Failed to import module {module}: {e}")
             return
 
         if recursive == "filesystem":
@@ -56,17 +52,29 @@ class NodeStore:
                 for path in submodule_paths
             )
             for submodule_path in submodule_paths:
-                self.upload_module(submodule_path)
+                self.upload_module(
+                    submodule_path,
+                    update_existing=update_existing,
+                    recursive="no",
+                    **kwargs,
+                )
 
         if hasattr(module, "__all__"):
             items = ((k, module.__dict__[k]) for k in module.__all__)
         else:
             items = module.__dict__.items()
 
+        num_uploads = 0
+        successful_uploads = 0
         for k, v in items:
             if inspect.ismodule(v):
                 if recursive == "import" and v.__name__.startswith(module.__name__):
-                    self.upload_module(v, recursive=recursive)
+                    self.upload_module(
+                        v,
+                        update_existing=update_existing,
+                        recursive=recursive,
+                        **kwargs,
+                    )
                 continue
 
             if not hasattr(v, "__module__"):
@@ -78,23 +86,33 @@ class NodeStore:
             if k.startswith("_"):
                 continue
 
+            num_uploads += 1
             try:
-                self.upload(v)
+                response = self.upload(v, update_existing=update_existing, **kwargs)
+                if response.status_code == HTTPStatus.CREATED:
+                    successful_uploads += 1
+                else:
+                    logger.debug(
+                        f"Failed to upload {k}: {response.status_code} {response.text}"
+                    )
             except Exception as e:
-                print(f"✗ {k}: {v}\n{e}")
+                logger.debug(f"Failed to upload {k}: {v}\n{e}")
                 continue
 
-    def upload(self, obj: Any, **kwargs: dict[str, Any]) -> requests.Response:
-        """Upload node metadata to the specified API endpoint.
+        logger.info(f"{successful_uploads}/{num_uploads} uploaded from {module}")
 
-        Args:
-            node (Node): The node metadata to upload.
-        """
+    def upload(  # noqa: PLR0912
+        self, obj: Any, update_existing: bool = False, **kwargs: dict[str, Any]
+    ) -> requests.Response:
+        headers = {}
+        if self.api_key:
+            headers["x-api-key"] = self.api_key
 
         if isinstance(obj, NodeRequest):
             response = requests.post(
                 f"{self.api_url}/nodes/",
                 json=obj.model_dump(),
+                headers=headers,
             )
             return response
 
@@ -103,20 +121,28 @@ class NodeStore:
                 "Will not automatically upload modules. Use upload_module instead."
             )
 
-        general_metadata: dict[str, Any] = {
-            "author_name": self.author,
-            "author_email": self.email,
-        }
+        general_metadata: dict[str, Any] = {}
 
         with contextlib.suppress(Exception):
-            dependencies = importlib.metadata.requires(obj.__module__.partition(".")[0])
-            if dependencies is not None:
+            if dependencies := importlib.metadata.requires(
+                obj.__module__.partition(".")[0]
+            ):
                 general_metadata["dependencies"] = dependencies
 
-        with contextlib.suppress(Exception):
-            project_url = importlib.metadata.metadata(
+        try:
+            package_metadata = importlib.metadata.metadata(
                 obj.__module__.partition(".")[0]
-            ).json.get("project_url")
+            ).json
+        except Exception as _:
+            package_metadata = {}
+
+        if author := package_metadata.get("author"):
+            general_metadata["author_name"] = author
+        if email := package_metadata.get("author_email"):
+            general_metadata["author_email"] = email
+
+        with contextlib.suppress(Exception):
+            project_url = package_metadata.get("project_url")
             if project_url is not None:
                 for item in project_url:
                     key, url = item.split(", ")
@@ -142,89 +168,6 @@ class NodeStore:
         response = requests.post(
             f"{self.api_url}/nodes",
             json=request_data.model_dump(),
+            headers=headers,
         )
         return response
-
-    def get_function(self, node_id: str) -> NodeResponse:
-        """Retrieve node metadata from the specified API endpoint.
-
-        Args:
-            node_id (str): The ID of the node to retrieve.
-        Returns:
-            dict: The node metadata.
-        """
-        response = requests.get(f"{self.api_url}/nodes/{node_id}/")
-        return NodeResponse.model_validate(response.json())
-
-    def download_python_workflow_definition(
-        self, node_id: str, filename: Path | str
-    ) -> PythonWorkflowDefinitionWorkflow:
-        response = requests.get(f"{self.api_url}/nodes/{node_id}/")
-        if response.status_code != HTTPStatus.OK:
-            raise ValueError(f"Node with ID {node_id} not found.")
-        metadata = NodeResponse.model_validate(response.json())
-        if metadata.node_type != NodeType.PYTHON_WORKFLOW_DEFINITION:
-            raise ValueError(
-                f"Node with ID {node_id} is not a PythonWorkflowDefinition."
-            )
-        workflow = PythonWorkflowDefinitionWorkflow.model_validate_json(
-            metadata.source_code
-        )
-        with open(filename, "w") as f:
-            f.write(metadata.source_code)
-        return workflow
-
-    def get_function_index(self) -> SimpleNamespace:
-        response = requests.get(f"{self.api_url}/node-index/")
-
-        ns = SimpleNamespace()
-        for f in response.json():
-            key_list = f"{f['module']}.{f['qualname']}".split(".")
-            current = ns
-            for key in key_list:
-                if not hasattr(current, key):
-                    setattr(current, key, SimpleNamespace())
-                current = getattr(current, key)
-            current = f"{f['module']}.{f['qualname']}"
-        return ns
-
-    def search_function(self, query: str) -> list[NodeResponse]:
-        """Search for nodes matching the query using semantic search.
-
-        Args:
-            query (str): The search query string.
-        Returns:
-            list: A list of node metadata matching the query.
-        """
-        response = requests.post(
-            f"{self.api_url}/nodes/search",
-            params={"query": query},
-        )
-        return response.json()
-
-    def semantic_search_function(self, query: str) -> list[ScoredSearchResponse]:
-        """Search for nodes matching the query using semantic search.
-
-        Args:
-            query (str): The search query string.
-        Returns:
-            list: A list of node metadata matching the query.
-        """
-        response = requests.post(
-            f"{self.api_url}/nodes/semantic_search",
-            params={"query": query},
-        )
-        return response.json()
-
-    def filter(self, filter_params: Filter | None = None) -> list[NodeResponse]:
-        """Filter nodes based on provided criteria.
-
-        Args:
-            filter_params (dict): A dictionary of filter criteria.
-        Returns:
-            list: A list of node metadata matching the filter criteria.
-        """
-        response = requests.get(
-            f"{self.api_url}/nodes",
-        )
-        return response.json()

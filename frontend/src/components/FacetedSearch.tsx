@@ -14,6 +14,7 @@ import {
   useComboboxAnchor,
 } from "@/components/ui/combobox";
 import { Label } from "./ui/label";
+import { Button } from "./ui/button";
 
 interface FacetedSearchProps {
   filters: Filter;
@@ -28,7 +29,26 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
 }) => {
   return (
     <CardContent className="space-y-4">
-      <Label>Facet Filters</Label>
+      <div className="flex items-center justify-between">
+        <Label>Facet Filters</Label>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() =>
+            onFilterChange({
+              ...filters,
+              type: [],
+              author: [],
+              keywords: [],
+              datatypes: [],
+              units: [],
+              quantities: [],
+            })
+          }
+        >
+          Clear all
+        </Button>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <FacetPopover
           label="Node Type"

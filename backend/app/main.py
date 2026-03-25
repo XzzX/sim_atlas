@@ -1,7 +1,8 @@
 import datetime as dt
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import APIRouter, FastAPI, HTTPException, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
@@ -15,6 +16,7 @@ from .models import (
     NodeResponse,
     ScoredSearchResponse,
 )
+from .security import Creator, get_current_user
 from .storage import get_storage_backend
 
 # Get the configured storage backend
@@ -50,6 +52,13 @@ app.add_middleware(
 api_router = APIRouter(prefix="/api/v1")
 
 
+@api_router.get("/me")
+async def return_creator(
+    creator: Annotated[Creator, Depends(get_current_user)],
+) -> Creator:
+    return creator
+
+
 @api_router.get("/nodes/{node_hash}", tags=["nodes"])
 async def read_node(node_hash: str) -> NodeResponse:
     node = storage.get(node_hash, None)
@@ -60,8 +69,10 @@ async def read_node(node_hash: str) -> NodeResponse:
     return node
 
 
-@api_router.post("/nodes", tags=["nodes"])
-async def create_node(node: NodeRequest) -> NodeResponse:
+@api_router.post("/nodes", tags=["nodes"], status_code=status.HTTP_201_CREATED)
+async def create_node(
+    node: NodeRequest, creator: Annotated[Creator, Depends(get_current_user)]
+) -> NodeResponse:
     if node.source_code_hash in storage:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Node already exists"
@@ -71,8 +82,8 @@ async def create_node(node: NodeRequest) -> NodeResponse:
     node_metadata = NodeMetadata(
         **node.model_dump(),
         ai_docstring="",
-        creator_name="Sebastian",
-        creator_email="asdf@asdf.de",
+        creator_name=creator.name,
+        creator_email=creator.email,
         creation_timestamp=timestamp.isoformat(),
     )
 
@@ -84,7 +95,11 @@ async def create_node(node: NodeRequest) -> NodeResponse:
 
 
 @api_router.put("/nodes/{node_hash}", tags=["nodes"])
-async def update_node(node_hash: str, node: NodeMetadata) -> NodeResponse:
+async def update_node(
+    node_hash: str,
+    node: NodeMetadata,
+    creator: Annotated[Creator, Depends(get_current_user)],
+) -> NodeResponse:
     if node_hash not in storage:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
@@ -94,7 +109,9 @@ async def update_node(node_hash: str, node: NodeMetadata) -> NodeResponse:
 
 
 @api_router.delete("/nodes/{node_hash}", tags=["nodes"])
-async def delete_node(node_hash: str):
+async def delete_node(
+    node_hash: str, creator: Annotated[Creator, Depends(get_current_user)]
+):
     if node_hash not in storage:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
@@ -129,7 +146,9 @@ async def semantic_search(query: str):
     "/enrich",
     tags=["ai"],
 )
-async def enrich_node(node_hash: str) -> NodeResponse:
+async def enrich_node(
+    node_hash: str, creator: Annotated[Creator, Depends(get_current_user)]
+) -> NodeResponse:
     node = storage.get(node_hash, None)
     if not node:
         raise HTTPException(

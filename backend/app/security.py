@@ -1,16 +1,60 @@
-import secrets
+from typing import Annotated
 
-from fastapi import Depends, HTTPException
+import jwt
+from dotenv import dotenv_values
+from fastapi import Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
+from jwt.exceptions import InvalidTokenError
+from pydantic import BaseModel
 
-header_scheme = APIKeyHeader(name="X-API-KEY")
+config = dotenv_values(".env")
+JWT_SECRET_KEY = config["JWT_SECRET_KEY"]
+JWT_ALGORITHM = config["JWT_ALGORITHM"]
 
-write_token = secrets.token_hex(16)
-
-print(f"Write API Key: {write_token}")
+api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
 
-def has_write_access(key: str = Depends(header_scheme)):
-    if key != write_token:
-        raise HTTPException(status_code=400, detail="invalid write API key")
-    return {"key": key}
+class Creator(BaseModel):
+    name: str
+    email: str
+
+
+def create_access_token(creator_name: str, creator_email: str):
+    if JWT_SECRET_KEY is None:
+        raise ValueError("JWT_SECRET_KEY must be set in the .env file")
+
+    if JWT_ALGORITHM is None:
+        raise ValueError("JWT_ALGORITHM must be set in the .env file")
+
+    to_encode = {"creator_name": creator_name, "creator_email": creator_email}
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    return encoded_jwt
+
+
+print(create_access_token("Sebastian Eibl", "sebastian.eibl@mpcdf.mpg.de"))
+
+
+async def get_current_user(access_token: Annotated[str, Depends(api_key_header)]):
+    if JWT_SECRET_KEY is None:
+        raise ValueError("JWT_SECRET_KEY must be set in the .env file")
+
+    if JWT_ALGORITHM is None:
+        raise ValueError("JWT_ALGORITHM must be set in the .env file")
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(access_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        creator_name = payload.get("creator_name")
+        if creator_name is None:
+            raise credentials_exception
+        creator_email = payload.get("creator_email")
+        if creator_email is None:
+            raise credentials_exception
+    except InvalidTokenError as e:
+        raise credentials_exception from e
+
+    return Creator(name=creator_name, email=creator_email)

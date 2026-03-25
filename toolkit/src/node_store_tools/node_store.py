@@ -3,12 +3,15 @@ import importlib
 import importlib.metadata
 import inspect
 import logging
+from collections.abc import Callable
 from http import HTTPStatus
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Literal
 
 import requests
+
+from node_store_tools.parsers.metadata import Metadata
 
 from .models import (
     NodeRequest,
@@ -27,6 +30,7 @@ class NodeStore:
         self,
         module: str | ModuleType,
         update_existing: bool = False,
+        parsers: list[Callable[[Any], Metadata | None]] | None = None,
         recursive: Literal["no", "import", "filesystem"] = "no",
         **kwargs: dict[str, Any],
     ) -> None:
@@ -55,6 +59,7 @@ class NodeStore:
                 self.upload_module(
                     submodule_path,
                     update_existing=update_existing,
+                    parsers=parsers,
                     recursive="no",
                     **kwargs,
                 )
@@ -72,6 +77,7 @@ class NodeStore:
                     self.upload_module(
                         v,
                         update_existing=update_existing,
+                        parsers=parsers,
                         recursive=recursive,
                         **kwargs,
                     )
@@ -88,7 +94,9 @@ class NodeStore:
 
             num_uploads += 1
             try:
-                response = self.upload(v, update_existing=update_existing, **kwargs)
+                response = self.upload(
+                    v, update_existing=update_existing, parsers=parsers, **kwargs
+                )
                 if response.status_code == HTTPStatus.CREATED:
                     successful_uploads += 1
                 else:
@@ -102,7 +110,11 @@ class NodeStore:
         logger.info(f"{successful_uploads}/{num_uploads} uploaded from {module}")
 
     def upload(  # noqa: PLR0912
-        self, obj: Any, update_existing: bool = False, **kwargs: dict[str, Any]
+        self,
+        obj: Any,
+        update_existing: bool = False,
+        parsers: list[Callable[[Any], Metadata | None]] | None = None,
+        **kwargs: dict[str, Any],
     ) -> requests.Response:
         headers = {}
         if self.api_key:
@@ -156,7 +168,7 @@ class NodeStore:
                         general_metadata["source_url"] = url
                         continue
 
-        metadata = get_metadata(obj)
+        metadata = get_metadata(obj, parsers)
         metadata_dict = metadata.model_dump()
         metadata_dict.update(general_metadata)
         metadata_dict.update(kwargs)

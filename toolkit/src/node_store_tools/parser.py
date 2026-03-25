@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 
 from .parsers import (
@@ -9,24 +10,19 @@ from .parsers import (
 from .parsers.metadata import Metadata
 
 
-def get_metadata(obj: Any) -> Metadata:
-    """Extract metadata from a function including its docstring, arguments, and return
-    types.
+def get_metadata(
+    obj: Any, parsers: list[Callable[[Any], Metadata | None]] | None
+) -> Metadata:
+    if parsers is None:
+        parsers = [
+            pyiron_workflow.parse,
+            pyiron_core.parse,
+            python_workflow_definition.parse,
+            python_function.parse,
+        ]
 
-    Args:
-        func (callable): The function to extract metadata from.
-
-    Returns:
-        FunctionMetadata: The extracted metadata.
-    """
-
-    if metadata := pyiron_workflow.parse(obj):
-        return metadata
-    if metadata := pyiron_core.parse(obj):
-        return metadata
-    if metadata := python_workflow_definition.parse(obj):
-        return metadata
-    if metadata := python_function.parse(obj):
-        return metadata
+    for parser in parsers:
+        if metadata := parser(obj):
+            return metadata
 
     raise ValueError(f"No parser available for the given object: {type(obj)}")

@@ -15,7 +15,7 @@ def parse(obj: Any) -> Metadata | None:
     if not isinstance(obj, PythonWorkflowDefinitionWorkflow):
         return None
 
-    source_code: str = obj.model_dump_json()
+    source_code: str = obj.model_dump_json(indent=2)
     source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()
 
     inputs: list[Annotation] = []

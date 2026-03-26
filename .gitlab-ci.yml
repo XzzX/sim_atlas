@@ -9,10 +9,5 @@ include:
   - local: frontend/.gitlab-ci.yml
   - local: web_ide/.gitlab-ci.yml
 
-stages:
-  - lint
-  - build
-  - audit
-
 default:
   interruptible: true

@@ -3,17 +3,11 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "push"'
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
-stages:
-  - lint
-  - build
-  - audit
-
 default:
   interruptible: true
 
 frontend_lint_and_type_check:
   image: node:24
-  stage: lint
   cache:
     key:
       files:
@@ -28,7 +22,6 @@ frontend_lint_and_type_check:
 
 frontend_build:
   image: node:24
-  stage: build
   needs:
     - frontend_lint_and_type_check
   cache:
@@ -49,7 +42,6 @@ frontend_build:
 
 frontend_dependency_audit:
   image: node:24
-  stage: audit
   cache:
     key:
       files:

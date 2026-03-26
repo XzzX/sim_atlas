@@ -3,15 +3,11 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "push"'
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
-stages:
-  - lint
-
 default:
   interruptible: true
 
 toolkit_lint_and_type_check:
   image: python:3.12
-  stage: lint
   before_script:
     - python -m pip install --upgrade pip
     - python -m pip install uv

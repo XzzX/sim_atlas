@@ -267,7 +267,13 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
   // }, [searchQuery]);
 
   const debouncedSearch = useDebouncedCallback(
-    async (query: string, category: string, filters: Filter, page = 1) => {
+    async (
+      query: string,
+      category: string,
+      filters: Filter,
+      // eslint-disable-next-line @typescript-eslint/no-inferrable-types
+      page: number = 1,
+    ) => {
       try {
         setLoading(true);
         setError(null);

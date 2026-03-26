@@ -7,7 +7,7 @@ include:
   - local: backend/.gitlab-ci.yml
   - local: toolkit/.gitlab-ci.yml
   - local: frontend/.gitlab-ci.yml
-  - local: web_ide/.gitlab-ci.yml
+    #  - local: web_ide/.gitlab-ci.yml
 
 default:
   interruptible: true

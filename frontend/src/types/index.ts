@@ -75,9 +75,22 @@ export interface NodeIndex {
   source_code_hash: string;
 }
 
-export interface ScoredSearchResponse {
+export interface ScoredSearchItem {
   score: number;
   node: NodeResponse;
+}
+
+export interface SearchResults {
+  data: ScoredSearchItem[];
+  page: number;
+  limit: number;
+  total_items: number;
+  total_pages: number;
+}
+
+export interface ScoredSearchResponse {
+  results: SearchResults;
+  aggregations?: Record<string, Record<string, number>> | null;
 }
 
 export interface NodeMetadata extends NodeResponse {

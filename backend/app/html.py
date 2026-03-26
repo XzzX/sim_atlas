@@ -146,12 +146,19 @@ def render_node_html(node: NodeResponse) -> str:
     return node_html
 
 
-def render_search_results_html(results: list[ScoredSearchResponse]) -> str:
-    if results:
+def render_search_results_html(results: ScoredSearchResponse) -> str:
+    search_items = results.results.data
+    if search_items:
         results_html = "<h2 class='mt-5 mb-4'>Search Results</h2>"
+        results_html += (
+            "<p class='text-light mb-3'>"
+            f"Showing page {results.results.page} of {results.results.total_pages}"
+            f" ({results.results.total_items} total items)"
+            "</p>"
+        )
         results_html += "<div class='row'>"
-        for node in results:
-            results_html += render_node_html(node.node)
+        for item in search_items:
+            results_html += render_node_html(item.node)
         results_html += "</div>"
     else:
         results_html = "<div class='alert alert-info mt-5' role='alert'>No results found for your search.</div>"
@@ -159,7 +166,7 @@ def render_search_results_html(results: list[ScoredSearchResponse]) -> str:
     return results_html
 
 
-def render_search_page(query: str, results: list[ScoredSearchResponse]) -> str:
+def render_search_page(query: str, results: ScoredSearchResponse) -> str:
     results_html = render_search_results_html(results)
 
     page = f"""

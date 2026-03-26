@@ -2,7 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 import { simAtlasAPI } from "../services/api";
-import { Filter, FilterOptions, ScoredSearchResponse } from "../types/index";
+import {
+  Filter,
+  FilterOptions,
+  ScoredSearchItem,
+  ScoredSearchResponse,
+} from "../types/index";
 import { FacetedSearch } from "../components/FacetedSearch";
 import { NodeCard } from "../components/NodeCard";
 import { Alert } from "@/components/ui/alert";
@@ -109,7 +114,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
 interface ContentProps {
   loading: boolean;
-  items: ScoredSearchResponse[];
+  items: ScoredSearchItem[];
 }
 
 const Content: React.FC<ContentProps> = ({ loading, items }) => {
@@ -145,7 +150,16 @@ interface SearchPageProps {
 }
 
 export const SearchPage: React.FC<SearchPageProps> = () => {
-  const [allNodes, setAllNodes] = useState<ScoredSearchResponse[]>([]);
+  const [searchResponse, setSearchResponse] = useState<ScoredSearchResponse>({
+    results: {
+      data: [],
+      page: 1,
+      limit: 10,
+      total_items: 0,
+      total_pages: 0,
+    },
+    aggregations: null,
+  });
   const [availableFilterOptions, setAvailableFilterOptions] =
     useState<FilterOptions>(EMPTY_FILTER_OPTIONS);
   const [loading, setLoading] = useState(false);
@@ -161,7 +175,7 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
         setLoading(true);
         setError(null);
         const results = await simAtlasAPI.search(query, category, filters);
-        setAllNodes(results);
+        setSearchResponse(results);
       } catch (err) {
         setError("Search failed. Please try again.");
         console.error(err);
@@ -192,7 +206,9 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
         onSearchChange={(query, category, filters) => {
           void debouncedSearch(query, category, filters);
         }}
-        suggestions={allNodes.map((result) => result.node.python_import)}
+        suggestions={searchResponse.results.data.map(
+          (result) => result.node.python_import,
+        )}
         availableFilterOptions={availableFilterOptions}
       />
       {error && (
@@ -210,7 +226,7 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
           </button>
         </Alert>
       )}
-      <Content loading={loading} items={allNodes} />
+      <Content loading={loading} items={searchResponse.results.data} />
       <Toaster />
     </main>
   );

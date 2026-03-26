@@ -30,15 +30,17 @@ export const simAtlasAPI = {
     query: string | null,
     category: string,
     filterOptions: Filter,
-  ): Promise<ScoredSearchResponse[]> => {
+    page = 1,
+    limit = 10,
+  ): Promise<ScoredSearchResponse> => {
     const response = await api.post(
       "/search",
       { ...filterOptions, category },
       {
-        params: { query },
+        params: { query, page, limit },
       },
     );
-    return response.data as ScoredSearchResponse[];
+    return response.data as ScoredSearchResponse;
   },
 };
 

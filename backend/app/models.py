@@ -77,9 +77,22 @@ class NodeIndex(BaseModel):
     source_code_hash: str
 
 
-class ScoredSearchResponse(BaseModel):
+class ScoredSearchItem(BaseModel):
     score: float
     node: NodeResponse
+
+
+class SearchResults(BaseModel):
+    data: list[ScoredSearchItem]
+    page: int
+    limit: int
+    total_items: int
+    total_pages: int
+
+
+class ScoredSearchResponse(BaseModel):
+    results: SearchResults
+    aggregations: dict[str, dict[str, int]] | None = None
 
 
 class NodeMetadata(NodeResponse):

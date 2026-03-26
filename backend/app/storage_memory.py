@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import pickle
+from math import ceil
 from functools import reduce
 
 import numpy as np
@@ -12,7 +13,9 @@ from .models import (
     FilterOptions,
     NodeMetadata,
     NodeResponse,
+    ScoredSearchItem,
     ScoredSearchResponse,
+    SearchResults,
 )
 from .storage import StorageInterface
 
@@ -191,16 +194,39 @@ class InMemoryStorage(StorageInterface):
             (extract_filter_options(node) for node in self._storage.values()),
         )
 
-    def filter(self, filter: Filter) -> list[ScoredSearchResponse]:
+    def _paginate(
+        self, items: list[ScoredSearchItem], page: int = 1, limit: int = 10
+    ) -> ScoredSearchResponse:
+        safe_page = max(page, 1)
+        safe_limit = max(limit, 1)
+        total_items = len(items)
+        total_pages = ceil(total_items / safe_limit) if total_items else 0
+
+        start = (safe_page - 1) * safe_limit
+        end = start + safe_limit
+
+        return ScoredSearchResponse(
+            results=SearchResults(
+                data=items[start:end],
+                page=safe_page,
+                limit=safe_limit,
+                total_items=total_items,
+                total_pages=total_pages,
+            )
+        )
+
+    def filter(self, filter: Filter) -> list[ScoredSearchItem]:
         item_filter: NodeFilter = NodeFilter(filter)
 
         return [
-            ScoredSearchResponse(score=1.0, node=item)
+            ScoredSearchItem(score=1.0, node=item)
             for item in self._storage.values()
             if item_filter(item)
         ]
 
-    def search(self, query: str | None, filter: Filter) -> list[ScoredSearchResponse]:
+    def search(
+        self, query: str | None, filter: Filter, page: int = 1, limit: int = 10
+    ) -> ScoredSearchResponse:
         item_filter: NodeFilter = NodeFilter(filter)
         filtered_items = (item for item in self._storage.values() if item_filter(item))
 
@@ -214,7 +240,7 @@ class InMemoryStorage(StorageInterface):
         scored_items = (
             item
             for item in (
-                ScoredSearchResponse(
+                ScoredSearchItem(
                     score=score_item(query.lower(), item) if query else 1.0, node=item
                 )
                 for item in filtered_items
@@ -222,13 +248,13 @@ class InMemoryStorage(StorageInterface):
             if item.score > 0.0
         )
 
-        sorted_items = sorted(scored_items, key=lambda x: x.score, reverse=True)[:10]
+        sorted_items = sorted(scored_items, key=lambda x: x.score, reverse=True)
 
-        return sorted_items
+        return self._paginate(sorted_items, page=page, limit=limit)
 
     def search_semantic(
-        self, query: str, limit: int = 10
-    ) -> list[ScoredSearchResponse]:
+        self, query: str, page: int = 1, limit: int = 10
+    ) -> ScoredSearchResponse:
         """
         Perform semantic search on node metadata.
 
@@ -243,12 +269,12 @@ class InMemoryStorage(StorageInterface):
         query_embedding = create_embedding(query)
 
         # Calculate similarities
-        similarities: list[ScoredSearchResponse] = []
+        similarities: list[ScoredSearchItem] = []
         for _node_hash, node in self._storage.items():
             if node.embedding is not None:
                 similarity = cosine_similarity(query_embedding, node.embedding)
                 similarities.append(
-                    ScoredSearchResponse(
+                    ScoredSearchItem(
                         score=similarity,
                         node=NodeResponse(**node.model_dump()),
                     )
@@ -257,5 +283,4 @@ class InMemoryStorage(StorageInterface):
         # Sort by similarity (descending) and limit results
         similarities.sort(key=lambda x: x.score, reverse=True)
 
-        # Return only the node metadata (without scores)
-        return similarities[:limit]
+        return self._paginate(similarities, page=page, limit=limit)

@@ -125,21 +125,26 @@ async def get_filter_options():
     return storage.get_filter_options()
 
 
-@api_router.post("/search", response_model=list[ScoredSearchResponse], tags=["search"])
-async def search_nodes(query: str | None = None, filter_options: Filter | None = None):
+@api_router.post("/search", response_model=ScoredSearchResponse, tags=["search"])
+async def search_nodes(
+    query: str | None = None,
+    page: int = 1,
+    limit: int = 10,
+    filter_options: Filter | None = None,
+):
     query = query.strip() if query else ""
     filter_options = filter_options or Filter()
-    return storage.search(query, filter_options)
+    return storage.search(query, filter_options, page=page, limit=limit)
 
 
 @api_router.post(
     "/semantic_search",
-    response_model=list[ScoredSearchResponse],
+    response_model=ScoredSearchResponse,
     tags=["search"],
     operation_id="semantic_search",
 )
-async def semantic_search(query: str):
-    return storage.search_semantic(query, 10)
+async def semantic_search(query: str, page: int = 1, limit: int = 10):
+    return storage.search_semantic(query, page=page, limit=limit)
 
 
 @api_router.post(

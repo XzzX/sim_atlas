@@ -25,13 +25,15 @@ class StorageInterface(MutableMapping[str, NodeMetadata], ABC):
         pass
 
     @abstractmethod
-    def search(self, query: str | None, filter: Filter) -> list[ScoredSearchResponse]:
+    def search(
+        self, query: str | None, filter: Filter, page: int = 1, limit: int = 10
+    ) -> ScoredSearchResponse:
         pass
 
     @abstractmethod
     def search_semantic(
-        self, query: str, limit: int = 10
-    ) -> list[ScoredSearchResponse]:
+        self, query: str, page: int = 1, limit: int = 10
+    ) -> ScoredSearchResponse:
         pass
 
 

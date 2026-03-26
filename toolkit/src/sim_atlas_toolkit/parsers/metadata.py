@@ -20,7 +20,7 @@ class Metadata(BaseModel):
     outputs: list[Annotation]
 
 
-def _parse_annotation(annotation: Any) -> Annotation:
+def parse_annotation(annotation: Any) -> Annotation:
     """Parse a type annotation to extract datatype, unit, and quantity.
 
     Args:
@@ -43,7 +43,7 @@ def _parse_annotation(annotation: Any) -> Annotation:
     annotation = Annotation(datatype=get_name(args[0]))
     for arg in args[1:]:
         if isinstance(arg, dict):
-            annotation.label = arg.get("label", annotation.label)
-            annotation.unit = arg.get("unit", annotation.unit)
-            annotation.quantity = arg.get("quantity", annotation.quantity)
+            annotation.label = arg.get("label", annotation.label)  # type: ignore
+            annotation.unit = arg.get("unit", annotation.unit)  # type: ignore
+            annotation.quantity = arg.get("quantity", annotation.quantity)  # type: ignore
     return annotation

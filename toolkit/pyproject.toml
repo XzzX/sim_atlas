@@ -1,5 +1,5 @@
 [project]
-name = "node-store-tools"
+name = "sim-atlas-toolkit"
 version = "0.1.0"
 description = "Tools for parsing and storing workflow nodes with support for pyiron and Python functions"
 authors = [
@@ -63,4 +63,5 @@ ignore = [
 
 [tool.pyright]
 typeCheckingMode = "basic"
+reportMissingTypeStubs = false
 

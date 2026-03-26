@@ -3,7 +3,7 @@ import inspect
 from typing import Any
 
 from ..models import Annotation, NodeType
-from .metadata import Metadata, _parse_annotation
+from .metadata import Metadata, parse_annotation
 
 
 def parse(node: Any) -> Metadata | None:
@@ -22,12 +22,12 @@ def parse(node: Any) -> Metadata | None:
     inputs: list[Annotation] = []
     outputs: list[Annotation] = []
     for k, v in node.preview_inputs().items():
-        ann = _parse_annotation(v[0])
+        ann = parse_annotation(v[0])
         ann.label = k
         ann.has_default_value = v[1] != NOT_DATA
         inputs.append(ann)
     for k, v in node.preview_outputs().items():
-        ann = _parse_annotation(v)
+        ann = parse_annotation(v)
         ann.label = k
         outputs.append(ann)
 

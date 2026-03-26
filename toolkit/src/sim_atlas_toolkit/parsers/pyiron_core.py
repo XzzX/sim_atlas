@@ -17,15 +17,10 @@ def parse(obj: Any) -> Metadata | None:
 
     instance = obj()
 
-    inputs = []
-    for k, v in instance.inputs.items():
-        ann = Annotation(label=k, datatype=v.type)
-        inputs.append(ann)
-
-    outputs = []
-    for k, v in instance.outputs.items():
-        ann = Annotation(label=k, datatype=v.type)
-        outputs.append(ann)
+    inputs = [Annotation(label=k, datatype=v.type) for k, v in instance.inputs.items()]
+    outputs = [
+        Annotation(label=k, datatype=v.type) for k, v in instance.outputs.items()
+    ]
 
     return Metadata(
         node_type=NodeType.PYIRON_CORE_NODE,

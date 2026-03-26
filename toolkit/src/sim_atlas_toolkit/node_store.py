@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 import requests
 
-from node_store_tools.parsers.metadata import Metadata
+from sim_atlas_toolkit.parsers.metadata import Metadata
 
 from .models import (
     NodeRequest,
@@ -116,7 +116,7 @@ class NodeStore:
         parsers: list[Callable[[Any], Metadata | None]] | None = None,
         **kwargs: dict[str, Any],
     ) -> requests.Response:
-        headers = {}
+        headers: dict[str, str] = {}
         if self.api_key:
             headers["x-api-key"] = self.api_key
 

@@ -4,14 +4,14 @@ import textwrap
 from typing import Annotated, Any, get_args, get_origin
 
 from ..models import Annotation, NodeType
-from .metadata import Metadata, _parse_annotation
+from .metadata import Metadata, parse_annotation
 
 
 def _parse_arguments(sig: inspect.Signature) -> list[Annotation]:
     arguments: list[Annotation] = []
     for param_name, param in sig.parameters.items():
         ann = (
-            _parse_annotation(param.annotation)
+            parse_annotation(param.annotation)
             if param.annotation != inspect.Parameter.empty
             else Annotation()
         )
@@ -33,12 +33,12 @@ def _parse_and_unpack_annotation(annotation: Any) -> list[Annotation]:
         annotations: list[Annotation] = []
         args = get_args(annotation)
         for i, arg in enumerate(args):
-            ann = _parse_annotation(arg)
+            ann = parse_annotation(arg)
             ann.label = ann.label if ann.label is not None else str(i)
             annotations.append(ann)
         return annotations
 
-    ann = _parse_annotation(annotation)
+    ann = parse_annotation(annotation)
     if not ann.label:
         ann.label = "return"
     return [ann]

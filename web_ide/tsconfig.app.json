@@ -24,8 +24,8 @@
     /* https: //ui.shadcn.com/docs/installation/vite */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./js/*"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": ["js"]
+  "include": ["src"]
 }

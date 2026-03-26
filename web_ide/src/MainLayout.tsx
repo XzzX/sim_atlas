@@ -1,16 +1,15 @@
 import * as React from "react";
-import { Dispatch, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { ReactFlowEditor } from "./ReactFlowEditor";
-import type { OnNodesChange, OnEdgesChange, Node, Edge } from "@xyflow/react";
-import "./main.css";
-import type { FunctionNodeType } from "./nodes/FunctionNode";
+import type { OnNodesChange, OnEdgesChange, Edge } from "@xyflow/react";
+import "./index.css";
 import type { NodeMetadata } from "./interfaces/NodeMetadata";
-import { allNodeMetadata } from "./initialData";
+import type { WorkflowNode } from "./nodes/nodes";
 
 interface MainLayoutProps {
   allNodeMetadata: NodeMetadata[];
-  nodes: FunctionNodeType[];
-  setNodes: Dispatch<SetStateAction<FunctionNodeType[]>>;
+  nodes: WorkflowNode[];
+  setNodes: Dispatch<SetStateAction<WorkflowNode[]>>;
   onNodesChange: OnNodesChange;
   edges: Edge[];
   setEdges: Dispatch<SetStateAction<Edge[]>>;
@@ -18,6 +17,7 @@ interface MainLayoutProps {
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
+  allNodeMetadata,
   nodes,
   setNodes,
   onNodesChange,

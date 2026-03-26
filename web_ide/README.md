@@ -1,49 +1,33 @@
-# simflow
-
-## Installation
-
-```sh
-pip install simflow
-```
-
-or with [uv](https://github.com/astral-sh/uv):
-
-```sh
-uv add simflow
-```
+# simflow web ide
 
 ## Development
 
-We recommend using [uv](https://github.com/astral-sh/uv) for development.
-It will automatically manage virtual environments and dependencies for you.
-
-```sh
-uv run jupyter lab example.ipynb
-```
-
-Alternatively, create and manage your own virtual environment:
-
-```sh
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-jupyter lab example.ipynb
-```
-
-The widget front-end code bundles it's JavaScript dependencies. After setting up Python,
-make sure to install these dependencies locally:
+Install dependencies:
 
 ```sh
 npm install
 ```
 
-While developing, you can run the following in a separate terminal to automatically
-rebuild JavaScript as you make changes:
+Start the development server:
 
 ```sh
 npm run dev
 ```
 
-Open `example.ipynb` in JupyterLab, VS Code, or your favorite editor
-to start developing. Changes made in `js/` will be reflected
-in the notebook.
+Build for production:
+
+```sh
+npm run build
+```
+
+Preview the production build locally:
+
+```sh
+npm run preview
+```
+
+## Project structure
+
+- `src/`: application source code
+- `index.html`: Vite entry HTML
+- `vite.config.ts`: Vite configuration

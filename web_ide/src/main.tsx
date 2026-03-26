@@ -26,7 +26,7 @@ const fetchInitialNodesAndEdges = async (): Promise<{
 const { nodes: initialNodes, edges: initialEdges } =
   await fetchInitialNodesAndEdges();
 
-export const WebMainLayout: React.FC = () => {
+export const WebMainLayout = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   return (
@@ -43,5 +43,8 @@ export const WebMainLayout: React.FC = () => {
 };
 
 const container = document.getElementById("root");
-const root = createRoot(container!);
+if (!container) {
+  throw new Error("Failed to find the root element");
+}
+const root = createRoot(container);
 root.render(<WebMainLayout />);

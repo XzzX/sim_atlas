@@ -5,23 +5,17 @@ import {
   Background,
   MiniMap,
   type OnConnect,
-  type NodeTypes,
   Panel,
 } from "@xyflow/react";
-import { Dispatch, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 
 import type {
   OnNodesChange,
   OnEdgesChange,
-  Node,
   Edge,
   ReactFlowInstance,
 } from "@xyflow/react";
-import {
-  type FunctionNodeType,
-  type NodeData,
-  FunctionNode,
-} from "./nodes/FunctionNode";
+import { type NodeData } from "./nodes/FunctionNode";
 import { type InputDataElement } from "./nodes/InputNode";
 import { type OutputDataElement } from "./nodes/OutputNode";
 import type { NodeMetadata } from "./interfaces/NodeMetadata";
@@ -43,7 +37,7 @@ interface ReactFlowEditor {
   onEdgesChange: OnEdgesChange;
 }
 
-export const ReactFlowEditor: React.FC<ReactFlowEditor> = ({
+export const ReactFlowEditor = ({
   allNodeMetadata,
   nodes,
   setNodes,
@@ -51,7 +45,7 @@ export const ReactFlowEditor: React.FC<ReactFlowEditor> = ({
   edges,
   setEdges,
   onEdgesChange,
-}) => {
+}: ReactFlowEditor) => {
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [isAddNodeDialogOpen, setIsAddNodeDialogOpen] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState<{

@@ -19,6 +19,7 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import { ChevronsLeftIcon, ChevronsRightIcon } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -138,6 +139,23 @@ export const SearchCard: React.FC<SearchCardProps> = ({
           <Pagination className="mx-0 w-auto justify-end">
             <PaginationContent>
               <PaginationItem>
+                <PaginationLink
+                  href="#"
+                  size="default"
+                  aria-label="Go to first page"
+                  aria-disabled={page <= 1}
+                  tabIndex={page <= 1 ? -1 : undefined}
+                  className={`pl-1.5! ${page <= 1 ? "pointer-events-none opacity-50" : ""}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    onSearchChange(query, category, filters, 1);
+                  }}
+                >
+                  <ChevronsLeftIcon data-icon="inline-start" />
+                  <span className="hidden sm:block">First</span>
+                </PaginationLink>
+              </PaginationItem>
+              <PaginationItem>
                 <PaginationPrevious
                   href="#"
                   aria-disabled={page <= 1}
@@ -165,6 +183,23 @@ export const SearchCard: React.FC<SearchCardProps> = ({
                     onSearchChange(query, category, filters, page + 1);
                   }}
                 />
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationLink
+                  href="#"
+                  size="default"
+                  aria-label="Go to last page"
+                  aria-disabled={page >= totalPages}
+                  tabIndex={page >= totalPages ? -1 : undefined}
+                  className={`pr-1.5! ${page >= totalPages ? "pointer-events-none opacity-50" : ""}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    onSearchChange(query, category, filters, totalPages);
+                  }}
+                >
+                  <span className="hidden sm:block">Last</span>
+                  <ChevronsRightIcon data-icon="inline-end" />
+                </PaginationLink>
               </PaginationItem>
             </PaginationContent>
           </Pagination>

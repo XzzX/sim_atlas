@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import os
 import pickle
-from math import ceil
 from functools import reduce
+from math import ceil
 
 import numpy as np
 

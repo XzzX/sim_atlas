@@ -3,29 +3,17 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "push"'
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
+include:
+  - local: backend/.gitlab-ci.yml
+  - local: toolkit/.gitlab-ci.yml
+  - local: frontend/.gitlab-ci.yml
+  - local: web_ide/.gitlab-ci.yml
+
 stages:
-  - trigger
+  - lint
+  - build
+  - audit
 
-backend:
-  stage: trigger
-  trigger:
-    include: backend/.gitlab-ci.yml
-    strategy: depend
-
-toolkit:
-  stage: trigger
-  trigger:
-    include: toolkit/.gitlab-ci.yml
-    strategy: depend
-
-frontend:
-  stage: trigger
-  trigger:
-    include: frontend/.gitlab-ci.yml
-    strategy: depend
-
-web_ide:
-  stage: trigger
-  trigger:
-    include: web_ide/.gitlab-ci.yml
+default:
+  interruptible: true
     strategy: depend

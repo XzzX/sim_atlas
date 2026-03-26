@@ -85,7 +85,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
                 ...
                 <ChevronDownIcon className="size-3.5" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
+              <DropdownMenuContent className="w-max" align="start">
                 <DropdownMenuGroup>
                   {(categoryOptions[category] || []).map((option) => (
                     <DropdownMenuItem

@@ -1,5 +1,17 @@
 {
   "name": "simflow",
+  "description": "React-based visual workflow editor for sim-atlas using React Flow",
+  "author": {
+    "name": "Sebastian Eibl",
+    "email": "sebastian.eibl@mpcdf.mpg.de"
+  },
+  "keywords": [
+    "react",
+    "react-flow",
+    "workflow",
+    "simulation",
+    "visualization"
+  ],
   "private": true,
   "version": "0.0.0",
   "type": "module",

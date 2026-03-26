@@ -1,17 +1,35 @@
 [project]
-name = "node-store-server"
+name = "sim-atlas-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "FastAPI backend for sim-atlas platform with AI integration"
+authors = [
+  { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},
+]
+maintainers = [
+  { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},
+]
 readme = "README.md"
 requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "fastapi-mcp>=0.4.0",
     "fastapi[standard]>=0.122.0",
-    "numba>=0.64.0",
     "numpy>=1.21",
     "openai>=2.8.1",
     "pyjwt>=2.12.1",
-    "pymongo>=4.15.4",
     "python-dotenv>=1.2.1",
     "python-workflow-definition>=0.1.2",
 ]
@@ -46,9 +64,6 @@ select = [
 ignore = [
     "E501",  # line too long
 ]
-
-[tool.uv.sources]
-node-store-spec = { path = "../node_store_spec", editable = true }
 
 [tool.pyright]
 typeCheckingMode = "strict"

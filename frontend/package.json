@@ -1,7 +1,19 @@
 {
-  "name": "node-store-frontend",
-  "private": true,
+  "name": "sim-atlas-frontend",
   "version": "0.1.0",
+  "description": "React frontend for sim-atlas platform with interactive search and visualization",
+  "author": {
+    "name": "Sebastian Eibl",
+    "email": "sebastian.eibl@mpcdf.mpg.de"
+  },
+  "keywords": [
+    "react",
+    "fastapi",
+    "workflow",
+    "simulation",
+    "visualization"
+  ],
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",

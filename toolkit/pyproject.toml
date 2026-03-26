@@ -1,18 +1,33 @@
 [project]
 name = "node-store-tools"
 version = "0.1.0"
-description = "Add your description here"
+description = "Tools for parsing and storing workflow nodes with support for pyiron and Python functions"
+authors = [
+  { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},
+]
+maintainers = [
+  { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},
+]
 readme = "README.md"
 requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "python-workflow-definition>=0.1.0",
 ]
 
 [dependency-groups]
 dev = [
-    "ipykernel>=7.1.0",
-    "ipython>=9.7.0",
-    "pyiron-workflow>=0.15.4",
     "pyright>=1.1.407",
     "ruff>=0.14.6",
 ]

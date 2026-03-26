@@ -1,0 +1,88 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+stages:
+  - lint
+  - build
+  - audit
+
+default:
+  interruptible: true
+
+.backend_toolkit_template:
+  image: python:3.12
+  stage: lint
+  before_script:
+    - python -m pip install --upgrade pip
+    - python -m pip install uv
+
+backend_lint_and_type_check:
+  extends: .backend_toolkit_template
+  script:
+    - cd backend
+    - uv sync --dev
+    - uv run ruff check .
+    - uv run ruff format --check .
+    - uv run pyright
+
+toolkit_lint_and_type_check:
+  extends: .backend_toolkit_template
+  script:
+    - cd toolkit
+    - uv sync --dev
+    - uv run ruff check .
+    - uv run ruff format --check .
+    - uv run pyright
+
+frontend_lint_and_type_check:
+  image: node:24
+  stage: lint
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+    paths:
+      - frontend/node_modules/
+  script:
+    - cd frontend
+    - npm ci
+    - npm run lint
+    - npx tsc --noEmit
+
+frontend_build:
+  image: node:24
+  stage: build
+  needs:
+    - frontend_lint_and_type_check
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+    paths:
+      - frontend/node_modules/
+  script:
+    - cd frontend
+    - npm ci
+    - npm run build
+  artifacts:
+    name: build-output
+    paths:
+      - frontend/dist/
+    expire_in: 1 day
+
+frontend_dependency_audit:
+  image: node:24
+  stage: audit
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+    paths:
+      - frontend/node_modules/
+  script:
+    - cd frontend
+    - npm ci
+    - npm audit --audit-level=high
+    - npm outdated || true

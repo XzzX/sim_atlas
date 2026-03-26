@@ -1,0 +1,48 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "parent_pipeline"'
+
+stages:
+  - lint
+  - build
+
+default:
+  interruptible: true
+
+web_ide_lint_and_type_check:
+  image: node:24
+  stage: lint
+  cache:
+    key:
+      files:
+        - web_ide/package-lock.json
+    paths:
+      - web_ide/node_modules/
+  script:
+    - cd web_ide
+    - npm ci
+    - npm run lint
+    - npm run type-check
+
+web_ide_build:
+  image: node:24
+  stage: build
+  needs:
+    - web_ide_lint_and_type_check
+  cache:
+    key:
+      files:
+        - web_ide/package-lock.json
+    paths:
+      - web_ide/node_modules/
+  script:
+    - cd web_ide
+    - npm ci
+    - npm run build
+  artifacts:
+    name: web-ide-build-output
+    paths:
+      - web_ide/dist/
+    expire_in: 1 day

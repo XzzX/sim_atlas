@@ -1,0 +1,64 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "parent_pipeline"'
+
+stages:
+  - lint
+  - build
+  - audit
+
+default:
+  interruptible: true
+
+frontend_lint_and_type_check:
+  image: node:24
+  stage: lint
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+    paths:
+      - frontend/node_modules/
+  script:
+    - cd frontend
+    - npm ci
+    - npm run lint
+    - npx tsc --noEmit
+
+frontend_build:
+  image: node:24
+  stage: build
+  needs:
+    - frontend_lint_and_type_check
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+    paths:
+      - frontend/node_modules/
+  script:
+    - cd frontend
+    - npm ci
+    - npm run build
+  artifacts:
+    name: build-output
+    paths:
+      - frontend/dist/
+    expire_in: 1 day
+
+frontend_dependency_audit:
+  image: node:24
+  stage: audit
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+    paths:
+      - frontend/node_modules/
+  script:
+    - cd frontend
+    - npm ci
+    - npm audit --audit-level=high
+    - npm outdated || true

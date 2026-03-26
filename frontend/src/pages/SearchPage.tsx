@@ -17,7 +17,16 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardContent,
 } from "@/components/ui/card";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import SearchBar from "@/components/SearchBar";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -42,15 +51,26 @@ const EMPTY_FILTER_OPTIONS: FilterOptions = {
 };
 
 interface SearchCardProps {
-  onSearchChange: (query: string, category: string, filters: Filter) => void;
+  onSearchChange: (
+    query: string,
+    category: string,
+    filters: Filter,
+    page?: number,
+  ) => void;
   availableFilterOptions: FilterOptions;
   suggestions: string[];
+  page: number;
+  totalPages: number;
+  totalItems: number;
 }
 
 export const SearchCard: React.FC<SearchCardProps> = ({
   onSearchChange,
   suggestions,
   availableFilterOptions,
+  page,
+  totalPages,
+  totalItems,
 }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
@@ -66,7 +86,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
   });
 
   const handleSearch = () => {
-    onSearchChange(query, category, filters);
+    onSearchChange(query, category, filters, 1);
   };
 
   useEffect(() => {
@@ -74,41 +94,83 @@ export const SearchCard: React.FC<SearchCardProps> = ({
   }, []);
 
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Simulation Atlas</CardTitle>
-        <CardDescription>
-          Search and discover nodes and workflows across your projects.
-        </CardDescription>
-      </CardHeader>
-      <SearchBar
-        query={query}
-        onQueryChange={(v) => {
-          setQuery(v);
-          setSearchParams({ q: v, c: category, ...filters });
-          onSearchChange(v, category, filters);
-        }}
-        items={suggestions}
-      />
-      <CategoryFilter
-        category={category}
-        categoryOptions={availableFilterOptions.category}
-        onCategoryChange={(v) => {
-          setCategory(v);
-          setSearchParams({ q: query, c: v, ...filters });
-          onSearchChange(query, v, filters);
-        }}
-      />
-      <FacetedSearch
-        filters={filters}
-        availableFilterOptions={availableFilterOptions}
-        onFilterChange={(v) => {
-          setFilters(v);
-          setSearchParams({ q: query, c: category, ...v });
-          onSearchChange(query, category, v);
-        }}
-      />
-    </Card>
+    <React.Fragment>
+      <Card>
+        <CardHeader className="border-b">
+          <CardTitle>Simulation Atlas</CardTitle>
+          <CardDescription>
+            Search and discover nodes and workflows across your projects.
+          </CardDescription>
+        </CardHeader>
+        <SearchBar
+          query={query}
+          onQueryChange={(v) => {
+            setQuery(v);
+            setSearchParams({ q: v, c: category, ...filters });
+            onSearchChange(v, category, filters);
+          }}
+          items={suggestions}
+        />
+        <CategoryFilter
+          category={category}
+          categoryOptions={availableFilterOptions.category}
+          onCategoryChange={(v) => {
+            setCategory(v);
+            setSearchParams({ q: query, c: v, ...filters });
+            onSearchChange(query, v, filters);
+          }}
+        />
+        <FacetedSearch
+          filters={filters}
+          availableFilterOptions={availableFilterOptions}
+          onFilterChange={(v) => {
+            setFilters(v);
+            setSearchParams({ q: query, c: category, ...v });
+            onSearchChange(query, category, v);
+          }}
+        />
+      </Card>
+      <Card>
+        <CardContent className="flex items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground">
+            {totalItems} result{totalItems === 1 ? "" : "s"} total
+          </p>
+          <Pagination className="mx-0 w-auto justify-end">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  aria-disabled={page <= 1}
+                  tabIndex={page <= 1 ? -1 : undefined}
+                  className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    onSearchChange(query, category, filters, page - 1);
+                  }}
+                />
+              </PaginationItem>
+              <PaginationItem>
+                {page} / {Math.max(totalPages, 1)}
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  aria-disabled={page >= totalPages}
+                  tabIndex={page >= totalPages ? -1 : undefined}
+                  className={
+                    page >= totalPages ? "pointer-events-none opacity-50" : ""
+                  }
+                  onClick={(event) => {
+                    event.preventDefault();
+                    onSearchChange(query, category, filters, page + 1);
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </CardContent>
+      </Card>
+    </React.Fragment>
   );
 };
 
@@ -170,11 +232,16 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
   // }, [searchQuery]);
 
   const debouncedSearch = useDebouncedCallback(
-    async (query: string, category: string, filters: Filter) => {
+    async (query: string, category: string, filters: Filter, page = 1) => {
       try {
         setLoading(true);
         setError(null);
-        const results = await simAtlasAPI.search(query, category, filters);
+        const results = await simAtlasAPI.search(
+          query,
+          category,
+          filters,
+          page,
+        );
         setSearchResponse(results);
       } catch (err) {
         setError("Search failed. Please try again.");
@@ -203,13 +270,16 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
   return (
     <main className="mx-auto w-full max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
       <SearchCard
-        onSearchChange={(query, category, filters) => {
-          void debouncedSearch(query, category, filters);
+        onSearchChange={(query, category, filters, page = 1) => {
+          void debouncedSearch(query, category, filters, page);
         }}
         suggestions={searchResponse.results.data.map(
           (result) => result.node.python_import,
         )}
         availableFilterOptions={availableFilterOptions}
+        page={searchResponse.results.page}
+        totalPages={searchResponse.results.total_pages}
+        totalItems={searchResponse.results.total_items}
       />
       {error && (
         <Alert

@@ -68,6 +68,16 @@ proportional to the service's role.
 
 ## Pros and Cons of the Options
 
+### Store metadata in SA and link to an external source repository (chosen)
+
+* Good, because the service stays lightweight and easy to operate.
+* Good, because availability requirements are low — SA is a convenience tool, not critical path.
+* Good, because the authoritative source lives in a proper VCS with full history, branching,
+  and access control managed by the researcher.
+* Good, because no data-sovereignty or access-control issues — SA never holds the primary copy.
+* Bad, because users who do not maintain an external repository cannot reliably recover the
+  source code of their registered nodes from SA.
+
 ### Store only metadata and a source snapshot — no external link required
 
 * Good, because the service stays lightweight and registration is simpler (no VCS link needed).

@@ -42,6 +42,15 @@ dev = [
     "ruff>=0.14.6",
 ]
 
+[project.scripts]
+sim-atlas-token = "app.cli:main"
+
+[tool.uv]
+package = true
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
 [tool.fastapi]
 entrypoint = "app.main:app"
 

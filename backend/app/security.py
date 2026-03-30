@@ -19,21 +19,6 @@ class Creator(BaseModel):
     email: str
 
 
-def create_access_token(creator_name: str, creator_email: str):
-    if JWT_SECRET_KEY is None:
-        raise ValueError("JWT_SECRET_KEY must be set in the .env file")
-
-    if JWT_ALGORITHM is None:
-        raise ValueError("JWT_ALGORITHM must be set in the .env file")
-
-    to_encode = {"creator_name": creator_name, "creator_email": creator_email}
-    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
-    return encoded_jwt
-
-
-print(create_access_token("Sebastian Eibl", "sebastian.eibl@mpcdf.mpg.de"))
-
-
 async def get_current_user(access_token: Annotated[str, Depends(api_key_header)]):
     if JWT_SECRET_KEY is None:
         raise ValueError("JWT_SECRET_KEY must be set in the .env file")

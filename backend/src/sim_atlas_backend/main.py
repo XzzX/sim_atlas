@@ -1,4 +1,5 @@
 import datetime as dt
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
@@ -159,8 +160,11 @@ async def enrich_node(
 
 app.include_router(api_router)
 
-app.mount("/ide", StaticFiles(directory="./static/ide", html=True), name="ide")
-app.mount("/", StaticFiles(directory="./static/frontend", html=True), name="frontend")
+STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/ide", StaticFiles(directory=STATIC_DIR / "ide", html=True), name="ide")
+app.mount(
+    "/", StaticFiles(directory=STATIC_DIR / "frontend", html=True), name="frontend"
+)
 
 # Create an MCP server based on this app
 mcp = FastApiMCP(

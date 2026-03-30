@@ -43,8 +43,8 @@ dev = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.9.13,<0.10.0"]
-build-backend = "uv_build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project.scripts]
 sim-atlas-access-token = "sim_atlas_backend.cli:main"

@@ -17,3 +17,20 @@ backend_lint_and_type_check:
     - uv run ruff check .
     - uv run ruff format --check .
     - uv run pyright
+
+backend_test_and_coverage:
+  image: python:3.12
+  before_script:
+    - python -m pip install --upgrade pip
+    - python -m pip install uv
+  script:
+    - cd backend
+    - uv sync --dev
+    - uv run coverage run -m pytest
+    - uv run coverage report
+    - uv run coverage html
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    paths:
+      - backend/htmlcov/
+    expose_as: Coverage Report

@@ -1,7 +1,7 @@
 from dotenv import dotenv_values
 from openai import OpenAI
 
-from app.models import NodeMetadata
+from sim_atlas_backend.models import NodeMetadata
 
 config = dotenv_values(".env")
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.file_system_storage import FileSystemStorage
+from sim_atlas_backend.file_system_storage import FileSystemStorage
 
 from .test_storage_interface import StorageContractTests
 

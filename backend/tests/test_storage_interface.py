@@ -31,7 +31,7 @@ from typing import Any
 
 import pytest
 
-from app.models import (
+from sim_atlas_backend.models import (
     Annotation,
     Filter,
     FilterOptions,
@@ -39,7 +39,7 @@ from app.models import (
     NodeType,
     ScoredSearchResponse,
 )
-from app.storage_interface import StorageInterface
+from sim_atlas_backend.storage_interface import StorageInterface
 
 # ---------------------------------------------------------------------------
 # Test data factory

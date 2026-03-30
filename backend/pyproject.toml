@@ -42,17 +42,15 @@ dev = [
     "ruff>=0.14.6",
 ]
 
+[build-system]
+requires = ["uv_build>=0.9.13,<0.10.0"]
+build-backend = "uv_build"
+
 [project.scripts]
-sim-atlas-token = "app.cli:main"
-
-[tool.uv]
-package = true
-
-[tool.setuptools.packages.find]
-include = ["app*"]
+sim-atlas-access-token = "sim_atlas_backend.cli:main"
 
 [tool.fastapi]
-entrypoint = "app.main:app"
+entrypoint = "sim_atlas_backend.main:app"
 
 [tool.ruff.lint]
 select = [

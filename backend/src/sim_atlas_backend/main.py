@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
 
-from .ai import enrich_metadata_with_ai
-from .models import (
+from sim_atlas_backend.ai import enrich_metadata_with_ai
+from sim_atlas_backend.models import (
     Filter,
     FilterOptions,
     NodeMetadata,
@@ -15,6 +15,7 @@ from .models import (
     NodeResponse,
     ScoredSearchResponse,
 )
+
 from .security import Creator, get_current_user
 from .storage_interface import get_storage_backend
 

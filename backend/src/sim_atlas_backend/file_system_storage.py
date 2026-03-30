@@ -8,8 +8,8 @@ from math import ceil
 import numpy as np
 from pydantic import BaseModel
 
-from .ai import create_embedding
-from .models import (
+from sim_atlas_backend.ai import create_embedding
+from sim_atlas_backend.models import (
     Filter,
     FilterOptions,
     NodeMetadata,
@@ -19,6 +19,7 @@ from .models import (
     ScoredSearchResponse,
     SearchResults,
 )
+
 from .storage_interface import StorageInterface
 
 

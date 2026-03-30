@@ -25,9 +25,7 @@ def parse(obj: Any) -> Metadata | None:
     return Metadata(
         node_type=NodeType.PYIRON_CORE_NODE,
         python_import=f"{instance._func.__module__}.{instance._func.__qualname__}",
-        category=f"{instance._func.__module__}.{instance._func.__qualname__}".replace(
-            ".", ">"
-        ),
+        category=f"{instance._func.__module__}".replace(".", ">"),
         source_code=source_code,
         source_code_hash=source_code_hash,
         docstring=instance._func.__doc__ or "",

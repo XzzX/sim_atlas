@@ -30,7 +30,7 @@ def parse(obj: Any) -> Metadata | None:
 
     return Metadata(
         node_type=NodeType.PYTHON_WORKFLOW_DEFINITION,
-        python_import=None,
+        python_import="",
         category="workflow",
         source_code=source_code,
         source_code_hash=source_code_hash,

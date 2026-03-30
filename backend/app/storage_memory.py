@@ -6,6 +6,7 @@ from functools import reduce
 from math import ceil
 
 import numpy as np
+from pydantic import BaseModel
 
 from .ai import create_embedding
 from .models import (
@@ -13,6 +14,7 @@ from .models import (
     FilterOptions,
     NodeMetadata,
     NodeResponse,
+    NodeType,
     ScoredSearchItem,
     ScoredSearchResponse,
     SearchResults,
@@ -146,13 +148,22 @@ class InMemoryStorage(StorageInterface):
         return len(self._storage)
 
     def get_filter_options(self) -> FilterOptions:
+        class FilterOptionsSet(BaseModel):
+            category: dict[str, set[str]]
+            type: set[NodeType]
+            author: set[str]
+            keywords: set[str]
+            datatypes: set[str]
+            units: set[str]
+            quantities: set[str]
+
         def extract_categories(category: str) -> dict[str, set[str]]:
-            parts = category.split(".")
+            parts = category.split(">")
             return {">".join(parts[:i]): {v} for i, v in enumerate(parts)}
 
-        def extract_filter_options(node: NodeMetadata) -> FilterOptions:
-            return FilterOptions(
-                category=extract_categories(node.python_import),
+        def extract_filter_options(node: NodeMetadata) -> FilterOptionsSet:
+            return FilterOptionsSet(
+                category=extract_categories(node.category),
                 type={node.node_type},
                 author={node.author_name},
                 keywords=set(node.keywords),
@@ -172,14 +183,14 @@ class InMemoryStorage(StorageInterface):
             return accumulator
 
         def merge_filter_options(
-            options1: FilterOptions, options2: FilterOptions
-        ) -> FilterOptions:
+            options1: FilterOptionsSet, options2: FilterOptionsSet
+        ) -> FilterOptionsSet:
             merged_categories = {**options1.category}
             merged_categories = reduce(
                 merge_category, options2.category.items(), merged_categories
             )
 
-            return FilterOptions(
+            return FilterOptionsSet(
                 category=merged_categories,
                 type=options1.type | options2.type,
                 author=options1.author | options2.author,
@@ -189,9 +200,19 @@ class InMemoryStorage(StorageInterface):
                 quantities=options1.quantities | options2.quantities,
             )
 
-        return reduce(
+        filter_options_set = reduce(
             merge_filter_options,
             (extract_filter_options(node) for node in self._storage.values()),
+        )
+
+        return FilterOptions(
+            category={k: sorted(v) for k, v in filter_options_set.category.items()},
+            type=sorted(filter_options_set.type),
+            author=sorted(filter_options_set.author),
+            keywords=sorted(filter_options_set.keywords),
+            datatypes=sorted(filter_options_set.datatypes),
+            units=sorted(filter_options_set.units),
+            quantities=sorted(filter_options_set.quantities),
         )
 
     def _paginate(

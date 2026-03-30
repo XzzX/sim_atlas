@@ -61,7 +61,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
   return (
     <Card className="h-full pt-0 border-1 border-chart-1">
       <CardHeader className="bg-chart-1 pb-2 pt-4">
-        <CardTitle className="text-lg">{node.python_import}</CardTitle>
+        <CardTitle className="text-lg">{node.name}</CardTitle>
         <CardDescription>
           <small>{node.source_code_hash}</small>
         </CardDescription>

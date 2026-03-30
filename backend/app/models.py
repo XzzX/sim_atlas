@@ -19,8 +19,8 @@ class Annotation(BaseModel):
 
 
 class NodeRequest(BaseModel):
-    author_name: str
-    author_email: str
+    author_name: str = "unknown"
+    author_email: str = "unknown"
 
     name: str
     node_type: NodeType
@@ -110,10 +110,10 @@ class Filter(BaseModel):
 
 
 class FilterOptions(BaseModel):
-    category: dict[str, set[str]]
-    type: set[NodeType]
-    author: set[str]
-    keywords: set[str]
-    datatypes: set[str]
-    units: set[str]
-    quantities: set[str]
+    category: dict[str, list[str]]
+    type: list[NodeType]
+    author: list[str]
+    keywords: list[str]
+    datatypes: list[str]
+    units: list[str]
+    quantities: list[str]

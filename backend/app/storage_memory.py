@@ -115,14 +115,7 @@ class InMemoryStorage(StorageInterface):
                 pass  # If loading fails, start with empty storage
 
         print(f"InMemoryStorage initialized with {len(self._storage)} items.")
-
-    def connect(self) -> None:
-        """Initialize the in-memory storage"""
         self._connected = True
-
-    def close(self) -> None:
-        """Close the storage (no-op for in-memory)"""
-        self._connected = False
 
     def _save_to_disk(self) -> None:
         """Save the current storage state to disk"""
@@ -148,14 +141,16 @@ class InMemoryStorage(StorageInterface):
         return len(self._storage)
 
     def get_filter_options(self) -> FilterOptions:
+        # mutable defaults are ok here...
+        # https://docs.pydantic.dev/latest/concepts/fields/#mutable-default-values
         class FilterOptionsSet(BaseModel):
-            category: dict[str, set[str]]
-            type: set[NodeType]
-            author: set[str]
-            keywords: set[str]
-            datatypes: set[str]
-            units: set[str]
-            quantities: set[str]
+            category: dict[str, set[str]] = {}
+            type: set[NodeType] = set()
+            author: set[str] = set()
+            keywords: set[str] = set()
+            datatypes: set[str] = set()
+            units: set[str] = set()
+            quantities: set[str] = set()
 
         def extract_categories(category: str) -> dict[str, set[str]]:
             parts = category.split(">")
@@ -203,6 +198,7 @@ class InMemoryStorage(StorageInterface):
         filter_options_set = reduce(
             merge_filter_options,
             (extract_filter_options(node) for node in self._storage.values()),
+            FilterOptionsSet(),
         )
 
         return FilterOptions(
@@ -246,9 +242,13 @@ class InMemoryStorage(StorageInterface):
         ]
 
     def search(
-        self, query: str | None, filter: Filter, page: int = 1, limit: int = 10
+        self,
+        query: str | None,
+        filter: Filter | None = None,
+        page: int = 1,
+        limit: int = 10,
     ) -> ScoredSearchResponse:
-        item_filter: NodeFilter = NodeFilter(filter)
+        item_filter: NodeFilter = NodeFilter(filter or Filter())
         filtered_items = (item for item in self._storage.values() if item_filter(item))
 
         def score_item(query: str, item: NodeMetadata) -> float:
@@ -274,13 +274,14 @@ class InMemoryStorage(StorageInterface):
         return self._paginate(sorted_items, page=page, limit=limit)
 
     def search_semantic(
-        self, query: str, page: int = 1, limit: int = 10
+        self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
     ) -> ScoredSearchResponse:
         """
         Perform semantic search on node metadata.
 
         Args:
             query: Natural language search query
+            filter: Filter criteria to narrow results
             limit: Maximum number of results to return
 
         Returns:
@@ -289,10 +290,12 @@ class InMemoryStorage(StorageInterface):
         # Generate embedding for the query
         query_embedding = create_embedding(query)
 
+        item_filter = NodeFilter(filter or Filter())
+
         # Calculate similarities
         similarities: list[ScoredSearchItem] = []
         for _node_hash, node in self._storage.items():
-            if node.embedding is not None:
+            if node.embedding is not None and item_filter(node):
                 similarity = cosine_similarity(query_embedding, node.embedding)
                 similarities.append(
                     ScoredSearchItem(

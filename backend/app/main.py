@@ -22,22 +22,10 @@ from .storage import get_storage_backend
 # Get the configured storage backend
 storage = get_storage_backend()
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Lifespan context for startup and shutdown events"""
-    storage.connect()
-    try:
-        yield
-    finally:
-        storage.close()
-
-
 app = FastAPI(
     title="Simulation Atlas",
     description="One place to store all your simulation knowledge. Upload your functions, search for existing ones, and let AI enrich your documentation.",
     version="0.0.0",
-    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -128,12 +116,10 @@ async def get_filter_options():
 @api_router.post("/search", response_model=ScoredSearchResponse, tags=["search"])
 async def search_nodes(
     query: str | None = None,
+    filter_options: Filter | None = None,
     page: int = 1,
     limit: int = 10,
-    filter_options: Filter | None = None,
 ):
-    query = query.strip() if query else ""
-    filter_options = filter_options or Filter()
     return storage.search(query, filter_options, page=page, limit=limit)
 
 
@@ -143,8 +129,13 @@ async def search_nodes(
     tags=["search"],
     operation_id="semantic_search",
 )
-async def semantic_search(query: str, page: int = 1, limit: int = 10):
-    return storage.search_semantic(query, page=page, limit=limit)
+async def semantic_search(
+    query: str,
+    filter_options: Filter | None = None,
+    page: int = 1,
+    limit: int = 10,
+):
+    return storage.search_semantic(query, filter_options, page=page, limit=limit)
 
 
 @api_router.post(

@@ -19,7 +19,7 @@ from .models import (
     ScoredSearchResponse,
     SearchResults,
 )
-from .storage import StorageInterface
+from .storage_interface import StorageInterface
 
 
 def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
@@ -100,28 +100,30 @@ class NodeFilter:
         return True
 
 
-class InMemoryStorage(StorageInterface):
-    """In-memory storage implementation for node metadata"""
+class FileSystemStorage(StorageInterface):
+    """File-system-backed storage implementation for node metadata"""
 
-    def __init__(self, start_clean: bool = False) -> None:
+    def __init__(self, filename: str | None = "filesystem.pkl") -> None:
         self._storage: dict[str, NodeMetadata] = {}
+        self._filename = filename
         self._connected = False
 
-        if not start_clean and os.path.exists("in-memory.pkl"):
+        if filename is not None and os.path.exists(filename):
             try:
-                with open("in-memory.pkl", "rb") as f:
+                with open(filename, "rb") as f:
                     self._storage = pickle.load(f)
             except Exception:
                 pass  # If loading fails, start with empty storage
 
-        print(f"InMemoryStorage initialized with {len(self._storage)} items.")
+        print(f"FileSystemStorage initialized with {len(self._storage)} items.")
         self._connected = True
 
     def _save_to_disk(self) -> None:
         """Save the current storage state to disk"""
 
-        with open("in-memory.pkl", "wb") as f:
-            pickle.dump(self._storage, f)
+        if self._filename is not None:
+            with open(self._filename, "wb") as f:
+                pickle.dump(self._storage, f)
 
     def __getitem__(self, key: str) -> NodeMetadata:
         return self._storage[key]

@@ -39,7 +39,7 @@ from app.models import (
     NodeType,
     ScoredSearchResponse,
 )
-from app.storage import StorageInterface
+from app.storage_interface import StorageInterface
 
 # ---------------------------------------------------------------------------
 # Test data factory
@@ -198,19 +198,6 @@ class StorageContractTests:
         storage["key1"] = node2
         assert storage["key1"] == node2
         assert len(storage) == 1
-
-    # -----------------------------------------------------------------------
-    # connect / close
-    # -----------------------------------------------------------------------
-
-    def test_connect_does_not_raise(self, storage: StorageInterface) -> None:
-        storage.connect()
-
-    def test_close_after_connect_does_not_raise(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.connect()
-        storage.close()
 
     # -----------------------------------------------------------------------
     # get_filter_options

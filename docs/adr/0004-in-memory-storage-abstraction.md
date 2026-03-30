@@ -5,7 +5,7 @@ deciders: Sebastian Eibl
 scope: backend
 ---
 
-# In-memory storage behind a StorageInterface abstraction
+# File-system-backed storage behind a StorageInterface abstraction
 
 ## Context and Problem Statement
 
@@ -16,39 +16,44 @@ persistent backend later must not require changes to the API layer.
 
 ## Considered Options
 
-* In-memory dict wrapped in a `StorageInterface` abstraction
+* In-process dict with pickle persistence wrapped in a `StorageInterface` abstraction
 * MongoDB
 
 ## Decision Outcome
 
-Chosen option: **in-memory storage behind `StorageInterface`**, because the current number
-of registered nodes is well within what fits in memory, and the abstraction makes the
+Chosen option: **file-system-backed storage behind `StorageInterface`**, because the current
+number of registered nodes is well within what fits in memory, and the abstraction makes the
 backend fully replaceable without touching the API layer. MongoDB is the planned successor
 once performance or persistence requirements demand it; the switch will be triggered by
 hitting observable performance problems rather than by speculation.
 
-The `StorageInterface` class (`backend/app/storage.py`) extends
+The `StorageInterface` class (`backend/app/storage_interface.py`) extends
 `MutableMapping[str, NodeMetadata]`, so any future backend needs only to implement the same
 mapping protocol.
+
+`FileSystemStorage` (`backend/app/file_system_storage.py`) is the concrete implementation. It
+holds data in an in-process dict and serialises it to a pickle file on every write. The
+`filename` constructor parameter controls persistence: passing a file path enables
+load-on-startup and save-on-write; passing `None` disables all file I/O (used in tests).
 
 ### Consequences
 
 * Good, because the backend starts with zero external dependencies — `uv run` is sufficient.
 * Good, because the abstraction boundary means the API layer, search logic, and AI enrichment
   code are completely decoupled from the storage implementation.
-* Bad, because all data is lost on process restart; the system must be re-populated after
-  every restart.
+* Good, because data survives process restarts via the pickle file.
 * Neutral, because migrating to MongoDB requires implementing `StorageInterface` and wiring
   it up at startup — a well-scoped change that does not affect callers.
 
 ## Pros and Cons of the Options
 
-### In-memory storage
+### File-system-backed storage
 
 * Good, because zero infrastructure — no database process to run or configure.
-* Good, because reads and writes are O(1) in-process operations with no serialisation overhead.
-* Good, because trivial to reset to a clean state for testing.
-* Bad, because data does not survive process restarts.
+* Good, because reads are O(1) in-process operations with no serialisation overhead.
+* Good, because data survives process restarts via pickle serialisation.
+* Good, because trivial to disable persistence for testing by passing `filename=None`.
+* Bad, because write latency includes a full pickle serialisation of the entire dict.
 * Bad, because does not scale beyond a single process (no horizontal scaling).
 
 ### MongoDB

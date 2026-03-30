@@ -1,5 +1,4 @@
 import datetime as dt
-from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
@@ -17,7 +16,7 @@ from .models import (
     ScoredSearchResponse,
 )
 from .security import Creator, get_current_user
-from .storage import get_storage_backend
+from .storage_interface import get_storage_backend
 
 # Get the configured storage backend
 storage = get_storage_backend()

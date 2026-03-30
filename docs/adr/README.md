@@ -38,7 +38,7 @@ A decision that affects multiple components lists all values, e.g. `scope: [back
 | [0001](0001-use-madr.md) | Use MADR as Architecture Decision Records format | accepted | cross-cutting |
 | [0002](0002-monorepo-structure.md) | Monorepo with four independent sub-packages | accepted | cross-cutting |
 | [0003](0003-fastapi-backend.md) | Use FastAPI as the backend framework | accepted | backend |
-| [0004](0004-in-memory-storage-abstraction.md) | In-memory storage behind a StorageInterface abstraction | accepted | backend |
+| [0004](0004-in-memory-storage-abstraction.md) | File-system-backed storage behind a StorageInterface abstraction | accepted | backend |
 | [0005](0005-sha256-node-identity.md) | SHA-256 source hash as node identity | accepted | backend, toolkit |
 | [0006](0006-on-demand-ai-enrichment.md) | On-demand AI enrichment | accepted | backend |
 | [0007](0007-openai-compatible-llm-api.md) | OpenAI-compatible LLM API | accepted | backend |

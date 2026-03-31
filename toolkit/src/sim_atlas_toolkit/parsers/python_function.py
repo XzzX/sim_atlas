@@ -1,4 +1,3 @@
-import hashlib
 import inspect
 import textwrap
 from typing import Annotated, Any, get_args, get_origin
@@ -50,7 +49,6 @@ def parse(obj: Any) -> Metadata | None:
 
     source_code = inspect.getsource(obj)
     source_code = textwrap.dedent(source_code.replace("\\r\\n", ""))
-    source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()
 
     sig = inspect.signature(obj)
     inputs = _parse_arguments(sig)
@@ -63,7 +61,6 @@ def parse(obj: Any) -> Metadata | None:
         python_import=f"{obj.__module__}.{obj.__qualname__}",
         category=f"{obj.__module__}".replace(".", ">"),
         source_code=source_code,
-        source_code_hash=source_code_hash,
         docstring=inspect.getdoc(obj) or "",
         keywords=obj.__module__.split("."),
         inputs=inputs,

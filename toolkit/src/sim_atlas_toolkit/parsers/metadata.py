@@ -11,7 +11,6 @@ class Metadata(BaseModel):
 
     python_import: str | None
     source_code: str
-    source_code_hash: str
 
     keywords: list[str]
 

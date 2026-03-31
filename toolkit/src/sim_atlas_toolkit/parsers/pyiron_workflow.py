@@ -1,4 +1,3 @@
-import hashlib
 import inspect
 from typing import Any
 
@@ -17,7 +16,6 @@ def parse(node: Any) -> Metadata | None:
         return None
 
     source_code = inspect.getsource(node.node_function)
-    source_code_hash = hashlib.sha256(source_code.encode()).hexdigest()
 
     inputs: list[Annotation] = []
     outputs: list[Annotation] = []
@@ -36,7 +34,6 @@ def parse(node: Any) -> Metadata | None:
         python_import=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
         category=f"{node.node_function.__module__}".replace(".", ">"),
         source_code=source_code,
-        source_code_hash=source_code_hash,
         docstring=node.node_function.__doc__ or "",
         keywords=node.node_function.__module__.split("."),
         inputs=inputs,

@@ -35,7 +35,6 @@ class NodeRequest(BaseModel):
     dependencies: list[str] | None = None
 
     source_code: str
-    source_code_hash: str
 
     docstring: str
     inputs: list[Annotation]
@@ -50,6 +49,7 @@ class NodeResponse(BaseModel):
     creator_email: str
     creation_timestamp: str
 
+    id: str
     name: str
     node_type: NodeType
     category: str
@@ -63,7 +63,6 @@ class NodeResponse(BaseModel):
     dependencies: list[str] | None = None
 
     source_code: str
-    source_code_hash: str
 
     docstring: str
     ai_docstring: str
@@ -71,15 +70,22 @@ class NodeResponse(BaseModel):
     outputs: list[Annotation]
 
 
-class NodeIndex(BaseModel):
-    module: str
-    qualname: str
-    source_code_hash: str
+class ScoredSearchItem(BaseModel):
+    score: float
+    node: NodeResponse
+
+
+class SearchResults(BaseModel):
+    data: list[ScoredSearchItem]
+    page: int
+    limit: int
+    total_items: int
+    total_pages: int
 
 
 class ScoredSearchResponse(BaseModel):
-    score: float
-    node: NodeResponse
+    results: SearchResults
+    aggregations: dict[str, dict[str, int]] | None = None
 
 
 class NodeMetadata(NodeResponse):

@@ -71,14 +71,14 @@ class NodeResponse(BaseModel):
 
     @computed_field
     @property
-    def source_code_hash(self) -> str:
+    def id(self) -> str:
         return hashlib.sha256(self.source_code.encode()).hexdigest()
 
 
 class NodeIndex(BaseModel):
     module: str
     qualname: str
-    source_code_hash: str
+    id: str
 
 
 class ScoredSearchItem(BaseModel):

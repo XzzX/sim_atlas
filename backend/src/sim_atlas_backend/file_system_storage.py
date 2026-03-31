@@ -135,33 +135,33 @@ class FileSystemStorage(StorageInterface):
                 )
 
     def create(self, value: NodeMetadata) -> str:
-        key = value.source_code_hash
-        if key in self._storage:
-            raise ValueError(f"Node with key '{key}' already exists.")
-        self._storage[key] = value
+        id = value.id
+        if id in self._storage:
+            raise ValueError(f"Node with id '{id}' already exists.")
+        self._storage[id] = value
         self._save_to_disk()
-        return key
+        return id
 
-    def read(self, key: str) -> NodeMetadata:
-        if key not in self._storage:
-            raise KeyError(key)
-        return self._storage[key]
+    def read(self, id: str) -> NodeMetadata:
+        if id not in self._storage:
+            raise KeyError(id)
+        return self._storage[id]
 
-    def update(self, key: str, value: NodeMetadata) -> NodeMetadata:
-        if key not in self._storage:
-            raise KeyError(key)
-        self._storage[key] = value
+    def update(self, id: str, value: NodeMetadata) -> NodeMetadata:
+        if id not in self._storage:
+            raise KeyError(id)
+        self._storage[id] = value
         self._save_to_disk()
         return value
 
-    def delete(self, key: str) -> None:
-        if key not in self._storage:
-            raise KeyError(key)
-        del self._storage[key]
+    def delete(self, id: str) -> None:
+        if id not in self._storage:
+            raise KeyError(id)
+        del self._storage[id]
         self._save_to_disk()
 
-    def exists(self, key: str) -> bool:
-        return key in self._storage
+    def exists(self, id: str) -> bool:
+        return id in self._storage
 
     def count(self) -> int:
         return len(self._storage)

@@ -111,7 +111,7 @@ class StorageContractTests:
     def test_create_and_read_roundtrip(self, storage: StorageInterface) -> None:
         node = make_node()
         key = storage.create(node)
-        assert key == node.source_code_hash
+        assert key == node.id
         assert storage.read(key) == node
 
     def test_read_missing_key_raises_key_error(self, storage: StorageInterface) -> None:
@@ -171,7 +171,7 @@ class StorageContractTests:
     ) -> None:
         storage.create(make_node())
         with pytest.raises(ValueError):
-            storage.create(make_node())  # same source_code_hash
+            storage.create(make_node())  # same id
 
     # -----------------------------------------------------------------------
     # get_filter_options
@@ -302,7 +302,9 @@ class StorageContractTests:
         self, storage: StorageInterface
     ) -> None:
         storage.create(
-            make_node(python_import="mypackage.mymodule", source_code="def match(): pass")
+            make_node(
+                python_import="mypackage.mymodule", source_code="def match(): pass"
+            )
         )
         storage.create(
             make_node(
@@ -318,7 +320,9 @@ class StorageContractTests:
     def test_search_filter_by_category(self, storage: StorageInterface) -> None:
         storage.create(
             make_node(
-                name="physics_node", category="physics", source_code="def physics(): pass"
+                name="physics_node",
+                category="physics",
+                source_code="def physics(): pass",
             )
         )
         storage.create(
@@ -361,7 +365,9 @@ class StorageContractTests:
         limit_per_page = 2
         total_items = 5
         for i in range(total_items):
-            storage.create(make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass"))
+            storage.create(
+                make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass")
+            )
         page1 = storage.search(None, page=1, limit=limit_per_page)
         page2 = storage.search(None, page=2, limit=limit_per_page)
         assert len(page1.results.data) == limit_per_page
@@ -375,7 +381,9 @@ class StorageContractTests:
         self, storage: StorageInterface
     ) -> None:
         for i in range(5):
-            storage.create(make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass"))
+            storage.create(
+                make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass")
+            )
         last_page = storage.search(None, page=3, limit=2)
         assert len(last_page.results.data) == 1
 
@@ -383,7 +391,9 @@ class StorageContractTests:
         self, storage: StorageInterface
     ) -> None:
         for i in range(3):
-            storage.create(make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass"))
+            storage.create(
+                make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass")
+            )
         beyond = storage.search(None, page=10, limit=5)
         assert len(beyond.results.data) == 0
         assert beyond.results.total_items == 3  # noqa: PLR2004

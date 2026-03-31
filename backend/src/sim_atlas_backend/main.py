@@ -50,13 +50,13 @@ async def return_creator(
     return creator
 
 
-@api_router.get("/nodes/{node_hash}", tags=["nodes"])
-async def read_node(node_hash: str) -> NodeResponse:
-    if not storage.exists(node_hash):
+@api_router.get("/nodes/{node_id}", tags=["nodes"])
+async def read_node(node_id: str) -> NodeResponse:
+    if not storage.exists(node_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
         )
-    return storage.read(node_hash)
+    return storage.read(node_id)
 
 
 @api_router.post("/nodes", tags=["nodes"], status_code=status.HTTP_201_CREATED)
@@ -72,7 +72,7 @@ async def create_node(
         creation_timestamp=timestamp.isoformat(),
     )
 
-    if storage.exists(node_metadata.source_code_hash):
+    if storage.exists(node_metadata.id):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Node already exists"
         )
@@ -83,28 +83,28 @@ async def create_node(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@api_router.put("/nodes/{node_hash}", tags=["nodes"])
+@api_router.put("/nodes/{node_id}", tags=["nodes"])
 async def update_node(
-    node_hash: str,
+    node_id: str,
     node: NodeMetadata,
     creator: Annotated[Creator, Depends(get_current_user)],
 ) -> NodeResponse:
-    if not storage.exists(node_hash):
+    if not storage.exists(node_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
         )
-    return storage.update(node_hash, node)
+    return storage.update(node_id, node)
 
 
-@api_router.delete("/nodes/{node_hash}", tags=["nodes"])
+@api_router.delete("/nodes/{node_id}", tags=["nodes"])
 async def delete_node(
-    node_hash: str, creator: Annotated[Creator, Depends(get_current_user)]
+    node_id: str, creator: Annotated[Creator, Depends(get_current_user)]
 ):
-    if not storage.exists(node_hash):
+    if not storage.exists(node_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
         )
-    storage.delete(node_hash)
+    storage.delete(node_id)
     return {"detail": "Node deleted"}
 
 

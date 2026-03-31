@@ -1,3 +1,5 @@
+# pyright: basic
+
 import inspect
 from typing import Any
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import pickle
 from functools import reduce
@@ -104,15 +105,18 @@ class NodeFilter:
 class FileSystemStorage(StorageInterface):
     """File-system-backed storage implementation for node metadata"""
 
-    def __init__(self, filename: str | None = "filesystem.pkl") -> None:
+    def __init__(self, filename: str | None = "filesystem.json") -> None:
         self._storage: dict[str, NodeMetadata] = {}
         self._filename = filename
         self._connected = False
 
-        if filename is not None and os.path.exists(filename):
+        if self._filename is not None and os.path.exists(self._filename):
             try:
-                with open(filename, "rb") as f:
-                    self._storage = pickle.load(f)
+                with open(self._filename, "r") as f:
+                    data = json.load(f)
+                    self._storage = {
+                        k: NodeMetadata.model_validate(v) for k, v in data.items()
+                    }
             except Exception:
                 pass  # If loading fails, start with empty storage
 
@@ -123,8 +127,13 @@ class FileSystemStorage(StorageInterface):
         """Save the current storage state to disk"""
 
         if self._filename is not None:
-            with open(self._filename, "wb") as f:
-                pickle.dump(self._storage, f)
+            with open(self._filename, "w") as f:
+                json.dump(
+                    {k: v.model_dump() for k, v in self._storage.items()},
+                    f,
+                    indent=2,
+                    default=str,
+                )
 
     def __getitem__(self, key: str) -> NodeMetadata:
         return self._storage[key]

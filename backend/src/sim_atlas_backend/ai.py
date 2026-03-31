@@ -77,4 +77,7 @@ source code:
 
 def enrich_metadata_with_ai(metadata: NodeMetadata) -> NodeMetadata:
     ai_docstring = create_ai_docstring(metadata.docstring, metadata.source_code)
-    return metadata.model_copy(update={"ai_docstring": ai_docstring})
+    embedding = create_embedding(metadata.source_code)
+    return metadata.model_copy(
+        update={"ai_docstring": ai_docstring, "embedding": embedding}
+    )

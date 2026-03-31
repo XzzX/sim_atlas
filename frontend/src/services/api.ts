@@ -42,6 +42,23 @@ export const simAtlasAPI = {
     );
     return response.data as ScoredSearchResponse;
   },
+
+  semanticSearch: async (
+    query: string,
+    category: string,
+    filterOptions: Filter,
+    page = 1,
+    limit = 10,
+  ): Promise<ScoredSearchResponse> => {
+    const response = await api.post(
+      "/semantic_search",
+      { ...filterOptions, category },
+      {
+        params: { query, page, limit },
+      },
+    );
+    return response.data as ScoredSearchResponse;
+  },
 };
 
 export default api;

@@ -75,6 +75,7 @@ async def create_node(
         creator_email=creator.email,
         creation_timestamp=timestamp.isoformat(),
     )
+    node_metadata = enrich_metadata_with_ai(node_metadata)
 
     try:
         storage[node_metadata.source_code_hash] = node_metadata

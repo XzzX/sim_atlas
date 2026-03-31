@@ -51,6 +51,8 @@ const EMPTY_FILTER_OPTIONS: FilterOptions = {
   quantities: [],
 };
 
+type SearchMode = "normal" | "semantic";
+
 interface SearchCardProps {
   onSearchChange: (
     query: string,
@@ -63,6 +65,8 @@ interface SearchCardProps {
   page: number;
   totalPages: number;
   totalItems: number;
+  searchMode: SearchMode;
+  onSearchModeChange: (mode: SearchMode) => void;
 }
 
 export const SearchCard: React.FC<SearchCardProps> = ({
@@ -72,6 +76,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
   page,
   totalPages,
   totalItems,
+  searchMode,
+  onSearchModeChange,
 }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
@@ -111,6 +117,8 @@ export const SearchCard: React.FC<SearchCardProps> = ({
             onSearchChange(v, category, filters);
           }}
           items={suggestions}
+          searchMode={searchMode}
+          onSearchModeChange={onSearchModeChange}
         />
         <CategoryFilter
           category={category}
@@ -247,6 +255,7 @@ interface SearchPageProps {
 }
 
 export const SearchPage: React.FC<SearchPageProps> = () => {
+  const [searchMode, setSearchMode] = useState<SearchMode>("normal");
   const [searchResponse, setSearchResponse] = useState<ScoredSearchResponse>({
     results: {
       data: [],
@@ -271,18 +280,17 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
       query: string,
       category: string,
       filters: Filter,
+      mode: SearchMode,
       // eslint-disable-next-line @typescript-eslint/no-inferrable-types
       page: number = 1,
     ) => {
+      if (mode === "semantic" && !query.trim()) return;
       try {
         setLoading(true);
         setError(null);
-        const results = await simAtlasAPI.search(
-          query,
-          category,
-          filters,
-          page,
-        );
+        const results = await (mode === "semantic"
+          ? simAtlasAPI.semanticSearch(query, category, filters, page)
+          : simAtlasAPI.search(query, category, filters, page));
         setSearchResponse(results);
       } catch (err) {
         setError("Search failed. Please try again.");
@@ -312,7 +320,7 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
     <main className="mx-auto w-full max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
       <SearchCard
         onSearchChange={(query, category, filters, page = 1) => {
-          void debouncedSearch(query, category, filters, page);
+          void debouncedSearch(query, category, filters, searchMode, page);
         }}
         suggestions={searchResponse.results.data.map(
           (result) => result.node.python_import,
@@ -321,6 +329,10 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
         page={searchResponse.results.page}
         totalPages={searchResponse.results.total_pages}
         totalItems={searchResponse.results.total_items}
+        searchMode={searchMode}
+        onSearchModeChange={(mode) => {
+          setSearchMode(mode);
+        }}
       />
       {error && (
         <Alert

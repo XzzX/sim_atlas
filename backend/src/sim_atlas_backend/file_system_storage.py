@@ -134,12 +134,13 @@ class FileSystemStorage(StorageInterface):
                     default=str,
                 )
 
-    def create(self, key: str, value: NodeMetadata) -> NodeMetadata:
+    def create(self, value: NodeMetadata) -> str:
+        key = value.source_code_hash
         if key in self._storage:
             raise ValueError(f"Node with key '{key}' already exists.")
         self._storage[key] = value
         self._save_to_disk()
-        return value
+        return key
 
     def read(self, key: str) -> NodeMetadata:
         if key not in self._storage:

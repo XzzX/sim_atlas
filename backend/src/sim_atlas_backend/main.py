@@ -62,7 +62,7 @@ async def read_node(node_hash: str) -> NodeResponse:
 @api_router.post("/nodes", tags=["nodes"], status_code=status.HTTP_201_CREATED)
 async def create_node(
     node: NodeRequest, creator: Annotated[Creator, Depends(get_current_user)]
-) -> NodeResponse:
+) -> str:
     if storage.exists(node.source_code_hash):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Node already exists"
@@ -78,7 +78,7 @@ async def create_node(
     )
 
     try:
-        return storage.create(node_metadata.source_code_hash, node_metadata)
+        return storage.create(node_metadata)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

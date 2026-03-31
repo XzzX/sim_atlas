@@ -12,8 +12,8 @@ from .models import (
 
 class StorageInterface(ABC):
     @abstractmethod
-    def create(self, key: str, value: NodeMetadata) -> NodeMetadata:
-        """Store a new node. Raises ValueError if key already exists."""
+    def create(self, value: NodeMetadata) -> str:
+        """Store a new node. Returns the key. Raises ValueError if node already exists."""
         pass
 
     @abstractmethod

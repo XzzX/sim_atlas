@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
 
-from sim_atlas_backend.ai import enrich_metadata_with_ai
 from sim_atlas_backend.models import (
     Filter,
     FilterOptions,
@@ -18,10 +17,8 @@ from sim_atlas_backend.models import (
     ScoredSearchResponse,
 )
 
-from .ai import create_ai_docstring
 from .security import Creator, get_current_user
 from .storage_interface import get_storage_backend
-from .voyage_ai import create_embedding
 
 # Get the configured storage backend
 storage = get_storage_backend()

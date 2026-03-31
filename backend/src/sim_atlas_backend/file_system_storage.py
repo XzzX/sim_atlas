@@ -111,7 +111,7 @@ class FileSystemStorage(StorageInterface):
 
         if self._filename is not None and os.path.exists(self._filename):
             try:
-                with open(self._filename, "r") as f:
+                with open(self._filename) as f:
                     data = json.load(f)
                     self._storage = {
                         k: NodeMetadata.model_validate(v) for k, v in data.items()

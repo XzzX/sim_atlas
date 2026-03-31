@@ -134,21 +134,35 @@ class FileSystemStorage(StorageInterface):
                     default=str,
                 )
 
-    def __getitem__(self, key: str) -> NodeMetadata:
-        return self._storage[key]
-
-    def __setitem__(self, key: str, value: NodeMetadata) -> None:
+    def create(self, key: str, value: NodeMetadata) -> NodeMetadata:
+        if key in self._storage:
+            raise ValueError(f"Node with key '{key}' already exists.")
         self._storage[key] = value
         self._save_to_disk()
+        return value
 
-    def __delitem__(self, key: str) -> None:
+    def read(self, key: str) -> NodeMetadata:
+        if key not in self._storage:
+            raise KeyError(key)
+        return self._storage[key]
+
+    def update(self, key: str, value: NodeMetadata) -> NodeMetadata:
+        if key not in self._storage:
+            raise KeyError(key)
+        self._storage[key] = value
+        self._save_to_disk()
+        return value
+
+    def delete(self, key: str) -> None:
+        if key not in self._storage:
+            raise KeyError(key)
         del self._storage[key]
         self._save_to_disk()
 
-    def __iter__(self):
-        return iter(self._storage)
+    def exists(self, key: str) -> bool:
+        return key in self._storage
 
-    def __len__(self) -> int:
+    def count(self) -> int:
         return len(self._storage)
 
     def get_filter_options(self) -> FilterOptions:

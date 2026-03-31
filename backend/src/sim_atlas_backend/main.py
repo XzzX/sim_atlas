@@ -52,19 +52,18 @@ async def return_creator(
 
 @api_router.get("/nodes/{node_hash}", tags=["nodes"])
 async def read_node(node_hash: str) -> NodeResponse:
-    node = storage.get(node_hash, None)
-    if not node:
+    if not storage.exists(node_hash):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
         )
-    return node
+    return storage.read(node_hash)
 
 
 @api_router.post("/nodes", tags=["nodes"], status_code=status.HTTP_201_CREATED)
 async def create_node(
     node: NodeRequest, creator: Annotated[Creator, Depends(get_current_user)]
 ) -> NodeResponse:
-    if node.source_code_hash in storage:
+    if storage.exists(node.source_code_hash):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Node already exists"
         )
@@ -79,8 +78,7 @@ async def create_node(
     )
 
     try:
-        storage[node_metadata.source_code_hash] = node_metadata
-        return node_metadata
+        return storage.create(node_metadata.source_code_hash, node_metadata)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -91,23 +89,22 @@ async def update_node(
     node: NodeMetadata,
     creator: Annotated[Creator, Depends(get_current_user)],
 ) -> NodeResponse:
-    if node_hash not in storage:
+    if not storage.exists(node_hash):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
         )
-    storage[node_hash] = node
-    return node
+    return storage.update(node_hash, node)
 
 
 @api_router.delete("/nodes/{node_hash}", tags=["nodes"])
 async def delete_node(
     node_hash: str, creator: Annotated[Creator, Depends(get_current_user)]
 ):
-    if node_hash not in storage:
+    if not storage.exists(node_hash):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
         )
-    del storage[node_hash]
+    storage.delete(node_hash)
     return {"detail": "Node deleted"}
 
 

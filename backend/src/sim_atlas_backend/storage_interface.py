@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import MutableMapping
 
 from .models import (
     Filter,
@@ -11,7 +10,37 @@ from .models import (
 )
 
 
-class StorageInterface(MutableMapping[str, NodeMetadata], ABC):
+class StorageInterface(ABC):
+    @abstractmethod
+    def create(self, key: str, value: NodeMetadata) -> NodeMetadata:
+        """Store a new node. Raises ValueError if key already exists."""
+        pass
+
+    @abstractmethod
+    def read(self, key: str) -> NodeMetadata:
+        """Return the node for *key*. Raises KeyError if not found."""
+        pass
+
+    @abstractmethod
+    def update(self, key: str, value: NodeMetadata) -> NodeMetadata:
+        """Replace an existing node. Raises KeyError if not found."""
+        pass
+
+    @abstractmethod
+    def delete(self, key: str) -> None:
+        """Remove the node for *key*. Raises KeyError if not found."""
+        pass
+
+    @abstractmethod
+    def exists(self, key: str) -> bool:
+        """Return True if *key* is present in storage."""
+        pass
+
+    @abstractmethod
+    def count(self) -> int:
+        """Return the number of stored nodes."""
+        pass
+
     @abstractmethod
     def get_filter_options(self) -> FilterOptions:
         pass
@@ -30,6 +59,10 @@ class StorageInterface(MutableMapping[str, NodeMetadata], ABC):
     def search_semantic(
         self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
     ) -> ScoredSearchResponse:
+        pass
+
+    @abstractmethod
+    def enrich(self) -> None:
         pass
 
 

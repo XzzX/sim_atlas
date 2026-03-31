@@ -23,25 +23,20 @@ from sim_atlas_backend.voyage_ai import create_embedding
 from .storage_interface import StorageInterface
 
 
-def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
+def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
     """Compute the cosine similarity between two vectors.
 
     Args:
-        vec1 (list[float]): The first vector.
-        vec2 (list[float]): The second vector.
+        vec1 (np.ndarray): The first vector.
+        vec2 (np.ndarray): The second vector.
 
     Returns:
         float: The cosine similarity between the two vectors.
     """
-
-    # Convert to numpy arrays
-    array1 = np.array(vec1)
-    array2 = np.array(vec2)
-
     # Compute cosine similarity
-    dot_product = np.dot(array1, array2)
-    norm1 = np.linalg.norm(array1)
-    norm2 = np.linalg.norm(array2)
+    dot_product = np.dot(vec1, vec2)
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
 
     if norm1 == 0 or norm2 == 0:
         return 0.0

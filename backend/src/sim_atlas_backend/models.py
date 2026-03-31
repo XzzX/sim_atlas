@@ -1,6 +1,35 @@
+import base64
+import json
 from enum import StrEnum
+from typing import Annotated
 
-from pydantic import BaseModel
+import numpy as np
+from pydantic import BaseModel, BeforeValidator, ConfigDict, PlainSerializer
+
+
+def nd_array_custom_before_validator(x: np.ndarray | str) -> np.ndarray:
+    if isinstance(x, str):
+        loaded = json.loads(x)
+
+        raw = base64.b64decode(loaded["data"])
+        return np.frombuffer(raw, dtype=np.dtype(loaded["dtype"]))
+    return x
+
+
+def nd_array_custom_serializer(x: np.ndarray) -> str:
+    data = {
+        "dtype": str(x.dtype),
+        "data": base64.b64encode(x.tobytes()).decode("utf-8"),
+    }
+
+    return json.dumps(data)
+
+
+NdArray = Annotated[
+    np.ndarray,
+    BeforeValidator(nd_array_custom_before_validator),
+    PlainSerializer(nd_array_custom_serializer, return_type=str),
+]
 
 
 class NodeType(StrEnum):
@@ -89,7 +118,9 @@ class ScoredSearchResponse(BaseModel):
 
 
 class NodeMetadata(NodeResponse):
-    embedding: list[float] | None = None
+    embedding: NdArray | None = None
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class Filter(BaseModel):

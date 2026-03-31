@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import json
 import os
-import pickle
 from functools import reduce
 from math import ceil
 
 import numpy as np
 from pydantic import BaseModel
 
-from sim_atlas_backend.ai import create_embedding
 from sim_atlas_backend.models import (
     Filter,
     FilterOptions,
@@ -20,6 +18,7 @@ from sim_atlas_backend.models import (
     ScoredSearchResponse,
     SearchResults,
 )
+from sim_atlas_backend.voyage_ai import create_embedding
 
 from .storage_interface import StorageInterface
 
@@ -300,7 +299,7 @@ class FileSystemStorage(StorageInterface):
             List of relevant node metadata, ordered by relevance
         """
         # Generate embedding for the query
-        query_embedding = create_embedding(query)
+        query_embedding = create_embedding(query, input_type="query")
 
         item_filter = NodeFilter(filter or Filter())
 
@@ -311,7 +310,7 @@ class FileSystemStorage(StorageInterface):
                 similarity = cosine_similarity(query_embedding, node.embedding)
                 similarities.append(
                     ScoredSearchItem(
-                        score=similarity,
+                        score=similarity[0],
                         node=NodeResponse(**node.model_dump()),
                     )
                 )
@@ -320,3 +319,11 @@ class FileSystemStorage(StorageInterface):
         similarities.sort(key=lambda x: x.score, reverse=True)
 
         return self._paginate(similarities, page=page, limit=limit)
+
+    def enrich(self) -> None:
+        documents = [node.docstring for node in self._storage.values()]
+        embeddings = create_embedding(documents, input_type="document")
+        for emb, item in zip(embeddings, self._storage.values(), strict=True):
+            item.embedding = emb
+
+        self._save_to_disk()

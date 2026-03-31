@@ -17,8 +17,10 @@ from sim_atlas_backend.models import (
     ScoredSearchResponse,
 )
 
+from .ai import create_ai_docstring
 from .security import Creator, get_current_user
 from .storage_interface import get_storage_backend
+from .voyage_ai import create_embedding
 
 # Get the configured storage backend
 storage = get_storage_backend()
@@ -75,7 +77,6 @@ async def create_node(
         creator_email=creator.email,
         creation_timestamp=timestamp.isoformat(),
     )
-    node_metadata = enrich_metadata_with_ai(node_metadata)
 
     try:
         storage[node_metadata.source_code_hash] = node_metadata
@@ -144,19 +145,8 @@ async def semantic_search(
     "/enrich",
     tags=["ai"],
 )
-async def enrich_node(
-    node_hash: str, creator: Annotated[Creator, Depends(get_current_user)]
-) -> NodeResponse:
-    node = storage.get(node_hash, None)
-    if not node:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
-        )
-
-    node = enrich_metadata_with_ai(node)
-    storage[node_hash] = node
-
-    return node
+async def enrich(_: Annotated[Creator, Depends(get_current_user)]) -> None:
+    storage.enrich()
 
 
 app.include_router(api_router)

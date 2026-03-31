@@ -32,6 +32,7 @@ dependencies = [
     "pyjwt>=2.12.1",
     "python-dotenv>=1.2.1",
     "python-workflow-definition>=0.1.2",
+    "voyageai>=0.3.7",
 ]
 
 [dependency-groups]

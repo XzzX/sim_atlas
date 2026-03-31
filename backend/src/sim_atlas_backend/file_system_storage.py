@@ -314,7 +314,7 @@ class FileSystemStorage(StorageInterface):
             List of relevant node metadata, ordered by relevance
         """
         # Generate embedding for the query
-        query_embedding = create_embedding(query, input_type="query")
+        query_embedding = create_embedding([query], input_type="query")[0]
 
         item_filter = NodeFilter(filter or Filter())
 
@@ -325,7 +325,7 @@ class FileSystemStorage(StorageInterface):
                 similarity = cosine_similarity(query_embedding, node.embedding)
                 similarities.append(
                     ScoredSearchItem(
-                        score=similarity[0],
+                        score=similarity,
                         node=NodeResponse(**node.model_dump()),
                     )
                 )

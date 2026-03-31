@@ -63,11 +63,6 @@ async def read_node(node_hash: str) -> NodeResponse:
 async def create_node(
     node: NodeRequest, creator: Annotated[Creator, Depends(get_current_user)]
 ) -> str:
-    if storage.exists(node.source_code_hash):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Node already exists"
-        )
-
     timestamp = dt.datetime.now(dt.UTC)
     node_metadata = NodeMetadata(
         **node.model_dump(),
@@ -76,6 +71,11 @@ async def create_node(
         creator_email=creator.email,
         creation_timestamp=timestamp.isoformat(),
     )
+
+    if storage.exists(node_metadata.source_code_hash):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Node already exists"
+        )
 
     try:
         return storage.create(node_metadata)

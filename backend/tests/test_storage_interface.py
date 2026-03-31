@@ -68,7 +68,6 @@ def make_node(**kwargs: Any) -> NodeMetadata:
         "python_import": "test.module",
         "dependencies": None,
         "source_code": "def test(): pass",
-        "source_code_hash": "abc123",
         "docstring": "A test node",
         "ai_docstring": "",
         "inputs": [],
@@ -132,9 +131,9 @@ class StorageContractTests:
 
     def test_count_increases_on_create(self, storage: StorageInterface) -> None:
         assert storage.count() == 0
-        storage.create(make_node(name="a", source_code_hash="hash_a"))
+        storage.create(make_node(name="a", source_code="def a(): pass"))
         assert storage.count() == 1
-        storage.create(make_node(name="b", source_code_hash="hash_b"))
+        storage.create(make_node(name="b", source_code="def b(): pass"))
         assert storage.count() == 2  # noqa: PLR2004
 
     def test_count_decreases_on_delete(self, storage: StorageInterface) -> None:
@@ -252,14 +251,14 @@ class StorageContractTests:
             make_node(
                 author_name="Alice",
                 node_type=NodeType.FUNCTION,
-                source_code_hash="hash_a",
+                source_code="def alice(): pass",
             )
         )
         storage.create(
             make_node(
                 author_name="Bob",
                 node_type=NodeType.PYIRON_CORE_NODE,
-                source_code_hash="hash_b",
+                source_code="def bob(): pass",
             )
         )
         options = storage.get_filter_options()
@@ -281,8 +280,8 @@ class StorageContractTests:
         assert result.results.data == []
 
     def test_search_no_query_returns_all_nodes(self, storage: StorageInterface) -> None:
-        storage.create(make_node(name="a", source_code_hash="hash_a"))
-        storage.create(make_node(name="b", source_code_hash="hash_b"))
+        storage.create(make_node(name="a", source_code="def a(): pass"))
+        storage.create(make_node(name="b", source_code="def b(): pass"))
         result = storage.search(None)
         assert result.results.total_items == 2  # noqa: PLR2004
 
@@ -303,13 +302,13 @@ class StorageContractTests:
         self, storage: StorageInterface
     ) -> None:
         storage.create(
-            make_node(python_import="mypackage.mymodule", source_code_hash="hash_match")
+            make_node(python_import="mypackage.mymodule", source_code="def match(): pass")
         )
         storage.create(
             make_node(
                 python_import="other.stuff",
                 docstring="xyz",
-                source_code_hash="hash_other",
+                source_code="def other(): pass",
             )
         )
         result = storage.search("mypackage")
@@ -319,11 +318,11 @@ class StorageContractTests:
     def test_search_filter_by_category(self, storage: StorageInterface) -> None:
         storage.create(
             make_node(
-                name="physics_node", category="physics", source_code_hash="hash_physics"
+                name="physics_node", category="physics", source_code="def physics(): pass"
             )
         )
         storage.create(
-            make_node(name="math_node", category="math", source_code_hash="hash_math")
+            make_node(name="math_node", category="math", source_code="def math(): pass")
         )
         result = storage.search(None, Filter(category="physics"))
         assert result.results.total_items == 1
@@ -331,12 +330,12 @@ class StorageContractTests:
 
     def test_search_filter_by_type(self, storage: StorageInterface) -> None:
         storage.create(
-            make_node(node_type=NodeType.FUNCTION, source_code_hash="hash_func")
+            make_node(node_type=NodeType.FUNCTION, source_code="def func(): pass")
         )
         storage.create(
             make_node(
                 node_type=NodeType.PYTHON_WORKFLOW_DEFINITION,
-                source_code_hash="hash_wf",
+                source_code="def wf(): pass",
             )
         )
         result = storage.search(None, Filter(type=[NodeType.FUNCTION]))
@@ -344,17 +343,17 @@ class StorageContractTests:
         assert result.results.data[0].node.node_type == NodeType.FUNCTION
 
     def test_search_filter_by_author(self, storage: StorageInterface) -> None:
-        storage.create(make_node(author_name="Alice", source_code_hash="hash_alice"))
-        storage.create(make_node(author_name="Bob", source_code_hash="hash_bob"))
+        storage.create(make_node(author_name="Alice", source_code="def alice(): pass"))
+        storage.create(make_node(author_name="Bob", source_code="def bob(): pass"))
         result = storage.search(None, Filter(author=["Alice"]))
         assert result.results.total_items == 1
         assert result.results.data[0].node.author_name == "Alice"
 
     def test_search_filter_by_keywords(self, storage: StorageInterface) -> None:
         storage.create(
-            make_node(keywords=["simulation", "physics"], source_code_hash="hash_a")
+            make_node(keywords=["simulation", "physics"], source_code="def a(): pass")
         )
-        storage.create(make_node(keywords=["chemistry"], source_code_hash="hash_b"))
+        storage.create(make_node(keywords=["chemistry"], source_code="def b(): pass"))
         result = storage.search(None, Filter(keywords=["physics"]))
         assert result.results.total_items == 1
 
@@ -362,7 +361,7 @@ class StorageContractTests:
         limit_per_page = 2
         total_items = 5
         for i in range(total_items):
-            storage.create(make_node(name=f"node_{i}", source_code_hash=f"hash_{i}"))
+            storage.create(make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass"))
         page1 = storage.search(None, page=1, limit=limit_per_page)
         page2 = storage.search(None, page=2, limit=limit_per_page)
         assert len(page1.results.data) == limit_per_page
@@ -376,7 +375,7 @@ class StorageContractTests:
         self, storage: StorageInterface
     ) -> None:
         for i in range(5):
-            storage.create(make_node(name=f"node_{i}", source_code_hash=f"hash_{i}"))
+            storage.create(make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass"))
         last_page = storage.search(None, page=3, limit=2)
         assert len(last_page.results.data) == 1
 
@@ -384,7 +383,7 @@ class StorageContractTests:
         self, storage: StorageInterface
     ) -> None:
         for i in range(3):
-            storage.create(make_node(name=f"node_{i}", source_code_hash=f"hash_{i}"))
+            storage.create(make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass"))
         beyond = storage.search(None, page=10, limit=5)
         assert len(beyond.results.data) == 0
         assert beyond.results.total_items == 3  # noqa: PLR2004

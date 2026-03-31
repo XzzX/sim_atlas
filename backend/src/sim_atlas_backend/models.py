@@ -1,6 +1,7 @@
+import hashlib
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 
 class NodeType(StrEnum):
@@ -35,7 +36,6 @@ class NodeRequest(BaseModel):
     dependencies: list[str] | None = None
 
     source_code: str
-    source_code_hash: str
 
     docstring: str
     inputs: list[Annotation]
@@ -63,12 +63,16 @@ class NodeResponse(BaseModel):
     dependencies: list[str] | None = None
 
     source_code: str
-    source_code_hash: str
 
     docstring: str
     ai_docstring: str
     inputs: list[Annotation]
     outputs: list[Annotation]
+
+    @computed_field
+    @property
+    def source_code_hash(self) -> str:
+        return hashlib.sha256(self.source_code.encode()).hexdigest()
 
 
 class NodeIndex(BaseModel):

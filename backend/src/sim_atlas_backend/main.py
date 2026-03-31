@@ -1,4 +1,5 @@
 import datetime as dt
+import hashlib
 from pathlib import Path
 from typing import Annotated
 
@@ -63,9 +64,13 @@ async def read_node(node_id: str) -> NodeResponse:
 async def create_node(
     node: NodeRequest, creator: Annotated[Creator, Depends(get_current_user)]
 ) -> str:
+    value = node.source_code if node.source_code else node.name
+    id = hashlib.sha256(value.encode()).hexdigest()
+
     timestamp = dt.datetime.now(dt.UTC)
     node_metadata = NodeMetadata(
         **node.model_dump(),
+        id=id,
         ai_docstring="",
         creator_name=creator.name,
         creator_email=creator.email,

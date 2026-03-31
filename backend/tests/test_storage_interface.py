@@ -27,6 +27,7 @@ Example::
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 import pytest
@@ -75,6 +76,9 @@ def make_node(**kwargs: Any) -> NodeMetadata:
         "embedding": None,
     }
     defaults.update(kwargs)
+    if "id" not in defaults:
+        value = defaults["source_code"] if defaults["source_code"] else defaults["name"]
+        defaults["id"] = hashlib.sha256(value.encode()).hexdigest()
     return NodeMetadata(**defaults)
 
 

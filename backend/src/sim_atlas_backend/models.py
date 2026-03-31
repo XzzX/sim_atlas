@@ -1,7 +1,6 @@
-import hashlib
 from enum import StrEnum
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel
 
 
 class NodeType(StrEnum):
@@ -50,6 +49,7 @@ class NodeResponse(BaseModel):
     creator_email: str
     creation_timestamp: str
 
+    id: str
     name: str
     node_type: NodeType
     category: str
@@ -68,17 +68,6 @@ class NodeResponse(BaseModel):
     ai_docstring: str
     inputs: list[Annotation]
     outputs: list[Annotation]
-
-    @computed_field
-    @property
-    def id(self) -> str:
-        return hashlib.sha256(self.source_code.encode()).hexdigest()
-
-
-class NodeIndex(BaseModel):
-    module: str
-    qualname: str
-    id: str
 
 
 class ScoredSearchItem(BaseModel):

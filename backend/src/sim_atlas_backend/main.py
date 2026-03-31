@@ -48,15 +48,6 @@ async def return_creator(
     return creator
 
 
-@api_router.get("/nodes/{node_id}", tags=["nodes"])
-async def read_node(node_id: str) -> NodeResponse:
-    if not storage.exists(node_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
-        )
-    return storage.read(node_id)
-
-
 @api_router.post("/nodes", tags=["nodes"], status_code=status.HTTP_201_CREATED)
 async def create_node(
     node: NodeRequest, creator: Annotated[Creator, Depends(get_current_user)]
@@ -74,15 +65,22 @@ async def create_node(
         creation_timestamp=timestamp.isoformat(),
     )
 
-    if storage.exists(node_metadata.id):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Node already exists"
-        )
-
     try:
         return storage.create(node_metadata)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Node already exists"
+        ) from e
+
+
+@api_router.get("/nodes/{node_id}", tags=["nodes"])
+async def read_node(node_id: str) -> NodeResponse:
+    try:
+        return storage.read(node_id)
+    except KeyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
+        ) from e
 
 
 @api_router.put("/nodes/{node_id}", tags=["nodes"])
@@ -91,23 +89,25 @@ async def update_node(
     node: NodeMetadata,
     creator: Annotated[Creator, Depends(get_current_user)],
 ) -> NodeResponse:
-    if not storage.exists(node_id):
+    try:
+        return storage.update(node_id, node)
+    except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
-        )
-    return storage.update(node_id, node)
+        ) from e
 
 
 @api_router.delete("/nodes/{node_id}", tags=["nodes"])
 async def delete_node(
     node_id: str, creator: Annotated[Creator, Depends(get_current_user)]
 ):
-    if not storage.exists(node_id):
+    try:
+        storage.delete(node_id)
+        return {"detail": "Node deleted"}
+    except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
-        )
-    storage.delete(node_id)
-    return {"detail": "Node deleted"}
+        ) from e
 
 
 @api_router.get("/filter_options", response_model=FilterOptions, tags=["search"])

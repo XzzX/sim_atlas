@@ -1,0 +1,38 @@
+{
+  "folders": [
+    {
+      "name": "backend",
+      "path": "backend",
+    },
+    {
+      "name": "docs",
+      "path": "docs",
+    },
+    {
+      "name": "frontend",
+      "path": "frontend",
+    },
+    {
+      "name": "toolkit",
+      "path": "toolkit",
+    },
+    {
+      "name": "web_ide",
+      "path": "web_ide",
+    },
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.git": true,
+      "**/.svn": true,
+      "**/.hg": true,
+      "**/.DS_Store": true,
+      "**/Thumbs.db": true,
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/__pycache__": true,
+      "**/.venv": true,
+    },
+  },
+}

@@ -154,7 +154,13 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
         </CardAction>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Tabs defaultValue="inputs">
+        <Tabs
+          defaultValue={
+            node.ai_docstring && !node.docstring
+              ? "ai_description"
+              : "human_description"
+          }
+        >
           <TabsList variant="line">
             <TabsTrigger value="human_description">
               <Zap size={14} className="mr-2" />

@@ -1,6 +1,5 @@
 import base64
 import gzip
-import json
 from enum import StrEnum
 from typing import Annotated
 

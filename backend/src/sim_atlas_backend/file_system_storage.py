@@ -348,8 +348,14 @@ class FileSystemStorage(StorageInterface):
 
             self._save_to_disk()
 
-        values = [node for node in self._storage.values() if node.embedding is None]
+        values = [
+            node
+            for node in self._storage.values()
+            if node.ai_docstring and node.embedding is None
+        ]
         documents = [node.ai_docstring for node in values]
         embeddings = create_embedding(documents, input_type="document")
         for emb, item in zip(embeddings, values, strict=True):
             item.embedding = emb
+
+        self._save_to_disk()

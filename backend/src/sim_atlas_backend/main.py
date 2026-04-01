@@ -1,9 +1,10 @@
 import datetime as dt
 import hashlib
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
@@ -18,12 +19,21 @@ from sim_atlas_backend.models import (
 )
 
 from .security import Creator, get_current_user
-from .storage_interface import get_storage_backend
+from .storage_interface import StorageInterface, get_storage_backend
 
-# Get the configured storage backend
-storage = get_storage_backend()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.storage = get_storage_backend()
+    yield
+
+
+def get_storage(request: Request) -> StorageInterface:
+    return request.app.state.storage
+
 
 app = FastAPI(
+    lifespan=lifespan,
     title="Simulation Atlas",
     description="One place to store all your simulation knowledge. Upload your functions, search for existing ones, and let AI enrich your documentation.",
     version="0.0.0",
@@ -41,6 +51,12 @@ app.add_middleware(
 api_router = APIRouter(prefix="/api/v1")
 
 
+@api_router.get("/items")
+async def get_items(storage: Annotated[StorageInterface, Depends(get_storage)]):
+    storage.count()  # Example of accessing the storage backend from the app state
+    return {"message": "Hello, World!"}
+
+
 @api_router.get("/me")
 async def return_creator(
     creator: Annotated[Creator, Depends(get_current_user)],
@@ -50,7 +66,9 @@ async def return_creator(
 
 @api_router.post("/nodes", tags=["nodes"], status_code=status.HTTP_201_CREATED)
 async def create_node(
-    node: NodeRequest, creator: Annotated[Creator, Depends(get_current_user)]
+    node: NodeRequest,
+    creator: Annotated[Creator, Depends(get_current_user)],
+    storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> str:
     value = node.source_code if node.source_code else node.name
     id = hashlib.sha256(value.encode()).hexdigest()
@@ -74,7 +92,9 @@ async def create_node(
 
 
 @api_router.get("/nodes/{node_id}", tags=["nodes"])
-async def read_node(node_id: str) -> NodeResponse:
+async def read_node(
+    node_id: str, storage: Annotated[StorageInterface, Depends(get_storage)]
+) -> NodeResponse:
     try:
         return storage.read(node_id)
     except KeyError as e:
@@ -88,6 +108,7 @@ async def update_node(
     node_id: str,
     node: NodeMetadata,
     creator: Annotated[Creator, Depends(get_current_user)],
+    storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> NodeResponse:
     try:
         return storage.update(node_id, node)
@@ -99,7 +120,9 @@ async def update_node(
 
 @api_router.delete("/nodes/{node_id}", tags=["nodes"])
 async def delete_node(
-    node_id: str, creator: Annotated[Creator, Depends(get_current_user)]
+    node_id: str,
+    creator: Annotated[Creator, Depends(get_current_user)],
+    storage: Annotated[StorageInterface, Depends(get_storage)],
 ):
     try:
         storage.delete(node_id)
@@ -111,12 +134,15 @@ async def delete_node(
 
 
 @api_router.get("/filter_options", response_model=FilterOptions, tags=["search"])
-async def get_filter_options():
+async def get_filter_options(
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+):
     return storage.get_filter_options()
 
 
 @api_router.post("/search", response_model=ScoredSearchResponse, tags=["search"])
 async def search_nodes(
+    storage: Annotated[StorageInterface, Depends(get_storage)],
     query: str | None = None,
     filter_options: Filter | None = None,
     page: int = 1,
@@ -132,6 +158,7 @@ async def search_nodes(
     operation_id="semantic_search",
 )
 async def semantic_search(
+    storage: Annotated[StorageInterface, Depends(get_storage)],
     query: str,
     filter_options: Filter | None = None,
     page: int = 1,
@@ -144,7 +171,10 @@ async def semantic_search(
     "/enrich",
     tags=["ai"],
 )
-async def enrich(_: Annotated[Creator, Depends(get_current_user)]) -> None:
+async def enrich(
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+    _: Annotated[Creator, Depends(get_current_user)],
+) -> None:
     storage.enrich()
 
 

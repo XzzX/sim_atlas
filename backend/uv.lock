@@ -2179,6 +2179,7 @@ dependencies = [
     { name = "pyjwt" },
     { name = "python-dotenv" },
     { name = "python-workflow-definition" },
+    { name = "tqdm" },
     { name = "voyageai" },
 ]
 
@@ -2199,6 +2200,7 @@ requires-dist = [
     { name = "pyjwt", specifier = ">=2.12.1" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "python-workflow-definition", specifier = ">=0.1.2" },
+    { name = "tqdm", specifier = ">=4.67.3" },
     { name = "voyageai", specifier = ">=0.3.7" },
 ]
 

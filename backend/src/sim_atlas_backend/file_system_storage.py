@@ -7,7 +7,9 @@ from math import ceil
 
 import numpy as np
 from pydantic import BaseModel
+from tqdm import tqdm
 
+from sim_atlas_backend.ai import create_ai_docstring
 from sim_atlas_backend.models import (
     Filter,
     FilterOptions,
@@ -331,9 +333,23 @@ class FileSystemStorage(StorageInterface):
         return self._paginate(similarities, page=page, limit=limit)
 
     def enrich(self) -> None:
-        documents = [node.docstring for node in self._storage.values()]
-        embeddings = create_embedding(documents, input_type="document")
-        for emb, item in zip(embeddings, self._storage.values(), strict=True):
-            item.embedding = emb
+        for v in tqdm(self._storage.values(), desc="adding ai_docstrings"):
+            if v.ai_docstring:
+                continue
+            if not v.source_code:
+                continue
+            try:
+                v.ai_docstring = create_ai_docstring(v.docstring, v.source_code)
+            except Exception as e:
+                print(f"Error occurred while enriching node {v.name}: {e}")
+                print(f"docstring: {v.docstring}")
+                print(f"source_code: {v.source_code}")
+                break
 
-        self._save_to_disk()
+            self._save_to_disk()
+
+        values = [node for node in self._storage.values() if node.embedding is None]
+        documents = [node.ai_docstring for node in values]
+        embeddings = create_embedding(documents, input_type="document")
+        for emb, item in zip(embeddings, values, strict=True):
+            item.embedding = emb

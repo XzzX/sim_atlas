@@ -1,4 +1,5 @@
 import base64
+import gzip
 import json
 from enum import StrEnum
 from typing import Annotated
@@ -7,19 +8,17 @@ import numpy as np
 from pydantic import BaseModel, BeforeValidator, ConfigDict, PlainSerializer
 
 
-def nd_array_custom_before_validator(x: np.ndarray | str) -> np.ndarray:
-    if isinstance(x, str):
-        loaded = json.loads(x)
-
-        raw = base64.b64decode(loaded["data"])
-        return np.frombuffer(raw, dtype=np.dtype(loaded["dtype"]))
-    return x
+def nd_array_custom_before_validator(x: np.ndarray | dict[str, str]) -> np.ndarray:
+    if isinstance(x, np.ndarray):
+        return x
+    raw = gzip.decompress(base64.b64decode(x["data"]))
+    return np.frombuffer(raw, dtype=np.dtype(x["dtype"]))
 
 
 def nd_array_custom_serializer(x: np.ndarray) -> str:
     data = {
         "dtype": str(x.dtype),
-        "data": base64.b64encode(x.tobytes()).decode("utf-8"),
+        "data": base64.b64encode(gzip.compress(x.tobytes())).decode("utf-8"),
     }
 
     return json.dumps(data)

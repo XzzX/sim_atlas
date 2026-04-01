@@ -1,15 +1,12 @@
 from typing import Annotated
 
 import jwt
-from dotenv import dotenv_values
 from fastapi import Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel
 
-config = dotenv_values(".env")
-JWT_SECRET_KEY = config["JWT_SECRET_KEY"]
-JWT_ALGORITHM = config["JWT_ALGORITHM"]
+from .settings import settings
 
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
@@ -20,19 +17,15 @@ class Creator(BaseModel):
 
 
 async def get_current_user(access_token: Annotated[str, Depends(api_key_header)]):
-    if JWT_SECRET_KEY is None:
-        raise ValueError("JWT_SECRET_KEY must be set in the .env file")
-
-    if JWT_ALGORITHM is None:
-        raise ValueError("JWT_ALGORITHM must be set in the .env file")
-
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(access_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(
+            access_token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+        )
         creator_name = payload.get("creator_name")
         if creator_name is None:
             raise credentials_exception

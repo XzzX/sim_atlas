@@ -1,15 +1,11 @@
 import numpy as np
 import voyageai
-from dotenv import load_dotenv
 
-load_dotenv()
+from .settings import settings
 
 
 def create_embedding(documents: list[str], input_type: str = "document") -> np.ndarray:
-    vo = voyageai.Client()  # pyright: ignore[reportPrivateImportUsage]
-    # This will automatically use the environment variable VOYAGE_API_KEY.
-    # Alternatively, you can use vo = voyageai.Client(api_key="<your secret key>")
-
+    vo = voyageai.Client(api_key=settings.voyage_api_key)  # pyright: ignore[reportPrivateImportUsage]
     batch_size = 256
     embeddings: list[list[float]] = []
 

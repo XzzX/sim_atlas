@@ -1,25 +1,17 @@
-from dotenv import dotenv_values
 from openai import OpenAI
 
 from sim_atlas_backend.models import NodeMetadata
 
-config = dotenv_values(".env")
+from .settings import settings
 
 
 def create_embedding(text: str) -> list[float]:
-    # API configuration
-    api_key = config["LLM_API_KEY"] or ""
-    base_url = config["LLM_API_URL"] or ""
-    model = config["LLM_EMBEDDING_MODEL"] or ""
+    client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
 
-    # Start OpenAI client
-    client = OpenAI(api_key=api_key, base_url=base_url)
-
-    # Get response
     embedding = (
         client.embeddings.create(
             input=text,
-            model=model,
+            model=settings.llm_embedding_model,
         )
         .data[0]
         .embedding
@@ -29,18 +21,11 @@ def create_embedding(text: str) -> list[float]:
 
 
 def create_ai_docstring(docstring: str, source_code: str) -> str:
-    # API configuration
-    api_key = config["LLM_API_KEY"] or ""
-    base_url = config["LLM_API_URL"] or ""
-    model = config["LLM_CHAT_MODEL"] or ""
+    client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
 
-    # Start OpenAI client
-    client = OpenAI(api_key=api_key, base_url=base_url)
-
-    # Get response
     docstring = (
         client.chat.completions.create(
-            model=model,
+            model=settings.llm_chat_model,
             messages=[
                 {
                     "role": "user",

@@ -15,19 +15,19 @@ def nd_array_custom_before_validator(x: np.ndarray | dict[str, str]) -> np.ndarr
     return np.frombuffer(raw, dtype=np.dtype(x["dtype"]))
 
 
-def nd_array_custom_serializer(x: np.ndarray) -> str:
+def nd_array_custom_serializer(x: np.ndarray) -> dict[str, str]:
     data = {
         "dtype": str(x.dtype),
         "data": base64.b64encode(gzip.compress(x.tobytes())).decode("utf-8"),
     }
 
-    return json.dumps(data)
+    return data
 
 
 NdArray = Annotated[
     np.ndarray,
     BeforeValidator(nd_array_custom_before_validator),
-    PlainSerializer(nd_array_custom_serializer, return_type=str),
+    PlainSerializer(nd_array_custom_serializer, return_type=dict[str, str]),
 ]
 
 

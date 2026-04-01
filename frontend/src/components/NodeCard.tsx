@@ -63,7 +63,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
       <CardHeader className="bg-chart-1 pb-2 pt-4">
         <CardTitle className="text-lg">{node.name}</CardTitle>
         <CardDescription>
-          <small>{node.source_code_hash}</small>
+          <small>{node.id}</small>
         </CardDescription>
         <CardDescription>
           <Badge variant="secondary" className="mr-2">
@@ -131,7 +131,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                window.open("ide/?wf_hash=" + node.source_code_hash);
+                window.open("ide/?wf_hash=" + node.id);
               }}
             >
               <ExternalLinkIcon />

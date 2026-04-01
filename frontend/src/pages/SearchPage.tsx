@@ -238,7 +238,7 @@ const Content: React.FC<ContentProps> = ({ loading, items }) => {
         <div className="grid gap-5">
           {items.map((result) => (
             <NodeCard
-              key={result.node.source_code_hash}
+              key={result.node.id}
               node={result.node}
               score={result.score}
             />

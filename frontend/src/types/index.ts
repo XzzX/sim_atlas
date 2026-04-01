@@ -31,7 +31,6 @@ export interface NodeRequest {
   dependencies?: string[] | null;
 
   source_code: string;
-  source_code_hash: string;
 
   docstring: string;
   inputs: Annotation[];
@@ -46,6 +45,7 @@ export interface NodeResponse {
   creator_email: string;
   creation_timestamp: string;
 
+  id: string;
   name: string;
   node_type: NodeType;
   category: string;
@@ -60,19 +60,12 @@ export interface NodeResponse {
   dependencies?: string[] | null;
 
   source_code: string;
-  source_code_hash: string;
 
   docstring: string;
   ai_docstring: string;
 
   inputs: Annotation[];
   outputs: Annotation[];
-}
-
-export interface NodeIndex {
-  module: string;
-  qualname: string;
-  source_code_hash: string;
 }
 
 export interface ScoredSearchItem {
@@ -108,9 +101,9 @@ export interface Filter {
 }
 
 export interface FilterOptions {
-  category: Record<string, string[]>; // dict[str, set[str]] -> Record<string, string[]>
-  type: NodeType[]; // set[NodeType] -> NodeType[]
-  author: string[]; // set[str] -> string[]
+  category: Record<string, string[]>;
+  type: NodeType[];
+  author: string[];
   keywords: string[];
   datatypes: string[];
   units: string[];

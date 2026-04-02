@@ -47,3 +47,4 @@ A decision that affects multiple components lists all values, e.g. `scope: [back
 | [0010](0010-react-flow-web-ide.md) | React Flow for the visual workflow editor | accepted | web-ide |
 | [0011](0011-metadata-only-storage.md) | Store node metadata with links to external source repositories | accepted | cross-cutting |
 | [0012](0012-best-effort-data-quality.md) | Information is provided on a best-effort basis without freshness or correctness guarantees | accepted | cross-cutting |
+| [0013](0013-jupyterhub-like-server-client-infrastructure.md) | JupyterHub-like scale-agnostic server-client infrastructure | accepted | cross-cutting |

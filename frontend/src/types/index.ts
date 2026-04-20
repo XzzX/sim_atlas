@@ -1,111 +1,126 @@
-export enum NodeType {
-  FUNCTION = "function",
-  PYTHON_WORKFLOW_DEFINITION = "python_workflow_definition",
-  PYIRON_WORKFLOW_FUNCTION = "pyiron_workflow_function",
-  PYIRON_CORE_NODE = "pyiron_core_node",
-}
+import { z } from "zod";
 
-export interface Annotation {
-  has_default_value?: boolean; // default False in Pydantic
-  label?: string | null;
-  datatype?: string | null;
-  unit?: string | null;
-  quantity?: string | null;
-}
+export const NodeTypeSchema = z.enum([
+  "function",
+  "python_workflow_definition",
+  "pyiron_workflow_function",
+  "pyiron_core_node",
+]);
+export type NodeType = z.infer<typeof NodeTypeSchema>;
+export const NodeType = NodeTypeSchema.enum;
 
-export interface NodeRequest {
-  author_name: string;
-  author_email: string;
+export const AnnotationSchema = z.object({
+  has_default_value: z.boolean().optional(), // default False in Pydantic
+  label: z.string().nullish(),
+  datatype: z.string().nullish(),
+  unit: z.string().nullish(),
+  quantity: z.string().nullish(),
+});
+export type Annotation = z.infer<typeof AnnotationSchema>;
 
-  name: string;
-  node_type: NodeType;
-  category: string;
+export const NodeRequestSchema = z.object({
+  author_name: z.string(),
+  author_email: z.string(),
 
-  keywords: string[];
+  name: z.string(),
+  node_type: NodeTypeSchema,
+  category: z.string(),
 
-  homepage_url: string;
-  documentation_url: string;
-  source_url: string;
+  keywords: z.array(z.string()),
 
-  python_import: string;
-  dependencies?: string[] | null;
+  homepage_url: z.string(),
+  documentation_url: z.string(),
+  source_url: z.string(),
 
-  source_code: string;
+  python_import: z.string(),
+  dependencies: z.array(z.string()).nullish(),
 
-  docstring: string;
-  inputs: Annotation[];
-  outputs: Annotation[];
-}
+  source_code: z.string(),
 
-export interface NodeResponse {
-  author_name: string;
-  author_email: string;
+  docstring: z.string(),
+  inputs: z.array(AnnotationSchema),
+  outputs: z.array(AnnotationSchema),
+});
+export type NodeRequest = z.infer<typeof NodeRequestSchema>;
 
-  creator_name: string;
-  creator_email: string;
-  creation_timestamp: string;
+export const NodeResponseSchema = z.object({
+  author_name: z.string(),
+  author_email: z.string(),
 
-  id: string;
-  name: string;
-  node_type: NodeType;
-  category: string;
+  creator_name: z.string(),
+  creator_email: z.string(),
+  creation_timestamp: z.string(),
 
-  keywords: string[];
+  id: z.string(),
+  name: z.string(),
+  node_type: NodeTypeSchema,
+  category: z.string(),
 
-  homepage_url: string;
-  documentation_url: string;
-  source_url: string;
+  keywords: z.array(z.string()),
 
-  python_import: string;
-  dependencies?: string[] | null;
+  homepage_url: z.string(),
+  documentation_url: z.string(),
+  source_url: z.string(),
 
-  source_code: string;
+  python_import: z.string(),
+  dependencies: z.array(z.string()).nullish(),
 
-  docstring: string;
-  ai_docstring: string;
+  source_code: z.string(),
 
-  inputs: Annotation[];
-  outputs: Annotation[];
-}
+  docstring: z.string(),
+  ai_docstring: z.string(),
 
-export interface ScoredSearchItem {
-  score: number;
-  node: NodeResponse;
-}
+  inputs: z.array(AnnotationSchema),
+  outputs: z.array(AnnotationSchema),
+});
+export type NodeResponse = z.infer<typeof NodeResponseSchema>;
 
-export interface SearchResults {
-  data: ScoredSearchItem[];
-  page: number;
-  limit: number;
-  total_items: number;
-  total_pages: number;
-}
+export const ScoredSearchItemSchema = z.object({
+  score: z.number(),
+  node: NodeResponseSchema,
+});
+export type ScoredSearchItem = z.infer<typeof ScoredSearchItemSchema>;
 
-export interface ScoredSearchResponse {
-  results: SearchResults;
-  aggregations?: Record<string, Record<string, number>> | null;
-}
+export const SearchResultsSchema = z.object({
+  data: z.array(ScoredSearchItemSchema),
+  page: z.number(),
+  limit: z.number(),
+  total_items: z.number(),
+  total_pages: z.number(),
+});
+export type SearchResults = z.infer<typeof SearchResultsSchema>;
 
-export interface NodeMetadata extends NodeResponse {
-  embedding?: number[] | null;
-}
+export const ScoredSearchResponseSchema = z.object({
+  results: SearchResultsSchema,
+  aggregations: z
+    .record(z.string(), z.record(z.string(), z.number()))
+    .nullish(),
+});
+export type ScoredSearchResponse = z.infer<typeof ScoredSearchResponseSchema>;
 
-export interface Filter {
-  category: string;
-  type: string[];
-  author: string[];
-  keywords: string[];
-  datatypes: string[];
-  units: string[];
-  quantities: string[];
-}
+export const NodeMetadataSchema = NodeResponseSchema.extend({
+  embedding: z.array(z.number()).nullish(),
+});
+export type NodeMetadata = z.infer<typeof NodeMetadataSchema>;
 
-export interface FilterOptions {
-  category: Record<string, string[]>;
-  type: NodeType[];
-  author: string[];
-  keywords: string[];
-  datatypes: string[];
-  units: string[];
-  quantities: string[];
-}
+export const FilterSchema = z.object({
+  category: z.string(),
+  type: z.array(z.string()),
+  author: z.array(z.string()),
+  keywords: z.array(z.string()),
+  datatypes: z.array(z.string()),
+  units: z.array(z.string()),
+  quantities: z.array(z.string()),
+});
+export type Filter = z.infer<typeof FilterSchema>;
+
+export const FilterOptionsSchema = z.object({
+  category: z.record(z.string(), z.array(z.string())),
+  type: z.array(NodeTypeSchema),
+  author: z.array(z.string()),
+  keywords: z.array(z.string()),
+  datatypes: z.array(z.string()),
+  units: z.array(z.string()),
+  quantities: z.array(z.string()),
+});
+export type FilterOptions = z.infer<typeof FilterOptionsSchema>;

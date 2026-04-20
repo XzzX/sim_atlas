@@ -125,7 +125,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
               <ClipboardCopyIcon /> Python Import
             </Button>
           )}
-          {node.node_type === NodeType.PYTHON_WORKFLOW_DEFINITION && (
+          {node.node_type === NodeType.python_workflow_definition && (
             <Button
               variant="outline"
               size="sm"
@@ -138,7 +138,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
               Web IDE
             </Button>
           )}
-          {node.node_type === NodeType.PYTHON_WORKFLOW_DEFINITION && (
+          {node.node_type === NodeType.python_workflow_definition && (
             <Button
               variant="outline"
               size="sm"

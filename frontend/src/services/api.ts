@@ -1,9 +1,12 @@
 import axios from "axios";
 import {
   NodeMetadata,
+  NodeMetadataSchema,
   ScoredSearchResponse,
+  ScoredSearchResponseSchema,
   Filter,
   FilterOptions,
+  FilterOptionsSchema,
 } from "../types/index";
 
 const API_BASE_URL = "/api/v1";
@@ -18,12 +21,12 @@ const api = axios.create({
 export const simAtlasAPI = {
   getNode: async (nodeHash: string): Promise<NodeMetadata> => {
     const response = await api.get(`/nodes/${nodeHash}`);
-    return response.data as NodeMetadata;
+    return NodeMetadataSchema.parse(response.data);
   },
 
   getFilterOptions: async (): Promise<FilterOptions> => {
     const response = await api.get("/filter_options");
-    return response.data as FilterOptions;
+    return FilterOptionsSchema.parse(response.data);
   },
 
   search: async (
@@ -40,7 +43,7 @@ export const simAtlasAPI = {
         params: { query, page, limit },
       },
     );
-    return response.data as ScoredSearchResponse;
+    return ScoredSearchResponseSchema.parse(response.data);
   },
 
   semanticSearch: async (
@@ -57,7 +60,7 @@ export const simAtlasAPI = {
         params: { query, page, limit },
       },
     );
-    return response.data as ScoredSearchResponse;
+    return ScoredSearchResponseSchema.parse(response.data);
   },
 };
 

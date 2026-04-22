@@ -330,22 +330,6 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
                     Output node for workflow results
                   </div>
                 </div>
-                <div
-                  key="control_conditional_expression"
-                  className="px-3 py-3 border-b border-gray-200 cursor-pointer hover:bg-blue-100 transition-colors bg-blue-50"
-                  onClick={() => {
-                    handleAdd("ConditionalExpressionNode", {
-                      label: "Conditional Expression",
-                    });
-                  }}
-                >
-                  <div className="font-medium text-gray-900 text-sm mb-1">
-                    Conditional Expression
-                  </div>
-                  <div className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
-                    Conditional expression node for workflow control
-                  </div>
-                </div>
               </>
             )}
           </div>

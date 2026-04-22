@@ -1,5 +1,5 @@
 import React from "react";
-import { NodeMetadata, NodeType } from "../types/index";
+import { type NodeMetadata, NodeType } from "../types/index";
 import {
   Calendar,
   ClipboardCopyIcon,

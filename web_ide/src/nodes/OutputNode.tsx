@@ -2,6 +2,7 @@ import { Position, type NodeProps, type Node } from "@xyflow/react";
 import { BaseNode, BaseNodeContent } from "@/components/base-node";
 import { LabeledHandle } from "@/components/labeled-handle";
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type OutputDataElement = {
   label: string;
 };

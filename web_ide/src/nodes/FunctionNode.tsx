@@ -40,6 +40,7 @@ const OutputHandle = (props: OutputHandleProps) => {
   return <LabeledHandle {...props} />;
 };
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type NodeData = {
   label: string;
   metadata: NodeMetadata;

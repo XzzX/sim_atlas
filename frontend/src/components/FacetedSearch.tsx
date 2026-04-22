@@ -1,5 +1,5 @@
 import React from "react";
-import { NodeType, FilterOptions, Filter } from "../types/index";
+import type { NodeType, FilterOptions, Filter } from "../types/index";
 import { CardContent } from "@/components/ui/card";
 import {
   Combobox,

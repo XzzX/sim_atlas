@@ -1,11 +1,11 @@
 import axios from "axios";
 import {
-  NodeMetadata,
+  type NodeMetadata,
   NodeMetadataSchema,
-  ScoredSearchResponse,
+  type ScoredSearchResponse,
   ScoredSearchResponseSchema,
-  Filter,
-  FilterOptions,
+  type Filter,
+  type FilterOptions,
   FilterOptionsSchema,
 } from "../types/index";
 

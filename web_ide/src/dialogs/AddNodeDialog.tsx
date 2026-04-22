@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { type NodeMetadata } from "../interfaces/BackendSchema";
+import { type NodeResponse } from "../interfaces/BackendSchema";
 import type { InputDataElement } from "../nodes/InputNode";
 import type { OutputDataElement } from "../nodes/OutputNode";
 import type { NodeData } from "../nodes/FunctionNode";
 import { type NodeFilter, nodeMatchesFilter } from "../interfaces/NodeFilter";
 
 interface AddNodeDialogProps {
-  allNodeMetadata: NodeMetadata[];
+  allNodeMetadata: NodeResponse[];
   isOpen: boolean;
   onClose: () => void;
   onAdd: (
@@ -52,7 +52,7 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
     onClose();
   }, [onClose]);
 
-  const getUniqueValues = (key: keyof Pick<NodeMetadata, "node_type">) => {
+  const getUniqueValues = (key: keyof Pick<NodeResponse, "node_type">) => {
     const values = new Set<string>();
     allNodeMetadata.forEach((node) => {
       values.add(node[key]);

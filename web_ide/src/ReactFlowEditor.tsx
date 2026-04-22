@@ -14,11 +14,12 @@ import type {
   OnEdgesChange,
   Edge,
   ReactFlowInstance,
+  Node,
 } from "@xyflow/react";
 import { type NodeData } from "./nodes/FunctionNode";
 import { type InputDataElement } from "./nodes/InputNode";
 import { type OutputDataElement } from "./nodes/OutputNode";
-import type { NodeMetadata } from "./interfaces/BackendSchema";
+import type { NodeResponse } from "./interfaces/BackendSchema";
 import { AddNodeDialog } from "./dialogs/AddNodeDialog";
 import { Button } from "./components/ui/button";
 import { ImportDialog } from "./dialogs/ImportDialog";
@@ -27,7 +28,7 @@ import dagre from "@dagrejs/dagre";
 import { type WorkflowNode, nodeTypes } from "./nodes/nodes";
 
 interface ReactFlowEditor {
-  allNodeMetadata: NodeMetadata[];
+  allNodeMetadata: NodeResponse[];
   nodes: WorkflowNode[];
   setNodes: Dispatch<SetStateAction<WorkflowNode[]>>;
   onNodesChange: OnNodesChange<WorkflowNode>;
@@ -53,7 +54,7 @@ export const ReactFlowEditor = ({
   } | null>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
-  const layoutGraph = () => {
+  const layoutGraph = useCallback(() => {
     if (!rfInstance) return;
     const nodes = rfInstance.getNodes();
     const edges = rfInstance.getEdges();
@@ -95,13 +96,13 @@ export const ReactFlowEditor = ({
     rfInstance.fitView().catch(() => {
       /* empty */
     });
-  };
+  }, [rfInstance]);
 
   useEffect(() => {
     if (rfInstance) {
       layoutGraph();
     }
-  }, [rfInstance]);
+  }, [rfInstance, layoutGraph]);
 
   const onConnect: OnConnect = useCallback(
     (params) => {

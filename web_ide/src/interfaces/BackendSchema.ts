@@ -104,13 +104,13 @@ export const NodeMetadataSchema = NodeResponseSchema.extend({
 export type NodeMetadata = z.infer<typeof NodeMetadataSchema>;
 
 export const FilterSchema = z.object({
-  category: z.string(),
-  type: z.array(z.string()),
-  author: z.array(z.string()),
-  keywords: z.array(z.string()),
-  datatypes: z.array(z.string()),
-  units: z.array(z.string()),
-  quantities: z.array(z.string()),
+  category: z.string().nullish(),
+  type: z.array(z.string()).nullish(),
+  author: z.array(z.string()).nullish(),
+  keywords: z.array(z.string()).nullish(),
+  datatypes: z.array(z.string()).nullish(),
+  units: z.array(z.string()).nullish(),
+  quantities: z.array(z.string()).nullish(),
 });
 export type Filter = z.infer<typeof FilterSchema>;
 

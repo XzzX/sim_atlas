@@ -5,25 +5,23 @@ import {
   type PythonWorkflowDefinitionWorkflow,
 } from "./interfaces/PythonWorkflowDefinitionSchema";
 import type { Edge } from "@xyflow/react";
-import type { NodeMetadata } from "./interfaces/BackendSchema";
+import type { NodeResponse } from "./interfaces/BackendSchema";
 
 function convertToNode(
   n: PythonWorkflowDefinitionNode,
-  allNodeMetadata: NodeMetadata[],
+  allNodeMetadata: NodeResponse[],
 ): WorkflowNode | null {
   if (n.type === "function") {
-    const metadata = allNodeMetadata.find(
-      (node) => node.python_import === n.value,
-    );
-    if (!metadata) {
+    const meta = allNodeMetadata.find((m) => m.python_import === n.value);
+    if (!meta) {
       console.warn(`No metadata found for node with python_import: ${n.value}`);
       return null;
     }
     return {
       id: n.id.toString(),
       data: {
-        label: n.value ?? metadata.python_import?.split(".").pop() ?? "",
-        metadata: metadata,
+        label: n.value ?? meta.python_import.split(".").pop() ?? "",
+        metadata: meta,
       },
       position: { x: Math.random() * 400, y: Math.random() * 400 }, // Placeholder positions
       type: "FunctionNode",
@@ -55,7 +53,7 @@ function convertToNode(
 
 export function toNodesAndEdges(
   workflow: PythonWorkflowDefinitionWorkflow,
-  allNodeMetadata: NodeMetadata[],
+  allNodeMetadata: NodeResponse[],
 ): {
   nodes: WorkflowNode[];
   edges: Edge[];
@@ -84,7 +82,7 @@ export function toNodesAndEdges(
 
 export function convertWorkflow(
   text: string,
-  allNodeMetadata: NodeMetadata[],
+  allNodeMetadata: NodeResponse[],
 ): { nodes: WorkflowNode[]; edges: Edge[] } {
   try {
     const pwd: PythonWorkflowDefinitionWorkflow =

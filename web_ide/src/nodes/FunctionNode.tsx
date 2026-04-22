@@ -12,7 +12,7 @@ import {
   type HandleType,
   type HandleProps,
 } from "@xyflow/react";
-import type { Annotation, NodeMetadata } from "../interfaces/BackendSchema";
+import type { Annotation, NodeResponse } from "../interfaces/BackendSchema";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -43,7 +43,7 @@ const OutputHandle = (props: OutputHandleProps) => {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type NodeData = {
   label: string;
-  metadata: NodeMetadata;
+  metadata: NodeResponse;
 };
 export type FunctionNodeType = Node<NodeData>;
 export function FunctionNode({ data }: NodeProps<FunctionNodeType>) {
@@ -62,8 +62,8 @@ export function FunctionNode({ data }: NodeProps<FunctionNodeType>) {
           <div className="flex-1">
             {data.metadata.inputs.map((value, index) => (
               <InputHandle
-                id={value.label}
-                title={value.label}
+                id={value.label ?? index.toString()}
+                title={value.label ?? index.toString()}
                 type="target"
                 position={Position.Left}
                 key={index}
@@ -75,8 +75,8 @@ export function FunctionNode({ data }: NodeProps<FunctionNodeType>) {
           <div className="flex-1">
             {data.metadata.outputs.map((value, index) => (
               <OutputHandle
-                id={value.label}
-                title={value.label}
+                id={value.label ?? index.toString()}
+                title={value.label ?? index.toString()}
                 type="source"
                 position={Position.Right}
                 key={index}

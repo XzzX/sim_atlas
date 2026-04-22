@@ -1,4 +1,4 @@
-import type { Annotation, NodeMetadata } from "../interfaces/BackendSchema";
+import type { Annotation, NodeResponse } from "../interfaces/BackendSchema";
 
 export interface NodeFilter {
   datatype?: string;
@@ -9,7 +9,7 @@ export interface NodeFilter {
 }
 
 export function nodeMatchesFilter(
-  node: NodeMetadata,
+  node: NodeResponse,
   filter: Partial<NodeFilter>,
 ): boolean {
   if (filter.nodeType && node.node_type !== filter.nodeType) {

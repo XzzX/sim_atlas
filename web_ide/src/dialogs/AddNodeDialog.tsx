@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { type NodeMetadata } from "@/interfaces/NodeMetadata";
-import { type NodeFilter, nodeMatchesFilter } from "@/interfaces/NodeFilter";
-import type { NodeData } from "@/nodes/FunctionNode";
-import type { InputDataElement } from "@/nodes/InputNode";
-import type { OutputDataElement } from "@/nodes/OutputNode";
+import { type NodeMetadata } from "../interfaces/BackendSchema";
+import type { InputDataElement } from "../nodes/InputNode";
+import type { OutputDataElement } from "../nodes/OutputNode";
+import type { NodeData } from "../nodes/FunctionNode";
+import { type NodeFilter, nodeMatchesFilter } from "../interfaces/NodeFilter";
 
 interface AddNodeDialogProps {
   allNodeMetadata: NodeMetadata[];
@@ -338,7 +338,7 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
           {filteredNodes.length > 0 ? (
             filteredNodes.map((node) => (
               <div
-                key={node.source_code_hash}
+                key={node.id}
                 className="px-3 py-3 border-b border-gray-200 cursor-pointer hover:bg-gray-100 last:border-b-0 transition-colors"
                 onClick={() => {
                   handleAdd("FunctionNode", {

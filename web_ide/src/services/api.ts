@@ -4,7 +4,7 @@ import type {
   ScoredSearchResponse,
   Filter,
   FilterOptions,
-} from "../types/index";
+} from "../interfaces/BackendSchema";
 
 const API_BASE_URL = "/api/v1";
 

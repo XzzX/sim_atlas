@@ -1,4 +1,4 @@
-import type { Annotation, NodeMetadata } from "./NodeMetadata";
+import type { Annotation, NodeMetadata } from "../interfaces/BackendSchema";
 
 export interface NodeFilter {
   datatype?: string;

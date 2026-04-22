@@ -4,9 +4,10 @@ import { useNodesState, useEdgesState, type Edge } from "@xyflow/react";
 import { allNodeMetadata } from "./initialData";
 import { convertWorkflow } from "./importWorkflow";
 import { simAtlasAPI } from "./services/api";
+import type { WorkflowNode } from "./nodes/nodes";
 
 const fetchInitialNodesAndEdges = async (): Promise<{
-  nodes: WorkflowNodeType[];
+  nodes: WorkflowNode[];
   edges: Edge[];
 }> => {
   const urlSearchString = window.location.search;

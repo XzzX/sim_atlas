@@ -12,7 +12,7 @@ import {
   type HandleType,
   type HandleProps,
 } from "@xyflow/react";
-import type { Annotation, NodeMetadata } from "../interfaces/NodeMetadata";
+import type { Annotation, NodeMetadata } from "../interfaces/BackendSchema";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 

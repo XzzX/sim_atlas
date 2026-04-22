@@ -15,7 +15,7 @@ const AllowableDefaultsSchema: z.ZodType<AllowableDefaults> = z.lazy(() =>
     z.number(),
     z.boolean(),
     z.null(),
-    z.record(AllowableDefaultsSchema),
+    z.record(z.string(), AllowableDefaultsSchema),
     z.array(AllowableDefaultsSchema),
   ]),
 );

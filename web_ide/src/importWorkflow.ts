@@ -1,4 +1,3 @@
-import type { NodeMetadata } from "./interfaces/NodeMetadata";
 import type { WorkflowNode } from "./nodes/nodes";
 import {
   type PythonWorkflowDefinitionNode,
@@ -6,6 +5,7 @@ import {
   type PythonWorkflowDefinitionWorkflow,
 } from "./interfaces/PythonWorkflowDefinitionSchema";
 import type { Edge } from "@xyflow/react";
+import type { NodeMetadata } from "./interfaces/BackendSchema";
 
 function convertToNode(
   n: PythonWorkflowDefinitionNode,
@@ -34,7 +34,7 @@ function convertToNode(
       id: n.id.toString(),
       data: {
         label: n.name ?? "Input",
-        value: n.value ?? "",
+        value: n.value != null ? JSON.stringify(n.value) : "",
       },
       position: { x: Math.random() * 400, y: Math.random() * 400 }, // Placeholder positions
       type: "InputNode",

@@ -18,7 +18,7 @@ import type {
 import { type NodeData } from "./nodes/FunctionNode";
 import { type InputDataElement } from "./nodes/InputNode";
 import { type OutputDataElement } from "./nodes/OutputNode";
-import type { NodeMetadata } from "./interfaces/NodeMetadata";
+import type { NodeMetadata } from "./interfaces/BackendSchema";
 import { AddNodeDialog } from "./dialogs/AddNodeDialog";
 import { Button } from "./components/ui/button";
 import { ImportDialog } from "./dialogs/ImportDialog";
@@ -30,7 +30,7 @@ interface ReactFlowEditor {
   allNodeMetadata: NodeMetadata[];
   nodes: WorkflowNode[];
   setNodes: Dispatch<SetStateAction<WorkflowNode[]>>;
-  onNodesChange: OnNodesChange;
+  onNodesChange: OnNodesChange<WorkflowNode>;
   edges: Edge[];
   setEdges: Dispatch<SetStateAction<Edge[]>>;
   onEdgesChange: OnEdgesChange;
@@ -89,8 +89,8 @@ export const ReactFlowEditor = ({
       return newNode;
     });
 
-    setNodes(newNodes);
-    setEdges(edges);
+    rfInstance.setNodes(newNodes);
+    rfInstance.setEdges(edges);
 
     rfInstance.fitView().catch(() => {
       /* empty */

@@ -5,23 +5,14 @@ import { type NodeFilter, nodeMatchesFilter } from "@/interfaces/NodeFilter";
 import type { NodeData } from "@/nodes/FunctionNode";
 import type { InputDataElement } from "@/nodes/InputNode";
 import type { OutputDataElement } from "@/nodes/OutputNode";
-import type { ConditionalExpressionDataElement } from "@/nodes/ConditionalExpressionNode";
 
 interface AddNodeDialogProps {
   allNodeMetadata: NodeMetadata[];
   isOpen: boolean;
   onClose: () => void;
   onAdd: (
-    type:
-      | "InputNode"
-      | "OutputNode"
-      | "ConditionalExpressionNode"
-      | "FunctionNode",
-    nodeData:
-      | InputDataElement
-      | OutputDataElement
-      | ConditionalExpressionDataElement
-      | NodeData,
+    type: "InputNode" | "OutputNode" | "FunctionNode",
+    nodeData: InputDataElement | OutputDataElement | NodeData,
   ) => void;
 }
 
@@ -44,16 +35,8 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
   };
 
   const handleAdd = (
-    type:
-      | "InputNode"
-      | "OutputNode"
-      | "ConditionalExpressionNode"
-      | "FunctionNode",
-    data:
-      | InputDataElement
-      | OutputDataElement
-      | ConditionalExpressionDataElement
-      | NodeData,
+    type: "InputNode" | "OutputNode" | "FunctionNode",
+    data: InputDataElement | OutputDataElement | NodeData,
   ) => {
     const label =
       prompt("Please enter a name for the node", data.label) ?? data.label;

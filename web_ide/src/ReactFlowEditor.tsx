@@ -25,7 +25,6 @@ import { ImportDialog } from "./dialogs/ImportDialog";
 import { convertWorkflow } from "./importWorkflow";
 import dagre from "@dagrejs/dagre";
 import { type WorkflowNode, nodeTypes } from "./nodes/nodes";
-import type { ConditionalExpressionDataElement } from "./nodes/ConditionalExpressionNode";
 
 interface ReactFlowEditor {
   allNodeMetadata: NodeMetadata[];
@@ -112,16 +111,8 @@ export const ReactFlowEditor = ({
   );
 
   const onAddNode = (
-    type:
-      | "InputNode"
-      | "OutputNode"
-      | "ConditionalExpressionNode"
-      | "FunctionNode",
-    data:
-      | InputDataElement
-      | OutputDataElement
-      | ConditionalExpressionDataElement
-      | NodeData,
+    type: "InputNode" | "OutputNode" | "FunctionNode",
+    data: InputDataElement | OutputDataElement | NodeData,
   ) => {
     if (!rfInstance) {
       return;

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
+import { Position, type NodeProps, type Node } from "@xyflow/react";
 import {
   BaseNode,
   BaseNodeContent,

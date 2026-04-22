@@ -1,12 +1,5 @@
-import React, { useState } from "react";
-import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
-import {
-  BaseNode,
-  BaseNodeContent,
-  BaseNodeHeader,
-  BaseNodeHeaderTitle,
-} from "@/components/base-node";
-import { BaseHandle } from "@/components/base-handle";
+import { Position, type NodeProps, type Node } from "@xyflow/react";
+import { BaseNode, BaseNodeContent } from "@/components/base-node";
 import { LabeledHandle } from "@/components/labeled-handle";
 
 export type OutputDataElement = {

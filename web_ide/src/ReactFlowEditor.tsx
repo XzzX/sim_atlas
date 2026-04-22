@@ -45,7 +45,10 @@ export const ReactFlowEditor = ({
   setEdges,
   onEdgesChange,
 }: ReactFlowEditor) => {
-  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance<
+    WorkflowNode,
+    Edge
+  > | null>(null);
   const [isAddNodeDialogOpen, setIsAddNodeDialogOpen] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState<{
     x: number;

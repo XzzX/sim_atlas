@@ -3,7 +3,7 @@ import React, { useState, useCallback } from "react";
 interface ImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoad: (text: string) => void;
+  onLoad: (text: string) => void | Promise<void>;
 }
 
 export const ImportDialog: React.FunctionComponent<ImportDialogProps> = ({

@@ -14,7 +14,6 @@ import type {
   OnEdgesChange,
   Edge,
   ReactFlowInstance,
-  Node,
 } from "@xyflow/react";
 import { type NodeData } from "./nodes/FunctionNode";
 import { type InputDataElement } from "./nodes/InputNode";
@@ -134,12 +133,10 @@ export const ReactFlowEditor = ({
   };
 
   const onImport = (text: string) => {
-    const { nodes, edges } = convertWorkflow(text, allNodeMetadata);
-    rfInstance?.setNodes(nodes);
-    rfInstance?.setEdges(edges);
-    // setNodes(nodes);
-    // setEdges(edges);
-    layoutGraph();
+    void convertWorkflow(text).then(({ nodes, edges }) => {
+      setNodes(nodes);
+      setEdges(edges);
+    });
   };
 
   const onExport = useCallback(() => {
@@ -172,7 +169,7 @@ export const ReactFlowEditor = ({
 
   return (
     <div className="w-full h-screen">
-      <ReactFlow
+      <ReactFlow<WorkflowNode, Edge>
         nodeTypes={nodeTypes}
         nodes={nodes}
         onNodesChange={onNodesChange}

@@ -5,14 +5,16 @@ import {
   type PythonWorkflowDefinitionWorkflow,
 } from "./interfaces/PythonWorkflowDefinitionSchema";
 import type { Edge } from "@xyflow/react";
-import type { NodeResponse } from "./interfaces/BackendSchema";
+import { simAtlasAPI } from "./services/api";
 
-function convertToNode(
+async function convertToNode(
   n: PythonWorkflowDefinitionNode,
-  allNodeMetadata: NodeResponse[],
-): WorkflowNode | null {
+): Promise<WorkflowNode | null> {
   if (n.type === "function") {
-    const meta = allNodeMetadata.find((m) => m.python_import === n.value);
+    const response = await simAtlasAPI.search(n.value, null);
+    const meta = response.results.data.find(
+      (item) => item.node.python_import === n.value,
+    )?.node;
     if (!meta) {
       console.warn(`No metadata found for node with python_import: ${n.value}`);
       return null;
@@ -51,16 +53,15 @@ function convertToNode(
   return null;
 }
 
-export function toNodesAndEdges(
+export async function toNodesAndEdges(
   workflow: PythonWorkflowDefinitionWorkflow,
-  allNodeMetadata: NodeResponse[],
-): {
+): Promise<{
   nodes: WorkflowNode[];
   edges: Edge[];
-} {
-  const nodes = workflow.nodes
-    .map((n) => convertToNode(n, allNodeMetadata))
-    .filter((n) => n !== null);
+}> {
+  const nodes = (
+    await Promise.all(workflow.nodes.map((n) => convertToNode(n)))
+  ).filter((n) => n !== null);
 
   const filtered_edges = workflow.edges.filter(
     (e) =>
@@ -80,14 +81,13 @@ export function toNodesAndEdges(
   return { nodes, edges };
 }
 
-export function convertWorkflow(
+export async function convertWorkflow(
   text: string,
-  allNodeMetadata: NodeResponse[],
-): { nodes: WorkflowNode[]; edges: Edge[] } {
+): Promise<{ nodes: WorkflowNode[]; edges: Edge[] }> {
   try {
     const pwd: PythonWorkflowDefinitionWorkflow =
       PythonWorkflowDefinitionWorkflowSchema.parse(JSON.parse(text));
-    return toNodesAndEdges(pwd, allNodeMetadata);
+    return toNodesAndEdges(pwd);
   } catch (error) {
     console.error("Failed to convert workflow:", error);
   }

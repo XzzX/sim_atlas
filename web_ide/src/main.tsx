@@ -22,9 +22,8 @@ const fetchInitialNodesAndEdges = async (): Promise<{
   if (!wf_hash) return { nodes: [], edges: [] };
   const source_code = await simAtlasAPI.getNode(wf_hash);
   console.log(source_code);
-  const { nodes, edges } = convertWorkflow(
+  const { nodes, edges } = await convertWorkflow(
     source_code.source_code,
-    allNodeMetadata,
   );
   return { nodes, edges };
 };

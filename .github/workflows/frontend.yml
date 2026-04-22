@@ -3,8 +3,12 @@ name: frontend
 on:
   push:
     branches: ["*"]
+    paths:
+      - "frontend/**"
   pull_request:
     branches: ["*"]
+    paths:
+      - "frontend/**"
 
 # Cancel in-progress runs when a new commit is pushed
 concurrency:

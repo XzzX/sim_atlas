@@ -3,8 +3,12 @@ name: toolkit
 on:
   push:
     branches: ["*"]
+    paths:
+      - "toolkit/**"
   pull_request:
     branches: ["*"]
+    paths:
+      - "toolkit/**"
 
 # Cancel in-progress runs when a new commit is pushed
 concurrency:

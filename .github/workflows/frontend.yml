@@ -42,7 +42,7 @@ jobs:
 
       # Check TypeScript types without emitting files
       - name: Type check
-        run: npx tsc --noEmit
+        run: npm run type-check
         working-directory: ./frontend
 
   build:

@@ -3,12 +3,8 @@ name: backend
 on:
   push:
     branches: ["*"]
-    paths:
-      - "backend/**"
   pull_request:
     branches: ["*"]
-    paths:
-      - "backend/**"
 
 # Cancel in-progress runs when a new commit is pushed
 concurrency:

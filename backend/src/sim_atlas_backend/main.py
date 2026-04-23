@@ -12,7 +12,6 @@ from fastapi_mcp import FastApiMCP
 
 from sim_atlas_backend.models import (
     AgentRequest,
-    AgentResponse,
     Filter,
     FilterOptions,
     NodeMetadata,
@@ -21,7 +20,7 @@ from sim_atlas_backend.models import (
     ScoredSearchResponse,
 )
 
-from .agent import run_agent, run_agent_stream
+from .agent import run_agent_stream
 from .security import Creator, get_current_user
 from .storage_interface import StorageInterface, get_storage_backend
 
@@ -180,19 +179,6 @@ async def enrich(
     _: Annotated[Creator, Depends(get_current_user)],
 ) -> None:
     storage.enrich()
-
-
-@api_router.post(
-    "/agent",
-    response_model=AgentResponse,
-    tags=["ai"],
-    operation_id="agent",
-)
-async def agent(
-    request: AgentRequest,
-    storage: Annotated[StorageInterface, Depends(get_storage)],
-) -> AgentResponse:
-    return run_agent(request, storage)
 
 
 @api_router.post(

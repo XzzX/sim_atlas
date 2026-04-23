@@ -4,7 +4,7 @@ import re
 from collections.abc import AsyncGenerator
 from typing import Any, cast
 
-from openai import AsyncOpenAI, OpenAI
+from openai import AsyncOpenAI
 from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionMessageToolCall,
@@ -13,7 +13,6 @@ from openai.types.chat import (
 
 from .models import (
     AgentRequest,
-    AgentResponse,
     Annotation,
     Filter,
     GraphEdgeContext,
@@ -638,78 +637,6 @@ def _execute_tool(
     if tool_name in _SEARCH_TOOLS:
         return _execute_search_tool(tool_name, tool_args, storage)
     return _execute_graph_tool(tool_name, tool_args, storage, scratch)
-
-
-def run_agent(request: AgentRequest, storage: StorageInterface) -> AgentResponse:
-    client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
-    scratch = _ScratchGraph(request.nodes, request.edges)
-
-    messages: list[ChatCompletionMessageParam] = [
-        {"role": "system", "content": _build_system_prompt(request)},
-        {"role": "user", "content": request.query},
-    ]
-
-    final_message = "Done."
-    max_iterations = 10
-    for _ in range(max_iterations):
-        response = client.chat.completions.create(
-            model=settings.llm_chat_model,
-            messages=messages,
-            tools=_TOOLS,
-            tool_choice="auto",
-        )
-
-        choice = response.choices[0]
-        messages.append(
-            cast(
-                ChatCompletionMessageParam,
-                choice.message.model_dump(exclude_unset=True),
-            )
-        )
-        print(
-            f"LLM response:\n{json.dumps(choice.message.model_dump(exclude_unset=True), indent=2)}"
-        )
-
-        if not choice.message.tool_calls:
-            final_message = choice.message.content or "Done."
-            validation_errors = _validate_graph(scratch, storage)
-            if not validation_errors:
-                break
-            # Re-enter the loop so the agent can fix the problems.
-            error_text = "\n".join(f"- {e}" for e in validation_errors)
-            logger.debug(
-                "Graph validation errors; asking agent to correct:\n%s", error_text
-            )
-            messages.append(
-                {
-                    "role": "user",
-                    "content": (
-                        "The current graph has validation errors. "
-                        "Please fix them using the available tools:\n" + error_text
-                    ),
-                }
-            )
-            continue
-
-        for tc in choice.message.tool_calls:
-            if not isinstance(tc, ChatCompletionMessageToolCall):
-                continue
-            args: dict[str, Any] = json.loads(tc.function.arguments)
-            logger.debug("Tool call: %s(%s)", tc.function.name, args)
-            result = _execute_tool(tc.function.name, args, storage, scratch)
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": result,
-                }
-            )
-
-    return AgentResponse(
-        nodes=list(scratch.nodes.values()),
-        edges=scratch.edges,
-        message=final_message,
-    )
 
 
 _TOOL_SUMMARIES: dict[str, str] = {

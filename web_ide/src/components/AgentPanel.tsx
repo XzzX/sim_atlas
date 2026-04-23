@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   ArrowRight,
+  ShieldAlert,
   Trash2,
   SendHorizontal,
   Loader2,
@@ -41,7 +42,8 @@ type StepItem =
       name: string;
       args: Record<string, unknown>;
       summary?: string;
-    };
+    }
+  | { kind: "validation"; errors: string[] };
 
 interface ConversationTurn {
   role: "user" | "assistant";
@@ -157,7 +159,7 @@ function buildAgentNodes(nodes: WorkflowNode[]): GraphNodeContext[] {
         atlas_node_id: null,
         name: d.label,
         inputs: [],
-        outputs: [{ label: d.label }],
+        outputs: [{ label: "output" }],
       };
     }
     // OutputNode
@@ -166,7 +168,7 @@ function buildAgentNodes(nodes: WorkflowNode[]): GraphNodeContext[] {
       graph_id: n.id,
       atlas_node_id: null,
       name: d.label,
-      inputs: [{ label: d.label }],
+      inputs: [{ label: "input" }],
       outputs: [],
     };
   });
@@ -385,6 +387,11 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                 layoutRef.current();
               }, 80);
             });
+          } else if (event.type === "validation") {
+            updateAssistant((t) => ({
+              ...t,
+              steps: [...t.steps, { kind: "validation", errors: event.errors }],
+            }));
           } else if (event.type === "error") {
             updateAssistant((t) => ({ ...t, error: event.message }));
           }
@@ -453,6 +460,44 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
               <div className="space-y-2">
                 {/* Tool steps */}
                 {turn.steps.map((step, j) => {
+                  if (step.kind === "validation") {
+                    const vKey = `v-${i}-${j}`;
+                    const vExpanded = expandedSteps.has(vKey);
+                    return (
+                      <div
+                        key={j}
+                        className="rounded-md border border-orange-500/40 bg-orange-500/10"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleStep(vKey)}
+                          className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs text-orange-600 dark:text-orange-400 hover:text-foreground transition-colors"
+                        >
+                          <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                          <span className="font-medium">
+                            Fixing graph errors
+                          </span>
+                          <ChevronDown
+                            className={`w-3 h-3 ml-auto transition-transform ${
+                              vExpanded ? "rotate-180" : ""
+                            }`}
+                          />
+                        </button>
+                        {vExpanded && (
+                          <ul className="px-3 pb-3 border-t border-orange-500/30 pt-2 space-y-1">
+                            {step.errors.map((err, k) => (
+                              <li
+                                key={k}
+                                className="text-xs text-orange-700 dark:text-orange-300 break-all"
+                              >
+                                {err}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  }
                   if (step.kind === "reasoning") {
                     const rKey = `r-${i}-${j}`;
                     const rExpanded = expandedSteps.has(rKey);

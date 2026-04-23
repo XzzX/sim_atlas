@@ -419,7 +419,7 @@ def _handle_add_node(
             atlas_node_id=None,
             name=label_in,
             inputs=[],
-            outputs=[Annotation(label=label_in)],
+            outputs=[Annotation(label="output")],
         )
         return json.dumps({"graph_id": graph_id})
 
@@ -430,7 +430,7 @@ def _handle_add_node(
         graph_id=graph_id,
         atlas_node_id=None,
         name=label_out,
-        inputs=[Annotation(label=label_out)],
+        inputs=[Annotation(label="input")],
         outputs=[],
     )
     return json.dumps({"graph_id": graph_id})
@@ -492,6 +492,82 @@ def _execute_graph_tool(
 _SEARCH_TOOLS = {"search_nodes", "find_compatible_nodes", "get_node_details"}
 
 
+def _validate_io_node(
+    gid: str,
+    node: GraphNodeContext,
+    output_labels: dict[str, set[str]],
+    input_labels: dict[str, set[str]],
+) -> list[str]:
+    """Check structural constraints for input/output nodes (atlas_node_id is None)."""
+    errors: list[str] = []
+    if not node.inputs and node.outputs and output_labels[gid] != {"output"}:
+        errors.append(
+            f"Input node '{gid}' must have exactly one output port named "
+            f"'output', but has: {sorted(output_labels[gid])}."
+        )
+    elif not node.outputs and node.inputs and input_labels[gid] != {"input"}:
+        errors.append(
+            f"Output node '{gid}' must have exactly one input port named "
+            f"'input', but has: {sorted(input_labels[gid])}."
+        )
+    return errors
+
+
+def _validate_graph(scratch: _ScratchGraph, storage: StorageInterface) -> list[str]:
+    """Return a list of validation error strings (empty means valid)."""
+    errors: list[str] = []
+
+    # Build port-label lookup sets for every node in the graph.
+    output_labels: dict[str, set[str]] = {}
+    input_labels: dict[str, set[str]] = {}
+    for gid, node in scratch.nodes.items():
+        output_labels[gid] = {a.label for a in node.outputs if a.label is not None}
+        input_labels[gid] = {a.label for a in node.inputs if a.label is not None}
+
+    # Check every catalog-backed node exists in storage.
+    # Also verify that input/output nodes have the correct port structure.
+    for gid, node in scratch.nodes.items():
+        if node.atlas_node_id is not None:
+            if not storage.exists(node.atlas_node_id):
+                errors.append(
+                    f"Node '{gid}' references atlas_node_id '{node.atlas_node_id}' "
+                    "which no longer exists in the catalog."
+                )
+        else:
+            errors.extend(_validate_io_node(gid, node, output_labels, input_labels))
+
+    # Check every edge references real nodes and real ports.
+    for edge in scratch.edges:
+        src = edge.source_graph_id
+        tgt = edge.target_graph_id
+
+        if src not in scratch.nodes:
+            errors.append(
+                f"Edge references source node '{src}' which is not in the graph."
+            )
+        else:
+            available = sorted(output_labels[src])
+            if edge.source_handle not in output_labels[src]:
+                errors.append(
+                    f"Edge source handle '{edge.source_handle}' does not exist on "
+                    f"node '{src}'. Available output ports: {available}."
+                )
+
+        if tgt not in scratch.nodes:
+            errors.append(
+                f"Edge references target node '{tgt}' which is not in the graph."
+            )
+        else:
+            available_in = sorted(input_labels[tgt])
+            if edge.target_handle not in input_labels[tgt]:
+                errors.append(
+                    f"Edge target handle '{edge.target_handle}' does not exist on "
+                    f"node '{tgt}'. Available input ports: {available_in}."
+                )
+
+    return errors
+
+
 def _execute_tool(
     tool_name: str,
     tool_args: dict[str, Any],
@@ -535,7 +611,24 @@ def run_agent(request: AgentRequest, storage: StorageInterface) -> AgentResponse
 
         if not choice.message.tool_calls:
             final_message = choice.message.content or "Done."
-            break
+            validation_errors = _validate_graph(scratch, storage)
+            if not validation_errors:
+                break
+            # Re-enter the loop so the agent can fix the problems.
+            error_text = "\n".join(f"- {e}" for e in validation_errors)
+            logger.debug(
+                "Graph validation errors; asking agent to correct:\n%s", error_text
+            )
+            messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "The current graph has validation errors. "
+                        "Please fix them using the available tools:\n" + error_text
+                    ),
+                }
+            )
+            continue
 
         for tc in choice.message.tool_calls:
             if not isinstance(tc, ChatCompletionMessageToolCall):
@@ -633,7 +726,26 @@ async def run_agent_stream(
 
             if not choice.message.tool_calls:
                 final_message = choice.message.content or "Done."
-                break
+                validation_errors = _validate_graph(scratch, storage)
+                if not validation_errors:
+                    break
+                # Emit a validation event so the UI can show a correction round.
+                yield _sse({"type": "validation", "errors": validation_errors})
+                error_text = "\n".join(f"- {e}" for e in validation_errors)
+                logger.debug(
+                    "Graph validation errors (stream); asking agent to correct:\n%s",
+                    error_text,
+                )
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "The current graph has validation errors. "
+                            "Please fix them using the available tools:\n" + error_text
+                        ),
+                    }
+                )
+                continue
 
             reasoning = (
                 getattr(choice.message, "reasoning", None)

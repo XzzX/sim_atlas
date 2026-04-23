@@ -77,7 +77,7 @@ export const simAtlasAPI = {
           const parsed = AgentSSEEventSchema.parse(JSON.parse(line.slice(6)));
           onEvent(parsed);
         } catch {
-          // ignore malformed SSE lines
+          console.error("Failed to parse SSE event:", line);
         }
       }
     }

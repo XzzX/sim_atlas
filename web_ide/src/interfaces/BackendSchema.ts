@@ -171,5 +171,6 @@ export const AgentSSEEventSchema = z.discriminatedUnion("type", [
     edges: z.array(GraphEdgeContextSchema),
   }),
   z.object({ type: z.literal("error"), message: z.string() }),
+  z.object({ type: z.literal("validation"), errors: z.array(z.string()) }),
 ]);
 export type AgentSSEEvent = z.infer<typeof AgentSSEEventSchema>;

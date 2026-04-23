@@ -12,8 +12,8 @@ from openai.types.chat import (
 from ..models import AgentRequest, Filter, GraphNodeContext
 from ..settings import settings
 from ..storage_interface import StorageInterface
-from ._graph import _ScratchGraph, _execute_graph_tool, _validate_graph
-from ._tools import _TOOLS, _tool_summary
+from ._graph import ScratchGraph, execute_graph_tool, validate_graph
+from ._tools import TOOLS, tool_summary
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -149,11 +149,11 @@ def _execute_tool(
     tool_name: str,
     tool_args: dict[str, Any],
     storage: StorageInterface,
-    scratch: _ScratchGraph,
+    scratch: ScratchGraph,
 ) -> str:
     if tool_name in _SEARCH_TOOLS:
         return _execute_search_tool(tool_name, tool_args, storage)
-    return _execute_graph_tool(tool_name, tool_args, storage, scratch)
+    return execute_graph_tool(tool_name, tool_args, storage, scratch)
 
 
 def _sse(event: dict[str, Any]) -> str:
@@ -165,7 +165,7 @@ async def run_agent_stream(
 ) -> AsyncGenerator[str, None]:
     """Async generator that streams SSE events while running the agent loop."""
     client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
-    scratch = _ScratchGraph(request.nodes, request.edges)
+    scratch = ScratchGraph(request.nodes, request.edges)
 
     messages: list[ChatCompletionMessageParam] = [
         {"role": "system", "content": _build_system_prompt(request)},
@@ -179,7 +179,7 @@ async def run_agent_stream(
             response = await client.chat.completions.create(
                 model=settings.llm_chat_model,
                 messages=messages,
-                tools=_TOOLS,
+                tools=TOOLS,
                 tool_choice="auto",
             )
             choice = response.choices[0]
@@ -195,7 +195,7 @@ async def run_agent_stream(
 
             if not choice.message.tool_calls:
                 final_message = choice.message.content or "Done."
-                validation_errors = _validate_graph(scratch, storage)
+                validation_errors = validate_graph(scratch, storage)
                 if not validation_errors:
                     break
                 # Emit a validation event so the UI can show a correction round.
@@ -231,7 +231,7 @@ async def run_agent_stream(
                     {"type": "tool_call", "name": tc.function.name, "args": args}
                 )
                 result = _execute_tool(tc.function.name, args, storage, scratch)
-                summary = _tool_summary(tc.function.name, result)
+                summary = tool_summary(tc.function.name, result)
                 yield _sse(
                     {
                         "type": "tool_result",

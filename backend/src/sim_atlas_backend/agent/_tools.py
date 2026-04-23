@@ -3,7 +3,7 @@ from typing import Any, cast
 
 from openai.types.chat import ChatCompletionToolParam
 
-_TOOLS: list[ChatCompletionToolParam] = [
+TOOLS: list[ChatCompletionToolParam] = [
     {
         "type": "function",
         "function": {
@@ -248,7 +248,7 @@ _SEARCH_TOOL_NAMES = {"search_nodes", "find_compatible_nodes"}
 _ADD_NODE_TOOL_NAMES = {"add_function_node", "add_input_node", "add_output_node"}
 
 
-def _tool_summary(tool_name: str, result_json: str) -> str:  # noqa: PLR0911
+def tool_summary(tool_name: str, result_json: str) -> str:  # noqa: PLR0911
     """Return a short human-readable summary of a tool result."""
     try:
         raw: Any = json.loads(result_json)

@@ -13,7 +13,7 @@ def _slugify(text: str) -> str:
     return slug.strip("_") or "node"
 
 
-class _ScratchGraph:
+class ScratchGraph:
     def __init__(
         self, nodes: list[GraphNodeContext], edges: list[GraphEdgeContext]
     ) -> None:
@@ -35,7 +35,7 @@ def _handle_add_node(
     tool_name: str,
     tool_args: dict[str, Any],
     storage: StorageInterface,
-    scratch: _ScratchGraph,
+    scratch: ScratchGraph,
 ) -> str:
     if tool_name == "add_function_node":
         atlas_node_id: str = tool_args["atlas_node_id"]
@@ -94,7 +94,7 @@ def _handle_add_node(
     return json.dumps({"graph_id": graph_id})
 
 
-def _handle_remove_edge(tool_args: dict[str, Any], scratch: _ScratchGraph) -> str:
+def _handle_remove_edge(tool_args: dict[str, Any], scratch: ScratchGraph) -> str:
     src: str = tool_args["source_graph_id"]
     src_h: str = tool_args["source_handle"]
     tgt: str = tool_args["target_graph_id"]
@@ -118,7 +118,7 @@ def _handle_remove_edge(tool_args: dict[str, Any], scratch: _ScratchGraph) -> st
 
 
 def _handle_graph_ops(
-    tool_name: str, tool_args: dict[str, Any], scratch: _ScratchGraph
+    tool_name: str, tool_args: dict[str, Any], scratch: ScratchGraph
 ) -> str:
     if tool_name == "add_edge":
         source_graph_id: str = tool_args["source_graph_id"]
@@ -162,11 +162,11 @@ def _handle_graph_ops(
 _ADD_NODE_TOOLS = {"add_function_node", "add_input_node", "add_output_node"}
 
 
-def _execute_graph_tool(
+def execute_graph_tool(
     tool_name: str,
     tool_args: dict[str, Any],
     storage: StorageInterface,
-    scratch: _ScratchGraph,
+    scratch: ScratchGraph,
 ) -> str:
     if tool_name in _ADD_NODE_TOOLS:
         return _handle_add_node(tool_name, tool_args, storage, scratch)
@@ -194,7 +194,7 @@ def _validate_io_node(
     return errors
 
 
-def _validate_graph(scratch: _ScratchGraph, storage: StorageInterface) -> list[str]:
+def validate_graph(scratch: ScratchGraph, storage: StorageInterface) -> list[str]:
     """Return a list of validation error strings (empty means valid)."""
     errors: list[str] = []
 

@@ -1,7 +1,7 @@
 import base64
 import gzip
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Literal
 
 import numpy as np
 from pydantic import BaseModel, BeforeValidator, ConfigDict, PlainSerializer
@@ -148,6 +148,7 @@ class GraphNodeContext(BaseModel):
     """Compact representation of a node already placed in the graph."""
 
     graph_id: str
+    node_kind: Literal["function", "input", "output"]
     atlas_node_id: str | None = None  # None for InputNode / OutputNode
     name: str
     short_description: str | None = None

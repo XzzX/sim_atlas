@@ -48,6 +48,7 @@ def _handle_add_node(
         graph_id = scratch.new_graph_id(label)
         scratch.nodes[graph_id] = GraphNodeContext(
             graph_id=graph_id,
+            node_kind="function",
             atlas_node_id=atlas_node_id,
             name=label,
             short_description=node.ai_docstring.splitlines()[0]
@@ -71,6 +72,7 @@ def _handle_add_node(
         graph_id = scratch.new_graph_id(label_in)
         scratch.nodes[graph_id] = GraphNodeContext(
             graph_id=graph_id,
+            node_kind="input",
             atlas_node_id=None,
             name=label_in,
             inputs=[],
@@ -83,6 +85,7 @@ def _handle_add_node(
     graph_id = scratch.new_graph_id(label_out)
     scratch.nodes[graph_id] = GraphNodeContext(
         graph_id=graph_id,
+        node_kind="output",
         atlas_node_id=None,
         name=label_out,
         inputs=[Annotation(label="input")],
@@ -176,14 +179,14 @@ def _validate_io_node(
     output_labels: dict[str, set[str]],
     input_labels: dict[str, set[str]],
 ) -> list[str]:
-    """Check structural constraints for input/output nodes (atlas_node_id is None)."""
+    """Check structural constraints for input/output nodes."""
     errors: list[str] = []
-    if not node.inputs and node.outputs and output_labels[gid] != {"output"}:
+    if node.node_kind == "input" and output_labels[gid] != {"output"}:
         errors.append(
             f"Input node '{gid}' must have exactly one output port named "
             f"'output', but has: {sorted(output_labels[gid])}."
         )
-    elif not node.outputs and node.inputs and input_labels[gid] != {"input"}:
+    elif node.node_kind == "output" and input_labels[gid] != {"input"}:
         errors.append(
             f"Output node '{gid}' must have exactly one input port named "
             f"'input', but has: {sorted(input_labels[gid])}."
@@ -205,8 +208,8 @@ def _validate_graph(scratch: _ScratchGraph, storage: StorageInterface) -> list[s
     # Check every catalog-backed node exists in storage.
     # Also verify that input/output nodes have the correct port structure.
     for gid, node in scratch.nodes.items():
-        if node.atlas_node_id is not None:
-            if not storage.exists(node.atlas_node_id):
+        if node.node_kind == "function":
+            if node.atlas_node_id is None or not storage.exists(node.atlas_node_id):
                 errors.append(
                     f"Node '{gid}' references atlas_node_id '{node.atlas_node_id}' "
                     "which no longer exists in the catalog."

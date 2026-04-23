@@ -129,6 +129,7 @@ export type FilterOptions = z.infer<typeof FilterOptionsSchema>;
 
 export const GraphNodeContextSchema = z.object({
   graph_id: z.string(),
+  node_kind: z.enum(["function", "input", "output"]),
   atlas_node_id: z.string().nullish(),
   name: z.string(),
   short_description: z.string().nullish(),

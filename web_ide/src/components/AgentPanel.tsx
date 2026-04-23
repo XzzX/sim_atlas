@@ -146,6 +146,7 @@ function buildAgentNodes(nodes: WorkflowNode[]): GraphNodeContext[] {
       const d = n.data as NodeData;
       return {
         graph_id: n.id,
+        node_kind: "function" as const,
         atlas_node_id: d.metadata.id,
         name: d.label,
         inputs: d.metadata.inputs,
@@ -156,6 +157,7 @@ function buildAgentNodes(nodes: WorkflowNode[]): GraphNodeContext[] {
       const d = n.data as InputDataElement;
       return {
         graph_id: n.id,
+        node_kind: "input" as const,
         atlas_node_id: null,
         name: d.label,
         inputs: [],
@@ -166,6 +168,7 @@ function buildAgentNodes(nodes: WorkflowNode[]): GraphNodeContext[] {
     const d = n.data as OutputDataElement;
     return {
       graph_id: n.id,
+      node_kind: "output" as const,
       atlas_node_id: null,
       name: d.label,
       inputs: [{ label: "input" }],
@@ -231,8 +234,8 @@ async function convertAgentGraph(
         };
         return fn;
       }
-      // Input or Output — distinguish by whether inputs or outputs is empty
-      if (n.inputs.length === 0) {
+      // Input or Output — use node_kind as discriminator
+      if (n.node_kind === "input") {
         const inp: WorkflowNode = {
           id: n.graph_id,
           type: "InputNode",

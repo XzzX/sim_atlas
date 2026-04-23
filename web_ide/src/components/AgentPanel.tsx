@@ -5,9 +5,11 @@ import remarkGfm from "remark-gfm";
 import type { MutableRefObject } from "react";
 import type { Edge } from "@xyflow/react";
 import {
+  BrainCircuit,
   ChevronDown,
   GitCommitHorizontal,
   Info,
+  MessageSquare,
   Plus,
   Search,
   ArrowRight,
@@ -34,7 +36,12 @@ import type { Dispatch, SetStateAction } from "react";
 
 type StepItem =
   | { kind: "reasoning"; content: string }
-  | { kind: "tool"; name: string; args: Record<string, unknown>; summary?: string };
+  | {
+      kind: "tool";
+      name: string;
+      args: Record<string, unknown>;
+      summary?: string;
+    };
 
 interface ConversationTurn {
   role: "user" | "assistant";
@@ -75,7 +82,11 @@ function str(v: unknown): string {
   return JSON.stringify(v) ?? "";
 }
 
-function ToolStepDetail({ step }: { step: Extract<StepItem, { kind: "tool" }> }) {
+function ToolStepDetail({
+  step,
+}: {
+  step: Extract<StepItem, { kind: "tool" }>;
+}) {
   const entries: [string, string][] = [];
   const s = step.args;
   if (step.name === "search_nodes" && s.query != null)
@@ -112,7 +123,7 @@ function ToolStepDetail({ step }: { step: Extract<StepItem, { kind: "tool" }> })
   if (step.summary !== undefined) entries.push(["Result", step.summary]);
 
   return (
-    <div className="mt-1 ml-1 pl-3 border-l border-border space-y-0.5">
+    <div className="px-3 py-2 space-y-0.5">
       {entries.map(([k, v]) => (
         <div key={k} className="flex gap-2 text-xs">
           <span className="text-muted-foreground/60 shrink-0 min-w-[44px]">
@@ -299,17 +310,11 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     setIsRunning(true);
 
     // push user turn
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text: query, steps: [] },
-    ]);
+    setMessages((prev) => [...prev, { role: "user", text: query, steps: [] }]);
 
     // create placeholder assistant turn
     const assistantIndex = messages.length + 1;
-    setMessages((prev) => [
-      ...prev,
-      { role: "assistant", steps: [] },
-    ]);
+    setMessages((prev) => [...prev, { role: "assistant", steps: [] }]);
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -336,7 +341,10 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
           if (event.type === "reasoning") {
             updateAssistant((t) => ({
               ...t,
-              steps: [...t.steps, { kind: "reasoning", content: event.content }],
+              steps: [
+                ...t.steps,
+                { kind: "reasoning", content: event.content },
+              ],
             }));
           } else if (event.type === "tool_call") {
             updateAssistant((t) => ({
@@ -446,41 +454,69 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                 {/* Tool steps */}
                 {turn.steps.map((step, j) => {
                   if (step.kind === "reasoning") {
+                    const rKey = `r-${i}-${j}`;
+                    const rExpanded = expandedSteps.has(rKey);
                     return (
-                      <p
+                      <div
                         key={j}
-                        className="text-xs italic text-muted-foreground/70 leading-relaxed whitespace-pre-wrap"
+                        className="rounded-md border border-border bg-muted/30"
                       >
-                        {step.content}
-                      </p>
+                        <button
+                          type="button"
+                          onClick={() => toggleStep(rKey)}
+                          className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <BrainCircuit className="w-3.5 h-3.5 shrink-0" />
+                          <span className="font-medium">Thinking</span>
+                          <ChevronDown
+                            className={`w-3 h-3 ml-auto transition-transform ${
+                              rExpanded ? "rotate-180" : ""
+                            }`}
+                          />
+                        </button>
+                        {rExpanded && (
+                          <div className="px-3 pb-3 border-t border-border pt-2 prose prose-sm dark:prose-invert max-w-none text-muted-foreground/80 [&_*]:text-xs">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {step.content}
+                            </ReactMarkdown>
+                          </div>
+                        )}
+                      </div>
                     );
                   }
                   const key = `${i}-${j}`;
                   const expanded = expandedSteps.has(key);
                   return (
-                    <div key={j}>
+                    <div
+                      key={j}
+                      className="rounded-md border border-border bg-muted/30"
+                    >
                       <button
                         type="button"
                         onClick={() => {
                           toggleStep(key);
                         }}
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted hover:bg-muted/80 rounded-full px-2.5 py-1 w-fit cursor-pointer transition-colors"
+                        className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <ToolIcon name={step.name} />
-                        <span>{TOOL_LABELS[step.name] ?? step.name}</span>
+                        <span className="font-medium">
+                          {TOOL_LABELS[step.name] ?? step.name}
+                        </span>
                         {step.summary !== undefined ? (
-                          <>
-                            <ChevronDown
-                              className={`w-3 h-3 ml-0.5 transition-transform ${
-                                expanded ? "rotate-180" : ""
-                              }`}
-                            />
-                          </>
+                          <ChevronDown
+                            className={`w-3 h-3 ml-auto transition-transform ${
+                              expanded ? "rotate-180" : ""
+                            }`}
+                          />
                         ) : (
-                          <Loader2 className="w-3 h-3 animate-spin ml-0.5" />
+                          <Loader2 className="w-3 h-3 animate-spin ml-auto" />
                         )}
                       </button>
-                      {expanded && <ToolStepDetail step={step} />}
+                      {expanded && (
+                        <div className="border-t border-border">
+                          <ToolStepDetail step={step} />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -493,19 +529,40 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                 )}
 
                 {/* Final message */}
-                {turn.text ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {turn.text}
-                    </ReactMarkdown>
-                  </div>
-                ) : (
-                  isRunning &&
-                  i === messages.length - 1 &&
-                  !turn.error && (
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                  )
-                )}
+                {turn.text
+                  ? (() => {
+                      const sKey = `summary-${i}`;
+                      const sExpanded = expandedSteps.has(sKey);
+                      return (
+                        <div className="rounded-md border border-border bg-muted/30">
+                          <button
+                            type="button"
+                            onClick={() => toggleStep(sKey)}
+                            className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                            <span className="font-medium">Summary</span>
+                            <ChevronDown
+                              className={`w-3 h-3 ml-auto transition-transform ${
+                                sExpanded ? "rotate-180" : ""
+                              }`}
+                            />
+                          </button>
+                          {sExpanded && (
+                            <div className="px-3 pb-3 border-t border-border pt-2 prose prose-sm dark:prose-invert max-w-none [&_*]:text-xs">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {turn.text}
+                              </ReactMarkdown>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()
+                  : isRunning &&
+                    i === messages.length - 1 &&
+                    !turn.error && (
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    )}
               </div>
             )}
           </div>

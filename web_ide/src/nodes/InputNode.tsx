@@ -8,6 +8,7 @@ import {
 } from "@/components/base-node";
 import { BaseHandle } from "@/components/base-handle";
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type InputDataElement = {
   label: string;
   value: string;

@@ -13,8 +13,6 @@ import {
   type HandleProps,
 } from "@xyflow/react";
 import type { Annotation, NodeResponse } from "../interfaces/BackendSchema";
-import { Pencil } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface InputHandleProps {
   title: string;

@@ -52,9 +52,6 @@ export function FunctionNode({ data }: NodeProps<FunctionNodeType>) {
       <BaseNodeHeader className="border-b rounded-t-md bg-function-node-background">
         <div className="flex items-center justify-between w-full gap-4">
           <BaseNodeHeaderTitle>{data.label}</BaseNodeHeaderTitle>
-          <Button variant="outline" size="icon" aria-label="Submit">
-            <Pencil />
-          </Button>
         </div>
       </BaseNodeHeader>
       <BaseNodeContent className="pl-0 pr-0 pt-3 pb-3">

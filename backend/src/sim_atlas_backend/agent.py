@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from collections.abc import AsyncGenerator
 from typing import Any, cast
 
@@ -25,17 +26,29 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
+def _slugify(text: str) -> str:
+    """Convert a label into a filesystem-safe, LLM-readable id slug."""
+    slug = text.lower()
+    slug = re.sub(r"[^a-z0-9]+", "_", slug)
+    return slug.strip("_") or "node"
+
+
 class _ScratchGraph:
     def __init__(
         self, nodes: list[GraphNodeContext], edges: list[GraphEdgeContext]
     ) -> None:
         self.nodes: dict[str, GraphNodeContext] = {n.graph_id: n for n in nodes}
         self.edges: list[GraphEdgeContext] = list(edges)
-        self._counter: int = 0
 
-    def new_graph_id(self) -> str:
-        self._counter += 1
-        return f"agent_{self._counter}"
+    def new_graph_id(self, label: str) -> str:
+        """Return a unique, human-readable id derived from *label*."""
+        base = _slugify(label)
+        if base not in self.nodes:
+            return base
+        i = 2
+        while f"{base}_{i}" in self.nodes:
+            i += 1
+        return f"{base}_{i}"
 
 
 _TOOLS: list[ChatCompletionToolParam] = [
@@ -275,17 +288,23 @@ You have access to a catalog of simulation nodes (functions) that can be searche
 ### Edges
 {edge_lines or "  (none)"}
 
-## Your task
-Fulfil the user's request by searching for and modifying the graph using the available tools.
+## Your role
+You are an editor of an existing workflow graph.
+Treat the current graph as intentional work that should be preserved unless change is necessary.
+Make the minimum changes needed to satisfy the user's request.
+Prefer adding new nodes and edges over modifying or removing existing ones.
+Only remove or rewire existing nodes when the user explicitly asks, or when it is genuinely necessary to produce a correct result.
+
+## Tools
 - Use search_nodes for intent-based discovery.
 - Use find_compatible_nodes when you know a specific port signature and want to find what connects to it.
 - Use get_node_details when you need more information about a specific node before deciding.
 - Use add_function_node to add a node from the catalog; it returns the assigned graph_id and port metadata — use that graph_id in subsequent add_edge calls.
-- Use add_input_node to expose a parameter or data source. Provide a default value when appropriate. The single output port is always named 'output'.
-- Use add_output_node to expose a result. The single input port is always named 'input'.
+- Use add_input_node to expose a parameter or data source. Provide a default value when appropriate. The single output port is always named 'output'. There are no input ports.
+- Use add_output_node to expose a result. The single input port is always named 'input'. There are no output ports.
 - Use add_edge to connect nodes; verify port names using the port metadata returned by add_function_node or get_node_details.
 - Use remove_node to delete an existing node (also removes its connected edges).
-- When you are finished, respond with a concise summary of the changes you made.
+- When you are finished, respond with a concise summary of only the changes you made.
 """
 
 
@@ -371,7 +390,7 @@ def _handle_add_node(
                 {"error": f"Node '{atlas_node_id}' not found in catalog."}
             )
         node = storage.read(atlas_node_id)
-        graph_id = scratch.new_graph_id()
+        graph_id = scratch.new_graph_id(label)
         scratch.nodes[graph_id] = GraphNodeContext(
             graph_id=graph_id,
             atlas_node_id=atlas_node_id,
@@ -394,7 +413,7 @@ def _handle_add_node(
 
     if tool_name == "add_input_node":
         label_in: str = tool_args["label"]
-        graph_id = scratch.new_graph_id()
+        graph_id = scratch.new_graph_id(label_in)
         scratch.nodes[graph_id] = GraphNodeContext(
             graph_id=graph_id,
             atlas_node_id=None,
@@ -406,7 +425,7 @@ def _handle_add_node(
 
     # add_output_node
     label_out: str = tool_args["label"]
-    graph_id = scratch.new_graph_id()
+    graph_id = scratch.new_graph_id(label_out)
     scratch.nodes[graph_id] = GraphNodeContext(
         graph_id=graph_id,
         atlas_node_id=None,

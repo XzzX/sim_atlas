@@ -281,8 +281,8 @@ Fulfil the user's request by searching for and modifying the graph using the ava
 - Use find_compatible_nodes when you know a specific port signature and want to find what connects to it.
 - Use get_node_details when you need more information about a specific node before deciding.
 - Use add_function_node to add a node from the catalog; it returns the assigned graph_id and port metadata — use that graph_id in subsequent add_edge calls.
-- Use add_input_node to expose a parameter or data source. Provide a default value when appropriate.
-- Use add_output_node to expose a result.
+- Use add_input_node to expose a parameter or data source. Provide a default value when appropriate. The single output port is always named 'output'.
+- Use add_output_node to expose a result. The single input port is always named 'input'.
 - Use add_edge to connect nodes; verify port names using the port metadata returned by add_function_node or get_node_details.
 - Use remove_node to delete an existing node (also removes its connected edges).
 - When you are finished, respond with a concise summary of the changes you made.
@@ -561,7 +561,12 @@ def _tool_summary(tool_name: str, result_json: str) -> str:  # noqa: PLR0911
         return f"Error: {err_raw.get('error', '?')}"
     if tool_name in _SEARCH_TOOL_NAMES:
         data_list = cast(list[Any], raw) if isinstance(raw, list) else []
-        return f"Found {len(data_list)} node(s)"
+        items = [
+            f"{cast(dict[str, Any], r).get('score', '?')}: {cast(dict[str, Any], r).get('name', '?')}"
+            for r in data_list
+            if isinstance(r, dict)
+        ]
+        return "\n".join(items) if items else "No results"
     if tool_name == "get_node_details" and isinstance(raw, dict):
         data_dict = cast(dict[str, Any], raw)
         return f"Retrieved details for {data_dict.get('name', '?')}"
@@ -607,6 +612,9 @@ async def run_agent_stream(
             if not choice.message.tool_calls:
                 final_message = choice.message.content or "Done."
                 break
+
+            if choice.message.content:
+                yield _sse({"type": "thinking", "content": choice.message.content})
 
             for tc in choice.message.tool_calls:
                 if not isinstance(tc, ChatCompletionMessageToolCall):

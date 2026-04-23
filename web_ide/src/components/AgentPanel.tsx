@@ -1,0 +1,537 @@
+import * as React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { MutableRefObject } from "react";
+import type { Edge } from "@xyflow/react";
+import {
+  ChevronDown,
+  GitCommitHorizontal,
+  Info,
+  Plus,
+  Search,
+  ArrowRight,
+  Trash2,
+  SendHorizontal,
+  Loader2,
+  Bot,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { simAtlasAPI } from "../services/api";
+import type {
+  AgentSSEEvent,
+  GraphEdgeContext,
+  GraphNodeContext,
+  NodeResponse,
+} from "../interfaces/BackendSchema";
+import type { WorkflowNode } from "../nodes/nodes";
+import type { NodeData } from "../nodes/FunctionNode";
+import type { InputDataElement } from "../nodes/InputNode";
+import type { OutputDataElement } from "../nodes/OutputNode";
+import type { Dispatch, SetStateAction } from "react";
+
+// ---- types ----------------------------------------------------------------
+
+interface ToolStep {
+  name: string;
+  args: Record<string, unknown>;
+  summary?: string;
+}
+
+interface ConversationTurn {
+  role: "user" | "assistant";
+  text?: string;
+  thinking: string[];
+  steps: ToolStep[];
+  error?: string;
+}
+
+// ---- helpers ---------------------------------------------------------------
+
+const TOOL_LABELS: Record<string, string> = {
+  search_nodes: "Searching nodes",
+  find_compatible_nodes: "Finding compatible nodes",
+  get_node_details: "Getting node details",
+  add_function_node: "Adding function node",
+  add_input_node: "Adding input",
+  add_output_node: "Adding output",
+  add_edge: "Connecting nodes",
+  remove_node: "Removing node",
+};
+
+function ToolIcon({ name }: { name: string }) {
+  const cls = "w-3.5 h-3.5 shrink-0";
+  if (name === "search_nodes" || name === "find_compatible_nodes")
+    return <Search className={cls} />;
+  if (name === "get_node_details") return <Info className={cls} />;
+  if (name === "add_function_node") return <Plus className={cls} />;
+  if (name === "add_input_node" || name === "add_output_node")
+    return <ArrowRight className={cls} />;
+  if (name === "add_edge") return <GitCommitHorizontal className={cls} />;
+  if (name === "remove_node") return <Trash2 className={cls} />;
+  return null;
+}
+
+function str(v: unknown): string {
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return JSON.stringify(v) ?? "";
+}
+
+function ToolStepDetail({ step }: { step: ToolStep }) {
+  const entries: [string, string][] = [];
+  const s = step.args;
+  if (step.name === "search_nodes" && s.query != null)
+    entries.push(["Query", str(s.query)]);
+  if (step.name === "find_compatible_nodes") {
+    if (s.datatype != null) entries.push(["Type", str(s.datatype)]);
+    if (s.unit != null) entries.push(["Unit", str(s.unit)]);
+    if (s.quantity != null) entries.push(["Quantity", str(s.quantity)]);
+  }
+  if (step.name === "get_node_details" && s.atlas_node_id != null)
+    entries.push(["ID", `${str(s.atlas_node_id).slice(0, 16)}…`]);
+  if (step.name === "add_function_node") {
+    if (s.label != null) entries.push(["Label", str(s.label)]);
+    if (s.atlas_node_id != null)
+      entries.push(["ID", `${str(s.atlas_node_id).slice(0, 16)}…`]);
+  }
+  if (
+    (step.name === "add_input_node" || step.name === "add_output_node") &&
+    s.label != null
+  )
+    entries.push(["Label", str(s.label)]);
+  if (step.name === "add_edge") {
+    entries.push([
+      "From",
+      `${str(s.source_graph_id ?? "?")}/${str(s.source_handle ?? "?")}`,
+    ]);
+    entries.push([
+      "To",
+      `${str(s.target_graph_id ?? "?")}/${str(s.target_handle ?? "?")}`,
+    ]);
+  }
+  if (step.name === "remove_node" && s.graph_id != null)
+    entries.push(["Node", str(s.graph_id)]);
+  if (step.summary !== undefined) entries.push(["Result", step.summary]);
+
+  return (
+    <div className="mt-1 ml-1 pl-3 border-l border-border space-y-0.5">
+      {entries.map(([k, v]) => (
+        <div key={k} className="flex gap-2 text-xs">
+          <span className="text-muted-foreground/60 shrink-0 min-w-[44px]">
+            {k}
+          </span>
+          <span className="text-foreground/80 break-all whitespace-pre-wrap">
+            {v}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function buildAgentNodes(nodes: WorkflowNode[]): GraphNodeContext[] {
+  return nodes.map((n) => {
+    if (n.type === "FunctionNode") {
+      const d = n.data as NodeData;
+      return {
+        graph_id: n.id,
+        atlas_node_id: d.metadata.id,
+        name: d.label,
+        inputs: d.metadata.inputs,
+        outputs: d.metadata.outputs,
+      };
+    }
+    if (n.type === "InputNode") {
+      const d = n.data as InputDataElement;
+      return {
+        graph_id: n.id,
+        atlas_node_id: null,
+        name: d.label,
+        inputs: [],
+        outputs: [{ label: d.label }],
+      };
+    }
+    // OutputNode
+    const d = n.data as OutputDataElement;
+    return {
+      graph_id: n.id,
+      atlas_node_id: null,
+      name: d.label,
+      inputs: [{ label: d.label }],
+      outputs: [],
+    };
+  });
+}
+
+function buildAgentEdges(edges: Edge[]): GraphEdgeContext[] {
+  return edges.map((e) => ({
+    source_graph_id: e.source,
+    source_handle: e.sourceHandle ?? "",
+    target_graph_id: e.target,
+    target_handle: e.targetHandle ?? "",
+  }));
+}
+
+async function convertAgentGraph(
+  agentNodes: GraphNodeContext[],
+  agentEdges: GraphEdgeContext[],
+  allNodeMetadata: NodeResponse[],
+): Promise<{ nodes: WorkflowNode[]; edges: Edge[] }> {
+  const metaById = new Map(allNodeMetadata.map((m) => [m.id, m]));
+
+  const nodes: WorkflowNode[] = await Promise.all(
+    agentNodes.map(async (n) => {
+      const pos = { x: 0, y: 0 };
+      if (n.atlas_node_id != null) {
+        let metadata = metaById.get(n.atlas_node_id);
+        if (!metadata) {
+          try {
+            metadata = await simAtlasAPI.getNode(n.atlas_node_id);
+          } catch {
+            // fall back to minimal shape so the graph still renders
+            metadata = {
+              id: n.atlas_node_id,
+              name: n.name,
+              author_name: "",
+              author_email: "",
+              creator_name: "",
+              creator_email: "",
+              creation_timestamp: "",
+              node_type: "function",
+              category: "",
+              keywords: [],
+              homepage_url: "",
+              documentation_url: "",
+              source_url: "",
+              python_import: "",
+              source_code: "",
+              docstring: "",
+              ai_docstring: n.short_description ?? "",
+              inputs: n.inputs,
+              outputs: n.outputs,
+            };
+          }
+        }
+        const fn: WorkflowNode = {
+          id: n.graph_id,
+          type: "FunctionNode",
+          position: pos,
+          data: { label: n.name, metadata },
+        };
+        return fn;
+      }
+      // Input or Output — distinguish by whether inputs or outputs is empty
+      if (n.inputs.length === 0) {
+        const inp: WorkflowNode = {
+          id: n.graph_id,
+          type: "InputNode",
+          position: pos,
+          data: { label: n.name, value: "" },
+        };
+        return inp;
+      }
+      const out: WorkflowNode = {
+        id: n.graph_id,
+        type: "OutputNode",
+        position: pos,
+        data: { label: n.name },
+      };
+      return out;
+    }),
+  );
+
+  const edges: Edge[] = agentEdges.map((e, i) => ({
+    id: `agent-edge-${i}`,
+    source: e.source_graph_id,
+    sourceHandle: e.source_handle || null,
+    target: e.target_graph_id,
+    targetHandle: e.target_handle || null,
+  }));
+
+  return { nodes, edges };
+}
+
+// ---- component ------------------------------------------------------------
+
+interface AgentPanelProps {
+  nodes: WorkflowNode[];
+  edges: Edge[];
+  setNodes: Dispatch<SetStateAction<WorkflowNode[]>>;
+  setEdges: Dispatch<SetStateAction<Edge[]>>;
+  allNodeMetadata: NodeResponse[];
+  layoutRef: MutableRefObject<() => void>;
+}
+
+export const AgentPanel: React.FC<AgentPanelProps> = ({
+  nodes,
+  edges,
+  setNodes,
+  setEdges,
+  allNodeMetadata,
+  layoutRef,
+}) => {
+  const [messages, setMessages] = useState<ConversationTurn[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
+  const [inputText, setInputText] = useState("");
+  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
+
+  const toggleStep = (key: string) => {
+    setExpandedSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSend = useCallback(async () => {
+    const query = inputText.trim();
+    if (!query || isRunning) return;
+
+    setInputText("");
+    setIsRunning(true);
+
+    // push user turn
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text: query, thinking: [], steps: [] },
+    ]);
+
+    // create placeholder assistant turn
+    const assistantIndex = messages.length + 1;
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", thinking: [], steps: [] },
+    ]);
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    const request = {
+      query,
+      nodes: buildAgentNodes(nodes),
+      edges: buildAgentEdges(edges),
+    };
+
+    const updateAssistant = (
+      updater: (t: ConversationTurn) => ConversationTurn,
+    ) => {
+      setMessages((prev) =>
+        prev.map((m, i) => (i === assistantIndex ? updater(m) : m)),
+      );
+    };
+
+    try {
+      await simAtlasAPI.agentStream(
+        request,
+        (event: AgentSSEEvent) => {
+          console.log("Received event:", event);
+          if (event.type === "tool_call") {
+            updateAssistant((t) => ({
+              ...t,
+              steps: [...t.steps, { name: event.name, args: event.args }],
+            }));
+          } else if (event.type === "tool_result") {
+            updateAssistant((t) => {
+              const steps = [...t.steps];
+              // find last step with this tool name and no summary yet
+              for (let i = steps.length - 1; i >= 0; i--) {
+                if (
+                  steps[i].name === event.name &&
+                  steps[i].summary === undefined
+                ) {
+                  steps[i] = { ...steps[i], summary: event.summary };
+                  break;
+                }
+              }
+              return { ...t, steps };
+            });
+          } else if (event.type === "message") {
+            updateAssistant((t) => ({ ...t, text: event.content }));
+          } else if (event.type === "thinking") {
+            updateAssistant((t) => ({
+              ...t,
+              thinking: [...t.thinking, event.content],
+            }));
+          } else if (event.type === "done") {
+            void convertAgentGraph(
+              event.nodes,
+              event.edges,
+              allNodeMetadata,
+            ).then(({ nodes: newNodes, edges: newEdges }) => {
+              setNodes(newNodes);
+              setEdges(newEdges);
+              setTimeout(() => {
+                layoutRef.current();
+              }, 80);
+            });
+          } else if (event.type === "error") {
+            updateAssistant((t) => ({ ...t, error: event.message }));
+          }
+        },
+        ctrl.signal,
+      );
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== "AbortError") {
+        updateAssistant((t) => ({
+          ...t,
+          error: err.message,
+        }));
+      }
+    } finally {
+      setIsRunning(false);
+      abortRef.current = null;
+    }
+  }, [
+    inputText,
+    isRunning,
+    messages.length,
+    nodes,
+    edges,
+    allNodeMetadata,
+    setNodes,
+    setEdges,
+    layoutRef,
+  ]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSend();
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-background border-l border-border">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
+        <Bot className="w-4 h-4 text-muted-foreground" />
+        <span className="font-semibold text-sm">Agent</span>
+      </div>
+
+      {/* Messages */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0"
+      >
+        {messages.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center mt-8">
+            Describe the workflow you want to build.
+          </p>
+        )}
+
+        {messages.map((turn, i) => (
+          <div
+            key={i}
+            className={turn.role === "user" ? "flex justify-end" : ""}
+          >
+            {turn.role === "user" ? (
+              <div className="bg-primary text-primary-foreground text-sm rounded-2xl rounded-br-sm px-3 py-2 max-w-[85%]">
+                {turn.text}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Thinking blocks */}
+                {turn.thinking.map((thought, j) => (
+                  <p
+                    key={j}
+                    className="text-xs italic text-muted-foreground/70 leading-relaxed whitespace-pre-wrap"
+                  >
+                    {thought}
+                  </p>
+                ))}
+
+                {/* Tool steps */}
+                {turn.steps.map((step, j) => {
+                  const key = `${i}-${j}`;
+                  const expanded = expandedSteps.has(key);
+                  return (
+                    <div key={j}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toggleStep(key);
+                        }}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted hover:bg-muted/80 rounded-full px-2.5 py-1 w-fit cursor-pointer transition-colors"
+                      >
+                        <ToolIcon name={step.name} />
+                        <span>{TOOL_LABELS[step.name] ?? step.name}</span>
+                        {step.summary !== undefined ? (
+                          <>
+                            <ChevronDown
+                              className={`w-3 h-3 ml-0.5 transition-transform ${
+                                expanded ? "rotate-180" : ""
+                              }`}
+                            />
+                          </>
+                        ) : (
+                          <Loader2 className="w-3 h-3 animate-spin ml-0.5" />
+                        )}
+                      </button>
+                      {expanded && <ToolStepDetail step={step} />}
+                    </div>
+                  );
+                })}
+
+                {/* Error */}
+                {turn.error && (
+                  <div className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1">
+                    {turn.error}
+                  </div>
+                )}
+
+                {/* Final message */}
+                {turn.text ? (
+                  <p className="text-sm leading-relaxed">{turn.text}</p>
+                ) : (
+                  isRunning &&
+                  i === messages.length - 1 &&
+                  !turn.error && (
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-border p-3 flex gap-2 shrink-0">
+        <textarea
+          className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+          rows={2}
+          placeholder="Describe a workflow…"
+          value={inputText}
+          onChange={(e) => {
+            setInputText(e.target.value);
+          }}
+          onKeyDown={handleKeyDown}
+          disabled={isRunning}
+        />
+        <Button
+          size="icon"
+          onClick={() => {
+            void handleSend();
+          }}
+          disabled={isRunning || !inputText.trim()}
+          aria-label="Send"
+        >
+          {isRunning ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <SendHorizontal className="w-4 h-4" />
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+};

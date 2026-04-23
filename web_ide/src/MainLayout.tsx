@@ -1,10 +1,12 @@
 import * as React from "react";
+import { useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { ReactFlowEditor } from "./ReactFlowEditor";
 import type { OnNodesChange, OnEdgesChange, Edge } from "@xyflow/react";
 import "./index.css";
 import type { NodeResponse } from "./interfaces/BackendSchema";
 import type { WorkflowNode } from "./nodes/nodes";
+import { AgentPanel } from "./components/AgentPanel";
 
 interface MainLayoutProps {
   allNodeMetadata: NodeResponse[];
@@ -25,6 +27,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   setEdges,
   onEdgesChange,
 }) => {
+  const layoutRef = useRef<() => void>(() => {
+    /* filled by ReactFlowEditor */
+  });
+
   return (
     <div
       className="simflow"
@@ -49,43 +55,28 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             edges={edges}
             setEdges={setEdges}
             onEdgesChange={onEdgesChange}
+            layoutRef={layoutRef}
           />
         </div>
 
-        {/* Static Right Sidebar */}
-        {/* <div
+        {/* Agent Panel */}
+        <div
           style={{
-            width: "280px",
-            backgroundColor: "#f8f9fa",
-            borderLeft: "1px solid #dee2e6",
-            overflow: "auto",
-            padding: "20px",
+            width: "384px",
+            flexShrink: 0,
+            overflow: "hidden",
+            display: "flex",
           }}
         >
-          <h5 className="mb-3">Sidebar Panel</h5>
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "20px" }}
-          >
-            <div>
-              <h6>Settings</h6>
-              <p style={{ fontSize: "0.875rem", color: "#6c757d", margin: 0 }}>
-                Configure your application here
-              </p>
-            </div>
-            <div>
-              <h6>Options</h6>
-              <p style={{ fontSize: "0.875rem", color: "#6c757d", margin: 0 }}>
-                Additional options and tools
-              </p>
-            </div>
-            <div>
-              <h6>Information</h6>
-              <p style={{ fontSize: "0.875rem", color: "#6c757d", margin: 0 }}>
-                Help and information section
-              </p>
-            </div>
-          </div>
-        </div> */}
+          <AgentPanel
+            nodes={nodes}
+            edges={edges}
+            setNodes={setNodes}
+            setEdges={setEdges}
+            allNodeMetadata={allNodeMetadata}
+            layoutRef={layoutRef}
+          />
+        </div>
       </div>
     </div>
   );

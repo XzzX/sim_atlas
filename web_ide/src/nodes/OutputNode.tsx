@@ -16,6 +16,7 @@ export function OutputNode({ data }: NodeProps<OutputNodeType>) {
           title={data.label}
           type="target"
           position={Position.Left}
+          id="input"
         />
       </BaseNodeContent>
     </BaseNode>

@@ -163,6 +163,7 @@ export const AgentSSEEventSchema = z.discriminatedUnion("type", [
     name: z.string(),
     summary: z.string(),
   }),
+  z.object({ type: z.literal("thinking"), content: z.string() }),
   z.object({ type: z.literal("message"), content: z.string() }),
   z.object({
     type: z.literal("done"),

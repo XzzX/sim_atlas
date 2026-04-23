@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ReactFlow,
   addEdge,
@@ -7,7 +7,7 @@ import {
   type OnConnect,
   Panel,
 } from "@xyflow/react";
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 
 import type {
   OnNodesChange,
@@ -34,6 +34,7 @@ interface ReactFlowEditor {
   edges: Edge[];
   setEdges: Dispatch<SetStateAction<Edge[]>>;
   onEdgesChange: OnEdgesChange;
+  layoutRef?: MutableRefObject<() => void>;
 }
 
 export const ReactFlowEditor = ({
@@ -44,7 +45,9 @@ export const ReactFlowEditor = ({
   edges,
   setEdges,
   onEdgesChange,
+  layoutRef,
 }: ReactFlowEditor) => {
+  const _layoutRef = useRef<(() => void) | null>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance<
     WorkflowNode,
     Edge
@@ -100,6 +103,10 @@ export const ReactFlowEditor = ({
     });
   }, [rfInstance]);
 
+  useEffect(() => {
+    _layoutRef.current = layoutGraph;
+    if (layoutRef) layoutRef.current = layoutGraph;
+  }, [layoutGraph, layoutRef]);
   useEffect(() => {
     if (rfInstance) {
       layoutGraph();

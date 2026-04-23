@@ -250,6 +250,40 @@ _TOOLS: list[ChatCompletionToolParam] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_edge",
+            "description": "Remove an edge from the graph by matching all four of its endpoint identifiers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "source_graph_id": {
+                        "type": "string",
+                        "description": "graph_id of the source node.",
+                    },
+                    "source_handle": {
+                        "type": "string",
+                        "description": "Name of the output port on the source node.",
+                    },
+                    "target_graph_id": {
+                        "type": "string",
+                        "description": "graph_id of the target node.",
+                    },
+                    "target_handle": {
+                        "type": "string",
+                        "description": "Name of the input port on the target node.",
+                    },
+                },
+                "required": [
+                    "source_graph_id",
+                    "source_handle",
+                    "target_graph_id",
+                    "target_handle",
+                ],
+            },
+        },
+    },
 ]
 
 
@@ -303,6 +337,7 @@ Only remove or rewire existing nodes when the user explicitly asks, or when it i
 - Use add_input_node to expose a parameter or data source. Provide a default value when appropriate. The single output port is always named 'output'. There are no input ports.
 - Use add_output_node to expose a result. The single input port is always named 'input'. There are no output ports.
 - Use add_edge to connect nodes; verify port names using the port metadata returned by add_function_node or get_node_details.
+- Use remove_edge to disconnect two nodes by specifying all four endpoint identifiers (source_graph_id, source_handle, target_graph_id, target_handle).
 - Use remove_node to delete an existing node (also removes its connected edges).
 - When you are finished, respond with a concise summary of only the changes you made.
 """
@@ -436,6 +471,29 @@ def _handle_add_node(
     return json.dumps({"graph_id": graph_id})
 
 
+def _handle_remove_edge(tool_args: dict[str, Any], scratch: _ScratchGraph) -> str:
+    src: str = tool_args["source_graph_id"]
+    src_h: str = tool_args["source_handle"]
+    tgt: str = tool_args["target_graph_id"]
+    tgt_h: str = tool_args["target_handle"]
+    before = len(scratch.edges)
+    scratch.edges = [
+        e
+        for e in scratch.edges
+        if not (
+            e.source_graph_id == src
+            and e.source_handle == src_h
+            and e.target_graph_id == tgt
+            and e.target_handle == tgt_h
+        )
+    ]
+    if len(scratch.edges) == before:
+        return json.dumps(
+            {"error": f"No edge found from '{src}/{src_h}' to '{tgt}/{tgt_h}'."}
+        )
+    return json.dumps({"ok": True})
+
+
 def _handle_graph_ops(
     tool_name: str, tool_args: dict[str, Any], scratch: _ScratchGraph
 ) -> str:
@@ -461,6 +519,9 @@ def _handle_graph_ops(
             )
         )
         return json.dumps({"ok": True})
+
+    if tool_name == "remove_edge":
+        return _handle_remove_edge(tool_args, scratch)
 
     # remove_node
     graph_id_to_remove: str = tool_args["graph_id"]
@@ -653,7 +714,8 @@ def run_agent(request: AgentRequest, storage: StorageInterface) -> AgentResponse
 
 _TOOL_SUMMARIES: dict[str, str] = {
     "add_edge": "Connected",
-    "remove_node": "Removed",
+    "remove_edge": "Edge removed",
+    "remove_node": "Node removed",
 }
 
 _SEARCH_TOOL_NAMES = {"search_nodes", "find_compatible_nodes"}

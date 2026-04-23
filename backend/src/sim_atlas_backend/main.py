@@ -10,6 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
 
 from sim_atlas_backend.models import (
+    AgentRequest,
+    AgentResponse,
     Filter,
     FilterOptions,
     NodeMetadata,
@@ -17,6 +19,8 @@ from sim_atlas_backend.models import (
     NodeResponse,
     ScoredSearchResponse,
 )
+
+from .agent import run_agent
 
 from .security import Creator, get_current_user
 from .storage_interface import StorageInterface, get_storage_backend
@@ -178,6 +182,20 @@ async def enrich(
     storage.enrich()
 
 
+@api_router.post(
+    "/agent",
+    response_model=AgentResponse,
+    tags=["ai"],
+    operation_id="agent",
+)
+async def agent(
+    request: AgentRequest,
+    _: Annotated[Creator, Depends(get_current_user)],
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+) -> AgentResponse:
+    return run_agent(request, storage)
+
+
 app.include_router(api_router)
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -193,7 +211,7 @@ mcp = FastApiMCP(
     description="Very cool MCP server",
     describe_all_responses=True,
     describe_full_response_schema=True,
-    include_operations=["semantic_search"],
+    include_operations=["semantic_search", "agent"],
 )
 
 # Mount the MCP server directly to your app

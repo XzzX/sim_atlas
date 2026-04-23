@@ -139,3 +139,36 @@ class FilterOptions(BaseModel):
     datatypes: list[str]
     units: list[str]
     quantities: list[str]
+
+
+# --- Agent models ---
+
+
+class GraphNodeContext(BaseModel):
+    """Compact representation of a node already placed in the graph."""
+
+    graph_id: str
+    atlas_node_id: str | None = None  # None for InputNode / OutputNode
+    name: str
+    short_description: str | None = None
+    inputs: list[Annotation]
+    outputs: list[Annotation]
+
+
+class GraphEdgeContext(BaseModel):
+    source_graph_id: str
+    source_handle: str
+    target_graph_id: str
+    target_handle: str
+
+
+class AgentRequest(BaseModel):
+    query: str
+    nodes: list[GraphNodeContext]
+    edges: list[GraphEdgeContext]
+
+
+class AgentResponse(BaseModel):
+    nodes: list[GraphNodeContext]
+    edges: list[GraphEdgeContext]
+    message: str

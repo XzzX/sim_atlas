@@ -124,3 +124,51 @@ export const FilterOptionsSchema = z.object({
   quantities: z.array(z.string()),
 });
 export type FilterOptions = z.infer<typeof FilterOptionsSchema>;
+
+// --- Agent types ---
+
+export const GraphNodeContextSchema = z.object({
+  graph_id: z.string(),
+  atlas_node_id: z.string().nullish(),
+  name: z.string(),
+  short_description: z.string().nullish(),
+  inputs: z.array(AnnotationSchema),
+  outputs: z.array(AnnotationSchema),
+});
+export type GraphNodeContext = z.infer<typeof GraphNodeContextSchema>;
+
+export const GraphEdgeContextSchema = z.object({
+  source_graph_id: z.string(),
+  source_handle: z.string(),
+  target_graph_id: z.string(),
+  target_handle: z.string(),
+});
+export type GraphEdgeContext = z.infer<typeof GraphEdgeContextSchema>;
+
+export const AgentRequestSchema = z.object({
+  query: z.string(),
+  nodes: z.array(GraphNodeContextSchema),
+  edges: z.array(GraphEdgeContextSchema),
+});
+export type AgentRequest = z.infer<typeof AgentRequestSchema>;
+
+export const AgentSSEEventSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("tool_call"),
+    name: z.string(),
+    args: z.record(z.string(), z.unknown()),
+  }),
+  z.object({
+    type: z.literal("tool_result"),
+    name: z.string(),
+    summary: z.string(),
+  }),
+  z.object({ type: z.literal("message"), content: z.string() }),
+  z.object({
+    type: z.literal("done"),
+    nodes: z.array(GraphNodeContextSchema),
+    edges: z.array(GraphEdgeContextSchema),
+  }),
+  z.object({ type: z.literal("error"), message: z.string() }),
+]);
+export type AgentSSEEvent = z.infer<typeof AgentSSEEventSchema>;

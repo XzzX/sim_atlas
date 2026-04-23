@@ -1,5 +1,6 @@
 import numpy as np
 import voyageai
+from tqdm import tqdm
 
 from .settings import settings
 
@@ -9,9 +10,9 @@ def create_embedding(documents: list[str], input_type: str = "document") -> np.n
     batch_size = 256
     embeddings: list[list[float]] = []
 
-    for i in range(0, len(documents), batch_size):
+    for i in tqdm(range(0, len(documents), batch_size), desc="Creating embeddings"):
         embeddings += vo.embed(
-            documents[i : i + batch_size], model="voyage-code-3", input_type="document"
+            documents[i : i + batch_size], model="voyage-code-3", input_type=input_type
         ).embeddings  # pyright: ignore[reportAssignmentType]
 
     return np.array(embeddings, dtype=np.float32)

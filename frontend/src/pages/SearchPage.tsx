@@ -98,6 +98,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
   useEffect(() => {
     handleSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

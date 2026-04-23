@@ -7,8 +7,9 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'src/components/ui/**']),
   {
+    files: ['**/*.{ts,tsx}'],
     extends: [
       eslint.configs.recommended,
       tseslint.configs.recommendedTypeChecked,
@@ -18,9 +19,7 @@ export default defineConfig([
     ],
     languageOptions: {
       parserOptions: {
-        projectService: {
-          allowDefaultProject: ['eslint.config.mjs'],
-        },
+        projectService: true,
       },
     },
   },

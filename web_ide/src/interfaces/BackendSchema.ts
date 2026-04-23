@@ -153,6 +153,7 @@ export const AgentRequestSchema = z.object({
 export type AgentRequest = z.infer<typeof AgentRequestSchema>;
 
 export const AgentSSEEventSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("reasoning"), content: z.string() }),
   z.object({
     type: z.literal("tool_call"),
     name: z.string(),
@@ -163,7 +164,6 @@ export const AgentSSEEventSchema = z.discriminatedUnion("type", [
     name: z.string(),
     summary: z.string(),
   }),
-  z.object({ type: z.literal("thinking"), content: z.string() }),
   z.object({ type: z.literal("message"), content: z.string() }),
   z.object({
     type: z.literal("done"),

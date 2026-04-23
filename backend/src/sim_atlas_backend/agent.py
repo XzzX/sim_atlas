@@ -621,6 +621,9 @@ async def run_agent_stream(
                 tool_choice="auto",
             )
             choice = response.choices[0]
+            print(
+                f"response:\n{json.dumps(choice.message.model_dump(exclude_unset=True), indent=2)}"
+            )
             messages.append(
                 cast(
                     ChatCompletionMessageParam,
@@ -632,9 +635,13 @@ async def run_agent_stream(
                 final_message = choice.message.content or "Done."
                 break
 
-            if choice.message.content:
-                yield _sse({"type": "thinking", "content": choice.message.content})
-
+            reasoning = (
+                getattr(choice.message, "reasoning", None)
+                or choice.message.content
+                or None
+            )
+            if reasoning:
+                yield _sse({"type": "reasoning", "content": reasoning})
             for tc in choice.message.tool_calls:
                 if not isinstance(tc, ChatCompletionMessageToolCall):
                     continue

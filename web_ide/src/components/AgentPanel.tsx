@@ -1,5 +1,7 @@
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { MutableRefObject } from "react";
 import type { Edge } from "@xyflow/react";
 import {
@@ -30,17 +32,14 @@ import type { Dispatch, SetStateAction } from "react";
 
 // ---- types ----------------------------------------------------------------
 
-interface ToolStep {
-  name: string;
-  args: Record<string, unknown>;
-  summary?: string;
-}
+type StepItem =
+  | { kind: "reasoning"; content: string }
+  | { kind: "tool"; name: string; args: Record<string, unknown>; summary?: string };
 
 interface ConversationTurn {
   role: "user" | "assistant";
   text?: string;
-  thinking: string[];
-  steps: ToolStep[];
+  steps: StepItem[];
   error?: string;
 }
 
@@ -76,7 +75,7 @@ function str(v: unknown): string {
   return JSON.stringify(v) ?? "";
 }
 
-function ToolStepDetail({ step }: { step: ToolStep }) {
+function ToolStepDetail({ step }: { step: Extract<StepItem, { kind: "tool" }> }) {
   const entries: [string, string][] = [];
   const s = step.args;
   if (step.name === "search_nodes" && s.query != null)
@@ -302,14 +301,14 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     // push user turn
     setMessages((prev) => [
       ...prev,
-      { role: "user", text: query, thinking: [], steps: [] },
+      { role: "user", text: query, steps: [] },
     ]);
 
     // create placeholder assistant turn
     const assistantIndex = messages.length + 1;
     setMessages((prev) => [
       ...prev,
-      { role: "assistant", thinking: [], steps: [] },
+      { role: "assistant", steps: [] },
     ]);
 
     const ctrl = new AbortController();
@@ -334,21 +333,31 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         request,
         (event: AgentSSEEvent) => {
           console.log("Received event:", event);
-          if (event.type === "tool_call") {
+          if (event.type === "reasoning") {
             updateAssistant((t) => ({
               ...t,
-              steps: [...t.steps, { name: event.name, args: event.args }],
+              steps: [...t.steps, { kind: "reasoning", content: event.content }],
+            }));
+          } else if (event.type === "tool_call") {
+            updateAssistant((t) => ({
+              ...t,
+              steps: [
+                ...t.steps,
+                { kind: "tool", name: event.name, args: event.args },
+              ],
             }));
           } else if (event.type === "tool_result") {
             updateAssistant((t) => {
               const steps = [...t.steps];
-              // find last step with this tool name and no summary yet
+              // find last tool step with this name and no summary yet
               for (let i = steps.length - 1; i >= 0; i--) {
+                const s = steps[i];
                 if (
-                  steps[i].name === event.name &&
-                  steps[i].summary === undefined
+                  s.kind === "tool" &&
+                  s.name === event.name &&
+                  s.summary === undefined
                 ) {
-                  steps[i] = { ...steps[i], summary: event.summary };
+                  steps[i] = { ...s, summary: event.summary };
                   break;
                 }
               }
@@ -356,11 +365,6 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             });
           } else if (event.type === "message") {
             updateAssistant((t) => ({ ...t, text: event.content }));
-          } else if (event.type === "thinking") {
-            updateAssistant((t) => ({
-              ...t,
-              thinking: [...t.thinking, event.content],
-            }));
           } else if (event.type === "done") {
             void convertAgentGraph(
               event.nodes,
@@ -439,18 +443,18 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
               </div>
             ) : (
               <div className="space-y-2">
-                {/* Thinking blocks */}
-                {turn.thinking.map((thought, j) => (
-                  <p
-                    key={j}
-                    className="text-xs italic text-muted-foreground/70 leading-relaxed whitespace-pre-wrap"
-                  >
-                    {thought}
-                  </p>
-                ))}
-
                 {/* Tool steps */}
                 {turn.steps.map((step, j) => {
+                  if (step.kind === "reasoning") {
+                    return (
+                      <p
+                        key={j}
+                        className="text-xs italic text-muted-foreground/70 leading-relaxed whitespace-pre-wrap"
+                      >
+                        {step.content}
+                      </p>
+                    );
+                  }
                   const key = `${i}-${j}`;
                   const expanded = expandedSteps.has(key);
                   return (
@@ -490,7 +494,11 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
 
                 {/* Final message */}
                 {turn.text ? (
-                  <p className="text-sm leading-relaxed">{turn.text}</p>
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {turn.text}
+                    </ReactMarkdown>
+                  </div>
                 ) : (
                   isRunning &&
                   i === messages.length - 1 &&

@@ -1,8 +1,9 @@
 import json
 import logging
+from collections.abc import AsyncGenerator
 from typing import Any, cast
 
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionMessageToolCall,
@@ -536,3 +537,111 @@ def run_agent(request: AgentRequest, storage: StorageInterface) -> AgentResponse
         edges=scratch.edges,
         message=final_message,
     )
+
+
+_TOOL_SUMMARIES: dict[str, str] = {
+    "add_edge": "Connected",
+    "remove_node": "Removed",
+}
+
+_SEARCH_TOOL_NAMES = {"search_nodes", "find_compatible_nodes"}
+_ADD_NODE_TOOL_NAMES = {"add_function_node", "add_input_node", "add_output_node"}
+
+
+def _tool_summary(tool_name: str, result_json: str) -> str:  # noqa: PLR0911
+    """Return a short human-readable summary of a tool result."""
+    try:
+        raw: Any = json.loads(result_json)
+    except json.JSONDecodeError:
+        return result_json[:120]
+    if not isinstance(raw, (dict, list)):
+        return "Done"
+    if isinstance(raw, dict) and "error" in raw:
+        err_raw = cast(dict[str, Any], raw)
+        return f"Error: {err_raw.get('error', '?')}"
+    if tool_name in _SEARCH_TOOL_NAMES:
+        data_list = cast(list[Any], raw) if isinstance(raw, list) else []
+        return f"Found {len(data_list)} node(s)"
+    if tool_name == "get_node_details" and isinstance(raw, dict):
+        data_dict = cast(dict[str, Any], raw)
+        return f"Retrieved details for {data_dict.get('name', '?')}"
+    if tool_name in _ADD_NODE_TOOL_NAMES and isinstance(raw, dict):
+        data_dict = cast(dict[str, Any], raw)
+        return f"Added as {data_dict.get('graph_id', '?')}"
+    return _TOOL_SUMMARIES.get(tool_name, "Done")
+
+
+async def run_agent_stream(
+    request: AgentRequest, storage: StorageInterface
+) -> AsyncGenerator[str, None]:
+    """Async generator that streams SSE events while running the agent loop."""
+    client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
+    scratch = _ScratchGraph(request.nodes, request.edges)
+
+    messages: list[ChatCompletionMessageParam] = [
+        {"role": "system", "content": _build_system_prompt(request)},
+        {"role": "user", "content": request.query},
+    ]
+
+    def _sse(event: dict[str, Any]) -> str:
+        return f"data: {json.dumps(event)}\n\n"
+
+    final_message = "Done."
+    max_iterations = 10
+    try:
+        for _ in range(max_iterations):
+            response = await client.chat.completions.create(
+                model=settings.llm_chat_model,
+                messages=messages,
+                tools=_TOOLS,
+                tool_choice="auto",
+            )
+            choice = response.choices[0]
+            messages.append(
+                cast(
+                    ChatCompletionMessageParam,
+                    choice.message.model_dump(exclude_unset=True),
+                )
+            )
+
+            if not choice.message.tool_calls:
+                final_message = choice.message.content or "Done."
+                break
+
+            for tc in choice.message.tool_calls:
+                if not isinstance(tc, ChatCompletionMessageToolCall):
+                    continue
+                args: dict[str, Any] = json.loads(tc.function.arguments)
+                yield _sse(
+                    {"type": "tool_call", "name": tc.function.name, "args": args}
+                )
+                result = _execute_tool(tc.function.name, args, storage, scratch)
+                summary = _tool_summary(tc.function.name, result)
+                yield _sse(
+                    {
+                        "type": "tool_result",
+                        "name": tc.function.name,
+                        "summary": summary,
+                    }
+                )
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": result,
+                    }
+                )
+
+        yield _sse({"type": "message", "content": final_message})
+        yield _sse(
+            {
+                "type": "done",
+                "nodes": [
+                    n.model_dump(exclude_none=True) for n in scratch.nodes.values()
+                ],
+                "edges": [e.model_dump() for e in scratch.edges],
+            }
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Agent stream error")
+        yield _sse({"type": "error", "message": str(exc)})

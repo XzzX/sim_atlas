@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
 
@@ -20,8 +21,7 @@ from sim_atlas_backend.models import (
     ScoredSearchResponse,
 )
 
-from .agent import run_agent
-
+from .agent import run_agent, run_agent_stream
 from .security import Creator, get_current_user
 from .storage_interface import StorageInterface, get_storage_backend
 
@@ -190,10 +190,29 @@ async def enrich(
 )
 async def agent(
     request: AgentRequest,
-    _: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> AgentResponse:
     return run_agent(request, storage)
+
+
+@api_router.post(
+    "/agent/stream",
+    tags=["ai"],
+    operation_id="agent_stream",
+    response_class=StreamingResponse,
+)
+async def agent_stream(
+    request: AgentRequest,
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+) -> StreamingResponse:
+    return StreamingResponse(
+        run_agent_stream(request, storage),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 app.include_router(api_router)

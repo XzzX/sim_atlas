@@ -4,12 +4,10 @@ import type { Dispatch, SetStateAction } from "react";
 import { ReactFlowEditor } from "./ReactFlowEditor";
 import type { OnNodesChange, OnEdgesChange, Edge } from "@xyflow/react";
 import "./index.css";
-import type { NodeResponse } from "./interfaces/BackendSchema";
 import type { WorkflowNode } from "./nodes/nodes";
 import { AgentPanel } from "./components/AgentPanel";
 
 interface MainLayoutProps {
-  allNodeMetadata: NodeResponse[];
   nodes: WorkflowNode[];
   setNodes: Dispatch<SetStateAction<WorkflowNode[]>>;
   onNodesChange: OnNodesChange<WorkflowNode>;
@@ -19,7 +17,6 @@ interface MainLayoutProps {
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
-  allNodeMetadata,
   nodes,
   setNodes,
   onNodesChange,
@@ -48,7 +45,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           }}
         >
           <ReactFlowEditor
-            allNodeMetadata={allNodeMetadata}
             nodes={nodes}
             setNodes={setNodes}
             onNodesChange={onNodesChange}
@@ -73,7 +69,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             edges={edges}
             setNodes={setNodes}
             setEdges={setEdges}
-            allNodeMetadata={allNodeMetadata}
             layoutRef={layoutRef}
           />
         </div>

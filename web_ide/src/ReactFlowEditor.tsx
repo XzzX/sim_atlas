@@ -18,7 +18,6 @@ import type {
 import { type NodeData } from "./nodes/FunctionNode";
 import { type InputDataElement } from "./nodes/InputNode";
 import { type OutputDataElement } from "./nodes/OutputNode";
-import type { NodeResponse } from "./interfaces/BackendSchema";
 import { AddNodeDialog } from "./dialogs/AddNodeDialog";
 import { Button } from "./components/ui/button";
 import { ImportDialog } from "./dialogs/ImportDialog";
@@ -27,7 +26,6 @@ import dagre from "@dagrejs/dagre";
 import { type WorkflowNode, nodeTypes } from "./nodes/nodes";
 
 interface ReactFlowEditor {
-  allNodeMetadata: NodeResponse[];
   nodes: WorkflowNode[];
   setNodes: Dispatch<SetStateAction<WorkflowNode[]>>;
   onNodesChange: OnNodesChange<WorkflowNode>;
@@ -38,7 +36,6 @@ interface ReactFlowEditor {
 }
 
 export const ReactFlowEditor = ({
-  allNodeMetadata,
   nodes,
   setNodes,
   onNodesChange,
@@ -218,7 +215,6 @@ export const ReactFlowEditor = ({
           </Button>
         </Panel>
         <AddNodeDialog
-          allNodeMetadata={allNodeMetadata}
           isOpen={isAddNodeDialogOpen}
           onClose={() => {
             setIsAddNodeDialogOpen(false);

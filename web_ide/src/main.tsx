@@ -4,12 +4,6 @@ import { useNodesState, useEdgesState, type Edge } from "@xyflow/react";
 import { convertWorkflow } from "./importWorkflow";
 import { simAtlasAPI } from "./services/api";
 import type { WorkflowNode } from "./nodes/nodes";
-import type { NodeResponse } from "./interfaces/BackendSchema";
-
-const searchResponse = await simAtlasAPI.search(null, null);
-const allNodeMetadata: NodeResponse[] = searchResponse.results.data.map(
-  (item) => item.node,
-);
 
 const fetchInitialNodesAndEdges = async (): Promise<{
   nodes: WorkflowNode[];
@@ -36,7 +30,6 @@ export const WebMainLayout = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   return (
     <MainLayout
-      allNodeMetadata={allNodeMetadata}
       nodes={nodes}
       setNodes={setNodes}
       onNodesChange={onNodesChange}

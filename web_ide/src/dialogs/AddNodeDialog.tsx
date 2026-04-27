@@ -1,13 +1,38 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { type NodeResponse } from "../interfaces/BackendSchema";
+import { type Filter, type FilterOptions } from "../interfaces/BackendSchema";
 import type { InputDataElement } from "../nodes/InputNode";
 import type { OutputDataElement } from "../nodes/OutputNode";
 import type { NodeData } from "../nodes/FunctionNode";
-import { type NodeFilter, nodeMatchesFilter } from "../interfaces/NodeFilter";
+import { simAtlasAPI } from "../services/api";
+import {
+  ArrowDownToLine,
+  ArrowUpDown,
+  ArrowUpFromLine,
+  BotIcon,
+  SearchIcon,
+} from "lucide-react";
+
+const PORT_OPTIONS = [
+  { value: null, Icon: ArrowUpDown, label: "Both" },
+  { value: "inputs" as const, Icon: ArrowDownToLine, label: "Inputs" },
+  { value: "outputs" as const, Icon: ArrowUpFromLine, label: "Outputs" },
+];
+
+const EMPTY_FILTER: Filter = {
+  category: null,
+  type: null,
+  author: null,
+  keywords: null,
+  datatypes: null,
+  units: null,
+  quantities: null,
+  port_type: null,
+};
+
+type SearchMode = "normal" | "semantic";
 
 interface AddNodeDialogProps {
-  allNodeMetadata: NodeResponse[];
   isOpen: boolean;
   onClose: () => void;
   onAdd: (
@@ -17,22 +42,59 @@ interface AddNodeDialogProps {
 }
 
 export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
-  allNodeMetadata,
   isOpen,
   onClose,
   onAdd,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [searchMode, setSearchMode] = useState<SearchMode>("normal");
+  const [filter, setFilter] = useState<Filter>(EMPTY_FILTER);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(
+    null,
+  );
+  const [results, setResults] = useState<NodeData["metadata"][]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [expandControlNodes, setExpandControlNodes] = useState(false);
-  const [filter, setFilter] = useState<Partial<NodeFilter>>({
-    portType: "both",
-  });
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const resetFilters = () => {
-    setFilter({ portType: "both" });
-    setShowFilters(false);
-  };
+  // Load filter options once
+  useEffect(() => {
+    simAtlasAPI.getFilterOptions().then(setFilterOptions).catch(console.error);
+  }, []);
+
+  const runSearch = useCallback(
+    async (term: string, f: Filter, p: number, mode: SearchMode) => {
+      setLoading(true);
+      try {
+        const resp =
+          mode === "semantic" && term.trim()
+            ? await simAtlasAPI.semanticSearch(term, f, p)
+            : await simAtlasAPI.search(term || null, f, p);
+        setResults(resp.results.data.map((item) => item.node));
+        setTotalPages(resp.results.total_pages);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  // Debounced re-search on term / filter / mode change
+  useEffect(() => {
+    if (!isOpen) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void runSearch(searchTerm, filter, 1, searchMode);
+      setPage(1);
+    }, 250);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchTerm, filter, searchMode, isOpen, runSearch]);
 
   const handleAdd = (
     type: "InputNode" | "OutputNode" | "FunctionNode",
@@ -42,74 +104,28 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
       prompt("Please enter a name for the node", data.label) ?? data.label;
     onAdd(type, { ...data, label });
     setSearchTerm("");
-    resetFilters();
+    setFilter(EMPTY_FILTER);
     onClose();
   };
 
   const handleCancel = useCallback(() => {
     setSearchTerm("");
-    resetFilters();
+    setFilter(EMPTY_FILTER);
     onClose();
   }, [onClose]);
 
-  const getUniqueValues = (key: keyof Pick<NodeResponse, "node_type">) => {
-    const values = new Set<string>();
-    allNodeMetadata.forEach((node) => {
-      values.add(node[key]);
-    });
-    return Array.from(values).sort();
-  };
-
-  const getUniqueAnnotationValues = (key: "datatype" | "unit" | "quantity") => {
-    const values = new Set<string>();
-    allNodeMetadata.forEach((node) => {
-      [...node.inputs, ...node.outputs].forEach((annotation) => {
-        if (annotation[key]) {
-          values.add(annotation[key]);
-        }
-      });
-    });
-    return Array.from(values).sort();
-  };
-
-  // Handle Escape key to close dialog
+  // Escape key
   useEffect(() => {
     if (!isOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
         handleCancel();
       }
     };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
   }, [handleCancel, isOpen]);
-
-  const filteredNodes = useMemo(() => {
-    return allNodeMetadata.filter((node) => {
-      // Search filter
-      if (searchTerm !== "") {
-        const term = searchTerm.toLowerCase();
-        if (
-          !node.python_import?.toLowerCase().includes(term) &&
-          !node.docstring.toLowerCase().includes(term)
-        ) {
-          return false;
-        }
-      }
-
-      // Apply NodeFilter
-      if (!nodeMatchesFilter(node, filter)) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [allNodeMetadata, searchTerm, filter]);
 
   if (!isOpen) return null;
 
@@ -119,214 +135,235 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
       onClick={handleCancel}
     >
       <div
-        className="bg-white rounded-lg shadow-md p-6 max-w-2xl w-11/12 max-h-[80vh] flex flex-col gap-4"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
+        className="bg-white rounded-lg shadow-md p-6 max-w-2xl w-11/12 max-h-[85vh] flex flex-col gap-4"
+        onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl font-semibold text-gray-900">Add Node</h2>
+
+        {/* Search bar + mode toggle */}
         <div className="flex gap-2 items-center">
           <input
             type="text"
-            placeholder="Search nodes..."
+            placeholder={
+              searchMode === "semantic"
+                ? "Describe what you're looking for…"
+                : "Search nodes…"
+            }
             value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (searchMode === "semantic" && e.key === "Enter") {
+                if (debounceRef.current) clearTimeout(debounceRef.current);
+                void runSearch(searchTerm, filter, 1, searchMode);
+              }
             }}
             className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             autoFocus
           />
-          <button
-            onClick={() => {
-              setShowFilters(!showFilters);
-            }}
-            className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors"
-            title="Toggle filters"
-          >
-            ⚙️
-          </button>
+          <div className="flex overflow-hidden rounded border text-xs h-[38px]">
+            {(
+              [
+                { mode: "normal" as const, Icon: SearchIcon, label: "Normal" },
+                { mode: "semantic" as const, Icon: BotIcon, label: "AI" },
+              ] as const
+            ).map(({ mode, Icon, label }, i) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setSearchMode(mode)}
+                className={[
+                  "flex items-center gap-1 px-2 py-1 transition-colors",
+                  i > 0 ? "border-l" : "",
+                  searchMode === mode
+                    ? "bg-blue-500 text-white"
+                    : "text-gray-500 hover:bg-gray-100",
+                ].join(" ")}
+              >
+                <Icon className="size-3" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        {showFilters && (
-          <div className="p-3 bg-gray-50 border border-gray-200 rounded flex flex-col gap-3">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-700 uppercase">
-                Port Type
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 text-sm">
+          {filterOptions && filterOptions.type.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase">
+                Node Type
               </label>
-              <div className="flex gap-3 flex-wrap">
-                {(["inputs", "outputs", "both"] as const).map((type) => (
-                  <label
-                    key={type}
-                    className="flex items-center gap-2 cursor-pointer text-sm text-gray-700"
-                  >
-                    <input
-                      type="radio"
-                      name="portType"
-                      value={type}
-                      checked={filter.portType === type}
-                      onChange={(e) => {
-                        setFilter({
-                          ...filter,
-                          portType: e.target.value as
-                            | "inputs"
-                            | "outputs"
-                            | "both",
-                        });
-                      }}
-                      className="cursor-pointer accent-blue-500"
-                    />
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </label>
+              <select
+                value={filter.type?.[0] ?? ""}
+                onChange={(e) =>
+                  setFilter({
+                    ...filter,
+                    type: e.target.value ? [e.target.value] : null,
+                  })
+                }
+                className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="">All</option>
+                {filterOptions.type.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
+          )}
 
-            {getUniqueValues("node_type").length > 0 && (
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-700 uppercase">
-                  Node Type
-                </label>
-                <select
-                  value={filter.nodeType ?? ""}
-                  onChange={(e) => {
-                    setFilter({
-                      ...filter,
-                      nodeType: e.target.value || undefined,
-                    });
-                  }}
-                  className="px-2 py-1 border border-gray-300 rounded text-sm bg-white cursor-pointer focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">All Node Types</option>
-                  {getUniqueValues("node_type").map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+          {/* Port direction */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-gray-500 uppercase">
+              Direction
+            </label>
+            <div className="flex overflow-hidden rounded border h-[30px]">
+              {PORT_OPTIONS.map(({ value, Icon, label }, i) => {
+                const active = (filter.port_type ?? null) === value;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    title={label}
+                    onClick={() => setFilter({ ...filter, port_type: value })}
+                    className={[
+                      "flex flex-1 items-center justify-center gap-1 px-2 text-xs transition-colors",
+                      i > 0 ? "border-l" : "",
+                      active
+                        ? "bg-blue-500 text-white"
+                        : "text-gray-500 hover:bg-gray-100",
+                    ].join(" ")}
+                  >
+                    <Icon className="size-3" />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-            {getUniqueAnnotationValues("datatype").length > 0 && (
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-700 uppercase">
-                  Data Type
-                </label>
-                <select
-                  value={filter.datatype ?? ""}
-                  onChange={(e) => {
-                    setFilter({
-                      ...filter,
-                      datatype: e.target.value || undefined,
-                    });
-                  }}
-                  className="px-2 py-1 border border-gray-300 rounded text-sm bg-white cursor-pointer focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">All Data Types</option>
-                  {getUniqueAnnotationValues("datatype").map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+          {filterOptions && filterOptions.datatypes.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase">
+                Datatype
+              </label>
+              <select
+                value={filter.datatypes?.[0] ?? ""}
+                onChange={(e) =>
+                  setFilter({
+                    ...filter,
+                    datatypes: e.target.value ? [e.target.value] : null,
+                  })
+                }
+                className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="">All</option>
+                {filterOptions.datatypes.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-            {getUniqueAnnotationValues("unit").length > 0 && (
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-700 uppercase">
-                  Unit
-                </label>
-                <select
-                  value={filter.unit ?? ""}
-                  onChange={(e) => {
-                    setFilter({ ...filter, unit: e.target.value || undefined });
-                  }}
-                  className="px-2 py-1 border border-gray-300 rounded text-sm bg-white cursor-pointer focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">All Units</option>
-                  {getUniqueAnnotationValues("unit").map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+          {filterOptions && filterOptions.units.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase">
+                Unit
+              </label>
+              <select
+                value={filter.units?.[0] ?? ""}
+                onChange={(e) =>
+                  setFilter({
+                    ...filter,
+                    units: e.target.value ? [e.target.value] : null,
+                  })
+                }
+                className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="">All</option>
+                {filterOptions.units.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-            {getUniqueAnnotationValues("quantity").length > 0 && (
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-700 uppercase">
-                  Quantity
-                </label>
-                <select
-                  value={filter.quantity ?? ""}
-                  onChange={(e) => {
-                    setFilter({
-                      ...filter,
-                      quantity: e.target.value || undefined,
-                    });
-                  }}
-                  className="px-2 py-1 border border-gray-300 rounded text-sm bg-white cursor-pointer focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">All Quantities</option>
-                  {getUniqueAnnotationValues("quantity").map((q) => (
-                    <option key={q} value={q}>
-                      {q}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+          {filterOptions && filterOptions.quantities.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase">
+                Quantity
+              </label>
+              <select
+                value={filter.quantities?.[0] ?? ""}
+                onChange={(e) =>
+                  setFilter({
+                    ...filter,
+                    quantities: e.target.value ? [e.target.value] : null,
+                  })
+                }
+                className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="">All</option>
+                {filterOptions.quantities.map((q) => (
+                  <option key={q} value={q}>
+                    {q}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
+          <div className="flex flex-col justify-end">
             <button
-              onClick={resetFilters}
+              onClick={() => setFilter(EMPTY_FILTER)}
               className="px-3 py-1 text-sm border border-gray-300 rounded bg-white hover:bg-gray-100 transition-colors"
             >
-              Clear Filters
+              Clear
             </button>
           </div>
-        )}
+        </div>
 
+        {/* Results list */}
         <div className="flex-1 overflow-y-auto border border-gray-200 rounded min-h-[200px]">
-          {/* Control Nodes Collapsible Section */}
+          {/* Control nodes */}
           <div>
             <button
-              onClick={() => {
-                setExpandControlNodes(!expandControlNodes);
-              }}
+              onClick={() => setExpandControlNodes(!expandControlNodes)}
               className="w-full px-3 py-2 bg-blue-50 border-b border-blue-200 text-xs font-semibold text-blue-700 uppercase hover:bg-blue-100 transition-colors flex items-center justify-between"
             >
               <span>Control Nodes</span>
               <span className="text-sm">{expandControlNodes ? "−" : "+"}</span>
             </button>
-
             {expandControlNodes && (
               <>
                 <div
-                  key="control_input"
                   className="px-3 py-3 border-b border-gray-200 cursor-pointer hover:bg-blue-100 transition-colors bg-blue-50"
-                  onClick={() => {
-                    handleAdd("InputNode", { label: "Input", value: "" });
-                  }}
+                  onClick={() =>
+                    handleAdd("InputNode", { label: "Input", value: "" })
+                  }
                 >
                   <div className="font-medium text-gray-900 text-sm mb-1">
                     Input
                   </div>
-                  <div className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                  <div className="text-xs text-gray-500">
                     Input node for workflow entry points
                   </div>
                 </div>
                 <div
-                  key="control_output"
                   className="px-3 py-3 border-b border-gray-200 cursor-pointer hover:bg-blue-100 transition-colors bg-blue-50"
-                  onClick={() => {
-                    handleAdd("OutputNode", { label: "Output", value: "" });
-                  }}
+                  onClick={() =>
+                    handleAdd("OutputNode", { label: "Output", value: "" })
+                  }
                 >
                   <div className="font-medium text-gray-900 text-sm mb-1">
                     Output
                   </div>
-                  <div className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                  <div className="text-xs text-gray-500">
                     Output node for workflow results
                   </div>
                 </div>
@@ -334,18 +371,22 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
             )}
           </div>
 
-          {/* Regular Nodes */}
-          {filteredNodes.length > 0 ? (
-            filteredNodes.map((node) => (
+          {/* API results */}
+          {loading ? (
+            <div className="px-6 py-6 text-center text-gray-400 text-sm">
+              Loading…
+            </div>
+          ) : results.length > 0 ? (
+            results.map((node) => (
               <div
                 key={node.id}
                 className="px-3 py-3 border-b border-gray-200 cursor-pointer hover:bg-gray-100 last:border-b-0 transition-colors"
-                onClick={() => {
+                onClick={() =>
                   handleAdd("FunctionNode", {
                     label: node.python_import?.split(".").pop() ?? "",
                     metadata: node,
-                  });
-                }}
+                  })
+                }
               >
                 <div className="font-medium text-gray-900 text-sm mb-1">
                   {node.python_import}
@@ -361,7 +402,36 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
             </div>
           )}
         </div>
-        <div className="flex gap-2 justify-end pt-2 border-t border-gray-200">
+
+        {/* Pagination + footer */}
+        <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+          <div className="flex items-center gap-2">
+            <button
+              disabled={page <= 1}
+              onClick={() => {
+                const p = page - 1;
+                setPage(p);
+                void runSearch(searchTerm, filter, p, searchMode);
+              }}
+              className="px-2 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-100 transition-colors"
+            >
+              ←
+            </button>
+            <span className="text-sm text-gray-500">
+              {page} / {Math.max(totalPages, 1)}
+            </span>
+            <button
+              disabled={page >= totalPages}
+              onClick={() => {
+                const p = page + 1;
+                setPage(p);
+                void runSearch(searchTerm, filter, p, searchMode);
+              }}
+              className="px-2 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-100 transition-colors"
+            >
+              →
+            </button>
+          </div>
           <Button onClick={handleCancel} variant="outline">
             Cancel
           </Button>

@@ -189,17 +189,13 @@ function buildAgentEdges(edges: Edge[]): GraphEdgeContext[] {
 async function convertAgentGraph(
   agentNodes: GraphNodeContext[],
   agentEdges: GraphEdgeContext[],
-  allNodeMetadata: NodeResponse[],
 ): Promise<{ nodes: WorkflowNode[]; edges: Edge[] }> {
-  const metaById = new Map(allNodeMetadata.map((m) => [m.id, m]));
-
   const nodes: WorkflowNode[] = await Promise.all(
     agentNodes.map(async (n) => {
       const pos = { x: 0, y: 0 };
       if (n.atlas_node_id != null) {
-        let metadata = metaById.get(n.atlas_node_id);
-        if (!metadata) {
-          try {
+        let metadata: NodeResponse | undefined;
+        try {
             metadata = await simAtlasAPI.getNode(n.atlas_node_id);
           } catch {
             // fall back to minimal shape so the graph still renders
@@ -225,7 +221,6 @@ async function convertAgentGraph(
               outputs: n.outputs,
             };
           }
-        }
         const fn: WorkflowNode = {
           id: n.graph_id,
           type: "FunctionNode",
@@ -272,7 +267,6 @@ interface AgentPanelProps {
   edges: Edge[];
   setNodes: Dispatch<SetStateAction<WorkflowNode[]>>;
   setEdges: Dispatch<SetStateAction<Edge[]>>;
-  allNodeMetadata: NodeResponse[];
   layoutRef: MutableRefObject<() => void>;
 }
 
@@ -281,7 +275,6 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   edges,
   setNodes,
   setEdges,
-  allNodeMetadata,
   layoutRef,
 }) => {
   const [messages, setMessages] = useState<ConversationTurn[]>([]);
@@ -382,7 +375,6 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             void convertAgentGraph(
               event.nodes,
               event.edges,
-              allNodeMetadata,
             ).then(({ nodes: newNodes, edges: newEdges }) => {
               setNodes(newNodes);
               setEdges(newEdges);
@@ -418,7 +410,6 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     messages.length,
     nodes,
     edges,
-    allNodeMetadata,
     setNodes,
     setEdges,
     layoutRef,

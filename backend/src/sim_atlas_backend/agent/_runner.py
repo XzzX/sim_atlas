@@ -92,7 +92,7 @@ def _execute_search_tool(
 ) -> str:
     if tool_name == "search_nodes":
         query: str = tool_args["query"]
-        limit: int = tool_args.get("limit", 5)
+        limit: int = tool_args.get("limit", 10)
         f = Filter(
             datatypes=tool_args.get("datatypes"),
             units=tool_args.get("units"),
@@ -123,7 +123,7 @@ def _execute_search_tool(
         datatype: str | None = tool_args.get("datatype")
         unit: str | None = tool_args.get("unit")
         quantity: str | None = tool_args.get("quantity")
-        limit: int = tool_args.get("limit", 5)
+        limit: int = tool_args.get("limit", 10)
         f = Filter(
             datatypes=[datatype] if datatype else None,
             units=[unit] if unit else None,

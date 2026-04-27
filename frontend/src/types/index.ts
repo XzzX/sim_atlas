@@ -111,6 +111,7 @@ export const FilterSchema = z.object({
   datatypes: z.array(z.string()),
   units: z.array(z.string()),
   quantities: z.array(z.string()),
+  port_type: z.enum(["inputs", "outputs", "both"]).nullable().optional(),
 });
 export type Filter = z.infer<typeof FilterSchema>;
 

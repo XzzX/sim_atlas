@@ -31,6 +31,19 @@ import {
 import SearchBar from "@/components/SearchBar";
 import { Toaster } from "@/components/ui/sonner";
 
+/** Strip null/undefined values so URLSearchParams accepts the object. */
+function filtersToParams(
+  extra: Record<string, string>,
+  f: Filter,
+): Record<string, string | string[]> {
+  const { port_type, ...rest } = f;
+  return {
+    ...extra,
+    ...rest,
+    ...(port_type != null ? { port_type } : {}),
+  };
+}
+
 const EMPTY_FILTER: Filter = {
   category: "",
   type: [],
@@ -39,6 +52,7 @@ const EMPTY_FILTER: Filter = {
   datatypes: [],
   units: [],
   quantities: [],
+  port_type: "both",
 };
 
 const EMPTY_FILTER_OPTIONS: FilterOptions = {
@@ -90,6 +104,9 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     datatypes: searchParams.getAll("datatypes") ?? EMPTY_FILTER.datatypes,
     units: searchParams.getAll("units") ?? EMPTY_FILTER.units,
     quantities: searchParams.getAll("quantities") ?? EMPTY_FILTER.quantities,
+    port_type:
+      (searchParams.get("port_type") as "inputs" | "outputs" | "both" | null) ??
+      null,
   });
 
   const handleSearch = () => {
@@ -114,7 +131,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
           query={query}
           onQueryChange={(v) => {
             setQuery(v);
-            setSearchParams({ q: v, c: category, ...filters });
+            setSearchParams(filtersToParams({ q: v, c: category }, filters));
             onSearchChange(v, category, filters);
           }}
           items={suggestions}
@@ -126,7 +143,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
           categoryOptions={availableFilterOptions.category}
           onCategoryChange={(v) => {
             setCategory(v);
-            setSearchParams({ q: query, c: v, ...filters });
+            setSearchParams(filtersToParams({ q: query, c: v }, filters));
             onSearchChange(query, v, filters);
           }}
         />
@@ -135,7 +152,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
           availableFilterOptions={availableFilterOptions}
           onFilterChange={(v) => {
             setFilters(v);
-            setSearchParams({ q: query, c: category, ...v });
+            setSearchParams(filtersToParams({ q: query, c: category }, v));
             onSearchChange(query, category, v);
           }}
         />

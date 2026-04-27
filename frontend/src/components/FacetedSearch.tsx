@@ -15,6 +15,13 @@ import {
 } from "@/components/ui/combobox";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
+import { ArrowDownToLine, ArrowUpDown, ArrowUpFromLine } from "lucide-react";
+
+const PORT_OPTIONS = [
+  { value: null, Icon: ArrowUpDown, label: "Both" },
+  { value: "inputs" as const, Icon: ArrowDownToLine, label: "Inputs" },
+  { value: "outputs" as const, Icon: ArrowUpFromLine, label: "Outputs" },
+];
 
 interface FacetedSearchProps {
   filters: Filter;
@@ -43,12 +50,15 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
               datatypes: [],
               units: [],
               quantities: [],
+              port_type: null,
             })
           }
         >
           Clear all
         </Button>
       </div>
+
+      {/* General filters */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <FacetPopover
           label="Node Type"
@@ -63,10 +73,7 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
           values={availableFilterOptions.author}
           selected={filters.author ?? []}
           onValueChange={(values) =>
-            onFilterChange({
-              ...filters,
-              author: values,
-            })
+            onFilterChange({ ...filters, author: values })
           }
         />
         <FacetPopover
@@ -74,45 +81,72 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
           values={availableFilterOptions.keywords ?? []}
           selected={filters.keywords ?? []}
           onValueChange={(values) =>
-            onFilterChange({
-              ...filters,
-              keywords: values,
-            })
+            onFilterChange({ ...filters, keywords: values })
           }
         />
-        <FacetPopover
-          label="Datatype"
-          values={availableFilterOptions.datatypes ?? []}
-          selected={filters.datatypes ?? []}
-          onValueChange={(values) =>
-            onFilterChange({
-              ...filters,
-              datatypes: values,
-            })
-          }
-        />
-        <FacetPopover
-          label="Unit"
-          values={availableFilterOptions.units ?? []}
-          selected={filters.units ?? []}
-          onValueChange={(values) =>
-            onFilterChange({
-              ...filters,
-              units: values,
-            })
-          }
-        />
-        <FacetPopover
-          label="Quantity"
-          values={availableFilterOptions.quantities ?? []}
-          selected={filters.quantities ?? []}
-          onValueChange={(values) =>
-            onFilterChange({
-              ...filters,
-              quantities: values,
-            })
-          }
-        />
+      </div>
+
+      {/* Annotation filters — port direction scopes all three */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Annotations
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Direction
+            </p>
+            <div className="flex overflow-hidden rounded border text-xs h-[34px]">
+              {PORT_OPTIONS.map(({ value, Icon, label }, i) => {
+                const active = (filters.port_type ?? null) === value;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    title={label}
+                    onClick={() =>
+                      onFilterChange({ ...filters, port_type: value })
+                    }
+                    className={[
+                      "flex flex-1 items-center justify-center gap-1 px-2 py-1 transition-colors",
+                      i > 0 ? "border-l" : "",
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted",
+                    ].join(" ")}
+                  >
+                    <Icon className="size-3" />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <FacetPopover
+            label="Datatype"
+            values={availableFilterOptions.datatypes ?? []}
+            selected={filters.datatypes ?? []}
+            onValueChange={(values) =>
+              onFilterChange({ ...filters, datatypes: values })
+            }
+          />
+          <FacetPopover
+            label="Unit"
+            values={availableFilterOptions.units ?? []}
+            selected={filters.units ?? []}
+            onValueChange={(values) =>
+              onFilterChange({ ...filters, units: values })
+            }
+          />
+          <FacetPopover
+            label="Quantity"
+            values={availableFilterOptions.quantities ?? []}
+            selected={filters.quantities ?? []}
+            onValueChange={(values) =>
+              onFilterChange({ ...filters, quantities: values })
+            }
+          />
+        </div>
       </div>
     </CardContent>
   );

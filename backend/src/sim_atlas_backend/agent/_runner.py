@@ -83,7 +83,15 @@ def _execute_search_tool(
     if tool_name == "search_nodes":
         query: str = tool_args["query"]
         limit: int = tool_args.get("limit", 5)
-        response = storage.search_semantic(query, limit=limit)
+        f = Filter(
+            datatypes=tool_args.get("datatypes"),
+            units=tool_args.get("units"),
+            quantities=tool_args.get("quantities"),
+            keywords=tool_args.get("keywords"),
+            port_type=tool_args.get("port_type"),
+        )
+        filter_arg = f if f.model_fields_set else None
+        response = storage.search_semantic(query, filter_arg, limit=limit)
         results = [
             {
                 "atlas_node_id": item.node.id,
@@ -110,6 +118,7 @@ def _execute_search_tool(
             datatypes=[datatype] if datatype else None,
             units=[unit] if unit else None,
             quantities=[quantity] if quantity else None,
+            port_type=tool_args.get("port_type", "inputs"),
         )
         response = storage.search(query=None, filter=f, limit=limit)
         results = [

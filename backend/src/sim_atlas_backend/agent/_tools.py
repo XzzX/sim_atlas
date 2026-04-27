@@ -11,7 +11,9 @@ TOOLS: list[ChatCompletionToolParam] = [
             "description": (
                 "Search the node catalog using natural language. "
                 "Returns a list of nodes with their id, name, port metadata, "
-                "and a short description."
+                "and a short description. "
+                "Optionally narrow results by port attributes (datatypes, units, quantities), "
+                "keywords, or port_type to restrict matching to input or output ports."
             ),
             "parameters": {
                 "type": "object",
@@ -25,6 +27,31 @@ TOOLS: list[ChatCompletionToolParam] = [
                         "description": "Maximum number of results to return (default 5).",
                         "default": 5,
                     },
+                    "datatypes": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Restrict to nodes that have ports with these datatypes (e.g. ['float', 'int']).",
+                    },
+                    "units": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Restrict to nodes that have ports with these physical units (e.g. ['K', 'eV']).",
+                    },
+                    "quantities": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Restrict to nodes that have ports with these physical quantities (e.g. ['temperature']).",
+                    },
+                    "keywords": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Restrict to nodes tagged with these keywords.",
+                    },
+                    "port_type": {
+                        "type": "string",
+                        "enum": ["inputs", "outputs", "both"],
+                        "description": "Whether port filters apply to input ports, output ports, or both (default both).",
+                    },
                 },
                 "required": ["query"],
             },
@@ -35,9 +62,10 @@ TOOLS: list[ChatCompletionToolParam] = [
         "function": {
             "name": "find_compatible_nodes",
             "description": (
-                "Find nodes whose input ports are compatible with a given port "
-                "signature (datatype, unit, quantity). Use this to discover nodes "
-                "that can consume a specific output."
+                "Find nodes whose ports are compatible with a given port signature "
+                "(datatype, unit, quantity). "
+                "Use port_type='inputs' (default) to find nodes that can consume a specific output, "
+                "or port_type='outputs' to find nodes that produce a specific type of value."
             ),
             "parameters": {
                 "type": "object",
@@ -53,6 +81,12 @@ TOOLS: list[ChatCompletionToolParam] = [
                     "quantity": {
                         "type": "string",
                         "description": "Physical quantity to match (e.g. 'temperature').",
+                    },
+                    "port_type": {
+                        "type": "string",
+                        "enum": ["inputs", "outputs", "both"],
+                        "description": "Match on input ports (default), output ports, or both.",
+                        "default": "inputs",
                     },
                     "limit": {
                         "type": "integer",

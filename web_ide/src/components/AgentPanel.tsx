@@ -93,10 +93,18 @@ function ToolStepDetail({
   const s = step.args;
   if (step.name === "search_nodes" && s.query != null)
     entries.push(["Query", str(s.query)]);
+  if (step.name === "search_nodes") {
+    if (s.datatypes != null) entries.push(["Types", str(s.datatypes)]);
+    if (s.units != null) entries.push(["Units", str(s.units)]);
+    if (s.quantities != null) entries.push(["Quantities", str(s.quantities)]);
+    if (s.keywords != null) entries.push(["Keywords", str(s.keywords)]);
+    if (s.port_type != null) entries.push(["Port", str(s.port_type)]);
+  }
   if (step.name === "find_compatible_nodes") {
     if (s.datatype != null) entries.push(["Type", str(s.datatype)]);
     if (s.unit != null) entries.push(["Unit", str(s.unit)]);
     if (s.quantity != null) entries.push(["Quantity", str(s.quantity)]);
+    if (s.port_type != null) entries.push(["Port", str(s.port_type)]);
   }
   if (step.name === "get_node_details" && s.atlas_node_id != null)
     entries.push(["ID", `${str(s.atlas_node_id).slice(0, 16)}…`]);

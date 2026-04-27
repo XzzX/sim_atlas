@@ -39,11 +39,21 @@ def _node_to_context(node: GraphNodeContext) -> str:
     return f"  [{node.node_kind}:{node.graph_id}] {node.name}{atlas}{desc}\n    in: {inputs}\n    out: {outputs}"
 
 
-def _build_system_prompt(request: AgentRequest) -> str:
+def _build_system_prompt(request: AgentRequest, storage: StorageInterface) -> str:
     node_lines = "\n".join(_node_to_context(n) for n in request.nodes)
     edge_lines = "\n".join(
         f"  {e.source_graph_id}/{e.source_handle} → {e.target_graph_id}/{e.target_handle}"
         for e in request.edges
+    )
+    opts = storage.get_filter_options()
+    filter_section = (
+        "## Available filter values\n"
+        "Use only values from these lists when supplying filter arguments to search_nodes "
+        "or find_compatible_nodes.\n"
+        f"datatypes: {', '.join(sorted(opts.datatypes)) or '(none)'}\n"
+        f"units: {', '.join(sorted(opts.units)) or '(none)'}\n"
+        f"quantities: {', '.join(sorted(opts.quantities)) or '(none)'}\n"
+        f"keywords: {', '.join(sorted(opts.keywords)) or '(none)'}"
     )
     return f"""You are an expert workflow builder for scientific simulation pipelines.
 You have access to a catalog of simulation nodes (functions) that can be searched and connected.
@@ -74,6 +84,8 @@ Only remove or rewire existing nodes when the user explicitly asks, or when it i
 - Use remove_edge to disconnect two nodes by specifying all four endpoint identifiers (source_graph_id, source_handle, target_graph_id, target_handle).
 - Use remove_node to delete an existing node (also removes its connected edges).
 - When you are finished, respond with a concise summary of only the changes you made.
+
+{filter_section}
 """
 
 
@@ -181,7 +193,7 @@ async def run_agent_stream(
     scratch = ScratchGraph(request.nodes, request.edges)
 
     messages: list[ChatCompletionMessageParam] = [
-        {"role": "system", "content": _build_system_prompt(request)},
+        {"role": "system", "content": _build_system_prompt(request, storage)},
         {"role": "user", "content": request.query},
     ]
 

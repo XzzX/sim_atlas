@@ -74,6 +74,16 @@ Only remove or rewire existing nodes when the user explicitly asks, or when it i
 - Use remove_edge to disconnect two nodes by specifying all four endpoint identifiers (source_graph_id, source_handle, target_graph_id, target_handle).
 - Use remove_node to delete an existing node (also removes its connected edges).
 - When you are finished, respond with a concise summary of only the changes you made.
+
+## Search strategy
+1. Decompose the user's goal into a sequence of intermediate computations before searching.
+2. For each step, call search_nodes with a focused natural language query describing that step's purpose.
+3. If the first query yields no good match, retry with different vocabulary or a broader/narrower phrasing before giving up.
+4. After identifying a candidate node, use find_compatible_nodes with port_type="outputs" on that node's output signature to discover what can consume it — this lets you chain forward through the pipeline.
+5. To find nodes that feed into a known input, use find_compatible_nodes with port_type="inputs" on that input's signature.
+6. Combine search_nodes with port filter arguments (datatypes, units, quantities) to narrow results when you already know the required port signature.
+7. Use get_node_details before adding a node when the short description leaves the port names ambiguous.
+8. Only stop searching when you have found a concrete node for each required step, or have exhausted reasonable alternatives and must inform the user.
 """
 
 

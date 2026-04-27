@@ -24,22 +24,22 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: web-ide/package-lock.json
+          cache-dependency-path: web_ide/package-lock.json
 
       # Install dependencies using clean install
       - name: Install dependencies
         run: npm ci
-        working-directory: ./web-ide
+        working-directory: ./web_ide
 
       # Run ESLint to check code style
       - name: Run ESLint
         run: npm run lint
-        working-directory: ./web-ide
+        working-directory: ./web_ide
 
       # Check TypeScript types without emitting files
       - name: Type check
         run: npm run type-check
-        working-directory: ./web-ide
+        working-directory: ./web_ide
 
   build:
     name: Build Application
@@ -54,23 +54,23 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: web-ide/package-lock.json
+          cache-dependency-path: web_ide/package-lock.json
 
       - name: Install dependencies
         run: npm ci
-        working-directory: ./web-ide
+        working-directory: ./web_ide
 
       # Build the production bundle
       - name: Build
         run: npm run build
-        working-directory: ./web-ide
+        working-directory: ./web_ide
 
       # Upload build artifacts for deployment jobs
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-output
-          path: web-ide/dist/
+          path: web_ide/dist/
           retention-days: 1
 
   dependency-audit:
@@ -85,14 +85,14 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: web-ide/package-lock.json
+          cache-dependency-path: web_ide/package-lock.json
 
       # Run npm audit for known vulnerabilities
       - name: Security audit
         run: npm audit --audit-level=high
-        working-directory: ./web-ide
+        working-directory: ./web_ide
 
       # Check for outdated packages
       - name: Check outdated
         run: npm outdated || true
-        working-directory: ./web-ide
+        working-directory: ./web_ide

@@ -65,11 +65,16 @@ TOOLS: list[ChatCompletionToolParam] = [
                 "Find nodes whose ports are compatible with a given port signature "
                 "(datatype, unit, quantity). "
                 "Use port_type='inputs' (default) to find nodes that can consume a specific output, "
-                "or port_type='outputs' to find nodes that produce a specific type of value."
+                "or port_type='outputs' to find nodes that produce a specific type of value. "
+                "Provide an optional query for semantic ranking on top of the port filter."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Optional natural language description to rank results semantically in addition to the port filter.",
+                    },
                     "datatype": {
                         "type": "string",
                         "description": "Port datatype to match (e.g. 'float', 'int').",

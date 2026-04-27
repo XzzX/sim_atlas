@@ -101,6 +101,7 @@ function ToolStepDetail({
     if (s.port_type != null) entries.push(["Port", str(s.port_type)]);
   }
   if (step.name === "find_compatible_nodes") {
+    if (s.query != null) entries.push(["Query", str(s.query)]);
     if (s.datatype != null) entries.push(["Type", str(s.datatype)]);
     if (s.unit != null) entries.push(["Unit", str(s.unit)]);
     if (s.quantity != null) entries.push(["Quantity", str(s.quantity)]);

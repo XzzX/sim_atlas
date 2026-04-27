@@ -47,7 +47,10 @@ def parse(obj: Any) -> Metadata | None:
     if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
         return None
 
-    source_code = inspect.getsource(obj)
+    if inspect.isbuiltin(obj):
+        source_code = f"{obj.__name__}{inspect.signature(obj)}"
+    else:
+        source_code = inspect.getsource(obj)
     source_code = textwrap.dedent(source_code.replace("\\r\\n", ""))
 
     sig = inspect.signature(obj)

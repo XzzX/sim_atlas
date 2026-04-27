@@ -106,7 +106,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     quantities: searchParams.getAll("quantities") ?? EMPTY_FILTER.quantities,
     port_type:
       (searchParams.get("port_type") as "inputs" | "outputs" | "both" | null) ??
-      null,
+      "both",
   });
 
   const handleSearch = () => {

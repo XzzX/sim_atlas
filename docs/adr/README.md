@@ -50,4 +50,4 @@ A decision that affects multiple components lists all values, e.g. `scope: [back
 | [0013](0013-jupyterhub-like-server-client-infrastructure.md) | JupyterHub-like scale-agnostic server-client infrastructure | accepted | cross-cutting |
 | [0014](0014-agent-orchestration-placement.md) | Server-side agent with client-supplied LLM credentials | draft | cross-cutting |
 | [0015](0015-agent-filter-options-in-system-prompt.md) | Inject catalog filter options into the agent system prompt | accepted | backend |
-| [0014](0014-agent-orchestration-placement.md) | Agent orchestration placement | draft | backend, web-ide |
+| [0016](0016-multi-turn-agent-conversation-history.md) | Multi-turn agent conversation via client-carried history | accepted | backend, web-ide |

@@ -401,3 +401,71 @@ class StorageContractTests:
         beyond = storage.search(None, page=10, limit=5)
         assert len(beyond.results.data) == 0
         assert beyond.results.total_items == 3  # noqa: PLR2004
+
+    def test_search_filter_port_type_inputs_matches_input_datatype(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(
+            make_node(
+                name="input_float",
+                inputs=[Annotation(datatype="float")],
+                outputs=[Annotation(datatype="int")],
+                source_code="def a(): pass",
+            )
+        )
+        storage.create(
+            make_node(
+                name="output_float",
+                inputs=[Annotation(datatype="int")],
+                outputs=[Annotation(datatype="float")],
+                source_code="def b(): pass",
+            )
+        )
+        result = storage.search(None, Filter(datatypes=["float"], port_type="inputs"))
+        assert result.results.total_items == 1
+        assert result.results.data[0].node.name == "input_float"
+
+    def test_search_filter_port_type_outputs_matches_output_datatype(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(
+            make_node(
+                name="input_float",
+                inputs=[Annotation(datatype="float")],
+                outputs=[Annotation(datatype="int")],
+                source_code="def a(): pass",
+            )
+        )
+        storage.create(
+            make_node(
+                name="output_float",
+                inputs=[Annotation(datatype="int")],
+                outputs=[Annotation(datatype="float")],
+                source_code="def b(): pass",
+            )
+        )
+        result = storage.search(None, Filter(datatypes=["float"], port_type="outputs"))
+        assert result.results.total_items == 1
+        assert result.results.data[0].node.name == "output_float"
+
+    def test_search_filter_port_type_both_matches_either(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(
+            make_node(
+                name="input_float",
+                inputs=[Annotation(datatype="float")],
+                outputs=[Annotation(datatype="int")],
+                source_code="def a(): pass",
+            )
+        )
+        storage.create(
+            make_node(
+                name="output_float",
+                inputs=[Annotation(datatype="int")],
+                outputs=[Annotation(datatype="float")],
+                source_code="def b(): pass",
+            )
+        )
+        result = storage.search(None, Filter(datatypes=["float"], port_type="both"))
+        assert result.results.total_items == 2  # noqa: PLR2004

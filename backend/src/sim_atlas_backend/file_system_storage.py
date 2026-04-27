@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from sim_atlas_backend.ai import create_ai_docstring
 from sim_atlas_backend.models import (
+    Annotation,
     Filter,
     FilterOptions,
     NodeMetadata,
@@ -60,6 +61,14 @@ class NodeFilter:
         self.quantities = (
             filter_options.quantities if filter_options.quantities else None
         )
+        self.port_type = filter_options.port_type or "both"
+
+    def _annotations(self, node: NodeMetadata) -> list[Annotation]:
+        if self.port_type == "inputs":
+            return node.inputs
+        if self.port_type == "outputs":
+            return node.outputs
+        return node.inputs + node.outputs
 
     def __call__(self, node: NodeMetadata) -> bool:  # noqa: PLR0911
         if self.category and not node.category.startswith(self.category):
@@ -74,24 +83,18 @@ class NodeFilter:
         if self.keywords and not any(kw in node.keywords for kw in self.keywords):
             return False
 
+        annotations = self._annotations(node)
+
         if self.datatypes and not any(
-            dt in self.datatypes
-            for dt in [input.datatype for input in node.inputs]
-            + [output.datatype for output in node.outputs]
+            a.datatype in self.datatypes for a in annotations
         ):
             return False
 
-        if self.units and not any(
-            unit in self.units
-            for unit in [input.unit for input in node.inputs]
-            + [output.unit for output in node.outputs]
-        ):
+        if self.units and not any(a.unit in self.units for a in annotations):
             return False
 
         if self.quantities and not any(  # noqa: SIM103
-            quantity in self.quantities
-            for quantity in [input.quantity for input in node.inputs]
-            + [output.quantity for output in node.outputs]
+            a.quantity in self.quantities for a in annotations
         ):
             return False
 

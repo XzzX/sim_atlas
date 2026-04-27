@@ -129,6 +129,7 @@ class Filter(BaseModel):
     datatypes: list[str] | None = None
     units: list[str] | None = None
     quantities: list[str] | None = None
+    port_type: Literal["inputs", "outputs", "both"] | None = None
 
 
 class FilterOptions(BaseModel):

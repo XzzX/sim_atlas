@@ -67,7 +67,11 @@ export const ReactFlowEditor = ({
     dagreGraph.setGraph({ rankdir: "LR" });
 
     nodes.forEach((node) => {
-      dagreGraph.setNode(node.id, rfInstance.getNodesBounds([node]));
+      const bounds = rfInstance.getNodesBounds([node]);
+      dagreGraph.setNode(node.id, {
+        width: bounds.width || 150,
+        height: bounds.height || 60,
+      });
     });
 
     edges.forEach((edge) => {
@@ -77,7 +81,9 @@ export const ReactFlowEditor = ({
     dagre.layout(dagreGraph);
 
     const newNodes = nodes.map((node) => {
-      const { width, height } = rfInstance.getNodesBounds([node]);
+      const bounds = rfInstance.getNodesBounds([node]);
+      const width = bounds.width || 150;
+      const height = bounds.height || 60;
       const nodeWithPosition = dagreGraph.node(node.id);
       const newNode = {
         ...node,

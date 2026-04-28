@@ -13,6 +13,7 @@ import requests
 
 from sim_atlas_toolkit.parsers.metadata import Metadata
 
+from .config import load_config
 from .models import (
     NodeRequest,
 )
@@ -22,9 +23,10 @@ logger = logging.getLogger("SimAtlas")
 
 
 class NodeStore:
-    def __init__(self, api_url: str, api_key: str | None = None) -> None:
-        self.api_url = api_url
-        self.api_key = api_key
+    def __init__(self, api_url: str | None = None, api_key: str | None = None) -> None:
+        cfg = load_config()
+        self.api_url = api_url if api_url is not None else cfg.api_url
+        self.api_key = api_key if api_key is not None else cfg.api_key or None
 
     def upload_module(  # noqa: PLR0912
         self,

@@ -275,12 +275,42 @@ TOOLS: list[ChatCompletionToolParam] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "ask_clarification",
+            "description": (
+                "Pause the current task and ask the user a clarifying question. "
+                "Use this when the request is ambiguous and you cannot make a reasonable "
+                "default choice without risking wasted work. "
+                "Provide an optional list of suggested answers the user can pick from. "
+                "The agent loop will stop after this call; the user's reply will arrive as "
+                "the next message in the conversation."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "The clarifying question to ask the user.",
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of suggested answers to present as clickable choices.",
+                    },
+                },
+                "required": ["question"],
+            },
+        },
+    },
 ]
 
 _TOOL_SUMMARIES: dict[str, str] = {
     "add_edge": "Connected",
     "remove_edge": "Edge removed",
     "remove_node": "Node removed",
+    "ask_clarification": "Awaiting user reply",
 }
 
 _SEARCH_TOOL_NAMES = {"search_nodes", "find_compatible_nodes"}

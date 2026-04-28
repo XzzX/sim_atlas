@@ -83,7 +83,24 @@ Only remove or rewire existing nodes when the user explicitly asks, or when it i
 - Use add_edge to connect nodes; verify port names using the port metadata returned by add_function_node or get_node_details.
 - Use remove_edge to disconnect two nodes by specifying all four endpoint identifiers (source_graph_id, source_handle, target_graph_id, target_handle).
 - Use remove_node to delete an existing node (also removes its connected edges).
+- Use ask_clarification to pause and ask the user a question when you cannot proceed without their input. The agent loop stops and the user's reply arrives as the next message.
 - When you are finished, respond with a concise summary of only the changes you made.
+
+## When to use ask_clarification
+Call ask_clarification (and stop) in the following situations — do not guess or pick arbitrarily:
+
+1. **Multiple viable nodes for the same step**: if a search returns two or more nodes that could
+   all satisfy the requirement and there is no clear best choice, ask the user which one to use.
+   List the candidates as options so the user can click one directly.
+
+2. **Unresolvable missing inputs**: if a required input port cannot be satisfied from any existing
+   node in the graph and the correct source is not obvious from context (e.g. a raw data file path,
+   an external parameter value, or a choice between computing it vs. supplying it manually), ask the
+   user how they want to provide it. Suggest concrete options where possible (e.g. "Add an input
+   node with a fixed value", "Compute it from …", "Leave it unconnected for now").
+
+Do NOT call ask_clarification for decisions you can resolve yourself (e.g. a clearly best-scoring
+search result, a missing optional port, or a default value that is obvious from context).
 
 {filter_section}
 """
@@ -192,8 +209,13 @@ async def run_agent_stream(
     client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
     scratch = ScratchGraph(request.nodes, request.edges)
 
+    history_messages: list[ChatCompletionMessageParam] = [
+        cast(ChatCompletionMessageParam, {"role": m.role, "content": m.content})
+        for m in request.history
+    ]
     messages: list[ChatCompletionMessageParam] = [
         {"role": "system", "content": _build_system_prompt(request, storage)},
+        *history_messages,
         {"role": "user", "content": request.query},
     ]
 
@@ -255,6 +277,32 @@ async def run_agent_stream(
                 yield _sse(
                     {"type": "tool_call", "name": tc.function.name, "args": args}
                 )
+
+                if tc.function.name == "ask_clarification":
+                    question: str = args["question"]
+                    options: list[str] = args.get("options") or []
+                    yield _sse(
+                        {
+                            "type": "clarification",
+                            "question": question,
+                            "options": options,
+                        }
+                    )
+                    # Also emit a message event so the frontend history logic
+                    # captures the question as the assistant's final turn.
+                    yield _sse({"type": "message", "content": question})
+                    yield _sse(
+                        {
+                            "type": "done",
+                            "nodes": [
+                                n.model_dump(exclude_none=True)
+                                for n in scratch.nodes.values()
+                            ],
+                            "edges": [e.model_dump() for e in scratch.edges],
+                        }
+                    )
+                    return
+
                 result = _execute_tool(tc.function.name, args, storage, scratch)
                 summary = tool_summary(tc.function.name, result)
                 yield _sse(

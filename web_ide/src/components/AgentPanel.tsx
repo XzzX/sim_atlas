@@ -8,11 +8,13 @@ import {
   BrainCircuit,
   ChevronDown,
   GitCommitHorizontal,
+  HelpCircle,
   Info,
   MessageSquare,
   Plus,
   Search,
   ArrowRight,
+  RotateCcw,
   ShieldAlert,
   Trash2,
   SendHorizontal,
@@ -43,7 +45,8 @@ type StepItem =
       args: Record<string, unknown>;
       summary?: string;
     }
-  | { kind: "validation"; errors: string[] };
+  | { kind: "validation"; errors: string[] }
+  | { kind: "clarification"; question: string; options: string[] };
 
 interface ConversationTurn {
   role: "user" | "assistant";
@@ -287,9 +290,20 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   layoutRef,
 }) => {
   const [messages, setMessages] = useState<ConversationTurn[]>([]);
+  const [history, setHistory] = useState<
+    { role: "user" | "assistant"; content: string }[]
+  >([]);
   const [isRunning, setIsRunning] = useState(false);
   const [inputText, setInputText] = useState("");
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
+
+  const finalMessageRef = useRef<string>("");
+
+  const handleNewConversation = () => {
+    setMessages([]);
+    setHistory([]);
+    setExpandedSteps(new Set());
+  };
 
   const toggleStep = (key: string) => {
     setExpandedSteps((prev) => {
@@ -309,125 +323,154 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     }
   }, [messages]);
 
-  const handleSend = useCallback(async () => {
-    const query = inputText.trim();
-    if (!query || isRunning) return;
+  const sendQuery = useCallback(
+    async (query: string) => {
+      if (!query || isRunning) return;
 
-    setInputText("");
-    setIsRunning(true);
+      setInputText("");
+      setIsRunning(true);
+      finalMessageRef.current = "";
 
-    // push user turn
-    setMessages((prev) => [...prev, { role: "user", text: query, steps: [] }]);
+      // push user turn
+      setMessages((prev) => [...prev, { role: "user", text: query, steps: [] }]);
 
-    // create placeholder assistant turn
-    const assistantIndex = messages.length + 1;
-    setMessages((prev) => [...prev, { role: "assistant", steps: [] }]);
+      // create placeholder assistant turn
+      const assistantIndex = messages.length + 1;
+      setMessages((prev) => [...prev, { role: "assistant", steps: [] }]);
 
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
 
-    const request = {
-      query,
-      nodes: buildAgentNodes(nodes),
-      edges: buildAgentEdges(edges),
-    };
+      const request = {
+        query,
+        nodes: buildAgentNodes(nodes),
+        edges: buildAgentEdges(edges),
+        history,
+      };
 
-    const updateAssistant = (
-      updater: (t: ConversationTurn) => ConversationTurn,
-    ) => {
-      setMessages((prev) =>
-        prev.map((m, i) => (i === assistantIndex ? updater(m) : m)),
-      );
-    };
+      const updateAssistant = (
+        updater: (t: ConversationTurn) => ConversationTurn,
+      ) => {
+        setMessages((prev) =>
+          prev.map((m, i) => (i === assistantIndex ? updater(m) : m)),
+        );
+      };
 
-    try {
-      await simAtlasAPI.agentStream(
-        request,
-        (event: AgentSSEEvent) => {
-          console.log("Received event:", event);
-          if (event.type === "reasoning") {
-            updateAssistant((t) => ({
-              ...t,
-              steps: [
-                ...t.steps,
-                { kind: "reasoning", content: event.content },
-              ],
-            }));
-          } else if (event.type === "tool_call") {
-            updateAssistant((t) => ({
-              ...t,
-              steps: [
-                ...t.steps,
-                { kind: "tool", name: event.name, args: event.args },
-              ],
-            }));
-          } else if (event.type === "tool_result") {
-            updateAssistant((t) => {
-              const steps = [...t.steps];
-              // find last tool step with this name and no summary yet
-              for (let i = steps.length - 1; i >= 0; i--) {
-                const s = steps[i];
-                if (
-                  s.kind === "tool" &&
-                  s.name === event.name &&
-                  s.summary === undefined
-                ) {
-                  steps[i] = { ...s, summary: event.summary };
-                  break;
+      try {
+        await simAtlasAPI.agentStream(
+          request,
+          (event: AgentSSEEvent) => {
+            console.log("Received event:", event);
+            if (event.type === "reasoning") {
+              updateAssistant((t) => ({
+                ...t,
+                steps: [
+                  ...t.steps,
+                  { kind: "reasoning", content: event.content },
+                ],
+              }));
+            } else if (event.type === "tool_call") {
+              updateAssistant((t) => ({
+                ...t,
+                steps: [
+                  ...t.steps,
+                  { kind: "tool", name: event.name, args: event.args },
+                ],
+              }));
+            } else if (event.type === "tool_result") {
+              updateAssistant((t) => {
+                const steps = [...t.steps];
+                // find last tool step with this name and no summary yet
+                for (let i = steps.length - 1; i >= 0; i--) {
+                  const s = steps[i];
+                  if (
+                    s.kind === "tool" &&
+                    s.name === event.name &&
+                    s.summary === undefined
+                  ) {
+                    steps[i] = { ...s, summary: event.summary };
+                    break;
+                  }
                 }
-              }
-              return { ...t, steps };
-            });
-          } else if (event.type === "message") {
-            updateAssistant((t) => ({ ...t, text: event.content }));
-          } else if (event.type === "done") {
-            void convertAgentGraph(
-              event.nodes,
-              event.edges,
-            ).then(({ nodes: newNodes, edges: newEdges }) => {
-              setNodes(newNodes);
-              setEdges(newEdges);
-              setTimeout(() => {
-                layoutRef.current();
-              }, 80);
-            });
-          } else if (event.type === "validation") {
-            updateAssistant((t) => ({
-              ...t,
-              steps: [...t.steps, { kind: "validation", errors: event.errors }],
-            }));
-          } else if (event.type === "error") {
-            updateAssistant((t) => ({ ...t, error: event.message }));
-          }
-        },
-        ctrl.signal,
-      );
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name !== "AbortError") {
-        updateAssistant((t) => ({
-          ...t,
-          error: err.message,
-        }));
+                return { ...t, steps };
+              });
+            } else if (event.type === "clarification") {
+              updateAssistant((t) => ({
+                ...t,
+                steps: [
+                  ...t.steps,
+                  {
+                    kind: "clarification",
+                    question: event.question,
+                    options: event.options,
+                  },
+                ],
+              }));
+            } else if (event.type === "message") {
+              finalMessageRef.current = event.content;
+              updateAssistant((t) => ({ ...t, text: event.content }));
+            } else if (event.type === "done") {
+              void convertAgentGraph(
+                event.nodes,
+                event.edges,
+              ).then(({ nodes: newNodes, edges: newEdges }) => {
+                setNodes(newNodes);
+                setEdges(newEdges);
+                setTimeout(() => {
+                  layoutRef.current();
+                }, 80);
+              });
+            } else if (event.type === "validation") {
+              updateAssistant((t) => ({
+                ...t,
+                steps: [
+                  ...t.steps,
+                  { kind: "validation", errors: event.errors },
+                ],
+              }));
+            } else if (event.type === "error") {
+              updateAssistant((t) => ({ ...t, error: event.message }));
+            }
+          },
+          ctrl.signal,
+        );
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== "AbortError") {
+          updateAssistant((t) => ({
+            ...t,
+            error: err.message,
+          }));
+        }
+      } finally {
+        setIsRunning(false);
+        abortRef.current = null;
+        setHistory((prev) => [
+          ...prev,
+          { role: "user", content: query },
+          { role: "assistant", content: finalMessageRef.current },
+        ]);
       }
-    } finally {
-      setIsRunning(false);
-      abortRef.current = null;
-    }
-  }, [
-    inputText,
-    isRunning,
-    messages.length,
-    nodes,
-    edges,
-    setNodes,
-    setEdges,
-    layoutRef,
-  ]);
+    },
+    [
+      isRunning,
+      messages.length,
+      nodes,
+      edges,
+      history,
+      setNodes,
+      setEdges,
+      layoutRef,
+    ],
+  );
+
+  const handleSend = useCallback(() => {
+    void sendQuery(inputText.trim());
+  }, [inputText, sendQuery]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      void handleSend();
+      handleSend();
     }
   };
 
@@ -437,6 +480,17 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
         <Bot className="w-4 h-4 text-muted-foreground" />
         <span className="font-semibold text-sm">Agent</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-auto w-7 h-7"
+          onClick={handleNewConversation}
+          disabled={isRunning}
+          aria-label="New conversation"
+          title="New conversation"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+        </Button>
       </div>
 
       {/* Messages */}
@@ -463,6 +517,35 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
               <div className="space-y-2">
                 {/* Tool steps */}
                 {turn.steps.map((step, j) => {
+                  if (step.kind === "clarification") {
+                    return (
+                      <div
+                        key={j}
+                        className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2"
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                          <HelpCircle className="w-3.5 h-3.5 shrink-0" />
+                          {step.question}
+                        </div>
+                        {step.options.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {step.options.map((opt) => (
+                              <Button
+                                key={opt}
+                                variant="outline"
+                                size="sm"
+                                className="h-6 text-xs px-2"
+                                disabled={isRunning}
+                                onClick={() => void sendQuery(opt)}
+                              >
+                                {opt}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
                   if (step.kind === "validation") {
                     const vKey = `v-${i}-${j}`;
                     const vExpanded = expandedSteps.has(vKey);
@@ -632,9 +715,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         />
         <Button
           size="icon"
-          onClick={() => {
-            void handleSend();
-          }}
+          onClick={handleSend}
           disabled={isRunning || !inputText.trim()}
           aria-label="Send"
         >

@@ -164,10 +164,16 @@ class GraphEdgeContext(BaseModel):
     target_handle: str
 
 
+class HistoryMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
 class AgentRequest(BaseModel):
     query: str
     nodes: list[GraphNodeContext]
     edges: list[GraphEdgeContext]
+    history: list[HistoryMessage] = []
 
 
 class AgentResponse(BaseModel):

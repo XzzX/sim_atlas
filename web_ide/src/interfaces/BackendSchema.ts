@@ -151,6 +151,11 @@ export const AgentRequestSchema = z.object({
   query: z.string(),
   nodes: z.array(GraphNodeContextSchema),
   edges: z.array(GraphEdgeContextSchema),
+  history: z
+    .array(
+      z.object({ role: z.enum(["user", "assistant"]), content: z.string() }),
+    )
+    .optional(),
 });
 export type AgentRequest = z.infer<typeof AgentRequestSchema>;
 
@@ -167,6 +172,11 @@ export const AgentSSEEventSchema = z.discriminatedUnion("type", [
     summary: z.string(),
   }),
   z.object({ type: z.literal("message"), content: z.string() }),
+  z.object({
+    type: z.literal("clarification"),
+    question: z.string(),
+    options: z.array(z.string()),
+  }),
   z.object({
     type: z.literal("done"),
     nodes: z.array(GraphNodeContextSchema),

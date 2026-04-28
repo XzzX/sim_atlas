@@ -208,31 +208,31 @@ async function convertAgentGraph(
       if (n.atlas_node_id != null) {
         let metadata: NodeResponse | undefined;
         try {
-            metadata = await simAtlasAPI.getNode(n.atlas_node_id);
-          } catch {
-            // fall back to minimal shape so the graph still renders
-            metadata = {
-              id: n.atlas_node_id,
-              name: n.name,
-              author_name: "",
-              author_email: "",
-              creator_name: "",
-              creator_email: "",
-              creation_timestamp: "",
-              node_type: "function",
-              category: "",
-              keywords: [],
-              homepage_url: "",
-              documentation_url: "",
-              source_url: "",
-              python_import: "",
-              source_code: "",
-              docstring: "",
-              ai_docstring: n.short_description ?? "",
-              inputs: n.inputs,
-              outputs: n.outputs,
-            };
-          }
+          metadata = await simAtlasAPI.getNode(n.atlas_node_id);
+        } catch {
+          // fall back to minimal shape so the graph still renders
+          metadata = {
+            id: n.atlas_node_id,
+            name: n.name,
+            author_name: "",
+            author_email: "",
+            creator_name: "",
+            creator_email: "",
+            creation_timestamp: "",
+            node_type: "function",
+            category: "",
+            keywords: [],
+            homepage_url: "",
+            documentation_url: "",
+            source_url: "",
+            python_import: "",
+            source_code: "",
+            docstring: "",
+            ai_docstring: n.short_description ?? "",
+            inputs: n.inputs,
+            outputs: n.outputs,
+          };
+        }
         const fn: WorkflowNode = {
           id: n.graph_id,
           type: "FunctionNode",
@@ -332,7 +332,10 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       finalMessageRef.current = "";
 
       // push user turn
-      setMessages((prev) => [...prev, { role: "user", text: query, steps: [] }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", text: query, steps: [] },
+      ]);
 
       // create placeholder assistant turn
       const assistantIndex = messages.length + 1;
@@ -410,16 +413,15 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
               finalMessageRef.current = event.content;
               updateAssistant((t) => ({ ...t, text: event.content }));
             } else if (event.type === "done") {
-              void convertAgentGraph(
-                event.nodes,
-                event.edges,
-              ).then(({ nodes: newNodes, edges: newEdges }) => {
-                setNodes(newNodes);
-                setEdges(newEdges);
-                setTimeout(() => {
-                  layoutRef.current();
-                }, 80);
-              });
+              void convertAgentGraph(event.nodes, event.edges).then(
+                ({ nodes: newNodes, edges: newEdges }) => {
+                  setNodes(newNodes);
+                  setEdges(newEdges);
+                  setTimeout(() => {
+                    layoutRef.current();
+                  }, 80);
+                },
+              );
             } else if (event.type === "validation") {
               updateAssistant((t) => ({
                 ...t,

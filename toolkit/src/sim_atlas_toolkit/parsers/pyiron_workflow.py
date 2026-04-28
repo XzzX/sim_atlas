@@ -11,8 +11,11 @@ def parse(node: Any) -> Metadata | None:
     if not isinstance(node, type):
         return None
 
-    from pyiron_workflow.api import NOT_DATA  # noqa: PLC0415
-    from pyiron_workflow.nodes.function import Function  # noqa: PLC0415
+    try:
+        from pyiron_workflow.api import NOT_DATA  # noqa: PLC0415
+        from pyiron_workflow.nodes.function import Function  # noqa: PLC0415
+    except ImportError:
+        return None
 
     if not issubclass(node, Function):
         return None

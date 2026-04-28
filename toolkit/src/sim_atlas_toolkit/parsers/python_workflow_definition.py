@@ -1,16 +1,21 @@
-from typing import Any
+# pyright: basic
 
-from python_workflow_definition.models import (
-    PythonWorkflowDefinitionInputNode,
-    PythonWorkflowDefinitionOutputNode,
-    PythonWorkflowDefinitionWorkflow,
-)
+from typing import Any
 
 from ..models import Annotation, NodeType
 from .metadata import Metadata
 
 
 def parse(obj: Any) -> Metadata | None:
+    try:
+        from python_workflow_definition.models import (  # noqa: PLC0415
+            PythonWorkflowDefinitionInputNode,
+            PythonWorkflowDefinitionOutputNode,
+            PythonWorkflowDefinitionWorkflow,
+        )
+    except ImportError:
+        return None
+
     if not isinstance(obj, PythonWorkflowDefinitionWorkflow):
         return None
 

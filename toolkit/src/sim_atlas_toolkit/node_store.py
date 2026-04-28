@@ -48,10 +48,9 @@ class NodeStore:
                 path for path in submodule_paths if not path.name.startswith("_")
             )
             submodule_paths = (
-                module.__name__
-                + "."
-                + ".".join(
-                    str(path.relative_to(module_path).with_suffix("")).split("/")
+                ".".join(
+                    [module.__name__]
+                    + str(path.relative_to(module_path).with_suffix("")).split("/")
                 )
                 for path in submodule_paths
             )

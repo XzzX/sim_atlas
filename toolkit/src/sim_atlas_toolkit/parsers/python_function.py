@@ -9,11 +9,7 @@ from .metadata import Metadata, parse_annotation
 def _parse_arguments(sig: inspect.Signature) -> list[Annotation]:
     arguments: list[Annotation] = []
     for param_name, param in sig.parameters.items():
-        ann = (
-            parse_annotation(param.annotation)
-            if param.annotation != inspect.Parameter.empty
-            else Annotation()
-        )
+        ann = parse_annotation(param.annotation)
         ann.label = param_name
         arguments.append(ann)
     return arguments

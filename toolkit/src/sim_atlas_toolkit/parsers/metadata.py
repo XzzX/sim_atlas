@@ -1,3 +1,4 @@
+import inspect
 from typing import Annotated, Any, get_args, get_origin
 
 from pydantic import BaseModel
@@ -29,6 +30,9 @@ def parse_annotation(annotation: Any) -> Annotation:
         Annotation: The parsed annotation details.
     """
     if annotation is None:
+        return Annotation()
+
+    if annotation == inspect.Parameter.empty:
         return Annotation()
 
     def get_name(obj: Any) -> str:

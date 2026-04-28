@@ -10,7 +10,7 @@ export default defineConfig({
       "@": "/src",
     },
   },
-  base: "",
+  base: "./",
   server: {
     proxy: {
       "/api": {

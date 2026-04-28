@@ -8,7 +8,7 @@ rm -rv dist/*
 npm run build
 cp -rv dist/* ../backend/src/sim_atlas_backend/static/frontend/.
 
-cd ../web-ide
+cd ../web_ide
 rm -rv dist/*
 npm run build
 cp -rv dist/* ../backend/src/sim_atlas_backend/static/ide/.

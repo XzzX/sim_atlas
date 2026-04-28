@@ -298,6 +298,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
 
   const finalMessageRef = useRef<string>("");
+  const graphGenRef = useRef(0);
 
   const handleNewConversation = () => {
     setMessages([]);
@@ -330,6 +331,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       setInputText("");
       setIsRunning(true);
       finalMessageRef.current = "";
+      graphGenRef.current = 0;
 
       // push user turn
       setMessages((prev) => [
@@ -412,9 +414,11 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             } else if (event.type === "message") {
               finalMessageRef.current = event.content;
               updateAssistant((t) => ({ ...t, text: event.content }));
-            } else if (event.type === "done") {
+            } else if (event.type === "graph_update") {
+              const myGen = ++graphGenRef.current;
               void convertAgentGraph(event.nodes, event.edges).then(
                 ({ nodes: newNodes, edges: newEdges }) => {
+                  if (graphGenRef.current !== myGen) return;
                   setNodes(newNodes);
                   setEdges(newEdges);
                   setTimeout(() => {

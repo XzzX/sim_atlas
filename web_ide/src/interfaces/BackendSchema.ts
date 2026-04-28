@@ -178,7 +178,7 @@ export const AgentSSEEventSchema = z.discriminatedUnion("type", [
     options: z.array(z.string()),
   }),
   z.object({
-    type: z.literal("done"),
+    type: z.literal("graph_update"),
     nodes: z.array(GraphNodeContextSchema),
     edges: z.array(GraphEdgeContextSchema),
   }),

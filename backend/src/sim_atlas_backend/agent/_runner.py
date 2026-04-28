@@ -293,7 +293,7 @@ async def run_agent_stream(
                     yield _sse({"type": "message", "content": question})
                     yield _sse(
                         {
-                            "type": "done",
+                            "type": "graph_update",
                             "nodes": [
                                 n.model_dump(exclude_none=True)
                                 for n in scratch.nodes.values()
@@ -320,10 +320,21 @@ async def run_agent_stream(
                     }
                 )
 
+            yield _sse(
+                {
+                    "type": "graph_update",
+                    "nodes": [
+                        n.model_dump(exclude_none=True)
+                        for n in scratch.nodes.values()
+                    ],
+                    "edges": [e.model_dump() for e in scratch.edges],
+                }
+            )
+
         yield _sse({"type": "message", "content": final_message})
         yield _sse(
             {
-                "type": "done",
+                "type": "graph_update",
                 "nodes": [
                     n.model_dump(exclude_none=True) for n in scratch.nodes.values()
                 ],

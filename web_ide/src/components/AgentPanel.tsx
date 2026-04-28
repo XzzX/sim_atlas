@@ -9,6 +9,7 @@ import {
   ChevronDown,
   GitCommitHorizontal,
   HelpCircle,
+  History,
   Info,
   MessageSquare,
   Plus,
@@ -46,7 +47,12 @@ type StepItem =
       summary?: string;
     }
   | { kind: "validation"; errors: string[] }
-  | { kind: "clarification"; question: string; options: string[] };
+  | { kind: "clarification"; question: string; options: string[] }
+  | {
+      kind: "graph_snapshot";
+      nodes: GraphNodeContext[];
+      edges: GraphEdgeContext[];
+    };
 
 interface ConversationTurn {
   role: "user" | "assistant";
@@ -317,6 +323,21 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const handleRestoreSnapshot = useCallback(
+    (snapshotNodes: GraphNodeContext[], snapshotEdges: GraphEdgeContext[]) => {
+      void convertAgentGraph(snapshotNodes, snapshotEdges).then(
+        ({ nodes: newNodes, edges: newEdges }) => {
+          setNodes(newNodes);
+          setEdges(newEdges);
+          setTimeout(() => {
+            layoutRef.current();
+          }, 80);
+        },
+      );
+    },
+    [setNodes, setEdges, layoutRef],
+  );
+
   // auto-scroll to bottom when messages change
   useEffect(() => {
     if (scrollRef.current) {
@@ -426,6 +447,17 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                   }, 80);
                 },
               );
+              updateAssistant((t) => ({
+                ...t,
+                steps: [
+                  ...t.steps,
+                  {
+                    kind: "graph_snapshot" as const,
+                    nodes: event.nodes,
+                    edges: event.edges,
+                  },
+                ],
+              }));
             } else if (event.type === "validation") {
               updateAssistant((t) => ({
                 ...t,
@@ -587,6 +619,33 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                             ))}
                           </ul>
                         )}
+                      </div>
+                    );
+                  }
+                  if (step.kind === "graph_snapshot") {
+                    return (
+                      <div
+                        key={j}
+                        className="flex items-center gap-1.5 px-1 py-0.5"
+                      >
+                        <History className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                        <span className="text-xs text-muted-foreground/50 flex-1">
+                          {step.nodes.length} node
+                          {step.nodes.length !== 1 ? "s" : ""},{" "}
+                          {step.edges.length} edge
+                          {step.edges.length !== 1 ? "s" : ""}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 text-xs px-2 py-0 text-muted-foreground hover:text-foreground"
+                          disabled={isRunning}
+                          onClick={() =>
+                            handleRestoreSnapshot(step.nodes, step.edges)
+                          }
+                        >
+                          Restore
+                        </Button>
                       </div>
                     );
                   }

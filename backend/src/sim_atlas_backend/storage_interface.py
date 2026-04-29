@@ -62,7 +62,7 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def enrich(self) -> None:
+    def enrich(self, only_ids: list[str] | None = None) -> None:
         pass
 
 

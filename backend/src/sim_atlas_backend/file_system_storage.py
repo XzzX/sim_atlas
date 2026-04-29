@@ -335,10 +335,14 @@ class FileSystemStorage(StorageInterface):
 
         return self._paginate(similarities, page=page, limit=limit)
 
-    def enrich(self) -> None:
-        for v in tqdm(self._storage.values(), desc="adding ai_docstrings"):
-            if v.ai_docstring:
-                continue
+    def enrich(self, only_ids: list[str] | None = None) -> None:
+        nodes_to_enrich = (
+            [node for node in self._storage.values() if node.id in only_ids]
+            if only_ids
+            else [node for node in self._storage.values() if node.embedding is None]
+        )
+
+        for v in tqdm(nodes_to_enrich, desc="adding ai_docstrings"):
             if not v.source_code:
                 continue
             try:
@@ -351,14 +355,10 @@ class FileSystemStorage(StorageInterface):
 
             self._save_to_disk()
 
-        values = [
-            node
-            for node in self._storage.values()
-            if node.ai_docstring and node.embedding is None
-        ]
-        documents = [node.ai_docstring for node in values]
+        nodes_to_embed = [node for node in nodes_to_enrich if node.ai_docstring]
+        documents = [node.ai_docstring for node in nodes_to_embed]
         embeddings = create_embedding(documents, input_type="document")
-        for emb, item in zip(embeddings, values, strict=True):
+        for emb, item in zip(embeddings, nodes_to_embed, strict=True):
             item.embedding = emb
 
         self._save_to_disk()

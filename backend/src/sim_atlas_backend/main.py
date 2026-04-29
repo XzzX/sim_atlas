@@ -177,8 +177,9 @@ async def semantic_search(
 async def enrich(
     storage: Annotated[StorageInterface, Depends(get_storage)],
     _: Annotated[Creator, Depends(get_current_user)],
+    only_ids: list[str] | None = None,
 ) -> None:
-    storage.enrich()
+    storage.enrich(only_ids=only_ids)
 
 
 @api_router.post(

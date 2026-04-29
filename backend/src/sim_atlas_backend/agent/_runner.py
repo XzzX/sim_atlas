@@ -206,6 +206,7 @@ async def run_agent_stream(
     request: AgentRequest, storage: StorageInterface
 ) -> AsyncGenerator[str, None]:
     """Async generator that streams SSE events while running the agent loop."""
+    assert settings.llm_api_key and settings.llm_api_url and settings.llm_chat_model
     client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
     scratch = ScratchGraph(request.nodes, request.edges)
 

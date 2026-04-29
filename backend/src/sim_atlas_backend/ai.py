@@ -2,10 +2,19 @@ from openai import OpenAI
 
 from sim_atlas_backend.models import NodeMetadata
 
+from .exceptions import AINotConfiguredError
 from .settings import settings
 
 
 def create_embedding(text: str) -> list[float]:
+    if (
+        not settings.llm_api_key
+        or not settings.llm_api_url
+        or not settings.llm_embedding_model
+    ):
+        raise AINotConfiguredError(
+            "LLM settings (llm_api_key, llm_api_url, llm_embedding_model) are not configured"
+        )
     client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
 
     embedding = (
@@ -21,6 +30,14 @@ def create_embedding(text: str) -> list[float]:
 
 
 def create_ai_docstring(docstring: str, source_code: str) -> str:
+    if (
+        not settings.llm_api_key
+        or not settings.llm_api_url
+        or not settings.llm_chat_model
+    ):
+        raise AINotConfiguredError(
+            "LLM settings (llm_api_key, llm_api_url, llm_chat_model) are not configured"
+        )
     client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
 
     docstring = (
@@ -50,6 +67,7 @@ source code:
         .message.content
         or ""
     )
+
     # Remove thinking part if present (text between <think> tags)
     if "<think>" in docstring and "</think>" in docstring:
         start = docstring.find("<think>")

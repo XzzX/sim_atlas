@@ -2,10 +2,13 @@ import numpy as np
 import voyageai
 from tqdm import tqdm
 
+from .exceptions import AINotConfiguredError
 from .settings import settings
 
 
 def create_embedding(documents: list[str], input_type: str = "document") -> np.ndarray:
+    if not settings.voyage_api_key:
+        raise AINotConfiguredError("voyage_api_key is not configured")
     vo = voyageai.Client(api_key=settings.voyage_api_key)  # pyright: ignore[reportPrivateImportUsage]
     batch_size = 256
     embeddings: list[list[float]] = []

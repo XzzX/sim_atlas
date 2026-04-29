@@ -17,11 +17,11 @@ _CONFIG_FILES = [
 class Settings(BaseSettings):
     jwt_secret_key: str
     jwt_algorithm: str
-    llm_api_key: str
-    llm_api_url: str
-    llm_embedding_model: str
-    llm_chat_model: str
-    voyage_api_key: str
+    llm_api_key: str | None = None
+    llm_api_url: str | None = None
+    llm_embedding_model: str | None = None
+    llm_chat_model: str | None = None
+    voyage_api_key: str | None = None
 
     model_config = SettingsConfigDict(
         toml_file=[str(p) for p in _CONFIG_FILES],

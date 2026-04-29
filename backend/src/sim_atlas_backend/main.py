@@ -4,7 +4,15 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,7 +29,9 @@ from sim_atlas_backend.models import (
 )
 
 from .agent import run_agent_stream
+from .exceptions import AINotConfiguredError
 from .security import Creator, get_current_user
+from .settings import settings
 from .storage_interface import StorageInterface, get_storage_backend
 
 
@@ -50,6 +60,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(AINotConfiguredError)
+async def ai_not_configured_handler(request: Request, exc: AINotConfiguredError) -> Response:
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="AI features are not configured",
+    )
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -192,6 +210,8 @@ async def agent_stream(
     request: AgentRequest,
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> StreamingResponse:
+    if not settings.llm_api_key or not settings.llm_api_url or not settings.llm_chat_model:
+        raise AINotConfiguredError
     return StreamingResponse(
         run_agent_stream(request, storage),
         media_type="text/event-stream",

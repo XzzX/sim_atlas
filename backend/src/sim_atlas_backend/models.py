@@ -1,7 +1,7 @@
 import base64
 import gzip
 from enum import StrEnum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 import numpy as np
 from pydantic import (
@@ -9,7 +9,6 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     PlainSerializer,
-    model_validator,
 )
 
 
@@ -102,24 +101,6 @@ class NodeResponse(BaseModel):
     ai_description: str
     inputs: list[Annotation]
     outputs: list[Annotation]
-
-    @model_validator(mode="before")
-    @classmethod
-    def _migrate_ai_docstring(cls, data: Any) -> dict[str, Any]:
-        """Migrate on-disk JSON that still has the old `ai_docstring` field."""
-        if not isinstance(data, dict):
-            return data  # type: ignore[return-value]
-        d: dict[str, Any] = {}
-        d.update(data)  # type: ignore[arg-type]
-        if "ai_docstring" in d:
-            old: str = d.pop("ai_docstring")
-            if "ai_description" not in d:
-                d["ai_description"] = old  # full content → description
-            if "ai_summary" not in d:
-                d["ai_summary"] = (
-                    old.splitlines()[0] if old else ""
-                )  # first line → summary
-        return d
 
 
 class ScoredSearchItem(BaseModel):

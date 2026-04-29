@@ -68,7 +68,8 @@ export const NodeResponseSchema = z.object({
   source_code: z.string(),
 
   docstring: z.string(),
-  ai_docstring: z.string(),
+  ai_summary: z.string(),
+  ai_description: z.string(),
 
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),

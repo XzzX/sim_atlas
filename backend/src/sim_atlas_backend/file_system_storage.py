@@ -9,7 +9,7 @@ import numpy as np
 from pydantic import BaseModel
 from tqdm import tqdm
 
-from sim_atlas_backend.ai import create_ai_docstring
+from sim_atlas_backend.ai import create_ai_descriptions
 from sim_atlas_backend.models import (
     Annotation,
     Filter,
@@ -280,6 +280,8 @@ class FileSystemStorage(StorageInterface):
         def score_item(query: str, item: NodeMetadata) -> float:
             if query in item.python_import.lower():
                 return 1.0
+            if query in item.ai_summary.lower():
+                return 0.8
             if query in item.docstring.lower():
                 return 0.5
             return 0.0
@@ -342,11 +344,13 @@ class FileSystemStorage(StorageInterface):
             else [node for node in self._storage.values() if node.embedding is None]
         )
 
-        for v in tqdm(nodes_to_enrich, desc="adding ai_docstrings"):
+        for v in tqdm(nodes_to_enrich, desc="generating ai descriptions"):
             if not v.source_code:
                 continue
             try:
-                v.ai_docstring = create_ai_docstring(v.docstring, v.source_code)
+                v.ai_summary, v.ai_description = create_ai_descriptions(
+                    v.name, v.docstring, v.source_code
+                )
             except Exception as e:
                 print(f"Error occurred while enriching node {v.name}: {e}")
                 print(f"docstring: {v.docstring}")
@@ -355,8 +359,8 @@ class FileSystemStorage(StorageInterface):
 
             self._save_to_disk()
 
-        nodes_to_embed = [node for node in nodes_to_enrich if node.ai_docstring]
-        documents = [node.ai_docstring for node in nodes_to_embed]
+        nodes_to_embed = [node for node in nodes_to_enrich if node.ai_description]
+        documents = [node.ai_description for node in nodes_to_embed]
         embeddings = create_embedding(documents, input_type="document")
         for emb, item in zip(embeddings, nodes_to_embed, strict=True):
             item.embedding = emb

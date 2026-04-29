@@ -806,24 +806,22 @@ wheels = [
 name = "sim-atlas-toolkit"
 version = "0.1.0"
 source = { editable = "." }
-dependencies = [
-    { name = "python-workflow-definition" },
-]
 
 [package.dev-dependencies]
 dev = [
     { name = "pyiron-workflow" },
     { name = "pyright" },
+    { name = "python-workflow-definition" },
     { name = "ruff" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "python-workflow-definition", specifier = ">=0.1.0" }]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "pyiron-workflow", specifier = ">=0.15.6" },
     { name = "pyright", specifier = ">=1.1.407" },
+    { name = "python-workflow-definition", specifier = ">=0.1.0" },
     { name = "ruff", specifier = ">=0.14.6" },
 ]
 

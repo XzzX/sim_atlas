@@ -125,9 +125,8 @@ def _execute_search_tool(
             {
                 "atlas_node_id": item.node.id,
                 "name": item.node.name,
-                "short_description": item.node.ai_docstring.splitlines()[0]
-                if item.node.ai_docstring
-                else item.node.docstring.splitlines()[0]
+                "short_description": item.node.ai_summary
+                or item.node.docstring.splitlines()[0]
                 if item.node.docstring
                 else None,
                 "inputs": [a.model_dump(exclude_none=True) for a in item.node.inputs],
@@ -158,9 +157,8 @@ def _execute_search_tool(
             {
                 "atlas_node_id": item.node.id,
                 "name": item.node.name,
-                "short_description": item.node.ai_docstring.splitlines()[0]
-                if item.node.ai_docstring
-                else item.node.docstring.splitlines()[0]
+                "short_description": item.node.ai_summary
+                or item.node.docstring.splitlines()[0]
                 if item.node.docstring
                 else None,
                 "inputs": [a.model_dump(exclude_none=True) for a in item.node.inputs],
@@ -180,7 +178,7 @@ def _execute_search_tool(
         {
             "atlas_node_id": node.id,
             "name": node.name,
-            "docstring": node.ai_docstring or node.docstring,
+            "docstring": node.ai_description or node.docstring,
             "inputs": [a.model_dump(exclude_none=True) for a in node.inputs],
             "outputs": [a.model_dump(exclude_none=True) for a in node.outputs],
         }

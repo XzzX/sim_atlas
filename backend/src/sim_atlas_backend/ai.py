@@ -1,6 +1,6 @@
-from openai import OpenAI
+import json
 
-from sim_atlas_backend.models import NodeMetadata
+from openai import OpenAI
 
 from .exceptions import AINotConfiguredError
 from .settings import settings
@@ -29,7 +29,15 @@ def create_embedding(text: str) -> list[float]:
     return embedding
 
 
-def create_ai_docstring(docstring: str, source_code: str) -> str:
+def create_ai_descriptions(
+    name: str, docstring: str, source_code: str
+) -> tuple[str, str]:
+    """Generate search-optimized descriptions for a Python function.
+
+    Returns a tuple of (ai_summary, ai_description):
+    - ai_summary: one sentence for compact display and keyword search
+    - ai_description: 2-5 sentences with rich domain vocabulary for semantic search
+    """
     if (
         not settings.llm_api_key
         or not settings.llm_api_url
@@ -40,22 +48,31 @@ def create_ai_docstring(docstring: str, source_code: str) -> str:
         )
     client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
 
-    docstring = (
+    raw = (
         client.chat.completions.create(
             model=settings.llm_chat_model,
+            response_format={"type": "json_object"},
             messages=[
                 {
                     "role": "user",
-                    "content": f"""
-Refine the existing docstring based on the source code of the function.
-Extract information about the function's purpose, parameters, and return values.
-Only return the docstring, nothing else. Do not print the function signature and remove the quotes if present. 
-If the docstring is already good, just return it without changes.
+                    "content": f"""You are a search-indexing assistant for a scientific simulation node catalog.
+Given a Python function, produce two search-optimized descriptions as a JSON object with exactly these keys:
 
-docstring:
-{docstring}
+"summary": One concise sentence (≤20 words) that names what the function does and its primary domain.
+  - Use terminology a user would type into a search box.
+  - Include the function name or a clear paraphrase of it.
 
-source code:
+"description": 2-5 sentences that expand on the summary for semantic search embedding.
+  - Describe the purpose, typical use case, and scientific/domain context.
+  - Mention what the inputs represent and what the output represents in physical or conceptual terms (not just type names).
+  - Use natural synonyms and alternative phrasings to maximize recall (e.g. both "velocity" and "speed").
+  - Do NOT repeat raw type annotations verbatim. Do NOT write documentation prose.
+
+Return only the JSON object, no other text.
+
+Function name: {name}
+Existing docstring: {docstring or "(none)"}
+Source code:
 ```python
 {source_code}
 ```
@@ -65,22 +82,17 @@ source code:
         )
         .choices[0]
         .message.content
-        or ""
+        or "{}"
     )
 
     # Remove thinking part if present (text between <think> tags)
-    if "<think>" in docstring and "</think>" in docstring:
-        start = docstring.find("<think>")
-        end = docstring.find("</think>") + len("</think>")
-        docstring = docstring[:start] + docstring[end:]
-        docstring = docstring.strip()
+    if "<think>" in raw and "</think>" in raw:
+        start = raw.find("<think>")
+        end = raw.find("</think>") + len("</think>")
+        raw = raw[:start] + raw[end:]
+        raw = raw.strip()
 
-    return docstring
-
-
-def enrich_metadata_with_ai(metadata: NodeMetadata) -> NodeMetadata:
-    ai_docstring = create_ai_docstring(metadata.docstring, metadata.source_code)
-    embedding = create_embedding(metadata.source_code)
-    return metadata.model_copy(
-        update={"ai_docstring": ai_docstring, "embedding": embedding}
-    )
+    parsed = json.loads(raw)
+    ai_summary: str = parsed.get("summary", "").strip()
+    ai_description: str = parsed.get("description", "").strip()
+    return ai_summary, ai_description

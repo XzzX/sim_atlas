@@ -98,7 +98,8 @@ async def create_node(
     node_metadata = NodeMetadata(
         **node.model_dump(),
         id=id,
-        ai_docstring="",
+        ai_summary="",
+        ai_description="",
         creator_name=creator.name,
         creator_email=creator.email,
         creation_timestamp=timestamp.isoformat(),

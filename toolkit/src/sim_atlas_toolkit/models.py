@@ -65,7 +65,8 @@ class NodeResponse(BaseModel):
     source_code: str
 
     docstring: str
-    ai_docstring: str
+    ai_summary: str
+    ai_description: str
     inputs: list[Annotation]
     outputs: list[Annotation]
 

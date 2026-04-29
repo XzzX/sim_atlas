@@ -156,7 +156,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
       <CardContent className="space-y-4">
         <Tabs
           defaultValue={
-            node.ai_docstring && !node.docstring
+            node.ai_description && !node.docstring
               ? "ai_description"
               : "human_description"
           }
@@ -180,7 +180,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
               </TabsContent>
               <TabsContent value="ai_description">
                 <p className="whitespace-pre-wrap">
-                  {node.ai_docstring || "No description available"}
+                  {node.ai_description || "No description available"}
                 </p>
               </TabsContent>
             </CardContent>

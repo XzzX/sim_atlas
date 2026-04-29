@@ -20,7 +20,15 @@ TOOLS: list[ChatCompletionToolParam] = [
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Natural language description of the node to find.",
+                        "description": (
+                            "Descriptive sentence or phrase explaining what the node should do, "
+                            "its scientific purpose, or the kind of data it processes. "
+                            "Use full words and domain terminology — for example "
+                            "'compute the gradient of a temperature field' or "
+                            "'load atomic structure from a file' rather than "
+                            "'get temperature' or 'structure loader'. "
+                            "Richer queries produce better results."
+                        ),
                     },
                     "limit": {
                         "type": "integer",
@@ -73,7 +81,11 @@ TOOLS: list[ChatCompletionToolParam] = [
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Optional natural language description to rank results semantically in addition to the port filter.",
+                        "description": (
+                            "Optional descriptive sentence explaining the scientific purpose "
+                            "or domain context to rank results semantically in addition to the port filter. "
+                            "Use full words and domain terminology rather than short keywords."
+                        ),
                     },
                     "datatype": {
                         "type": "string",

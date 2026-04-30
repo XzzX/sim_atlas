@@ -50,11 +50,6 @@ TOOLS: list[ChatCompletionToolParam] = [
                         "items": {"type": "string"},
                         "description": "Restrict to nodes that have ports with these physical quantities (e.g. ['temperature']).",
                     },
-                    "keywords": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Restrict to nodes tagged with these keywords.",
-                    },
                     "port_type": {
                         "type": "string",
                         "enum": ["inputs", "outputs", "both"],

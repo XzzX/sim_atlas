@@ -120,7 +120,7 @@ def _execute_search_tool(
             port_type=tool_args.get("port_type"),
         )
         filter_arg = f if f.model_fields_set else None
-        response = storage.search_semantic(query, filter_arg, limit=limit)
+        response = storage.search_hybrid(query, filter_arg, limit=limit)
         results = [
             {
                 "atlas_node_id": item.node.id,
@@ -323,8 +323,7 @@ async def run_agent_stream(
                 {
                     "type": "graph_update",
                     "nodes": [
-                        n.model_dump(exclude_none=True)
-                        for n in scratch.nodes.values()
+                        n.model_dump(exclude_none=True) for n in scratch.nodes.values()
                     ],
                     "edges": [e.model_dump() for e in scratch.edges],
                 }

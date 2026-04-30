@@ -337,6 +337,60 @@ class FileSystemStorage(StorageInterface):
 
         return self._paginate(similarities, page=page, limit=limit)
 
+    def search_hybrid(
+        self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
+    ) -> ScoredSearchResponse:
+        """Hybrid search combining semantic (cosine) and keyword ranking via RRF.
+
+        Tokens shorter than 3 characters are dropped from keyword matching so that
+        short-but-meaningful domain tokens like "fcc", "bcc", or "Al" are preserved
+        while noise words like "of" or "is" are filtered out.  Unenriched nodes that
+        have no embedding can still surface through the keyword rank.
+        """
+        min_token_len = 3
+        tokens = [t for t in query.lower().split() if len(t) >= min_token_len]
+        if not tokens:
+            return self.search_semantic(query, filter, page=page, limit=limit)
+
+        item_filter = NodeFilter(filter or Filter())
+        filtered_nodes = [n for n in self._storage.values() if item_filter(n)]
+
+        # --- semantic rank (only nodes with embeddings) ---
+        query_embedding = create_embedding([query], input_type="query")[0]
+        sem_scores: list[tuple[str, float]] = [
+            (node.id, cosine_similarity(query_embedding, node.embedding))
+            for node in filtered_nodes
+            if node.embedding is not None
+        ]
+        sem_scores.sort(key=lambda x: x[1], reverse=True)
+        sem_rank: dict[str, int] = {node_id: r + 1 for r, (node_id, _) in enumerate(sem_scores)}
+
+        # --- keyword rank (all filtered nodes) ---
+        hit_counts: list[tuple[str, int]] = []
+        for node in filtered_nodes:
+            search_text = f"{node.name} {node.python_import} {node.ai_summary}".lower()
+            hits = sum(1 for tok in tokens if tok in search_text)
+            if hits > 0:
+                hit_counts.append((node.id, hits))
+        hit_counts.sort(key=lambda x: x[1], reverse=True)
+        kw_rank: dict[str, int] = {node_id: r + 1 for r, (node_id, _) in enumerate(hit_counts)}
+
+        # --- RRF merge ---
+        k = 60
+        candidate_ids = set(sem_rank) | set(kw_rank)
+        node_lookup: dict[str, NodeMetadata] = {n.id: n for n in filtered_nodes}
+        scored: list[ScoredSearchItem] = [
+            ScoredSearchItem(
+                score=(1 / (k + sem_rank[nid]) if nid in sem_rank else 0.0)
+                + (1 / (k + kw_rank[nid]) if nid in kw_rank else 0.0),
+                node=NodeResponse(**node_lookup[nid].model_dump()),
+            )
+            for nid in candidate_ids
+        ]
+        scored.sort(key=lambda x: x.score, reverse=True)
+
+        return self._paginate(scored, page=page, limit=limit)
+
     def enrich(self, only_ids: list[str] | None = None) -> None:
         nodes_to_enrich = (
             [node for node in self._storage.values() if node.id in only_ids]

@@ -58,21 +58,17 @@ def create_ai_descriptions(
                     "content": f"""You are a search-indexing assistant for a scientific simulation node catalog.
 Given a Python function, produce two search-optimized descriptions as a JSON object with exactly these keys:
 
-"summary": One concise sentence (≤20 words) that names what the function does and its primary domain.
+"summary": One concise sentence (≤20 words) that names what the function does, what it takes as input and what it returns.
   - Use terminology a user would type into a search box.
   - Include the function name or a clear paraphrase of it.
 
 "description": 2-5 sentences that expand on the summary for semantic search embedding.
-  - Describe the purpose, typical use case, and scientific/domain context.
   - Mention what the inputs represent and what the output represents in physical or conceptual terms (not just type names).
   - Use natural synonyms and alternative phrasings to maximize recall (e.g. both "velocity" and "speed").
-  - Do NOT repeat raw type annotations verbatim. Do NOT write documentation prose.
 
 Return only the JSON object, no other text.
 
-Function name: {name}
-Existing docstring: {docstring or "(none)"}
-Source code:
+Here is the function to describe:
 ```python
 {source_code}
 ```

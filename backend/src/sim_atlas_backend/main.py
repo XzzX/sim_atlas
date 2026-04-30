@@ -63,11 +63,14 @@ app.add_middleware(
 
 
 @app.exception_handler(AINotConfiguredError)
-async def ai_not_configured_handler(request: Request, exc: AINotConfiguredError) -> Response:
+async def ai_not_configured_handler(
+    request: Request, exc: AINotConfiguredError
+) -> Response:
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail="AI features are not configured",
     )
+
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -186,7 +189,23 @@ async def semantic_search(
     page: int = 1,
     limit: int = 10,
 ):
-    return storage.search_semantic(query, filter_options, page=page, limit=limit)
+    return storage.search_hybrid(query, filter_options, page=page, limit=limit)
+
+
+@api_router.post(
+    "/hybrid_search",
+    response_model=ScoredSearchResponse,
+    tags=["search"],
+    operation_id="hybrid_search",
+)
+async def hybrid_search(
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+    query: str,
+    filter_options: Filter | None = None,
+    page: int = 1,
+    limit: int = 10,
+):
+    return storage.search_hybrid(query, filter_options, page=page, limit=limit)
 
 
 @api_router.post(
@@ -211,7 +230,11 @@ async def agent_stream(
     request: AgentRequest,
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> StreamingResponse:
-    if not settings.llm_api_key or not settings.llm_api_url or not settings.llm_chat_model:
+    if (
+        not settings.llm_api_key
+        or not settings.llm_api_url
+        or not settings.llm_chat_model
+    ):
         raise AINotConfiguredError
     return StreamingResponse(
         run_agent_stream(request, storage),
@@ -238,7 +261,7 @@ mcp = FastApiMCP(
     description="Very cool MCP server",
     describe_all_responses=True,
     describe_full_response_schema=True,
-    include_operations=["semantic_search", "agent"],
+    include_operations=["semantic_search", "hybrid_search", "agent"],
 )
 
 # Mount the MCP server directly to your app

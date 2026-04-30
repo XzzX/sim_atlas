@@ -363,7 +363,9 @@ class FileSystemStorage(StorageInterface):
             if node.embedding is not None
         ]
         sem_scores.sort(key=lambda x: x[1], reverse=True)
-        sem_rank: dict[str, int] = {node_id: r + 1 for r, (node_id, _) in enumerate(sem_scores)}
+        sem_rank: dict[str, int] = {
+            node_id: r + 1 for r, (node_id, _) in enumerate(sem_scores)
+        }
 
         # --- keyword rank (all filtered nodes) ---
         hit_counts: list[tuple[str, int]] = []
@@ -373,7 +375,9 @@ class FileSystemStorage(StorageInterface):
             if hits > 0:
                 hit_counts.append((node.id, hits))
         hit_counts.sort(key=lambda x: x[1], reverse=True)
-        kw_rank: dict[str, int] = {node_id: r + 1 for r, (node_id, _) in enumerate(hit_counts)}
+        kw_rank: dict[str, int] = {
+            node_id: r + 1 for r, (node_id, _) in enumerate(hit_counts)
+        }
 
         # --- RRF merge ---
         k = 60
@@ -409,12 +413,14 @@ class FileSystemStorage(StorageInterface):
                 print(f"Error occurred while enriching node {v.name}: {e}")
                 print(f"docstring: {v.docstring}")
                 print(f"source_code: {v.source_code}")
-                break
+                raise
 
             self._save_to_disk()
 
         nodes_to_embed = [node for node in nodes_to_enrich if node.ai_description]
         documents = [node.ai_description for node in nodes_to_embed]
+        if not documents:
+            return
         embeddings = create_embedding(documents, input_type="document")
         for emb, item in zip(embeddings, nodes_to_embed, strict=True):
             item.embedding = emb

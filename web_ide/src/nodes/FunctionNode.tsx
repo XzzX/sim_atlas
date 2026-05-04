@@ -31,10 +31,12 @@ interface InputHandleProps {
   connectionCount?: number;
   annotation?: Annotation;
   handleClassName?: string;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
-const InputHandle = ({ title, type, id, position, handleClassName }: InputHandleProps) => {
+const InputHandle = ({ title, type, id, position, handleClassName, onMouseEnter, onMouseLeave }: InputHandleProps) => {
   return (
-    <LabeledHandle title={title} type={type} position={position} id={id} handleClassName={handleClassName} />
+    <LabeledHandle title={title} type={type} position={position} id={id} handleClassName={handleClassName} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} />
   );
 };
 
@@ -44,6 +46,8 @@ interface OutputHandleProps extends HandleProps {
   id: string;
   position: Position;
   handleClassName?: string;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 const OutputHandle = (props: OutputHandleProps) => {
   return <LabeledHandle {...props} />;
@@ -56,7 +60,7 @@ export type NodeData = {
 };
 export type FunctionNodeType = Node<NodeData>;
 export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
-  const { highlightState, interaction } = useHighlight();
+  const { highlightState, interaction, setInteraction } = useHighlight();
   const isDragging = interaction.mode === "dragging";
 
   return (
@@ -71,30 +75,34 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
           <div className="flex-1">
             {data.metadata.inputs.map((value, index) => (
               <InputHandle
+                key={index}
                 id={value.label ?? index.toString()}
                 title={value.label ?? index.toString()}
                 type="target"
                 position={Position.Left}
-                key={index}
                 connectionCount={1}
                 annotation={value}
                 handleClassName={isDragging
                   ? ringClass[highlightState.handleCompatibility.get(`${id}::${value.label ?? index.toString()}`) ?? "unknown"]
                   : undefined}
+                onMouseEnter={() => setInteraction({ mode: "handle-hover", nodeId: id, handleId: value.label ?? index.toString() })}
+                onMouseLeave={() => setInteraction({ mode: "idle" })}
               />
             ))}
           </div>
           <div className="flex-1">
             {data.metadata.outputs.map((value, index) => (
               <OutputHandle
+                key={index}
                 id={value.label ?? index.toString()}
                 title={value.label ?? index.toString()}
                 type="source"
                 position={Position.Right}
-                key={index}
                 handleClassName={isDragging
                   ? ringClass[highlightState.handleCompatibility.get(`${id}::${value.label ?? index.toString()}`) ?? "unknown"]
                   : undefined}
+                onMouseEnter={() => setInteraction({ mode: "handle-hover", nodeId: id, handleId: value.label ?? index.toString() })}
+                onMouseLeave={() => setInteraction({ mode: "idle" })}
               />
             ))}
           </div>

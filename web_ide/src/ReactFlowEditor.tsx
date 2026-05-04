@@ -312,9 +312,19 @@ export const ReactFlowEditor = ({
             : compat === "unit-mismatch"
               ? "var(--color-warning)"
               : undefined;
-        return stroke ? { ...e, style: { ...e.style, stroke } } : e;
+        const dimmed =
+          highlightState.activeEdgeIds !== null &&
+          !highlightState.activeEdgeIds.has(e.id);
+        return {
+          ...e,
+          style: {
+            ...e.style,
+            ...(stroke ? { stroke } : {}),
+            opacity: dimmed ? 0.1 : 1,
+          },
+        };
       }),
-    [edges, highlightState.edgeCompatibility],
+    [edges, highlightState.edgeCompatibility, highlightState.activeEdgeIds],
   );
 
   const onPaneContextMenu = useCallback(

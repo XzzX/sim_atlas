@@ -43,12 +43,21 @@ export function useHighlightState(
     return map;
   }, [edges, nodeMap]);
 
-  // Stub values — slices 3, 4, 5 will replace these with real logic
-  const activeEdgeIds = useMemo<Set<string> | null>(
-    () => null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [edges, interaction],
-  );
+  // Stub values — slice 5 will replace activeNodeIds with real logic
+  const activeEdgeIds = useMemo<Set<string> | null>(() => {
+    if (interaction.mode !== "handle-hover") return null;
+    const { nodeId, handleId } = interaction;
+    const ids = new Set<string>();
+    for (const edge of edges) {
+      if (
+        (edge.source === nodeId && edge.sourceHandle === handleId) ||
+        (edge.target === nodeId && edge.targetHandle === handleId)
+      ) {
+        ids.add(edge.id);
+      }
+    }
+    return ids;
+  }, [edges, interaction]);
   const activeNodeIds = useMemo<Set<string> | null>(
     () => null,
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -53,6 +53,8 @@
   --color-function-node-foreground: oklch(0.2 0 0);
   --color-output-node-background: oklch(0.88 0.1 40);
   --color-output-node-foreground: oklch(0.2 0 0);
+  --color-warning: oklch(0.75 0.15 85);
+  --color-warning-foreground: oklch(0.2 0 0);
 }
 
 :root {

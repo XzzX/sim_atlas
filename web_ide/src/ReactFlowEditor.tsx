@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   addEdge,
@@ -26,6 +26,7 @@ import { ImportDialog } from "./dialogs/ImportDialog";
 import { convertWorkflow } from "./importWorkflow";
 import dagre from "@dagrejs/dagre";
 import { type WorkflowNode, nodeTypes } from "./nodes/nodes";
+import { useHighlight } from "./highlight/useHighlight";
 
 interface ReactFlowEditor {
   nodes: WorkflowNode[];
@@ -269,6 +270,23 @@ export const ReactFlowEditor = ({
     }
   }, [rfInstance]);
 
+  const { highlightState } = useHighlight();
+
+  const displayEdges = useMemo(
+    () =>
+      edges.map((e) => {
+        const compat = highlightState.edgeCompatibility.get(e.id) ?? "unknown";
+        const stroke =
+          compat === "type-mismatch"
+            ? "var(--color-destructive)"
+            : compat === "unit-mismatch"
+              ? "var(--color-warning)"
+              : undefined;
+        return stroke ? { ...e, style: { ...e.style, stroke } } : e;
+      }),
+    [edges, highlightState.edgeCompatibility],
+  );
+
   const onPaneContextMenu = useCallback(
     (event: MouseEvent | React.MouseEvent) => {
       // Prevent default context menu
@@ -296,7 +314,7 @@ export const ReactFlowEditor = ({
         nodeTypes={nodeTypes}
         nodes={nodes}
         onNodesChange={onNodesChange}
-        edges={edges}
+        edges={displayEdges}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onConnectEnd={onConnectEnd}

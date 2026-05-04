@@ -4,6 +4,7 @@ import { useNodesState, useEdgesState, type Edge } from "@xyflow/react";
 import { convertWorkflow } from "./importWorkflow";
 import { simAtlasAPI } from "./services/api";
 import type { WorkflowNode } from "./nodes/nodes";
+import { HighlightProvider } from "./highlight/HighlightContext";
 
 const fetchInitialNodesAndEdges = async (): Promise<{
   nodes: WorkflowNode[];
@@ -29,14 +30,16 @@ export const WebMainLayout = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   return (
-    <MainLayout
-      nodes={nodes}
-      setNodes={setNodes}
-      onNodesChange={onNodesChange}
-      edges={edges}
-      setEdges={setEdges}
-      onEdgesChange={onEdgesChange}
-    />
+    <HighlightProvider nodes={nodes} edges={edges}>
+      <MainLayout
+        nodes={nodes}
+        setNodes={setNodes}
+        onNodesChange={onNodesChange}
+        edges={edges}
+        setEdges={setEdges}
+        onEdgesChange={onEdgesChange}
+      />
+    </HighlightProvider>
   );
 };
 

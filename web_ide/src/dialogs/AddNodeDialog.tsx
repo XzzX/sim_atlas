@@ -39,12 +39,18 @@ interface AddNodeDialogProps {
     type: "InputNode" | "OutputNode" | "FunctionNode",
     nodeData: InputDataElement | OutputDataElement | NodeData,
   ) => void;
+  initialSearchQuery?: string;
+  initialFilter?: Filter;
+  connectingHandleType?: "source" | "target";
 }
 
 export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
   isOpen,
   onClose,
   onAdd,
+  initialSearchQuery,
+  initialFilter,
+  connectingHandleType,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchMode, setSearchMode] = useState<SearchMode>("normal");
@@ -63,6 +69,18 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
   useEffect(() => {
     simAtlasAPI.getFilterOptions().then(setFilterOptions).catch(console.error);
   }, []);
+
+  // Apply prefill values each time the dialog opens
+  useEffect(() => {
+    if (!isOpen) return;
+    setSearchTerm(initialSearchQuery ?? "");
+    setFilter(initialFilter ?? EMPTY_FILTER);
+    setPage(1);
+    // Auto-expand control nodes when opened from an edge drop so the
+    // relevant control node button is immediately visible.
+    setExpandControlNodes(connectingHandleType !== undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const runSearch = useCallback(
     async (term: string, f: Filter, p: number, mode: SearchMode) => {
@@ -341,32 +359,36 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
             </button>
             {expandControlNodes && (
               <>
-                <div
-                  className="px-3 py-3 border-b border-gray-200 cursor-pointer hover:bg-blue-100 transition-colors bg-blue-50"
-                  onClick={() =>
-                    handleAdd("InputNode", { label: "Input", value: "" })
-                  }
-                >
-                  <div className="font-medium text-gray-900 text-sm mb-1">
-                    Input
+                {connectingHandleType !== "source" && (
+                  <div
+                    className="px-3 py-3 border-b border-gray-200 cursor-pointer hover:bg-blue-100 transition-colors bg-blue-50"
+                    onClick={() =>
+                      handleAdd("InputNode", { label: "Input", value: "" })
+                    }
+                  >
+                    <div className="font-medium text-gray-900 text-sm mb-1">
+                      Input
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Input node for workflow entry points
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    Input node for workflow entry points
+                )}
+                {connectingHandleType !== "target" && (
+                  <div
+                    className="px-3 py-3 border-b border-gray-200 cursor-pointer hover:bg-blue-100 transition-colors bg-blue-50"
+                    onClick={() =>
+                      handleAdd("OutputNode", { label: "Output", value: "" })
+                    }
+                  >
+                    <div className="font-medium text-gray-900 text-sm mb-1">
+                      Output
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Output node for workflow results
+                    </div>
                   </div>
-                </div>
-                <div
-                  className="px-3 py-3 border-b border-gray-200 cursor-pointer hover:bg-blue-100 transition-colors bg-blue-50"
-                  onClick={() =>
-                    handleAdd("OutputNode", { label: "Output", value: "" })
-                  }
-                >
-                  <div className="font-medium text-gray-900 text-sm mb-1">
-                    Output
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Output node for workflow results
-                  </div>
-                </div>
+                )}
               </>
             )}
           </div>

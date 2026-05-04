@@ -5,6 +5,7 @@ import {
   Background,
   MiniMap,
   type OnConnect,
+  type FinalConnectionState,
   Panel,
 } from "@xyflow/react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
@@ -15,7 +16,8 @@ import type {
   Edge,
   ReactFlowInstance,
 } from "@xyflow/react";
-import { type NodeData } from "./nodes/FunctionNode";
+import { type NodeData, type FunctionNodeType } from "./nodes/FunctionNode";
+import { type Annotation, type Filter } from "./interfaces/BackendSchema";
 import { type InputDataElement } from "./nodes/InputNode";
 import { type OutputDataElement } from "./nodes/OutputNode";
 import { AddNodeDialog } from "./dialogs/AddNodeDialog";
@@ -33,6 +35,13 @@ interface ReactFlowEditor {
   setEdges: Dispatch<SetStateAction<Edge[]>>;
   onEdgesChange: OnEdgesChange;
   layoutRef?: MutableRefObject<() => void>;
+}
+
+interface PendingConnection {
+  nodeId: string;
+  handleId: string;
+  handleType: "source" | "target";
+  annotation: Annotation | null;
 }
 
 export const ReactFlowEditor = ({
@@ -55,6 +64,8 @@ export const ReactFlowEditor = ({
     y: number;
   } | null>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [pendingConnection, setPendingConnection] =
+    useState<PendingConnection | null>(null);
 
   const layoutGraph = useCallback(() => {
     if (!rfInstance) return;
@@ -123,25 +134,124 @@ export const ReactFlowEditor = ({
     [setEdges],
   );
 
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
+      const fromNode = connectionState.fromNode;
+      const fromHandle = connectionState.fromHandle;
+      if (!rfInstance || !fromNode || connectionState.toNode !== null) return;
+      if (!fromHandle?.id || !fromHandle.type) return;
+
+      const allNodes = rfInstance.getNodes();
+      const srcNode = allNodes.find((n) => n.id === fromNode.id);
+      let annotation: Annotation | null = null;
+      if (srcNode?.type === "FunctionNode") {
+        const fnNode = srcNode as FunctionNodeType;
+        const ports =
+          fromHandle.type === "source"
+            ? fnNode.data.metadata.outputs
+            : fnNode.data.metadata.inputs;
+        const idx = ports.findIndex(
+          (p, i) => (p.label ?? i.toString()) === fromHandle.id,
+        );
+        annotation = idx >= 0 ? (ports[idx] ?? null) : null;
+      }
+
+      const clientX = "clientX" in event ? event.clientX : 0;
+      const clientY = "clientY" in event ? event.clientY : 0;
+      const pos = rfInstance.screenToFlowPosition({ x: clientX, y: clientY });
+      setPendingConnection({
+        nodeId: fromNode.id,
+        handleId: fromHandle.id,
+        handleType: fromHandle.type,
+        annotation,
+      });
+      setContextMenuPos(pos);
+      setIsAddNodeDialogOpen(true);
+    },
+    [rfInstance],
+  );
+
   const onAddNode = (
     type: "InputNode" | "OutputNode" | "FunctionNode",
     data: InputDataElement | OutputDataElement | NodeData,
   ) => {
-    if (!rfInstance) {
+    if (!rfInstance || !contextMenuPos) {
       return;
     }
-    if (contextMenuPos) {
-      const newId = String(
-        Math.max(...nodes.map((n) => parseInt(n.id) || 0), 0) + 1,
-      );
-      const newNode: WorkflowNode = {
-        id: newId,
-        data: data,
-        position: { x: contextMenuPos.x, y: contextMenuPos.y },
-        type: type,
+    const newId = String(
+      Math.max(...nodes.map((n) => parseInt(n.id) || 0), 0) + 1,
+    );
+    const newNode: WorkflowNode = {
+      id: newId,
+      data: data,
+      position: { x: contextMenuPos.x, y: contextMenuPos.y },
+      type: type,
+    };
+    setNodes([...nodes, newNode]);
+    setContextMenuPos(null);
+
+    if (pendingConnection) {
+      const { nodeId, handleId, handleType, annotation } = pendingConnection;
+      setPendingConnection(null);
+
+      const pickHandle = (
+        ports: Annotation[],
+        matchDatatype: string | null | undefined,
+      ): string | null => {
+        if (ports.length === 0) return null;
+        if (matchDatatype) {
+          const idx = ports.findIndex((p) => p.datatype === matchDatatype);
+          if (idx >= 0) return ports[idx].label ?? idx.toString();
+        }
+        return ports[0]?.label ?? "0";
       };
-      setNodes([...nodes, newNode]);
-      setContextMenuPos(null);
+
+      let edgeSource: string;
+      let edgeSourceHandle: string;
+      let edgeTarget: string;
+      let edgeTargetHandle: string;
+
+      if (handleType === "source") {
+        edgeSource = nodeId;
+        edgeSourceHandle = handleId;
+        edgeTarget = newId;
+        if (type === "OutputNode") {
+          edgeTargetHandle = "input";
+        } else if (type === "FunctionNode") {
+          const nodeData = data as NodeData;
+          const h = pickHandle(nodeData.metadata.inputs, annotation?.datatype);
+          if (!h) return;
+          edgeTargetHandle = h;
+        } else {
+          return; // InputNode has no target handles
+        }
+      } else {
+        edgeTarget = nodeId;
+        edgeTargetHandle = handleId;
+        edgeSource = newId;
+        if (type === "InputNode") {
+          edgeSourceHandle = "output";
+        } else if (type === "FunctionNode") {
+          const nodeData = data as NodeData;
+          const h = pickHandle(nodeData.metadata.outputs, annotation?.datatype);
+          if (!h) return;
+          edgeSourceHandle = h;
+        } else {
+          return; // OutputNode has no source handles
+        }
+      }
+
+      setEdges((es) =>
+        addEdge(
+          {
+            source: edgeSource,
+            sourceHandle: edgeSourceHandle,
+            target: edgeTarget,
+            targetHandle: edgeTargetHandle,
+          },
+          es,
+        ),
+      );
     }
   };
 
@@ -189,6 +299,7 @@ export const ReactFlowEditor = ({
         edges={edges}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectEnd={onConnectEnd}
         onPaneContextMenu={onPaneContextMenu}
         onInit={setRfInstance}
         defaultEdgeOptions={{
@@ -223,9 +334,37 @@ export const ReactFlowEditor = ({
         <AddNodeDialog
           isOpen={isAddNodeDialogOpen}
           onClose={() => {
+            setPendingConnection(null);
             setIsAddNodeDialogOpen(false);
           }}
           onAdd={onAddNode}
+          initialSearchQuery={
+            pendingConnection?.annotation?.label ?? undefined
+          }
+          initialFilter={
+            pendingConnection
+              ? ({
+                  category: null,
+                  type: null,
+                  author: null,
+                  keywords: null,
+                  datatypes: pendingConnection.annotation?.datatype
+                    ? [pendingConnection.annotation.datatype]
+                    : null,
+                  units: pendingConnection.annotation?.unit
+                    ? [pendingConnection.annotation.unit]
+                    : null,
+                  quantities: pendingConnection.annotation?.quantity
+                    ? [pendingConnection.annotation.quantity]
+                    : null,
+                  port_type:
+                    pendingConnection.handleType === "source"
+                      ? "inputs"
+                      : "outputs",
+                } satisfies Filter)
+              : undefined
+          }
+          connectingHandleType={pendingConnection?.handleType}
         />
         <ImportDialog
           isOpen={isImportDialogOpen}

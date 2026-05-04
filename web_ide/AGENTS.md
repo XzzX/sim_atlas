@@ -21,3 +21,6 @@ npm run type-check   # tsc --build --noEmit
 - **Agent panel**: `AgentPanel.tsx` integrates with the backend's streaming agent endpoint
 - **API calls**: all HTTP requests go through `services/`; do not call `fetch` directly
 - **Build output**: `dist/` is copied into backend's static directory — do not commit `dist/`
+
+## Libraries
+- **ReactFlow**: [Documentation](https://reactflow.dev/llms.txt)

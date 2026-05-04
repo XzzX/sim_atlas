@@ -13,6 +13,7 @@ import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type {
   OnNodesChange,
   OnEdgesChange,
+  OnConnectStart,
   Edge,
   ReactFlowInstance,
 } from "@xyflow/react";
@@ -67,6 +68,8 @@ export const ReactFlowEditor = ({
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [pendingConnection, setPendingConnection] =
     useState<PendingConnection | null>(null);
+
+  const { highlightState, setInteraction } = useHighlight();
 
   const layoutGraph = useCallback(() => {
     if (!rfInstance) return;
@@ -135,6 +138,34 @@ export const ReactFlowEditor = ({
     [setEdges],
   );
 
+  const onConnectStart: OnConnectStart = useCallback(
+    (_event, params) => {
+      const { nodeId, handleId, handleType } = params;
+      if (!nodeId || !handleId || !handleType) return;
+      const allNodes = rfInstance?.getNodes() ?? [];
+      const srcNode = allNodes.find((n) => n.id === nodeId);
+      let fromAnnotation: Annotation | null = null;
+      if (srcNode?.type === "FunctionNode") {
+        const fn = srcNode as FunctionNodeType;
+        const ports =
+          handleType === "source"
+            ? fn.data.metadata.outputs
+            : fn.data.metadata.inputs;
+        const idx = ports.findIndex(
+          (p, i) => (p.label ?? i.toString()) === handleId,
+        );
+        fromAnnotation = idx >= 0 ? (ports[idx] ?? null) : null;
+      }
+      setInteraction({
+        mode: "dragging",
+        fromNodeId: nodeId,
+        fromHandleId: handleId,
+        fromAnnotation,
+      });
+    },
+    [rfInstance, setInteraction],
+  );
+
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
       const fromNode = connectionState.fromNode;
@@ -168,8 +199,9 @@ export const ReactFlowEditor = ({
       });
       setContextMenuPos(pos);
       setIsAddNodeDialogOpen(true);
+      setInteraction({ mode: "idle" });
     },
-    [rfInstance],
+    [rfInstance, setInteraction],
   );
 
   const onAddNode = (
@@ -270,8 +302,6 @@ export const ReactFlowEditor = ({
     }
   }, [rfInstance]);
 
-  const { highlightState } = useHighlight();
-
   const displayEdges = useMemo(
     () =>
       edges.map((e) => {
@@ -317,6 +347,7 @@ export const ReactFlowEditor = ({
         edges={displayEdges}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
         onPaneContextMenu={onPaneContextMenu}
         onInit={setRfInstance}

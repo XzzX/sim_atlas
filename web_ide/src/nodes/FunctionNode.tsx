@@ -13,6 +13,15 @@ import {
   type HandleProps,
 } from "@xyflow/react";
 import type { Annotation, NodeResponse } from "../interfaces/BackendSchema";
+import { useHighlight } from "@/highlight/useHighlight";
+import { type CompatibilityResult } from "@/highlight/typeCompatibility";
+
+const ringClass: Record<CompatibilityResult, string> = {
+  match: "ring-2 ring-green-400",
+  "unit-mismatch": "ring-2 ring-amber-400",
+  "type-mismatch": "ring-2 ring-red-400",
+  unknown: "",
+};
 
 interface InputHandleProps {
   title: string;
@@ -21,10 +30,11 @@ interface InputHandleProps {
   position: Position;
   connectionCount?: number;
   annotation?: Annotation;
+  handleClassName?: string;
 }
-const InputHandle = ({ title, type, id, position }: InputHandleProps) => {
+const InputHandle = ({ title, type, id, position, handleClassName }: InputHandleProps) => {
   return (
-    <LabeledHandle title={title} type={type} position={position} id={id} />
+    <LabeledHandle title={title} type={type} position={position} id={id} handleClassName={handleClassName} />
   );
 };
 
@@ -33,6 +43,7 @@ interface OutputHandleProps extends HandleProps {
   type: HandleType;
   id: string;
   position: Position;
+  handleClassName?: string;
 }
 const OutputHandle = (props: OutputHandleProps) => {
   return <LabeledHandle {...props} />;
@@ -44,7 +55,10 @@ export type NodeData = {
   metadata: NodeResponse;
 };
 export type FunctionNodeType = Node<NodeData>;
-export function FunctionNode({ data }: NodeProps<FunctionNodeType>) {
+export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
+  const { highlightState, interaction } = useHighlight();
+  const isDragging = interaction.mode === "dragging";
+
   return (
     <BaseNode>
       <BaseNodeHeader className="border-b rounded-t-md bg-function-node-background">
@@ -64,6 +78,9 @@ export function FunctionNode({ data }: NodeProps<FunctionNodeType>) {
                 key={index}
                 connectionCount={1}
                 annotation={value}
+                handleClassName={isDragging
+                  ? ringClass[highlightState.handleCompatibility.get(`${id}::${value.label ?? index.toString()}`) ?? "unknown"]
+                  : undefined}
               />
             ))}
           </div>
@@ -75,6 +92,9 @@ export function FunctionNode({ data }: NodeProps<FunctionNodeType>) {
                 type="source"
                 position={Position.Right}
                 key={index}
+                handleClassName={isDragging
+                  ? ringClass[highlightState.handleCompatibility.get(`${id}::${value.label ?? index.toString()}`) ?? "unknown"]
+                  : undefined}
               />
             ))}
           </div>

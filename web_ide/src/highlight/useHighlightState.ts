@@ -54,11 +54,23 @@ export function useHighlightState(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [nodes, interaction],
   );
-  const handleCompatibility = useMemo<Map<string, CompatibilityResult>>(
-    () => new Map(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [nodes, interaction],
-  );
+  const handleCompatibility = useMemo<Map<string, CompatibilityResult>>(() => {
+    const map = new Map<string, CompatibilityResult>();
+    if (interaction.mode !== "dragging") return map;
+    const { fromNodeId, fromAnnotation } = interaction;
+    for (const node of nodes) {
+      if (node.id === fromNodeId) continue;
+      if (node.type !== "FunctionNode") continue;
+      const fn = node as FunctionNodeType;
+      fn.data.metadata.inputs.forEach((ann, i) => {
+        map.set(`${node.id}::${ann.label ?? i.toString()}`, checkCompatibility(fromAnnotation, ann));
+      });
+      fn.data.metadata.outputs.forEach((ann, i) => {
+        map.set(`${node.id}::${ann.label ?? i.toString()}`, checkCompatibility(fromAnnotation, ann));
+      });
+    }
+    return map;
+  }, [nodes, interaction]);
 
   return {
     edgeCompatibility,

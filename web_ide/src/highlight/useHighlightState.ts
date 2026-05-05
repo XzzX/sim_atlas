@@ -63,22 +63,23 @@ export function useHighlightState(
     if (interaction.mode !== "dragging") return map;
     const { fromNodeId, fromAnnotation, fromHandleType } = interaction;
     for (const node of nodes) {
-      if (node.id === fromNodeId) continue;
       if (node.type !== "FunctionNode") continue;
       const fn = node as FunctionNodeType;
+      const isSelf = node.id === fromNodeId;
       // dragging from a source (output) → highlight target (input) handles, and vice versa
+      // self-connections (cycles) are never valid → mark them red
       if (fromHandleType === "source") {
         fn.data.metadata.inputs.forEach((ann, i) => {
           map.set(
             `${node.id}::${ann.label ?? i.toString()}`,
-            checkCompatibility(fromAnnotation, ann),
+            isSelf ? "type-mismatch" : checkCompatibility(fromAnnotation, ann),
           );
         });
       } else {
         fn.data.metadata.outputs.forEach((ann, i) => {
           map.set(
             `${node.id}::${ann.label ?? i.toString()}`,
-            checkCompatibility(fromAnnotation, ann),
+            isSelf ? "type-mismatch" : checkCompatibility(fromAnnotation, ann),
           );
         });
       }

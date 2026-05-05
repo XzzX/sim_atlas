@@ -14,7 +14,7 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
 
@@ -247,6 +247,12 @@ async def agent_stream(
 
 
 app.include_router(api_router)
+
+
+@app.get("/ide")
+async def redirect_to_ide():
+    return RedirectResponse(url="/ide/")
+
 
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/ide", StaticFiles(directory=STATIC_DIR / "ide", html=True), name="ide")

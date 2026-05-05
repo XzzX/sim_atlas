@@ -24,6 +24,7 @@ import { type OutputDataElement } from "./nodes/OutputNode";
 import { AddNodeDialog } from "./dialogs/AddNodeDialog";
 import { Button } from "./components/ui/button";
 import { ImportDialog } from "./dialogs/ImportDialog";
+import { ExportDialog } from "./dialogs/ExportDialog";
 import { convertWorkflow } from "./importWorkflow";
 import dagre from "@dagrejs/dagre";
 import { type WorkflowNode, nodeTypes } from "./nodes/nodes";
@@ -66,6 +67,7 @@ export const ReactFlowEditor = ({
     y: number;
   } | null>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [pendingConnection, setPendingConnection] =
     useState<PendingConnection | null>(null);
 
@@ -296,11 +298,8 @@ export const ReactFlowEditor = ({
   };
 
   const onExport = useCallback(() => {
-    if (rfInstance) {
-      const flow = rfInstance.toObject();
-      console.log(JSON.stringify(flow));
-    }
-  }, [rfInstance]);
+    setIsExportDialogOpen(true);
+  }, []);
 
   const displayEdges = useMemo(
     () =>
@@ -397,9 +396,7 @@ export const ReactFlowEditor = ({
             setIsAddNodeDialogOpen(false);
           }}
           onAdd={onAddNode}
-          initialSearchQuery={
-            pendingConnection?.annotation?.label ?? undefined
-          }
+          initialSearchQuery={pendingConnection?.annotation?.label ?? undefined}
           initialFilter={
             pendingConnection
               ? ({
@@ -431,6 +428,15 @@ export const ReactFlowEditor = ({
             setIsImportDialogOpen(false);
           }}
           onLoad={onImport}
+        />
+        <ExportDialog
+          isOpen={isExportDialogOpen}
+          onClose={() => {
+            setIsExportDialogOpen(false);
+          }}
+          nodes={nodes}
+          edges={edges}
+          rfObject={rfInstance?.toObject() ?? null}
         />
       </ReactFlow>
     </div>

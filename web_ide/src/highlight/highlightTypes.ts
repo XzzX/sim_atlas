@@ -16,7 +16,6 @@ export type InteractionState =
 
 // --- Derived highlight maps ---
 export interface HighlightState {
-  edgeCompatibility: Map<string, CompatibilityResult>;
   activeEdgeIds: Set<string> | null;
   activeNodeIds: Set<string> | null;
   handleCompatibility: Map<string, CompatibilityResult>;

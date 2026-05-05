@@ -13,36 +13,6 @@ export function useHighlightState(
   edges: Edge[],
   interaction: InteractionState,
 ): HighlightState {
-  // Build node lookup map for fast access
-  const nodeMap = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
-
-  // Always-on: resolve each edge's compatibility
-  const edgeCompatibility = useMemo(() => {
-    const map = new Map<string, CompatibilityResult>();
-    for (const edge of edges) {
-      const srcNode = nodeMap.get(edge.source);
-      const tgtNode = nodeMap.get(edge.target);
-      let srcAnnotation = null;
-      let tgtAnnotation = null;
-      if (srcNode?.type === "FunctionNode") {
-        const fn = srcNode as FunctionNodeType;
-        srcAnnotation =
-          fn.data.metadata.outputs.find(
-            (p, i) => (p.label ?? i.toString()) === edge.sourceHandle,
-          ) ?? null;
-      }
-      if (tgtNode?.type === "FunctionNode") {
-        const fn = tgtNode as FunctionNodeType;
-        tgtAnnotation =
-          fn.data.metadata.inputs.find(
-            (p, i) => (p.label ?? i.toString()) === edge.targetHandle,
-          ) ?? null;
-      }
-      map.set(edge.id, checkCompatibility(srcAnnotation, tgtAnnotation));
-    }
-    return map;
-  }, [edges, nodeMap]);
-
   const activeEdgeIds = useMemo<Set<string> | null>(() => {
     if (interaction.mode !== "node-hover") return null;
     const { nodeId } = interaction;
@@ -88,7 +58,6 @@ export function useHighlightState(
   }, [nodes, interaction]);
 
   return {
-    edgeCompatibility,
     activeEdgeIds,
     activeNodeIds,
     handleCompatibility,

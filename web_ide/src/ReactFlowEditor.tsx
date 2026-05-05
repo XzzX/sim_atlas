@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ReactFlow,
   addEdge,
@@ -28,6 +28,7 @@ import { ExportDialog } from "./dialogs/ExportDialog";
 import { convertWorkflow } from "./importWorkflow";
 import dagre from "@dagrejs/dagre";
 import { type WorkflowNode, nodeTypes } from "./nodes/nodes";
+import { edgeTypes } from "./edges/edges";
 import { useHighlight } from "./highlight/useHighlight";
 
 interface ReactFlowEditor {
@@ -71,7 +72,7 @@ export const ReactFlowEditor = ({
   const [pendingConnection, setPendingConnection] =
     useState<PendingConnection | null>(null);
 
-  const { highlightState, setInteraction } = useHighlight();
+  const { setInteraction } = useHighlight();
 
   const layoutGraph = useCallback(() => {
     if (!rfInstance) return;
@@ -302,31 +303,6 @@ export const ReactFlowEditor = ({
     setIsExportDialogOpen(true);
   }, []);
 
-  const displayEdges = useMemo(
-    () =>
-      edges.map((e) => {
-        const compat = highlightState.edgeCompatibility.get(e.id) ?? "unknown";
-        const stroke =
-          compat === "type-mismatch"
-            ? "var(--color-destructive)"
-            : compat === "unit-mismatch"
-              ? "var(--color-warning)"
-              : undefined;
-        const dimmed =
-          highlightState.activeEdgeIds !== null &&
-          !highlightState.activeEdgeIds.has(e.id);
-        return {
-          ...e,
-          style: {
-            ...e.style,
-            ...(stroke ? { stroke } : {}),
-            opacity: dimmed ? 0.1 : 1,
-          },
-        };
-      }),
-    [edges, highlightState.edgeCompatibility, highlightState.activeEdgeIds],
-  );
-
   const onPaneContextMenu = useCallback(
     (event: MouseEvent | React.MouseEvent) => {
       // Prevent default context menu
@@ -352,9 +328,10 @@ export const ReactFlowEditor = ({
     <div className="w-full h-screen">
       <ReactFlow<WorkflowNode, Edge>
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         nodes={nodes}
         onNodesChange={onNodesChange}
-        edges={displayEdges}
+        edges={edges}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onConnectStart={onConnectStart}

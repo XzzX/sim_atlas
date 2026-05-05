@@ -137,8 +137,9 @@ export const ReactFlowEditor = ({
   const onConnect: OnConnect = useCallback(
     (params) => {
       setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot));
+      setInteraction({ mode: "idle" });
     },
-    [setEdges],
+    [setEdges, setInteraction],
   );
 
   const onConnectStart: OnConnectStart = useCallback(

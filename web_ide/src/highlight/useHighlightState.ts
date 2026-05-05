@@ -66,17 +66,27 @@ export function useHighlightState(
   const handleCompatibility = useMemo<Map<string, CompatibilityResult>>(() => {
     const map = new Map<string, CompatibilityResult>();
     if (interaction.mode !== "dragging") return map;
-    const { fromNodeId, fromAnnotation } = interaction;
+    const { fromNodeId, fromAnnotation, fromHandleType } = interaction;
     for (const node of nodes) {
       if (node.id === fromNodeId) continue;
       if (node.type !== "FunctionNode") continue;
       const fn = node as FunctionNodeType;
-      fn.data.metadata.inputs.forEach((ann, i) => {
-        map.set(`${node.id}::${ann.label ?? i.toString()}`, checkCompatibility(fromAnnotation, ann));
-      });
-      fn.data.metadata.outputs.forEach((ann, i) => {
-        map.set(`${node.id}::${ann.label ?? i.toString()}`, checkCompatibility(fromAnnotation, ann));
-      });
+      // dragging from a source (output) → highlight target (input) handles, and vice versa
+      if (fromHandleType === "source") {
+        fn.data.metadata.inputs.forEach((ann, i) => {
+          map.set(
+            `${node.id}::${ann.label ?? i.toString()}`,
+            checkCompatibility(fromAnnotation, ann),
+          );
+        });
+      } else {
+        fn.data.metadata.outputs.forEach((ann, i) => {
+          map.set(
+            `${node.id}::${ann.label ?? i.toString()}`,
+            checkCompatibility(fromAnnotation, ann),
+          );
+        });
+      }
     }
     return map;
   }, [nodes, interaction]);

@@ -11,6 +11,7 @@ export type InteractionState =
       mode: "dragging";
       fromNodeId: string;
       fromHandleId: string;
+      fromHandleType: "source" | "target";
       fromAnnotation: Annotation | null;
     };
 
@@ -28,5 +29,6 @@ export interface HighlightContextValue {
   highlightState: HighlightState;
 }
 
-export const HighlightContext =
-  createContext<HighlightContextValue | null>(null);
+export const HighlightContext = createContext<HighlightContextValue | null>(
+  null,
+);

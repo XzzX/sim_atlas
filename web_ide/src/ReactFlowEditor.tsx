@@ -162,6 +162,7 @@ export const ReactFlowEditor = ({
         mode: "dragging",
         fromNodeId: nodeId,
         fromHandleId: handleId,
+        fromHandleType: handleType,
         fromAnnotation,
       });
     },

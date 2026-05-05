@@ -20,7 +20,14 @@ const ringClass: Record<CompatibilityResult, string> = {
   match: "ring-2 ring-green-400",
   "unit-mismatch": "ring-2 ring-amber-400",
   "type-mismatch": "ring-2 ring-red-400",
-  unknown: "",
+  unknown: "ring-2 ring-green-400",
+};
+
+const bgClass: Record<CompatibilityResult, string> = {
+  match: "bg-green-400/20",
+  "unit-mismatch": "bg-amber-400/20",
+  "type-mismatch": "bg-red-400/20",
+  unknown: "bg-green-400/20",
 };
 
 interface InputHandleProps {
@@ -31,12 +38,31 @@ interface InputHandleProps {
   connectionCount?: number;
   annotation?: Annotation;
   handleClassName?: string;
+  className?: string;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
-const InputHandle = ({ title, type, id, position, handleClassName, onMouseEnter, onMouseLeave }: InputHandleProps) => {
+const InputHandle = ({
+  title,
+  type,
+  id,
+  position,
+  handleClassName,
+  className,
+  onMouseEnter,
+  onMouseLeave,
+}: InputHandleProps) => {
   return (
-    <LabeledHandle title={title} type={type} position={position} id={id} handleClassName={handleClassName} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} />
+    <LabeledHandle
+      title={title}
+      type={type}
+      position={position}
+      id={id}
+      handleClassName={handleClassName}
+      className={className}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    />
   );
 };
 
@@ -62,6 +88,9 @@ export type FunctionNodeType = Node<NodeData>;
 export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
   const { highlightState, interaction, setInteraction } = useHighlight();
   const isDragging = interaction.mode === "dragging";
+  const fromHandleType = isDragging ? interaction.fromHandleType : null;
+  const isInputRelevant = fromHandleType === "source";
+  const isOutputRelevant = fromHandleType === "target";
 
   return (
     <BaseNode>
@@ -82,10 +111,31 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
                 position={Position.Left}
                 connectionCount={1}
                 annotation={value}
-                handleClassName={isDragging
-                  ? ringClass[highlightState.handleCompatibility.get(`${id}::${value.label ?? index.toString()}`) ?? "unknown"]
-                  : undefined}
-                onMouseEnter={() => setInteraction({ mode: "handle-hover", nodeId: id, handleId: value.label ?? index.toString() })}
+                handleClassName={
+                  isDragging && isInputRelevant
+                    ? ringClass[
+                        highlightState.handleCompatibility.get(
+                          `${id}::${value.label ?? index.toString()}`,
+                        ) ?? "unknown"
+                      ]
+                    : undefined
+                }
+                className={
+                  isDragging && isInputRelevant
+                    ? bgClass[
+                        highlightState.handleCompatibility.get(
+                          `${id}::${value.label ?? index.toString()}`,
+                        ) ?? "unknown"
+                      ]
+                    : undefined
+                }
+                onMouseEnter={() =>
+                  setInteraction({
+                    mode: "handle-hover",
+                    nodeId: id,
+                    handleId: value.label ?? index.toString(),
+                  })
+                }
                 onMouseLeave={() => setInteraction({ mode: "idle" })}
               />
             ))}
@@ -98,10 +148,31 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
                 title={value.label ?? index.toString()}
                 type="source"
                 position={Position.Right}
-                handleClassName={isDragging
-                  ? ringClass[highlightState.handleCompatibility.get(`${id}::${value.label ?? index.toString()}`) ?? "unknown"]
-                  : undefined}
-                onMouseEnter={() => setInteraction({ mode: "handle-hover", nodeId: id, handleId: value.label ?? index.toString() })}
+                handleClassName={
+                  isDragging && isOutputRelevant
+                    ? ringClass[
+                        highlightState.handleCompatibility.get(
+                          `${id}::${value.label ?? index.toString()}`,
+                        ) ?? "unknown"
+                      ]
+                    : undefined
+                }
+                className={
+                  isDragging && isOutputRelevant
+                    ? bgClass[
+                        highlightState.handleCompatibility.get(
+                          `${id}::${value.label ?? index.toString()}`,
+                        ) ?? "unknown"
+                      ]
+                    : undefined
+                }
+                onMouseEnter={() =>
+                  setInteraction({
+                    mode: "handle-hover",
+                    nodeId: id,
+                    handleId: value.label ?? index.toString(),
+                  })
+                }
                 onMouseLeave={() => setInteraction({ mode: "idle" })}
               />
             ))}

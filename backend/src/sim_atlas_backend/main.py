@@ -75,12 +75,6 @@ async def ai_not_configured_handler(
 api_router = APIRouter(prefix="/api/v1")
 
 
-@api_router.get("/items")
-async def get_items(storage: Annotated[StorageInterface, Depends(get_storage)]):
-    storage.count()  # Example of accessing the storage backend from the app state
-    return {"message": "Hello, World!"}
-
-
 @api_router.get("/me")
 async def return_creator(
     creator: Annotated[Creator, Depends(get_current_user)],

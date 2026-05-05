@@ -129,14 +129,17 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
                       ]
                     : undefined
                 }
-                onMouseEnter={() =>
-                  setInteraction({
-                    mode: "handle-hover",
-                    nodeId: id,
-                    handleId: value.label ?? index.toString(),
-                  })
-                }
-                onMouseLeave={() => setInteraction({ mode: "idle" })}
+                onMouseEnter={() => {
+                  if (!isDragging)
+                    setInteraction({
+                      mode: "handle-hover",
+                      nodeId: id,
+                      handleId: value.label ?? index.toString(),
+                    });
+                }}
+                onMouseLeave={() => {
+                  if (!isDragging) setInteraction({ mode: "idle" });
+                }}
               />
             ))}
           </div>
@@ -166,14 +169,17 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
                       ]
                     : undefined
                 }
-                onMouseEnter={() =>
-                  setInteraction({
-                    mode: "handle-hover",
-                    nodeId: id,
-                    handleId: value.label ?? index.toString(),
-                  })
-                }
-                onMouseLeave={() => setInteraction({ mode: "idle" })}
+                onMouseEnter={() => {
+                  if (!isDragging)
+                    setInteraction({
+                      mode: "handle-hover",
+                      nodeId: id,
+                      handleId: value.label ?? index.toString(),
+                    });
+                }}
+                onMouseLeave={() => {
+                  if (!isDragging) setInteraction({ mode: "idle" });
+                }}
               />
             ))}
           </div>

@@ -14,7 +14,10 @@ import {
 } from "@xyflow/react";
 import type { Annotation, NodeResponse } from "../interfaces/BackendSchema";
 import { useHighlight } from "@/highlight/useHighlight";
-import { type CompatibilityResult } from "@/highlight/typeCompatibility";
+import {
+  checkCompatibility,
+  type CompatibilityResult,
+} from "@/highlight/typeCompatibility";
 
 const ringClass: Record<CompatibilityResult, string> = {
   match: "ring-2 ring-green-400",
@@ -115,18 +118,30 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
                 handleClassName={
                   isDragging && isInputRelevant
                     ? ringClass[
-                        highlightState.handleCompatibility.get(
-                          `${id}::${value.label ?? index.toString()}`,
-                        ) ?? "unknown"
+                        interaction.mode === "dragging" &&
+                        interaction.fromNodeId === id
+                          ? "type-mismatch"
+                          : checkCompatibility(
+                              interaction.mode === "dragging"
+                                ? interaction.fromAnnotation
+                                : null,
+                              value,
+                            )
                       ]
                     : undefined
                 }
                 className={
                   isDragging && isInputRelevant
                     ? bgClass[
-                        highlightState.handleCompatibility.get(
-                          `${id}::${value.label ?? index.toString()}`,
-                        ) ?? "unknown"
+                        interaction.mode === "dragging" &&
+                        interaction.fromNodeId === id
+                          ? "type-mismatch"
+                          : checkCompatibility(
+                              interaction.mode === "dragging"
+                                ? interaction.fromAnnotation
+                                : null,
+                              value,
+                            )
                       ]
                     : undefined
                 }
@@ -144,18 +159,30 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
                 handleClassName={
                   isDragging && isOutputRelevant
                     ? ringClass[
-                        highlightState.handleCompatibility.get(
-                          `${id}::${value.label ?? index.toString()}`,
-                        ) ?? "unknown"
+                        interaction.mode === "dragging" &&
+                        interaction.fromNodeId === id
+                          ? "type-mismatch"
+                          : checkCompatibility(
+                              interaction.mode === "dragging"
+                                ? interaction.fromAnnotation
+                                : null,
+                              value,
+                            )
                       ]
                     : undefined
                 }
                 className={
                   isDragging && isOutputRelevant
                     ? bgClass[
-                        highlightState.handleCompatibility.get(
-                          `${id}::${value.label ?? index.toString()}`,
-                        ) ?? "unknown"
+                        interaction.mode === "dragging" &&
+                        interaction.fromNodeId === id
+                          ? "type-mismatch"
+                          : checkCompatibility(
+                              interaction.mode === "dragging"
+                                ? interaction.fromAnnotation
+                                : null,
+                              value,
+                            )
                       ]
                     : undefined
                 }

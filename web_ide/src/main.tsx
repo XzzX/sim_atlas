@@ -17,9 +17,7 @@ const fetchInitialNodesAndEdges = async (): Promise<{
   if (!wf_hash) return { nodes: [], edges: [] };
   const source_code = await simAtlasAPI.getNode(wf_hash);
   console.log(source_code);
-  const { nodes, edges } = await convertWorkflow(
-    source_code.source_code,
-  );
+  const { nodes, edges } = await convertWorkflow(source_code.source_code);
   return { nodes, edges };
 };
 
@@ -30,7 +28,7 @@ export const WebMainLayout = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   return (
-    <HighlightProvider nodes={nodes} edges={edges}>
+    <HighlightProvider edges={edges}>
       <MainLayout
         nodes={nodes}
         setNodes={setNodes}

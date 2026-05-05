@@ -43,26 +43,21 @@ export function useHighlightState(
     return map;
   }, [edges, nodeMap]);
 
-  // Stub values — slice 5 will replace activeNodeIds with real logic
   const activeEdgeIds = useMemo<Set<string> | null>(() => {
-    if (interaction.mode !== "handle-hover") return null;
-    const { nodeId, handleId } = interaction;
+    if (interaction.mode !== "node-hover") return null;
+    const { nodeId } = interaction;
     const ids = new Set<string>();
     for (const edge of edges) {
-      if (
-        (edge.source === nodeId && edge.sourceHandle === handleId) ||
-        (edge.target === nodeId && edge.targetHandle === handleId)
-      ) {
+      if (edge.source === nodeId || edge.target === nodeId) {
         ids.add(edge.id);
       }
     }
     return ids;
   }, [edges, interaction]);
-  const activeNodeIds = useMemo<Set<string> | null>(
-    () => null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [nodes, interaction],
-  );
+  const activeNodeIds = useMemo<Set<string> | null>(() => {
+    if (interaction.mode !== "node-hover") return null;
+    return new Set([interaction.nodeId]);
+  }, [interaction]);
   const handleCompatibility = useMemo<Map<string, CompatibilityResult>>(() => {
     const map = new Map<string, CompatibilityResult>();
     if (interaction.mode !== "dragging") return map;

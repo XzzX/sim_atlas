@@ -6,7 +6,6 @@ import type { CompatibilityResult } from "./typeCompatibility";
 export type InteractionState =
   | { mode: "idle" }
   | { mode: "node-hover"; nodeId: string }
-  | { mode: "handle-hover"; nodeId: string; handleId: string }
   | {
       mode: "dragging";
       fromNodeId: string;

@@ -39,8 +39,6 @@ interface InputHandleProps {
   annotation?: Annotation;
   handleClassName?: string;
   className?: string;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
 }
 const InputHandle = ({
   title,
@@ -49,8 +47,6 @@ const InputHandle = ({
   position,
   handleClassName,
   className,
-  onMouseEnter,
-  onMouseLeave,
 }: InputHandleProps) => {
   return (
     <LabeledHandle
@@ -60,8 +56,6 @@ const InputHandle = ({
       id={id}
       handleClassName={handleClassName}
       className={className}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
     />
   );
 };
@@ -72,8 +66,6 @@ interface OutputHandleProps extends HandleProps {
   id: string;
   position: Position;
   handleClassName?: string;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
 }
 const OutputHandle = (props: OutputHandleProps) => {
   return <LabeledHandle {...props} />;
@@ -91,9 +83,18 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
   const fromHandleType = isDragging ? interaction.fromHandleType : null;
   const isInputRelevant = fromHandleType === "source";
   const isOutputRelevant = fromHandleType === "target";
+  const isHovered = highlightState.activeNodeIds?.has(id) ?? false;
 
   return (
-    <BaseNode>
+    <BaseNode
+      className={isHovered ? "ring-2 ring-primary" : undefined}
+      onMouseEnter={() => {
+        if (!isDragging) setInteraction({ mode: "node-hover", nodeId: id });
+      }}
+      onMouseLeave={() => {
+        if (!isDragging) setInteraction({ mode: "idle" });
+      }}
+    >
       <BaseNodeHeader className="border-b rounded-t-md bg-function-node-background">
         <div className="flex items-center justify-between w-full gap-4">
           <BaseNodeHeaderTitle>{data.label}</BaseNodeHeaderTitle>
@@ -129,17 +130,6 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
                       ]
                     : undefined
                 }
-                onMouseEnter={() => {
-                  if (!isDragging)
-                    setInteraction({
-                      mode: "handle-hover",
-                      nodeId: id,
-                      handleId: value.label ?? index.toString(),
-                    });
-                }}
-                onMouseLeave={() => {
-                  if (!isDragging) setInteraction({ mode: "idle" });
-                }}
               />
             ))}
           </div>
@@ -169,17 +159,6 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
                       ]
                     : undefined
                 }
-                onMouseEnter={() => {
-                  if (!isDragging)
-                    setInteraction({
-                      mode: "handle-hover",
-                      nodeId: id,
-                      handleId: value.label ?? index.toString(),
-                    });
-                }}
-                onMouseLeave={() => {
-                  if (!isDragging) setInteraction({ mode: "idle" });
-                }}
               />
             ))}
           </div>

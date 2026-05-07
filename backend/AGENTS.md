@@ -21,3 +21,8 @@ uv run pyright                          # type-check (strict mode)
 - **MCP**: routes are exposed as MCP tools via `fastapi-mcp`; keep route signatures clean (they double as tool signatures)
 - **AI**: embeddings via VoyageAI (`voyage_ai.py`); LLM calls via OpenAI-compatible API (`ai.py`); streaming agent responses in `agent/`
 - **Config**: all settings via `settings.py` (`pydantic-settings`); never hardcode secrets or URLs
+
+## Libraries
+
+- **pydantic**: [Documentation](https://pydantic.dev/docs/validation/latest/llms.txt)
+- **pydantic-settings**: [Documentation](https://pydantic.dev/docs/validation/latest/llms.txt)

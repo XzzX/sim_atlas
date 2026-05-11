@@ -267,19 +267,25 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
                 Datatype
               </label>
               <select
-                value={filter.datatypes?.[0] ?? ""}
+                value={filter.datatypes?.[0]?.string ?? ""}
                 onChange={(e) =>
                   setFilter({
                     ...filter,
-                    datatypes: e.target.value ? [e.target.value] : null,
+                    datatypes: e.target.value
+                      ? [
+                          filterOptions!.datatypes.find(
+                            (d) => d.string === e.target.value,
+                          )!,
+                        ]
+                      : null,
                   })
                 }
                 className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
               >
                 <option value="">All</option>
                 {filterOptions.datatypes.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
+                  <option key={d.string} value={d.string}>
+                    {d.string}
                   </option>
                 ))}
               </select>

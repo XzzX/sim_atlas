@@ -34,11 +34,15 @@ import pytest
 
 from sim_atlas_backend.models import (
     Annotation,
+    DataType,
     Filter,
     FilterOptions,
+    GenericNode,
     NodeMetadata,
     NodeType,
     ScoredSearchResponse,
+    SimpleNode,
+    UnionNode,
 )
 from sim_atlas_backend.storage_interface import StorageInterface
 
@@ -226,16 +230,32 @@ class StorageContractTests:
     def test_get_filter_options_includes_input_datatypes(
         self, storage: StorageInterface
     ) -> None:
-        storage.create(make_node(inputs=[Annotation(datatype="float")]))
+        storage.create(
+            make_node(
+                inputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="float"), string="float")
+                    )
+                ]
+            )
+        )
         options = storage.get_filter_options()
-        assert "float" in options.datatypes
+        assert any(d.string == "float" for d in options.datatypes)
 
     def test_get_filter_options_includes_output_datatypes(
         self, storage: StorageInterface
     ) -> None:
-        storage.create(make_node(outputs=[Annotation(datatype="int")]))
+        storage.create(
+            make_node(
+                outputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="int"), string="int")
+                    )
+                ]
+            )
+        )
         options = storage.get_filter_options()
-        assert "int" in options.datatypes
+        assert any(d.string == "int" for d in options.datatypes)
 
     def test_get_filter_options_includes_units(self, storage: StorageInterface) -> None:
         storage.create(make_node(inputs=[Annotation(unit="m/s")]))
@@ -409,20 +429,42 @@ class StorageContractTests:
         storage.create(
             make_node(
                 name="input_float",
-                inputs=[Annotation(datatype="float")],
-                outputs=[Annotation(datatype="int")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="float"), string="float")
+                    )
+                ],
+                outputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="int"), string="int")
+                    )
+                ],
                 source_code="def a(): pass",
             )
         )
         storage.create(
             make_node(
                 name="output_float",
-                inputs=[Annotation(datatype="int")],
-                outputs=[Annotation(datatype="float")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="int"), string="int")
+                    )
+                ],
+                outputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="float"), string="float")
+                    )
+                ],
                 source_code="def b(): pass",
             )
         )
-        result = storage.search(None, Filter(datatypes=["float"], port_type="inputs"))
+        result = storage.search(
+            None,
+            Filter(
+                datatypes=[DataType(ast=SimpleNode(name="float"), string="float")],
+                port_type="inputs",
+            ),
+        )
         assert result.results.total_items == 1
         assert result.results.data[0].node.name == "input_float"
 
@@ -432,20 +474,42 @@ class StorageContractTests:
         storage.create(
             make_node(
                 name="input_float",
-                inputs=[Annotation(datatype="float")],
-                outputs=[Annotation(datatype="int")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="float"), string="float")
+                    )
+                ],
+                outputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="int"), string="int")
+                    )
+                ],
                 source_code="def a(): pass",
             )
         )
         storage.create(
             make_node(
                 name="output_float",
-                inputs=[Annotation(datatype="int")],
-                outputs=[Annotation(datatype="float")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="int"), string="int")
+                    )
+                ],
+                outputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="float"), string="float")
+                    )
+                ],
                 source_code="def b(): pass",
             )
         )
-        result = storage.search(None, Filter(datatypes=["float"], port_type="outputs"))
+        result = storage.search(
+            None,
+            Filter(
+                datatypes=[DataType(ast=SimpleNode(name="float"), string="float")],
+                port_type="outputs",
+            ),
+        )
         assert result.results.total_items == 1
         assert result.results.data[0].node.name == "output_float"
 
@@ -455,20 +519,42 @@ class StorageContractTests:
         storage.create(
             make_node(
                 name="input_float",
-                inputs=[Annotation(datatype="float")],
-                outputs=[Annotation(datatype="int")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="float"), string="float")
+                    )
+                ],
+                outputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="int"), string="int")
+                    )
+                ],
                 source_code="def a(): pass",
             )
         )
         storage.create(
             make_node(
                 name="output_float",
-                inputs=[Annotation(datatype="int")],
-                outputs=[Annotation(datatype="float")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="int"), string="int")
+                    )
+                ],
+                outputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="float"), string="float")
+                    )
+                ],
                 source_code="def b(): pass",
             )
         )
-        result = storage.search(None, Filter(datatypes=["float"], port_type="both"))
+        result = storage.search(
+            None,
+            Filter(
+                datatypes=[DataType(ast=SimpleNode(name="float"), string="float")],
+                port_type="both",
+            ),
+        )
         assert result.results.total_items == 2  # noqa: PLR2004
 
     # --- Option A: union decomposition in filter options ---
@@ -478,26 +564,45 @@ class StorageContractTests:
     ) -> None:
         storage.create(
             make_node(
-                inputs=[Annotation(datatype="int | float")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(
+                            ast=UnionNode(
+                                members=[
+                                    SimpleNode(name="int"),
+                                    SimpleNode(name="float"),
+                                ]
+                            ),
+                            string="int | float",
+                        )
+                    )
+                ],
                 source_code="def a(): pass",
             )
         )
         options = storage.get_filter_options()
-        assert "int" in options.datatypes
-        assert "float" in options.datatypes
-        assert "int | float" not in options.datatypes
+        assert any(d.string == "int" for d in options.datatypes)
+        assert any(d.string == "float" for d in options.datatypes)
+        assert not any(d.string == "int | float" for d in options.datatypes)
 
     def test_get_filter_options_keeps_generic_whole(
         self, storage: StorageInterface
     ) -> None:
         storage.create(
             make_node(
-                inputs=[Annotation(datatype="list[int]")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(
+                            ast=GenericNode(name="list", args=[SimpleNode(name="int")]),
+                            string="list[int]",
+                        )
+                    )
+                ],
                 source_code="def a(): pass",
             )
         )
         options = storage.get_filter_options()
-        assert "list[int]" in options.datatypes
+        assert any(d.string == "list[int]" for d in options.datatypes)
 
     # --- Option C: structural matching in search filter ---
 
@@ -507,11 +612,25 @@ class StorageContractTests:
         storage.create(
             make_node(
                 name="union_node",
-                inputs=[Annotation(datatype="int | float")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(
+                            ast=UnionNode(
+                                members=[
+                                    SimpleNode(name="int"),
+                                    SimpleNode(name="float"),
+                                ]
+                            ),
+                            string="int | float",
+                        )
+                    )
+                ],
                 source_code="def a(): pass",
             )
         )
-        result = storage.search(None, Filter(datatypes=["int"]))
+        result = storage.search(
+            None, Filter(datatypes=[DataType(ast=SimpleNode(name="int"), string="int")])
+        )
         assert result.results.total_items == 1
         assert result.results.data[0].node.name == "union_node"
 
@@ -521,11 +640,21 @@ class StorageContractTests:
         storage.create(
             make_node(
                 name="list_node",
-                inputs=[Annotation(datatype="list[int]")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(
+                            ast=GenericNode(name="list", args=[SimpleNode(name="int")]),
+                            string="list[int]",
+                        )
+                    )
+                ],
                 source_code="def a(): pass",
             )
         )
-        result = storage.search(None, Filter(datatypes=["list"]))
+        result = storage.search(
+            None,
+            Filter(datatypes=[DataType(ast=SimpleNode(name="list"), string="list")]),
+        )
         assert result.results.total_items == 1
         assert result.results.data[0].node.name == "list_node"
 
@@ -534,11 +663,30 @@ class StorageContractTests:
     ) -> None:
         storage.create(
             make_node(
-                inputs=[Annotation(datatype="list[float]")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(
+                            ast=GenericNode(
+                                name="list", args=[SimpleNode(name="float")]
+                            ),
+                            string="list[float]",
+                        )
+                    )
+                ],
                 source_code="def a(): pass",
             )
         )
-        result = storage.search(None, Filter(datatypes=["list[int]"]))
+        result = storage.search(
+            None,
+            Filter(
+                datatypes=[
+                    DataType(
+                        ast=GenericNode(name="list", args=[SimpleNode(name="int")]),
+                        string="list[int]",
+                    )
+                ]
+            ),
+        )
         assert result.results.total_items == 0
 
     def test_search_filter_exact_match_regression(
@@ -547,10 +695,17 @@ class StorageContractTests:
         storage.create(
             make_node(
                 name="float_node",
-                inputs=[Annotation(datatype="float")],
+                inputs=[
+                    Annotation(
+                        datatype=DataType(ast=SimpleNode(name="float"), string="float")
+                    )
+                ],
                 source_code="def a(): pass",
             )
         )
-        result = storage.search(None, Filter(datatypes=["float"]))
+        result = storage.search(
+            None,
+            Filter(datatypes=[DataType(ast=SimpleNode(name="float"), string="float")]),
+        )
         assert result.results.total_items == 1
         assert result.results.data[0].node.name == "float_node"

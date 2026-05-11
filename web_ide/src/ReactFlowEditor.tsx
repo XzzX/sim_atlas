@@ -18,7 +18,12 @@ import type {
   ReactFlowInstance,
 } from "@xyflow/react";
 import { type NodeData, type FunctionNodeType } from "./nodes/FunctionNode";
-import { type Annotation, type Filter } from "./interfaces/BackendSchema";
+import {
+  type Annotation,
+  type DataType,
+  type Filter,
+} from "./interfaces/BackendSchema";
+import { typesCompatible } from "./highlight/typeCompatibility";
 import { type InputDataElement } from "./nodes/InputNode";
 import { type OutputDataElement } from "./nodes/OutputNode";
 import { AddNodeDialog } from "./dialogs/AddNodeDialog";
@@ -234,12 +239,16 @@ export const ReactFlowEditor = ({
 
       const pickHandle = (
         ports: Annotation[],
-        matchDatatype: string | null | undefined,
+        matchDatatype: DataType | null | undefined,
       ): string | null => {
         if (ports.length === 0) return null;
         if (matchDatatype) {
-          const idx = ports.findIndex((p) => p.datatype === matchDatatype);
-          if (idx >= 0) return ports[idx].label ?? idx.toString();
+          const idx = ports.findIndex(
+            (p) =>
+              p.datatype != null &&
+              typesCompatible(matchDatatype.ast, p.datatype.ast),
+          );
+          if (idx >= 0) return ports[idx]!.label ?? idx.toString();
         }
         return ports[0]?.label ?? "0";
       };

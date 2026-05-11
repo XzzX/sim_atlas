@@ -1,5 +1,55 @@
 import { z } from "zod";
 
+// ---------------------------------------------------------------------------
+// TypeNode discriminated union + DataType wrapper
+// ---------------------------------------------------------------------------
+
+const SimpleNodeSchema = z.object({
+  kind: z.literal("simple"),
+  name: z.string(),
+});
+
+const GenericNodeSchema: z.ZodType<GenericNode> = z.lazy(() =>
+  z.object({
+    kind: z.literal("generic"),
+    name: z.string(),
+    args: z.array(TypeNodeSchema),
+  }),
+);
+
+const UnionNodeSchema: z.ZodType<UnionNode> = z.lazy(() =>
+  z.object({
+    kind: z.literal("union"),
+    members: z.array(TypeNodeSchema),
+  }),
+);
+
+export type SimpleNode = z.infer<typeof SimpleNodeSchema>;
+export interface GenericNode {
+  kind: "generic";
+  name: string;
+  args: TypeNode[];
+}
+export interface UnionNode {
+  kind: "union";
+  members: TypeNode[];
+}
+export type TypeNode = SimpleNode | GenericNode | UnionNode;
+
+export const TypeNodeSchema: z.ZodType<TypeNode> = z.union([
+  SimpleNodeSchema,
+  GenericNodeSchema,
+  UnionNodeSchema,
+]);
+
+export const DataTypeSchema = z.object({
+  ast: TypeNodeSchema,
+  string: z.string(),
+});
+export type DataType = z.infer<typeof DataTypeSchema>;
+
+// ---------------------------------------------------------------------------
+
 export const NodeTypeSchema = z.enum([
   "function",
   "python_workflow_definition",
@@ -12,7 +62,7 @@ export const NodeType = NodeTypeSchema.enum;
 export const AnnotationSchema = z.object({
   has_default_value: z.boolean().optional(), // default False in Pydantic
   label: z.string().nullish(),
-  datatype: z.string().nullish(),
+  datatype: DataTypeSchema.nullish(),
   unit: z.string().nullish(),
   quantity: z.string().nullish(),
 });
@@ -109,7 +159,7 @@ export const FilterSchema = z.object({
   type: z.array(z.string()).nullish(),
   author: z.array(z.string()).nullish(),
   keywords: z.array(z.string()).nullish(),
-  datatypes: z.array(z.string()).nullish(),
+  datatypes: z.array(DataTypeSchema).nullish(),
   units: z.array(z.string()).nullish(),
   quantities: z.array(z.string()).nullish(),
   port_type: z.enum(["inputs", "outputs", "both"]).nullable().optional(),
@@ -121,7 +171,7 @@ export const FilterOptionsSchema = z.object({
   type: z.array(NodeTypeSchema),
   author: z.array(z.string()),
   keywords: z.array(z.string()),
-  datatypes: z.array(z.string()),
+  datatypes: z.array(DataTypeSchema),
   units: z.array(z.string()),
   quantities: z.array(z.string()),
 });

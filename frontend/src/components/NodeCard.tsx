@@ -234,7 +234,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
                             <td className="py-2 pr-3">
                               {input.datatype ? (
                                 <Badge variant="outline">
-                                  {input.datatype}
+                                  {input.datatype.string}
                                 </Badge>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
@@ -282,7 +282,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
                             <td className="py-2 pr-3">
                               {output.datatype ? (
                                 <Badge variant="outline">
-                                  {output.datatype}
+                                  {output.datatype.string}
                                 </Badge>
                               ) : (
                                 <span className="text-muted-foreground">-</span>

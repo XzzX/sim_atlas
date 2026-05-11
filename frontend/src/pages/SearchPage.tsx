@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 import { simAtlasAPI } from "../services/api";
 import type {
+  DataType,
   Filter,
   FilterOptions,
   ScoredSearchItem,
@@ -36,10 +37,13 @@ function filtersToParams(
   extra: Record<string, string>,
   f: Filter,
 ): Record<string, string | string[]> {
-  const { port_type, ...rest } = f;
+  const { port_type, datatypes, ...rest } = f;
   return {
     ...extra,
     ...rest,
+    ...(datatypes && datatypes.length > 0
+      ? { datatypes: datatypes.map((d) => d.string) }
+      : {}),
     ...(port_type != null ? { port_type } : {}),
   };
 }
@@ -101,7 +105,10 @@ export const SearchCard: React.FC<SearchCardProps> = ({
     type: searchParams.getAll("type") ?? EMPTY_FILTER.type,
     author: searchParams.getAll("author") ?? EMPTY_FILTER.author,
     keywords: searchParams.getAll("keywords") ?? EMPTY_FILTER.keywords,
-    datatypes: searchParams.getAll("datatypes") ?? EMPTY_FILTER.datatypes,
+    datatypes: searchParams
+      .getAll("datatypes")
+      .map((s) => availableFilterOptions.datatypes.find((d) => d.string === s))
+      .filter((d): d is DataType => d !== undefined),
     units: searchParams.getAll("units") ?? EMPTY_FILTER.units,
     quantities: searchParams.getAll("quantities") ?? EMPTY_FILTER.quantities,
     port_type:

@@ -1,5 +1,5 @@
 import React from "react";
-import type { NodeType, FilterOptions, Filter } from "../types/index";
+import type { NodeType, FilterOptions, Filter, DataType } from "../types/index";
 import { CardContent } from "@/components/ui/card";
 import {
   Combobox,
@@ -124,10 +124,19 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
           </div>
           <FacetPopover
             label="Datatype"
-            values={availableFilterOptions.datatypes ?? []}
-            selected={filters.datatypes ?? []}
-            onValueChange={(values) =>
-              onFilterChange({ ...filters, datatypes: values })
+            values={availableFilterOptions.datatypes.map((d) => d.string)}
+            selected={(filters.datatypes ?? []).map((d) => d.string)}
+            onValueChange={(strings) =>
+              onFilterChange({
+                ...filters,
+                datatypes: strings
+                  .map((s) =>
+                    availableFilterOptions.datatypes.find(
+                      (d) => d.string === s,
+                    ),
+                  )
+                  .filter((d): d is DataType => d !== undefined),
+              })
             }
           />
           <FacetPopover

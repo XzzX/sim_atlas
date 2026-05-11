@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import gzip
 from enum import StrEnum
@@ -8,6 +10,7 @@ from pydantic import (
     BaseModel,
     BeforeValidator,
     ConfigDict,
+    Field,
     PlainSerializer,
 )
 
@@ -35,6 +38,39 @@ NdArray = Annotated[
 ]
 
 
+# ---------------------------------------------------------------------------
+# TypeNode discriminated union (duplicated from toolkit — no shared dep)
+# ---------------------------------------------------------------------------
+
+
+class SimpleNode(BaseModel):
+    kind: Literal["simple"] = "simple"
+    name: str
+
+
+class GenericNode(BaseModel):
+    kind: Literal["generic"] = "generic"
+    name: str
+    args: list[TypeNode]
+
+
+class UnionNode(BaseModel):
+    kind: Literal["union"] = "union"
+    members: list[TypeNode]
+
+
+TypeNode = Annotated[SimpleNode | GenericNode | UnionNode, Field(discriminator="kind")]
+GenericNode.model_rebuild()
+UnionNode.model_rebuild()
+
+
+class DataType(BaseModel):
+    """A Python type annotation as both a structured AST and its canonical string."""
+
+    ast: TypeNode
+    string: str
+
+
 class NodeType(StrEnum):
     FUNCTION = "function"
     PYTHON_WORKFLOW_DEFINITION = "python_workflow_definition"
@@ -45,7 +81,7 @@ class NodeType(StrEnum):
 class Annotation(BaseModel):
     has_default_value: bool = False
     label: str | None = None
-    datatype: str | None = None
+    datatype: DataType | None = None
     unit: str | None = None
     quantity: str | None = None
 
@@ -132,7 +168,7 @@ class Filter(BaseModel):
     type: list[NodeType] | None = None
     author: list[str] | None = None
     keywords: list[str] | None = None
-    datatypes: list[str] | None = None
+    datatypes: list[DataType] | None = None
     units: list[str] | None = None
     quantities: list[str] | None = None
     port_type: Literal["inputs", "outputs", "both"] | None = None
@@ -143,7 +179,7 @@ class FilterOptions(BaseModel):
     type: list[NodeType]
     author: list[str]
     keywords: list[str]
-    datatypes: list[str]
+    datatypes: list[DataType]
     units: list[str]
     quantities: list[str]
 

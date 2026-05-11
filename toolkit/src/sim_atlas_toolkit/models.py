@@ -1,6 +1,42 @@
-from enum import StrEnum
+from __future__ import annotations
 
-from pydantic import BaseModel
+from enum import StrEnum
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, Field
+
+
+# ---------------------------------------------------------------------------
+# TypeNode discriminated union
+# ---------------------------------------------------------------------------
+
+
+class SimpleNode(BaseModel):
+    kind: Literal["simple"] = "simple"
+    name: str
+
+
+class GenericNode(BaseModel):
+    kind: Literal["generic"] = "generic"
+    name: str
+    args: list[TypeNode]
+
+
+class UnionNode(BaseModel):
+    kind: Literal["union"] = "union"
+    members: list[TypeNode]
+
+
+TypeNode = Annotated[SimpleNode | GenericNode | UnionNode, Field(discriminator="kind")]
+GenericNode.model_rebuild()
+UnionNode.model_rebuild()
+
+
+class DataType(BaseModel):
+    """A Python type annotation as both a structured AST and its canonical string."""
+
+    ast: TypeNode
+    string: str
 
 
 class NodeType(StrEnum):
@@ -13,7 +49,7 @@ class NodeType(StrEnum):
 class Annotation(BaseModel):
     has_default_value: bool = False
     label: str | None = None
-    datatype: str | None = None
+    datatype: DataType | None = None
     unit: str | None = None
     quantity: str | None = None
 

@@ -1,7 +1,7 @@
 import inspect
 from typing import Any
 
-from ..models import Annotation, NodeType
+from ..models import Annotation, DataType, NodeType, SimpleNode
 from .metadata import Metadata
 
 
@@ -15,9 +15,13 @@ def parse(obj: Any) -> Metadata | None:
 
     instance = obj()
 
-    inputs = [Annotation(label=k, datatype=v.type) for k, v in instance.inputs.items()]
+    inputs = [
+        Annotation(label=k, datatype=DataType(ast=SimpleNode(name=v.type), string=v.type))
+        for k, v in instance.inputs.items()
+    ]
     outputs = [
-        Annotation(label=k, datatype=v.type) for k, v in instance.outputs.items()
+        Annotation(label=k, datatype=DataType(ast=SimpleNode(name=v.type), string=v.type))
+        for k, v in instance.outputs.items()
     ]
 
     return Metadata(

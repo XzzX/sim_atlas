@@ -12,6 +12,7 @@ from tqdm import tqdm
 from sim_atlas_backend.ai import create_ai_descriptions
 from sim_atlas_backend.models import (
     Annotation,
+    DataType,
     Filter,
     FilterOptions,
     NodeMetadata,
@@ -177,7 +178,7 @@ class FileSystemStorage(StorageInterface):
             type: set[NodeType] = set()
             author: set[str] = set()
             keywords: set[str] = set()
-            datatypes: set[str] = set()
+            datatypes: dict[str, DataType] = {}  # keyed by DataType.string for dedup
             units: set[str] = set()
             quantities: set[str] = set()
 
@@ -192,9 +193,9 @@ class FileSystemStorage(StorageInterface):
                 author={node.author_name},
                 keywords=set(node.keywords),
                 datatypes={
-                    leaf
+                    leaf.string: leaf
                     for ann in (node.inputs + node.outputs)
-                    if ann.datatype
+                    if ann.datatype is not None
                     for leaf in collect_datatypes(ann.datatype)
                 },
                 units={input.unit for input in node.inputs if input.unit}
@@ -223,7 +224,7 @@ class FileSystemStorage(StorageInterface):
                 type=options1.type | options2.type,
                 author=options1.author | options2.author,
                 keywords=options1.keywords | options2.keywords,
-                datatypes=options1.datatypes | options2.datatypes,
+                datatypes={**options1.datatypes, **options2.datatypes},
                 units=options1.units | options2.units,
                 quantities=options1.quantities | options2.quantities,
             )
@@ -239,7 +240,9 @@ class FileSystemStorage(StorageInterface):
             type=sorted(filter_options_set.type),
             author=sorted(filter_options_set.author),
             keywords=sorted(filter_options_set.keywords),
-            datatypes=sorted(filter_options_set.datatypes),
+            datatypes=sorted(
+                filter_options_set.datatypes.values(), key=lambda d: d.string
+            ),
             units=sorted(filter_options_set.units),
             quantities=sorted(filter_options_set.quantities),
         )

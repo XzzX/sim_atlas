@@ -1,97 +1,37 @@
-"""Utilities for parsing and comparing canonical Python type strings.
+"""Utilities for comparing DataType values.
 
-The canonical format is produced by the toolkit's ``type_to_str`` function:
-  - simple types: ``"int"``, ``"None"``
-  - generics:     ``"list[int]"``, ``"dict[str, float]"``
-  - unions:       ``"int | float"``, ``"int | None"``
-
-Two public functions are provided:
-
-``collect_datatypes(s)``
-    Return the set of top-level leaf type strings suitable for use as search
-    facet values.  Union members are split; generics are kept whole.
+``collect_datatypes(dt)``
+    Return the list of leaf DataType objects for facet generation.  Union
+    members are split; generics are kept whole.  Each leaf gets its own
+    pre-computed ``string`` field.
 
 ``datatype_matches(stored, filter_val)``
-    Return True if *stored* and *filter_val* have a non-empty intersection
-    (symmetric, unlike the edge-compatibility check which is directional).
+    Return True if *stored* and *filter_val* have a non-empty type
+    intersection (symmetric, unlike the edge-compatibility check which is
+    directional).
+
+``node_to_str(node)``
+    Canonical string representation of a TypeNode.  Used internally when
+    building leaf DataType objects from union members.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-# ---------------------------------------------------------------------------
-# Type AST
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class SimpleNode:
-    name: str
-    kind: str = "simple"
-
-
-@dataclass
-class GenericNode:
-    name: str
-    args: list[SimpleNode | GenericNode | UnionNode]
-    kind: str = "generic"
-
-
-@dataclass
-class UnionNode:
-    members: list[SimpleNode | GenericNode | UnionNode]
-    kind: str = "union"
-
-
-TypeNode = SimpleNode | GenericNode | UnionNode
+from .models import DataType, GenericNode, SimpleNode, UnionNode
 
 
 # ---------------------------------------------------------------------------
-# Parser
+# Canonical string rendering
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class _ParseCtx:
-    src: str
-    pos: int = 0
-
-
-def _parse_type(s: str) -> TypeNode:
-    return _parse_union(_ParseCtx(src=s.strip()))
-
-
-def _parse_union(ctx: _ParseCtx) -> TypeNode:
-    members: list[TypeNode] = [_parse_generic(ctx)]
-    while ctx.src.startswith(" | ", ctx.pos):
-        ctx.pos += 3  # consume " | "
-        members.append(_parse_generic(ctx))
-    return members[0] if len(members) == 1 else UnionNode(members=members)
-
-
-def _parse_generic(ctx: _ParseCtx) -> TypeNode:
-    name = _parse_name(ctx)
-    if ctx.pos >= len(ctx.src) or ctx.src[ctx.pos] != "[":
-        return SimpleNode(name=name)
-    ctx.pos += 1  # consume "["
-    args: list[TypeNode] = [_parse_union(ctx)]
-    while ctx.pos < len(ctx.src) and ctx.src[ctx.pos] == ",":
-        ctx.pos += 1  # consume ","
-        if ctx.pos < len(ctx.src) and ctx.src[ctx.pos] == " ":
-            ctx.pos += 1  # consume optional space
-        args.append(_parse_union(ctx))
-    ctx.pos += 1  # consume "]"
-    return GenericNode(name=name, args=args)
-
-
-def _parse_name(ctx: _ParseCtx) -> str:
-    start = ctx.pos
-    while ctx.pos < len(ctx.src) and (
-        ctx.src[ctx.pos].isalnum() or ctx.src[ctx.pos] in "_."
-    ):
-        ctx.pos += 1
-    return ctx.src[start : ctx.pos]
+def node_to_str(node: SimpleNode | GenericNode | UnionNode) -> str:
+    """Return the canonical string for a TypeNode, e.g. "list[int]", "int | None"."""
+    if isinstance(node, SimpleNode):
+        return node.name
+    if isinstance(node, GenericNode):
+        return f"{node.name}[{', '.join(node_to_str(a) for a in node.args)}]"  # type: ignore[arg-type]
+    return " | ".join(node_to_str(m) for m in node.members)  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
@@ -99,46 +39,26 @@ def _parse_name(ctx: _ParseCtx) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _collect_leaves(node: TypeNode, out: set[str]) -> None:
-    """Recursively collect top-level union members as strings.
+def collect_datatypes(dt: DataType) -> list[DataType]:
+    """Return leaf DataType objects for facet generation.
 
-    Generics are kept whole (their args are not further decomposed).
-    """
-    if isinstance(node, UnionNode):
-        for m in node.members:
-            _collect_leaves(m, out)
-    elif isinstance(node, GenericNode):
-        # Reconstruct the canonical string for the whole generic
-        out.add(_node_to_str(node))
-    else:
-        out.add(node.name)
-
-
-def _node_to_str(node: TypeNode) -> str:
-    if isinstance(node, SimpleNode):
-        return node.name
-    if isinstance(node, GenericNode):
-        args_str = ", ".join(_node_to_str(a) for a in node.args)
-        return f"{node.name}[{args_str}]"
-    # UnionNode
-    return " | ".join(_node_to_str(m) for m in node.members)
-
-
-def collect_datatypes(s: str) -> set[str]:
-    """Return the set of leaf datatype strings for facet generation.
-
-    Union members are split; generics are kept as a single entry.
+    Union members are split; generics are kept whole.
 
     Examples::
 
-        collect_datatypes("int | float")   == {"int", "float"}
-        collect_datatypes("list[int]")     == {"list[int]"}
-        collect_datatypes("int | None")    == {"int", "None"}
+        collect_datatypes(DataType(ast=UnionNode([SimpleNode("int"), SimpleNode("float")]), ...))
+            == [DataType(..., string="int"), DataType(..., string="float")]
+
+        collect_datatypes(DataType(ast=GenericNode("list", [...]), string="list[int]"))
+            == [DataType(ast=GenericNode("list", [...]), string="list[int]")]
     """
-    node = _parse_type(s)
-    out: set[str] = set()
-    _collect_leaves(node, out)
-    return out
+    if isinstance(dt.ast, UnionNode):
+        result: list[DataType] = []
+        for member in dt.ast.members:  # type: ignore[union-attr]
+            leaf_str = node_to_str(member)  # type: ignore[arg-type]
+            result.append(DataType(ast=member, string=leaf_str))
+        return result
+    return [dt]
 
 
 # ---------------------------------------------------------------------------
@@ -146,18 +66,19 @@ def collect_datatypes(s: str) -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-def _intersects(a: TypeNode, b: TypeNode) -> bool:
+def _intersects(
+    a: SimpleNode | GenericNode | UnionNode,
+    b: SimpleNode | GenericNode | UnionNode,
+) -> bool:
     """Return True if type *a* and type *b* have a non-empty intersection."""
     # Union on either side: any member pair intersecting is enough
     if isinstance(a, UnionNode):
-        return any(_intersects(m, b) for m in a.members)
+        return any(_intersects(m, b) for m in a.members)  # type: ignore[arg-type]
     if isinstance(b, UnionNode):
-        return any(_intersects(a, m) for m in b.members)
+        return any(_intersects(a, m) for m in b.members)  # type: ignore[arg-type]
 
     # Both non-union — names must match
-    a_name = a.name
-    b_name = b.name
-    if a_name != b_name:
+    if a.name != b.name:
         return False
 
     # Same name — bare generic on either side is a wildcard
@@ -169,17 +90,17 @@ def _intersects(a: TypeNode, b: TypeNode) -> bool:
     # Both parameterised: same arity and all arg pairs intersect
     if len(a_args) != len(b_args):
         return False
-    return all(_intersects(aa, bb) for aa, bb in zip(a_args, b_args, strict=True))
+    return all(_intersects(aa, bb) for aa, bb in zip(a_args, b_args, strict=True))  # type: ignore[arg-type]
 
 
-def datatype_matches(stored: str, filter_val: str) -> bool:
+def datatype_matches(stored: DataType, filter_val: DataType) -> bool:
     """Return True if *stored* and *filter_val* have a non-empty type intersection.
 
     Examples::
 
-        datatype_matches("int | float", "int")      == True
-        datatype_matches("list[int]", "list")        == True   # bare wildcard
-        datatype_matches("list[int]", "list[float]") == False
-        datatype_matches("float", "float")           == True   # exact match
+        datatype_matches(dt("int | float"), dt("int"))         == True
+        datatype_matches(dt("list[int]"),   dt("list"))        == True   # bare wildcard
+        datatype_matches(dt("list[int]"),   dt("list[float]")) == False
+        datatype_matches(dt("float"),       dt("float"))       == True
     """
-    return _intersects(_parse_type(stored), _parse_type(filter_val))
+    return _intersects(stored.ast, filter_val.ast)  # type: ignore[arg-type]

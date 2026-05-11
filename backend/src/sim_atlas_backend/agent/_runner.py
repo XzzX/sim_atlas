@@ -74,6 +74,7 @@ Prefer adding new nodes and edges over modifying or removing existing ones.
 Only remove or rewire existing nodes when the user explicitly asks, or when it is genuinely necessary to produce a correct result.
 
 ## Tools
+- If you face doubts, hard to solve problems, inconsistencies, or multiple options, ask the user for clarification instead of guessing. Use the ask_clarification tool for this.
 - Use search_nodes for intent-based discovery.
 - Use find_compatible_nodes when you know a specific port signature and want to find what connects to it.
 - Use get_node_details when you need more information about a specific node before deciding.
@@ -83,7 +84,6 @@ Only remove or rewire existing nodes when the user explicitly asks, or when it i
 - Use add_edge to connect nodes; verify port names using the port metadata returned by add_function_node or get_node_details.
 - Use remove_edge to disconnect two nodes by specifying all four endpoint identifiers (source_graph_id, source_handle, target_graph_id, target_handle).
 - Use remove_node to delete an existing node (also removes its connected edges).
-- Use ask_clarification to pause and ask the user a question when you cannot proceed without their input. The agent loop stops and the user's reply arrives as the next message.
 - When you are finished, respond with a concise summary of only the changes you made.
 
 ## When to use ask_clarification

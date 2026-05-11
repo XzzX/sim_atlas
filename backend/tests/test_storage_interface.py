@@ -470,3 +470,87 @@ class StorageContractTests:
         )
         result = storage.search(None, Filter(datatypes=["float"], port_type="both"))
         assert result.results.total_items == 2  # noqa: PLR2004
+
+    # --- Option A: union decomposition in filter options ---
+
+    def test_get_filter_options_decomposes_union_datatypes(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(
+            make_node(
+                inputs=[Annotation(datatype="int | float")],
+                source_code="def a(): pass",
+            )
+        )
+        options = storage.get_filter_options()
+        assert "int" in options.datatypes
+        assert "float" in options.datatypes
+        assert "int | float" not in options.datatypes
+
+    def test_get_filter_options_keeps_generic_whole(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(
+            make_node(
+                inputs=[Annotation(datatype="list[int]")],
+                source_code="def a(): pass",
+            )
+        )
+        options = storage.get_filter_options()
+        assert "list[int]" in options.datatypes
+
+    # --- Option C: structural matching in search filter ---
+
+    def test_search_filter_union_member_matches_union_port(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(
+            make_node(
+                name="union_node",
+                inputs=[Annotation(datatype="int | float")],
+                source_code="def a(): pass",
+            )
+        )
+        result = storage.search(None, Filter(datatypes=["int"]))
+        assert result.results.total_items == 1
+        assert result.results.data[0].node.name == "union_node"
+
+    def test_search_filter_bare_generic_matches_parameterised(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(
+            make_node(
+                name="list_node",
+                inputs=[Annotation(datatype="list[int]")],
+                source_code="def a(): pass",
+            )
+        )
+        result = storage.search(None, Filter(datatypes=["list"]))
+        assert result.results.total_items == 1
+        assert result.results.data[0].node.name == "list_node"
+
+    def test_search_filter_parameterised_no_match_different_arg(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(
+            make_node(
+                inputs=[Annotation(datatype="list[float]")],
+                source_code="def a(): pass",
+            )
+        )
+        result = storage.search(None, Filter(datatypes=["list[int]"]))
+        assert result.results.total_items == 0
+
+    def test_search_filter_exact_match_regression(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(
+            make_node(
+                name="float_node",
+                inputs=[Annotation(datatype="float")],
+                source_code="def a(): pass",
+            )
+        )
+        result = storage.search(None, Filter(datatypes=["float"]))
+        assert result.results.total_items == 1
+        assert result.results.data[0].node.name == "float_node"

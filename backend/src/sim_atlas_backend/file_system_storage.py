@@ -24,6 +24,7 @@ from sim_atlas_backend.models import (
 from sim_atlas_backend.voyage_ai import create_embedding
 
 from .storage_interface import StorageInterface
+from .type_utils import collect_datatypes, datatype_matches
 
 
 def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
@@ -86,7 +87,9 @@ class NodeFilter:
         annotations = self._annotations(node)
 
         if self.datatypes and not any(
-            a.datatype in self.datatypes for a in annotations
+            a.datatype is not None
+            and any(datatype_matches(a.datatype, f) for f in self.datatypes)
+            for a in annotations
         ):
             return False
 
@@ -188,8 +191,12 @@ class FileSystemStorage(StorageInterface):
                 type={node.node_type},
                 author={node.author_name},
                 keywords=set(node.keywords),
-                datatypes={input.datatype for input in node.inputs if input.datatype}
-                | {output.datatype for output in node.outputs if output.datatype},
+                datatypes={
+                    leaf
+                    for ann in (node.inputs + node.outputs)
+                    if ann.datatype
+                    for leaf in collect_datatypes(ann.datatype)
+                },
                 units={input.unit for input in node.inputs if input.unit}
                 | {output.unit for output in node.outputs if output.unit},
                 quantities={input.quantity for input in node.inputs if input.quantity}

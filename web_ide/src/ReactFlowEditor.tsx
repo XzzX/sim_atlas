@@ -173,9 +173,18 @@ export const ReactFlowEditor = ({
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
+      // Always reset highlight regardless of where the drag ended
+      setInteraction({ mode: "idle" });
+
       const fromNode = connectionState.fromNode;
       const fromHandle = connectionState.fromHandle;
-      if (!rfInstance || !fromNode || connectionState.toNode !== null) return;
+
+      // Use DOM target to detect drops on node bodies (toNode is only set when
+      // near a valid handle, so it misses drops on nodes without a matching handle)
+      const target = event.target as Element;
+      const isOverNode = !!target.closest(".react-flow__node");
+
+      if (!rfInstance || !fromNode || isOverNode) return;
       if (!fromHandle?.id || !fromHandle.type) return;
 
       const allNodes = rfInstance.getNodes();
@@ -204,7 +213,6 @@ export const ReactFlowEditor = ({
       });
       setContextMenuPos(pos);
       setIsAddNodeDialogOpen(true);
-      setInteraction({ mode: "idle" });
     },
     [rfInstance, setInteraction],
   );

@@ -34,20 +34,18 @@ from .security import Creator, get_current_user
 from .settings import settings
 from .storage_interface import StorageInterface, get_storage_backend
 
-_storage: StorageInterface | None = None
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _storage
-    _storage = get_storage_backend()
+    app.state.storage = get_storage_backend()
     yield
-    _storage = None
+    app.state.storage = None
 
 
-def get_storage() -> StorageInterface:
-    assert _storage is not None, "Storage has not been initialised"
-    return _storage
+def get_storage(request: Request) -> StorageInterface:
+    storage: StorageInterface | None = getattr(request.app.state, "storage", None)
+    assert storage is not None, "Storage has not been initialised"
+    return storage
 
 
 app = FastAPI(

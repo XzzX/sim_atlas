@@ -51,8 +51,7 @@ def _handle_add_node(
             node_kind="function",
             atlas_node_id=atlas_node_id,
             name=label,
-            short_description=node.ai_summary
-            or node.docstring.splitlines()[0]
+            short_description=node.ai_summary or node.docstring.splitlines()[0]
             if node.docstring
             else None,
             inputs=node.inputs,

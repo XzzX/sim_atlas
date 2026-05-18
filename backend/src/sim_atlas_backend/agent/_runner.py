@@ -13,6 +13,17 @@ from ..models import AgentRequest, Filter, GraphNodeContext
 from ..settings import settings
 from ..storage_interface import StorageInterface
 from ._graph import ScratchGraph, execute_graph_tool, validate_graph
+from ._sse import (
+    ClarificationEvent,
+    ErrorEvent,
+    GraphUpdateEvent,
+    MessageEvent,
+    ReasoningEvent,
+    ToolCallEvent,
+    ToolResultEvent,
+    ValidationEvent,
+    to_sse,
+)
 from ._tools import TOOLS, tool_summary
 
 logger = logging.getLogger(__name__)
@@ -196,8 +207,11 @@ def _execute_tool(
     return execute_graph_tool(tool_name, tool_args, storage, scratch)
 
 
-def _sse(event: dict[str, Any]) -> str:
-    return f"data: {json.dumps(event)}\n\n"
+def _graph_update_event(scratch: ScratchGraph) -> GraphUpdateEvent:
+    return GraphUpdateEvent(
+        nodes=[n.model_dump(exclude_none=True) for n in scratch.nodes.values()],
+        edges=[e.model_dump() for e in scratch.edges],
+    )
 
 
 async def run_agent_stream(
@@ -229,8 +243,9 @@ async def run_agent_stream(
                 tool_choice="auto",
             )
             choice = response.choices[0]
-            print(
-                f"response:\n{json.dumps(choice.message.model_dump(exclude_unset=True), indent=2)}"
+            logger.debug(
+                "LLM response message: %s",
+                json.dumps(choice.message.model_dump(exclude_unset=True), indent=2),
             )
             messages.append(
                 cast(
@@ -245,7 +260,7 @@ async def run_agent_stream(
                 if not validation_errors:
                     break
                 # Emit a validation event so the UI can show a correction round.
-                yield _sse({"type": "validation", "errors": validation_errors})
+                yield to_sse(ValidationEvent(errors=validation_errors))
                 error_text = "\n".join(f"- {e}" for e in validation_errors)
                 logger.debug(
                     "Graph validation errors (stream); asking agent to correct:\n%s",
@@ -268,49 +283,26 @@ async def run_agent_stream(
                 or None
             )
             if reasoning:
-                yield _sse({"type": "reasoning", "content": reasoning})
+                yield to_sse(ReasoningEvent(content=reasoning))
             for tc in choice.message.tool_calls:
                 if not isinstance(tc, ChatCompletionMessageToolCall):
                     continue
                 args: dict[str, Any] = json.loads(tc.function.arguments)
-                yield _sse(
-                    {"type": "tool_call", "name": tc.function.name, "args": args}
-                )
+                yield to_sse(ToolCallEvent(name=tc.function.name, args=args))
 
                 if tc.function.name == "ask_clarification":
                     question: str = args["question"]
                     options: list[str] = args.get("options") or []
-                    yield _sse(
-                        {
-                            "type": "clarification",
-                            "question": question,
-                            "options": options,
-                        }
-                    )
+                    yield to_sse(ClarificationEvent(question=question, options=options))
                     # Also emit a message event so the frontend history logic
                     # captures the question as the assistant's final turn.
-                    yield _sse({"type": "message", "content": question})
-                    yield _sse(
-                        {
-                            "type": "graph_update",
-                            "nodes": [
-                                n.model_dump(exclude_none=True)
-                                for n in scratch.nodes.values()
-                            ],
-                            "edges": [e.model_dump() for e in scratch.edges],
-                        }
-                    )
+                    yield to_sse(MessageEvent(content=question))
+                    yield to_sse(_graph_update_event(scratch))
                     return
 
                 result = _execute_tool(tc.function.name, args, storage, scratch)
                 summary = tool_summary(tc.function.name, result)
-                yield _sse(
-                    {
-                        "type": "tool_result",
-                        "name": tc.function.name,
-                        "summary": summary,
-                    }
-                )
+                yield to_sse(ToolResultEvent(name=tc.function.name, summary=summary))
                 messages.append(
                     {
                         "role": "tool",
@@ -319,26 +311,10 @@ async def run_agent_stream(
                     }
                 )
 
-            yield _sse(
-                {
-                    "type": "graph_update",
-                    "nodes": [
-                        n.model_dump(exclude_none=True) for n in scratch.nodes.values()
-                    ],
-                    "edges": [e.model_dump() for e in scratch.edges],
-                }
-            )
+            yield to_sse(_graph_update_event(scratch))
 
-        yield _sse({"type": "message", "content": final_message})
-        yield _sse(
-            {
-                "type": "graph_update",
-                "nodes": [
-                    n.model_dump(exclude_none=True) for n in scratch.nodes.values()
-                ],
-                "edges": [e.model_dump() for e in scratch.edges],
-            }
-        )
+        yield to_sse(MessageEvent(content=final_message))
+        yield to_sse(_graph_update_event(scratch))
     except Exception as exc:  # noqa: BLE001
         logger.exception("Agent stream error")
-        yield _sse({"type": "error", "message": str(exc)})
+        yield to_sse(ErrorEvent(message=str(exc)))

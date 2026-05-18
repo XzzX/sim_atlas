@@ -1,16 +1,15 @@
 """Tests for settings initialization and config file creation."""
 
-from pathlib import Path
-from unittest import mock
-
 import pytest
-from pydantic import ValidationError
+
+from sim_atlas_backend.exceptions import MissingConfigError
+from sim_atlas_backend.settings import CONFIG_TEMPLATE, Settings, load_settings
+
+MIN_COMMENT_LINES = 20
 
 
 def test_load_settings_returns_valid_instance():
     """Test that load_settings returns a valid Settings instance."""
-    from sim_atlas_backend.settings import load_settings
-
     load_settings.cache_clear()
     settings = load_settings()
 
@@ -21,11 +20,10 @@ def test_load_settings_returns_valid_instance():
 
 def test_config_template_structure():
     """Test that the template has all required sections and keys."""
-    from sim_atlas_backend.settings import CONFIG_TEMPLATE
-
     assert "=== REQUIRED SETTINGS ===" in CONFIG_TEMPLATE
     assert "=== OPTIONAL: LLM / AI ENRICHMENT ===" in CONFIG_TEMPLATE
     assert "=== OPTIONAL: VOYAGEAI EMBEDDINGS ===" in CONFIG_TEMPLATE
+    assert "=== OPTIONAL: LANGFUSE OBSERVABILITY ===" in CONFIG_TEMPLATE
 
     # Check all fields are documented
     assert "jwt_secret_key" in CONFIG_TEMPLATE
@@ -35,6 +33,9 @@ def test_config_template_structure():
     assert "llm_embedding_model" in CONFIG_TEMPLATE
     assert "llm_chat_model" in CONFIG_TEMPLATE
     assert "voyage_api_key" in CONFIG_TEMPLATE
+    assert "langfuse_public_key" in CONFIG_TEMPLATE
+    assert "langfuse_secret_key" in CONFIG_TEMPLATE
+    assert "langfuse_host" in CONFIG_TEMPLATE
 
     # Check that template has verbose comments
     comment_lines = [
@@ -42,13 +43,11 @@ def test_config_template_structure():
         for line in CONFIG_TEMPLATE.split("\n")
         if line.strip().startswith("#")
     ]
-    assert len(comment_lines) > 20, "Template should have verbose comments"
+    assert len(comment_lines) > MIN_COMMENT_LINES, "Template should have verbose comments"
 
 
 def test_load_settings_caching():
     """Test that load_settings returns cached instance on repeated calls."""
-    from sim_atlas_backend.settings import load_settings
-
     # Clear the cache first
     load_settings.cache_clear()
 
@@ -64,8 +63,6 @@ def test_load_settings_caching():
 
 def test_template_has_examples_and_hints():
     """Test that the template includes practical examples and generation hints."""
-    from sim_atlas_backend.settings import CONFIG_TEMPLATE
-
     assert "python -c" in CONFIG_TEMPLATE  # Secret generation hint
     assert "https://www.voyageai.com/" in CONFIG_TEMPLATE
     assert "sk-" in CONFIG_TEMPLATE  # OpenAI key example
@@ -78,8 +75,6 @@ def test_template_has_examples_and_hints():
 
 def test_template_has_all_fields_explained():
     """Test that every config field has explanation text."""
-    from sim_atlas_backend.settings import CONFIG_TEMPLATE
-
     # Each field should have at least one comment line explaining it
     fields = [
         "jwt_secret_key",
@@ -89,6 +84,9 @@ def test_template_has_all_fields_explained():
         "llm_chat_model",
         "llm_embedding_model",
         "voyage_api_key",
+        "langfuse_public_key",
+        "langfuse_secret_key",
+        "langfuse_host",
     ]
 
     for field in fields:
@@ -112,8 +110,6 @@ def test_template_has_all_fields_explained():
 
 def test_settings_can_be_loaded_from_env(monkeypatch):
     """Test that settings can be loaded from environment variables."""
-    from sim_atlas_backend.settings import load_settings
-
     # The module-level config should already be loaded,
     # but we can test that load_settings is a valid function
     load_settings.cache_clear()
@@ -128,8 +124,6 @@ def test_settings_can_be_loaded_from_env(monkeypatch):
 
 def test_missing_config_error_exists():
     """Test that MissingConfigError exception is defined."""
-    from sim_atlas_backend.exceptions import MissingConfigError
-
     # Should be able to raise and catch it
     with pytest.raises(MissingConfigError):
         raise MissingConfigError("test")
@@ -137,11 +131,19 @@ def test_missing_config_error_exists():
 
 def test_template_mentions_deployment_scenarios():
     """Test that template explains optional vs required settings."""
-    from sim_atlas_backend.settings import CONFIG_TEMPLATE
-
     # Template should explain when to use optional settings
     assert "optional" in CONFIG_TEMPLATE.lower()
     assert "required" in CONFIG_TEMPLATE.lower()
 
     # Should mention it's optional to use AI features
     assert "leave commented out" in CONFIG_TEMPLATE.lower()
+
+
+def test_settings_expose_langfuse_fields():
+    settings = Settings(jwt_secret_key="x", jwt_algorithm="HS256")
+
+    assert settings.langfuse_public_key is None
+    assert settings.langfuse_secret_key is None
+    assert settings.langfuse_host is None
+    assert settings.langfuse_environment is None
+    assert settings.langfuse_enabled is False

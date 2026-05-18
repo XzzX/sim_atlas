@@ -75,6 +75,28 @@ jwt_algorithm = "HS256"
 # Get an API key from https://www.voyageai.com/
 # Only needed if using VoyageAI instead of llm_embedding_model.
 # voyage_api_key = "pa-..."
+
+# === OPTIONAL: LANGFUSE OBSERVABILITY ===
+# Enable this only if you want to export agent traces to Langfuse.
+# Tracing is enabled when all of the fields below are set.
+# Install the optional dependency with: uv sync --extra langfuse
+
+# Langfuse Public Key
+# Used to authenticate trace writes to Langfuse.
+# langfuse_public_key = "pk-lf-..."
+
+# Langfuse Secret Key
+# Used with the public key to sign trace writes.
+# langfuse_secret_key = "sk-lf-..."
+
+# Langfuse Host URL
+# Base URL for your Langfuse deployment.
+# Examples: https://cloud.langfuse.com, http://localhost:3000
+# langfuse_host = "https://cloud.langfuse.com"
+
+# Langfuse Environment
+# Optional environment label shown in Langfuse.
+# langfuse_environment = "development"
 """
 
 
@@ -86,6 +108,10 @@ class Settings(BaseSettings):
     llm_embedding_model: str | None = None
     llm_chat_model: str | None = None
     voyage_api_key: str | None = None
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_host: str | None = None
+    langfuse_environment: str | None = None
 
     model_config = SettingsConfigDict(
         toml_file=_get_config_files(),
@@ -107,6 +133,12 @@ class Settings(BaseSettings):
             env_settings,
             dotenv_settings,
             TomlConfigSettingsSource(settings_cls),
+        )
+
+    @property
+    def langfuse_enabled(self) -> bool:
+        return bool(
+            self.langfuse_public_key and self.langfuse_secret_key and self.langfuse_host
         )
 
 
@@ -149,14 +181,15 @@ def load_settings() -> Settings:
                     f"\n{'=' * 70}",
                     f"Configuration file created: {config_path.absolute()}",
                     f"{'=' * 70}",
-                    f"\nRequired fields to fill in:",
-                    f"  - jwt_secret_key: A strong secret key for signing tokens",
-                    f"  - jwt_algorithm: Usually 'HS256'",
-                    f"\nOptional fields (AI/semantic search):",
-                    f"  - llm_api_key, llm_api_url, llm_chat_model, llm_embedding_model",
-                    f"  - voyage_api_key",
-                    f"\nPlease review the config file, fill in the required fields,",
-                    f"and restart the server.",
+                    "\nRequired fields to fill in:",
+                    "  - jwt_secret_key: A strong secret key for signing tokens",
+                    "  - jwt_algorithm: Usually 'HS256'",
+                    "\nOptional fields (AI/semantic search):",
+                    "  - llm_api_key, llm_api_url, llm_chat_model, llm_embedding_model",
+                    "  - voyage_api_key",
+                    "  - langfuse_public_key, langfuse_secret_key, langfuse_host",
+                    "\nPlease review the config file, fill in the required fields,",
+                    "and restart the server.",
                     f"{'=' * 70}\n",
                     sep="\n",
                     file=sys.stderr,

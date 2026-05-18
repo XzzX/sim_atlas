@@ -3,10 +3,11 @@ import json
 from openai import OpenAI
 
 from .exceptions import AINotConfiguredError
-from .settings import settings
+from .settings import load_settings
 
 
 def create_embedding(text: str) -> list[float]:
+    settings = load_settings()
     if (
         not settings.llm_api_key
         or not settings.llm_api_url
@@ -38,6 +39,7 @@ def create_ai_descriptions(
     - ai_summary: one sentence for compact display and keyword search
     - ai_description: 2-5 sentences with rich domain vocabulary for semantic search
     """
+    settings = load_settings()
     if (
         not settings.llm_api_key
         or not settings.llm_api_url

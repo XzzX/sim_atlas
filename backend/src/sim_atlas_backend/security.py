@@ -6,7 +6,7 @@ from fastapi.security import APIKeyHeader
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel
 
-from .settings import settings
+from .settings import load_settings
 
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
@@ -22,6 +22,7 @@ async def get_current_user(access_token: Annotated[str, Depends(api_key_header)]
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    settings = load_settings()
     try:
         payload = jwt.decode(
             access_token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]

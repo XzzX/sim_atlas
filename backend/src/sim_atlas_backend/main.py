@@ -31,7 +31,7 @@ from sim_atlas_backend.models import (
 from .agent import run_agent_stream
 from .exceptions import AINotConfiguredError
 from .security import Creator, get_current_user
-from .settings import settings
+from .settings import load_settings
 from .storage_interface import StorageInterface, get_storage_backend
 
 
@@ -227,6 +227,7 @@ async def agent_stream(
     request: AgentRequest,
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> StreamingResponse:
+    settings = load_settings()
     if (
         not settings.llm_api_key
         or not settings.llm_api_url

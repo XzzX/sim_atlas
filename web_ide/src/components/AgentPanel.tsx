@@ -44,7 +44,7 @@ type StepItem =
       kind: "tool";
       name: string;
       args: Record<string, unknown>;
-      summary?: string;
+      content?: string;
     }
   | { kind: "validation"; errors: string[] }
   | { kind: "clarification"; question: string; options: string[] }
@@ -93,11 +93,21 @@ function str(v: unknown): string {
   return JSON.stringify(v) ?? "";
 }
 
+function prettyToolContent(content: string): string {
+  try {
+    const parsed = JSON.parse(content) as unknown;
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return content;
+  }
+}
+
 function ToolStepDetail({
   step,
 }: {
   step: Extract<StepItem, { kind: "tool" }>;
 }) {
+  const [showFullResult, setShowFullResult] = useState(false);
   const entries: [string, string][] = [];
   const s = step.args;
   if (step.name === "search_nodes" && s.query != null)
@@ -140,7 +150,14 @@ function ToolStepDetail({
   }
   if (step.name === "remove_node" && s.graph_id != null)
     entries.push(["Node", str(s.graph_id)]);
-  if (step.summary !== undefined) entries.push(["Result", step.summary]);
+  const prettyResult =
+    step.content !== undefined ? prettyToolContent(step.content) : undefined;
+  const compactResult =
+    prettyResult !== undefined && prettyResult.length > 500
+      ? `${prettyResult.slice(0, 500)}...`
+      : prettyResult;
+  const displayResult = showFullResult ? prettyResult : compactResult;
+  if (displayResult !== undefined) entries.push(["Result", displayResult]);
 
   return (
     <div className="px-3 py-2 space-y-0.5">
@@ -154,6 +171,20 @@ function ToolStepDetail({
           </span>
         </div>
       ))}
+      {prettyResult !== undefined && prettyResult.length > 500 && (
+        <div className="pt-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={() => {
+              setShowFullResult((prev) => !prev);
+            }}
+          >
+            {showFullResult ? "Show compact JSON" : "Show full JSON"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -407,15 +438,15 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             } else if (event.type === "tool_result") {
               updateAssistant((t) => {
                 const steps = [...t.steps];
-                // find last tool step with this name and no summary yet
+                // find last tool step with this name and no content yet
                 for (let i = steps.length - 1; i >= 0; i--) {
                   const s = steps[i];
                   if (
                     s.kind === "tool" &&
                     s.name === event.name &&
-                    s.summary === undefined
+                    s.content === undefined
                   ) {
-                    steps[i] = { ...s, summary: event.summary };
+                    steps[i] = { ...s, content: event.content };
                     break;
                   }
                 }
@@ -699,7 +730,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                         <span className="font-medium">
                           {TOOL_LABELS[step.name] ?? step.name}
                         </span>
-                        {step.summary !== undefined ? (
+                        {step.content !== undefined ? (
                           <ChevronDown
                             className={`w-3 h-3 ml-auto transition-transform ${
                               expanded ? "rotate-180" : ""

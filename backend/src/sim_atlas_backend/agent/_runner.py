@@ -8,13 +8,13 @@ from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionMessageToolCall,
 )
+from pydantic import ValidationError
 
-from ..models import AgentRequest, Filter, GraphNodeContext
+from ..models import AgentRequest
 from ..settings import load_settings
 from ..storage_interface import StorageInterface
-from ._graph import ScratchGraph, execute_graph_tool, validate_graph
+from ._prompt import build_system_prompt
 from ._sse import (
-    ClarificationEvent,
     ErrorEvent,
     GraphUpdateEvent,
     MessageEvent,
@@ -24,187 +24,10 @@ from ._sse import (
     ValidationEvent,
     to_sse,
 )
-from ._tools import TOOLS, tool_summary
+from .tools import TOOLS, ScratchGraph, ToolError, execute_tool, validate_graph
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-_SEARCH_TOOLS = {"search_nodes", "find_compatible_nodes", "get_node_details"}
-
-
-def _node_to_context(node: GraphNodeContext) -> str:
-    inputs = ", ".join(
-        f"{a.label}:{a.datatype or '?'}"
-        + (f"[{a.unit}]" if a.unit else "")
-        + (f"({a.quantity})" if a.quantity else "")
-        for a in node.inputs
-    )
-    outputs = ", ".join(
-        f"{a.label}:{a.datatype or '?'}"
-        + (f"[{a.unit}]" if a.unit else "")
-        + (f"({a.quantity})" if a.quantity else "")
-        for a in node.outputs
-    )
-    desc = f" — {node.short_description}" if node.short_description else ""
-    atlas = f" (atlas_id={node.atlas_node_id})" if node.node_kind == "function" else ""
-    return f"  [{node.node_kind}:{node.graph_id}] {node.name}{atlas}{desc}\n    in: {inputs}\n    out: {outputs}"
-
-
-def _build_system_prompt(request: AgentRequest, storage: StorageInterface) -> str:
-    node_lines = "\n".join(_node_to_context(n) for n in request.nodes)
-    edge_lines = "\n".join(
-        f"  {e.source_graph_id}/{e.source_handle} → {e.target_graph_id}/{e.target_handle}"
-        for e in request.edges
-    )
-    opts = storage.get_filter_options()
-    filter_section = (
-        "## Available filter values\n"
-        "Use only values from these lists when supplying filter arguments to search_nodes "
-        "or find_compatible_nodes.\n"
-        f"datatypes: {', '.join(sorted(opts.datatypes)) or '(none)'}\n"
-        f"units: {', '.join(sorted(opts.units)) or '(none)'}\n"
-        f"quantities: {', '.join(sorted(opts.quantities)) or '(none)'}\n"
-        f"keywords: {', '.join(sorted(opts.keywords)) or '(none)'}"
-    )
-    return f"""You are an expert workflow builder for scientific simulation pipelines.
-You have access to a catalog of simulation nodes (functions) that can be searched and connected.
-
-## Current graph
-
-### Nodes
-{node_lines or "  (empty)"}
-
-### Edges
-{edge_lines or "  (none)"}
-
-## Your role
-You are an editor of an existing workflow graph.
-Treat the current graph as intentional work that should be preserved unless change is necessary.
-Make the minimum changes needed to satisfy the user's request.
-Prefer adding new nodes and edges over modifying or removing existing ones.
-Only remove or rewire existing nodes when the user explicitly asks, or when it is genuinely necessary to produce a correct result.
-
-## Tools
-- If you face doubts, hard to solve problems, inconsistencies, or multiple options, ask the user for clarification instead of guessing. Use the ask_clarification tool for this.
-- Use search_nodes for intent-based discovery.
-- Use find_compatible_nodes when you know a specific port signature and want to find what connects to it.
-- Use get_node_details when you need more information about a specific node before deciding.
-- Use add_function_node to add a node from the catalog; it returns the assigned graph_id and port metadata — use that graph_id in subsequent add_edge calls.
-- Use add_input_node to expose a parameter or data source. Provide a default value when appropriate. The single output port is always named 'output'. There are no input ports.
-- Use add_output_node to expose a result. The single input port is always named 'input'. There are no output ports.
-- Use add_edge to connect nodes; verify port names using the port metadata returned by add_function_node or get_node_details.
-- Use remove_edge to disconnect two nodes by specifying all four endpoint identifiers (source_graph_id, source_handle, target_graph_id, target_handle).
-- Use remove_node to delete an existing node (also removes its connected edges).
-- When you are finished, respond with a concise summary of only the changes you made.
-
-## When to use ask_clarification
-Call ask_clarification (and stop) in the following situations — do not guess or pick arbitrarily:
-
-1. **Multiple viable nodes for the same step**: if a search returns two or more nodes that could
-   all satisfy the requirement and there is no clear best choice, ask the user which one to use.
-   List the candidates as options so the user can click one directly.
-
-2. **Unresolvable missing inputs**: if a required input port cannot be satisfied from any existing
-   node in the graph and the correct source is not obvious from context (e.g. a raw data file path,
-   an external parameter value, or a choice between computing it vs. supplying it manually), ask the
-   user how they want to provide it. Suggest concrete options where possible (e.g. "Add an input
-   node with a fixed value", "Compute it from …", "Leave it unconnected for now").
-
-Do NOT call ask_clarification for decisions you can resolve yourself (e.g. a clearly best-scoring
-search result, a missing optional port, or a default value that is obvious from context).
-
-{filter_section}
-"""
-
-
-def _execute_search_tool(
-    tool_name: str, tool_args: dict[str, Any], storage: StorageInterface
-) -> str:
-    if tool_name == "search_nodes":
-        query: str = tool_args["query"]
-        limit: int = tool_args.get("limit", 10)
-        f = Filter(
-            datatypes=tool_args.get("datatypes"),
-            units=tool_args.get("units"),
-            quantities=tool_args.get("quantities"),
-            keywords=tool_args.get("keywords"),
-            port_type=tool_args.get("port_type"),
-        )
-        filter_arg = f if f.model_fields_set else None
-        response = storage.search_hybrid(query, filter_arg, limit=limit)
-        results = [
-            {
-                "atlas_node_id": item.node.id,
-                "name": item.node.name,
-                "short_description": item.node.ai_summary
-                or item.node.docstring.splitlines()[0]
-                if item.node.docstring
-                else None,
-                "inputs": [a.model_dump(exclude_none=True) for a in item.node.inputs],
-                "outputs": [a.model_dump(exclude_none=True) for a in item.node.outputs],
-                "score": round(item.score, 4),
-            }
-            for item in response.results.data
-        ]
-        return json.dumps(results)
-
-    if tool_name == "find_compatible_nodes":
-        query_fc: str | None = tool_args.get("query")
-        datatype: str | None = tool_args.get("datatype")
-        unit: str | None = tool_args.get("unit")
-        quantity: str | None = tool_args.get("quantity")
-        limit: int = tool_args.get("limit", 10)
-        f = Filter(
-            datatypes=[datatype] if datatype else None,
-            units=[unit] if unit else None,
-            quantities=[quantity] if quantity else None,
-            port_type=tool_args.get("port_type", "inputs"),
-        )
-        if query_fc:
-            response = storage.search_semantic(query_fc, f, limit=limit)
-        else:
-            response = storage.search(query=None, filter=f, limit=limit)
-        results = [
-            {
-                "atlas_node_id": item.node.id,
-                "name": item.node.name,
-                "short_description": item.node.ai_summary
-                or item.node.docstring.splitlines()[0]
-                if item.node.docstring
-                else None,
-                "inputs": [a.model_dump(exclude_none=True) for a in item.node.inputs],
-                "outputs": [a.model_dump(exclude_none=True) for a in item.node.outputs],
-            }
-            for item in response.results.data
-        ]
-        return json.dumps(results)
-
-    # get_node_details
-    atlas_node_id: str = tool_args["atlas_node_id"]
-    try:
-        node = storage.read(atlas_node_id)
-    except KeyError:
-        return json.dumps({"error": f"Node '{atlas_node_id}' not found."})
-    return json.dumps(
-        {
-            "atlas_node_id": node.id,
-            "name": node.name,
-            "docstring": node.ai_description or node.docstring,
-            "inputs": [a.model_dump(exclude_none=True) for a in node.inputs],
-            "outputs": [a.model_dump(exclude_none=True) for a in node.outputs],
-        }
-    )
-
-
-def _execute_tool(
-    tool_name: str,
-    tool_args: dict[str, Any],
-    storage: StorageInterface,
-    scratch: ScratchGraph,
-) -> str:
-    if tool_name in _SEARCH_TOOLS:
-        return _execute_search_tool(tool_name, tool_args, storage)
-    return execute_graph_tool(tool_name, tool_args, storage, scratch)
 
 
 def _graph_update_event(scratch: ScratchGraph) -> GraphUpdateEvent:
@@ -228,7 +51,7 @@ async def run_agent_stream(
         for m in request.history
     ]
     messages: list[ChatCompletionMessageParam] = [
-        {"role": "system", "content": _build_system_prompt(request, storage)},
+        {"role": "system", "content": build_system_prompt(request, storage)},
         *history_messages,
         {"role": "user", "content": request.query},
     ]
@@ -291,24 +114,22 @@ async def run_agent_stream(
                 args: dict[str, Any] = json.loads(tc.function.arguments)
                 yield to_sse(ToolCallEvent(name=tc.function.name, args=args))
 
-                if tc.function.name == "ask_clarification":
-                    question: str = args["question"]
-                    options: list[str] = args.get("options") or []
-                    yield to_sse(ClarificationEvent(question=question, options=options))
-                    # Also emit a message event so the frontend history logic
-                    # captures the question as the assistant's final turn.
-                    yield to_sse(MessageEvent(content=question))
-                    yield to_sse(_graph_update_event(scratch))
-                    return
+                try:
+                    result = await execute_tool(tc.function.name, args, storage, scratch)
+                    content = result.model_dump_json()
+                except ValidationError as exc:
+                    content = json.dumps(
+                        {"error": f"Invalid arguments for '{tc.function.name}': {exc}"}
+                    )
+                except ToolError as exc:
+                    content = json.dumps({"error": str(exc)})
 
-                result = _execute_tool(tc.function.name, args, storage, scratch)
-                summary = tool_summary(tc.function.name, result)
-                yield to_sse(ToolResultEvent(name=tc.function.name, summary=summary))
+                yield to_sse(ToolResultEvent(name=tc.function.name, content=content))
                 messages.append(
                     {
                         "role": "tool",
                         "tool_call_id": tc.id,
-                        "content": result,
+                        "content": content,
                     }
                 )
 

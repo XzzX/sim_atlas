@@ -17,7 +17,7 @@ class ToolCallEvent(BaseModel):
 class ToolResultEvent(BaseModel):
     type: Literal["tool_result"] = "tool_result"
     name: str
-    summary: str
+    content: str
 
 
 class MessageEvent(BaseModel):

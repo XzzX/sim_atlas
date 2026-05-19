@@ -12,8 +12,13 @@ from .models import (
 
 class StorageInterface(ABC):
     @abstractmethod
-    def create(self, value: NodeMetadata) -> str:
-        """Store a new node. Returns the id. Raises ValueError if node already exists."""
+    def create(self, value: NodeMetadata, check_source_hash: bool = True) -> str:
+        """Store a new node. Returns the id.
+
+        Raises ValueError if a node with the same id already exists, or if
+        *check_source_hash* is True and a node with the same non-empty
+        ``source_code_hash`` already exists.
+        """
         pass
 
     @abstractmethod

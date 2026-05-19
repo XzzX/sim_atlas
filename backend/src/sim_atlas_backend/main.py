@@ -1,5 +1,6 @@
 import datetime as dt
 import hashlib
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
@@ -91,13 +92,16 @@ async def create_node(
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> str:
-    value = node.source_code if node.source_code else node.name
-    id = hashlib.sha256(value.encode()).hexdigest()
+    id = str(uuid.uuid4())
+    source_code_hash = hashlib.md5(
+        node.source_code.encode(), usedforsecurity=False
+    ).hexdigest()
 
     timestamp = dt.datetime.now(dt.UTC)
     node_metadata = NodeMetadata(
         **node.model_dump(),
         id=id,
+        source_code_hash=source_code_hash,
         ai_summary="",
         ai_description="",
         creator_name=creator.name,

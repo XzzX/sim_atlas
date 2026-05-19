@@ -27,7 +27,7 @@ Example::
 
 from __future__ import annotations
 
-import hashlib
+import uuid
 from typing import Any
 
 import pytest
@@ -78,8 +78,7 @@ def make_node(**kwargs: Any) -> NodeMetadata:
     }
     defaults.update(kwargs)
     if "id" not in defaults:
-        value = defaults["source_code"] if defaults["source_code"] else defaults["name"]
-        defaults["id"] = hashlib.sha256(value.encode()).hexdigest()
+        defaults["id"] = str(uuid.uuid4())
     return NodeMetadata(**defaults)
 
 
@@ -174,9 +173,10 @@ class StorageContractTests:
     def test_create_duplicate_key_raises_value_error(
         self, storage: StorageInterface
     ) -> None:
-        storage.create(make_node())
+        fixed_id = str(uuid.uuid4())
+        storage.create(make_node(id=fixed_id))
         with pytest.raises(ValueError):
-            storage.create(make_node())  # same id
+            storage.create(make_node(id=fixed_id))  # same id
 
     # -----------------------------------------------------------------------
     # get_filter_options
@@ -554,3 +554,28 @@ class StorageContractTests:
         result = storage.search(None, Filter(datatypes=["float"]))
         assert result.results.total_items == 1
         assert result.results.data[0].node.name == "float_node"
+
+    # --- source_code_hash duplicate detection ---
+
+    def test_create_raises_on_duplicate_source_hash(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(make_node(source_code_hash="abc123"))
+        with pytest.raises(ValueError):
+            storage.create(make_node(source_code_hash="abc123"))
+
+    def test_create_allows_duplicate_source_hash_when_check_disabled(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(make_node(source_code_hash="abc123"))
+        # Should not raise
+        storage.create(make_node(source_code_hash="abc123"), check_source_hash=False)
+        assert storage.count() == 2  # noqa: PLR2004
+
+    def test_create_empty_source_hash_never_triggers_hash_check(
+        self, storage: StorageInterface
+    ) -> None:
+        # Two nodes with source_code_hash="" (the default) must not conflict
+        storage.create(make_node(source_code_hash=""))
+        storage.create(make_node(source_code_hash=""))
+        assert storage.count() == 2  # noqa: PLR2004

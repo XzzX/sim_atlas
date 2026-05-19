@@ -139,10 +139,16 @@ class FileSystemStorage(StorageInterface):
                     default=str,
                 )
 
-    def create(self, value: NodeMetadata) -> str:
+    def create(self, value: NodeMetadata, check_source_hash: bool = True) -> str:
         id = value.id
         if id in self._storage:
             raise ValueError(f"Node with id '{id}' already exists.")
+        if check_source_hash and value.source_code_hash:
+            for node in self._storage.values():
+                if node.source_code_hash == value.source_code_hash:
+                    raise ValueError(
+                        f"Node with source_code_hash '{value.source_code_hash}' already exists."
+                    )
         self._storage[id] = value
         self._save_to_disk()
         return id

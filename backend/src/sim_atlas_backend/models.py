@@ -123,6 +123,7 @@ class ScoredSearchResponse(BaseModel):
 
 class NodeMetadata(NodeResponse):
     embedding: NdArray | None = None
+    source_code_hash: str = ""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

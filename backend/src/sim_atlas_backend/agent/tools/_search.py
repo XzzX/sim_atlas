@@ -120,7 +120,7 @@ class FindCompatibleNodesResult(BaseModel):
 
 
 class GetNodeDetailsInput(BaseModel):
-    atlas_node_id: str = Field(description="The Atlas node id (SHA256 hash) to look up.")
+    atlas_node_id: str = Field(description="The Atlas node id (UUID) to look up.")
 
 
 class GetNodeDetailsResult(BaseModel):

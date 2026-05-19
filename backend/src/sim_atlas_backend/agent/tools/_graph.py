@@ -42,7 +42,7 @@ REMOVE_NODE_DESCRIPTION = "".join(_REMOVE_NODE_DESCRIPTION_PARTS)
 
 
 class AddFunctionNodeInput(BaseModel):
-    atlas_node_id: str = Field(description="The Atlas node id (SHA256 hash) to add.")
+    atlas_node_id: str = Field(description="The Atlas node id (UUID) to add.")
     label: str = Field(description="Display label for the node in the graph.")
 
 

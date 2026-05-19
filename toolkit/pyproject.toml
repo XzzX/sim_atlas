@@ -24,7 +24,11 @@ classifiers = [
 ]
 dependencies = [
     "pydantic>=2",
+    "requests>=2",
 ]
+
+[project.scripts]
+sim-atlas-upload = "sim_atlas_toolkit.cli:main"
 
 [dependency-groups]
 dev = [

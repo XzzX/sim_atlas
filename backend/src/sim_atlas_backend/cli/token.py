@@ -2,8 +2,8 @@ import argparse
 
 import jwt
 
-from .exceptions import MissingConfigError
-from .settings import load_settings
+from ..exceptions import MissingConfigError
+from ..settings import load_settings
 
 
 def create_access_token(jwt_secret_key: str, jwt_algorithm: str, creator_name: str, creator_email: str):

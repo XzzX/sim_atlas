@@ -22,7 +22,9 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = []
+dependencies = [
+    "pydantic>=2",
+]
 
 [dependency-groups]
 dev = [

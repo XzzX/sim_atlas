@@ -1,36 +1,12 @@
 import json
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from .exceptions import AINotConfiguredError
 from .settings import load_settings
 
 
-def create_embedding(text: str) -> list[float]:
-    settings = load_settings()
-    if (
-        not settings.llm_api_key
-        or not settings.llm_api_url
-        or not settings.llm_embedding_model
-    ):
-        raise AINotConfiguredError(
-            "LLM settings (llm_api_key, llm_api_url, llm_embedding_model) are not configured"
-        )
-    client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
-
-    embedding = (
-        client.embeddings.create(
-            input=text,
-            model=settings.llm_embedding_model,
-        )
-        .data[0]
-        .embedding
-    )
-
-    return embedding
-
-
-def create_ai_descriptions(
+async def create_ai_descriptions(
     name: str, docstring: str, source_code: str
 ) -> tuple[str, str]:
     """Generate search-optimized descriptions for a Python function.
@@ -48,16 +24,15 @@ def create_ai_descriptions(
         raise AINotConfiguredError(
             "LLM settings (llm_api_key, llm_api_url, llm_chat_model) are not configured"
         )
-    client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
+    client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
 
-    raw = (
-        client.chat.completions.create(
-            model=settings.llm_chat_model,
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""You are a search-indexing assistant for a scientific simulation node catalog.
+    response = await client.chat.completions.create(
+        model=settings.llm_chat_model,
+        response_format={"type": "json_object"},
+        messages=[
+            {
+                "role": "user",
+                "content": f"""You are a search-indexing assistant for a scientific simulation node catalog.
 Given a Python function, produce two search-optimized descriptions as a JSON object with exactly these keys:
 
 "summary": One concise sentence (≤20 words) that names what the function does, what it takes as input and what it returns.
@@ -75,13 +50,10 @@ Here is the function to describe:
 {source_code}
 ```
 """,
-                }
-            ],
-        )
-        .choices[0]
-        .message.content
-        or "{}"
+            }
+        ],
     )
+    raw = response.choices[0].message.content or "{}"
 
     # Remove thinking part if present (text between <think> tags)
     if "<think>" in raw and "</think>" in raw:

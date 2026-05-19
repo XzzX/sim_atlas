@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from functools import reduce
@@ -7,7 +8,7 @@ from math import ceil
 
 import numpy as np
 from pydantic import BaseModel
-from tqdm import tqdm
+from tqdm.asyncio import tqdm as atqdm
 
 from sim_atlas_backend.ai import create_ai_descriptions
 from sim_atlas_backend.models import (
@@ -23,6 +24,7 @@ from sim_atlas_backend.models import (
 )
 from sim_atlas_backend.voyage_ai import create_embedding
 
+from .settings import load_settings
 from .storage_interface import StorageInterface
 from .type_utils import collect_datatypes, datatype_matches
 
@@ -308,7 +310,7 @@ class FileSystemStorage(StorageInterface):
 
         return self._paginate(sorted_items, page=page, limit=limit)
 
-    def search_semantic(
+    async def search_semantic(
         self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
     ) -> ScoredSearchResponse:
         """
@@ -323,7 +325,7 @@ class FileSystemStorage(StorageInterface):
             List of relevant node metadata, ordered by relevance
         """
         # Generate embedding for the query
-        query_embedding = create_embedding([query], input_type="query")[0]
+        query_embedding = (await create_embedding([query], input_type="query"))[0]
 
         item_filter = NodeFilter(filter or Filter())
 
@@ -344,7 +346,7 @@ class FileSystemStorage(StorageInterface):
 
         return self._paginate(similarities, page=page, limit=limit)
 
-    def search_hybrid(
+    async def search_hybrid(
         self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
     ) -> ScoredSearchResponse:
         """Hybrid search combining semantic (cosine) and keyword ranking via RRF.
@@ -357,13 +359,13 @@ class FileSystemStorage(StorageInterface):
         min_token_len = 3
         tokens = [t for t in query.lower().split() if len(t) >= min_token_len]
         if not tokens:
-            return self.search_semantic(query, filter, page=page, limit=limit)
+            return await self.search_semantic(query, filter, page=page, limit=limit)
 
         item_filter = NodeFilter(filter or Filter())
         filtered_nodes = [n for n in self._storage.values() if item_filter(n)]
 
         # --- semantic rank (only nodes with embeddings) ---
-        query_embedding = create_embedding([query], input_type="query")[0]
+        query_embedding = (await create_embedding([query], input_type="query"))[0]
         sem_scores: list[tuple[str, float]] = [
             (node.id, cosine_similarity(query_embedding, node.embedding))
             for node in filtered_nodes
@@ -402,33 +404,39 @@ class FileSystemStorage(StorageInterface):
 
         return self._paginate(scored, page=page, limit=limit)
 
-    def enrich(self, only_ids: list[str] | None = None) -> None:
+    async def enrich(self, only_ids: list[str] | None = None) -> None:
+        sem = asyncio.Semaphore(load_settings().llm_enrich_concurrency)
         nodes_to_enrich = (
             [node for node in self._storage.values() if node.id in only_ids]
             if only_ids
             else [node for node in self._storage.values() if node.embedding is None]
         )
 
-        for v in tqdm(nodes_to_enrich, desc="generating ai descriptions"):
-            if not v.source_code:
-                continue
-            try:
-                v.ai_summary, v.ai_description = create_ai_descriptions(
-                    v.name, v.docstring, v.source_code
-                )
-            except Exception as e:
-                print(f"Error occurred while enriching node {v.name}: {e}")
-                print(f"docstring: {v.docstring}")
-                print(f"source_code: {v.source_code}")
-                raise
+        async def _enrich_one(v: NodeMetadata) -> None:
+            async with sem:
+                if not v.source_code:
+                    return
+                try:
+                    v.ai_summary, v.ai_description = await create_ai_descriptions(
+                        v.name, v.docstring, v.source_code
+                    )
+                except Exception as e:
+                    print(f"Error occurred while enriching node {v.name}: {e}")
+                    print(f"docstring: {v.docstring}")
+                    print(f"source_code: {v.source_code}")
 
-            self._save_to_disk()
+        await atqdm.gather(  # pyright: ignore[reportUnknownMemberType]
+            *[_enrich_one(v) for v in nodes_to_enrich],
+            desc="generating ai descriptions",
+            total=len(nodes_to_enrich),
+        )
+        self._save_to_disk()
 
         nodes_to_embed = [node for node in nodes_to_enrich if node.ai_description]
         documents = [node.ai_description for node in nodes_to_embed]
         if not documents:
             return
-        embeddings = create_embedding(documents, input_type="document")
+        embeddings = await create_embedding(documents, input_type="document")
         for emb, item in zip(embeddings, nodes_to_embed, strict=True):
             item.embedding = emb
 

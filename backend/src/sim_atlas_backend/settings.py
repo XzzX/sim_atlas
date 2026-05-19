@@ -66,6 +66,11 @@ jwt_algorithm = "HS256"
 # Examples: text-embedding-3-small (OpenAI), nomic-embed-text (Ollama)
 # llm_embedding_model = "nomic-embed-text"
 
+# LLM Enrichment Concurrency
+# Maximum number of simultaneous LLM requests during bulk enrichment.
+# Lower values reduce API load; higher values speed up large batches.
+# llm_enrich_concurrency = 5
+
 # === OPTIONAL: VOYAGEAI EMBEDDINGS ===
 # Alternative to LLM-based embeddings; uses VoyageAI's hosted API.
 # Choose either LLM embedding OR VoyageAI, not both.
@@ -107,6 +112,7 @@ class Settings(BaseSettings):
     llm_api_url: str | None = None
     llm_embedding_model: str | None = None
     llm_chat_model: str | None = None
+    llm_enrich_concurrency: int = 5
     voyage_api_key: str | None = None
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None

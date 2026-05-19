@@ -56,19 +56,19 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def search_semantic(
+    async def search_semantic(
         self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
     ) -> ScoredSearchResponse:
         pass
 
     @abstractmethod
-    def search_hybrid(
+    async def search_hybrid(
         self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
     ) -> ScoredSearchResponse:
         pass
 
     @abstractmethod
-    def enrich(self, only_ids: list[str] | None = None) -> None:
+    async def enrich(self, only_ids: list[str] | None = None) -> None:
         pass
 
 

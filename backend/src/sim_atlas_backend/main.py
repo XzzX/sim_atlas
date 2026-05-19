@@ -186,7 +186,7 @@ async def semantic_search(
     page: int = 1,
     limit: int = 10,
 ):
-    return storage.search_hybrid(query, filter_options, page=page, limit=limit)
+    return await storage.search_hybrid(query, filter_options, page=page, limit=limit)
 
 
 @api_router.post(
@@ -202,7 +202,7 @@ async def hybrid_search(
     page: int = 1,
     limit: int = 10,
 ):
-    return storage.search_hybrid(query, filter_options, page=page, limit=limit)
+    return await storage.search_hybrid(query, filter_options, page=page, limit=limit)
 
 
 @api_router.post(
@@ -214,7 +214,7 @@ async def enrich(
     _: Annotated[Creator, Depends(get_current_user)],
     only_ids: list[str] | None = None,
 ) -> None:
-    storage.enrich(only_ids=only_ids)
+    await storage.enrich(only_ids=only_ids)
 
 
 @api_router.post(

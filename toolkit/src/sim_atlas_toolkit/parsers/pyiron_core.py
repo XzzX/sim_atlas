@@ -5,11 +5,11 @@ from ..models import Annotation, NodeType
 from .metadata import Metadata
 
 
-def parse(obj: Any) -> Metadata | None:
+def parse(obj: Any) -> list[Metadata]:
     if not hasattr(obj, "__globals__"):
-        return None
+        return []
     if obj.__globals__["__name__"] != "pyiron_core.pyiron_workflow.simple_workflow":
-        return None
+        return []
 
     source_code = inspect.getsource(obj)
 
@@ -20,13 +20,15 @@ def parse(obj: Any) -> Metadata | None:
         Annotation(label=k, datatype=v.type) for k, v in instance.outputs.items()
     ]
 
-    return Metadata(
-        node_type=NodeType.PYIRON_CORE_NODE,
-        python_import=f"{instance._func.__module__}.{instance._func.__qualname__}",
-        category=f"{instance._func.__module__}".replace(".", ">"),
-        source_code=source_code,
-        docstring=instance._func.__doc__ or "",
-        keywords=instance._func.__module__.split("."),
-        inputs=inputs,
-        outputs=outputs,
-    )
+    return [
+        Metadata(
+            node_type=NodeType.PYIRON_CORE_NODE,
+            python_import=f"{instance._func.__module__}.{instance._func.__qualname__}",
+            category=f"{instance._func.__module__}".replace(".", ">"),
+            source_code=source_code,
+            docstring=instance._func.__doc__ or "",
+            keywords=instance._func.__module__.split("."),
+            inputs=inputs,
+            outputs=outputs,
+        )
+    ]

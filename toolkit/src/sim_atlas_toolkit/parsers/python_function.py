@@ -39,9 +39,9 @@ def _parse_and_unpack_annotation(annotation: Any) -> list[Annotation]:
     return [ann]
 
 
-def parse(obj: Any) -> Metadata | None:
+def parse(obj: Any) -> list[Metadata]:
     if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
-        return None
+        return []
 
     if inspect.isbuiltin(obj):
         source_code = f"{obj.__name__}{inspect.signature(obj)}"
@@ -55,13 +55,15 @@ def parse(obj: Any) -> Metadata | None:
     return_annotation = sig.return_annotation
     outputs = _parse_and_unpack_annotation(return_annotation)
 
-    return Metadata(
-        node_type=NodeType.FUNCTION,
-        python_import=f"{obj.__module__}.{obj.__qualname__}",
-        category=f"{obj.__module__}".replace(".", ">"),
-        source_code=source_code,
-        docstring=inspect.getdoc(obj) or "",
-        keywords=obj.__module__.split("."),
-        inputs=inputs,
-        outputs=outputs,
-    )
+    return [
+        Metadata(
+            node_type=NodeType.FUNCTION,
+            python_import=f"{obj.__module__}.{obj.__qualname__}",
+            category=f"{obj.__module__}".replace(".", ">"),
+            source_code=source_code,
+            docstring=inspect.getdoc(obj) or "",
+            keywords=obj.__module__.split("."),
+            inputs=inputs,
+            outputs=outputs,
+        )
+    ]

@@ -30,7 +30,7 @@ class NodeStore:
         self,
         module: str | ModuleType,
         update_existing: bool = False,
-        parsers: list[Callable[[Any], Metadata | None]] | None = None,
+        parsers: list[Callable[[Any], list[Metadata]]] | None = None,
         recursive: Literal["no", "import", "filesystem"] = "no",
         **kwargs: dict[str, Any],
     ) -> None:
@@ -91,17 +91,18 @@ class NodeStore:
             if k.startswith("_"):
                 continue
 
-            num_uploads += 1
             try:
-                response = self.upload(
+                responses = self.upload(
                     v, update_existing=update_existing, parsers=parsers, **kwargs
                 )
-                if response.status_code == HTTPStatus.CREATED:
-                    successful_uploads += 1
-                else:
-                    logger.debug(
-                        f"Failed to upload {k}: {response.status_code} {response.text}"
-                    )
+                num_uploads += len(responses)
+                for response in responses:
+                    if response.status_code == HTTPStatus.CREATED:
+                        successful_uploads += 1
+                    else:
+                        logger.debug(
+                            f"Failed to upload {k}: {response.status_code} {response.text}"
+                        )
             except Exception as e:
                 logger.debug(f"Failed to upload {k}: {v}\n{e}")
                 continue
@@ -112,9 +113,9 @@ class NodeStore:
         self,
         obj: Any,
         update_existing: bool = False,
-        parsers: list[Callable[[Any], Metadata | None]] | None = None,
+        parsers: list[Callable[[Any], list[Metadata]]] | None = None,
         **kwargs: dict[str, Any],
-    ) -> requests.Response:
+    ) -> list[requests.Response]:
         headers: dict[str, str] = {}
         if self.api_key:
             headers["x-api-key"] = self.api_key
@@ -125,7 +126,7 @@ class NodeStore:
                 json=obj.model_dump(),
                 headers=headers,
             )
-            return response
+            return [response]
 
         if inspect.ismodule(obj):
             raise ValueError(
@@ -167,18 +168,22 @@ class NodeStore:
                         general_metadata["source_url"] = url
                         continue
 
-        metadata = get_metadata(obj, parsers)
-        metadata_dict = metadata.model_dump()
-        metadata_dict.update(general_metadata)
-        if v := metadata_dict.get("python_import"):
-            metadata_dict["name"] = v
-        metadata_dict.update(kwargs)
+        metadata_list = get_metadata(obj, parsers)
+        responses: list[requests.Response] = []
+        for metadata in metadata_list:
+            metadata_dict = metadata.model_dump()
+            metadata_dict.update(general_metadata)
+            if v := metadata_dict.get("python_import"):
+                metadata_dict["name"] = v
+            metadata_dict.update(kwargs)
 
-        request_data = NodeRequest.model_validate(metadata_dict)
+            request_data = NodeRequest.model_validate(metadata_dict)
 
-        response = requests.post(
-            f"{self.api_url}/nodes",
-            json=request_data.model_dump(),
-            headers=headers,
-        )
-        return response
+            responses.append(
+                requests.post(
+                    f"{self.api_url}/nodes",
+                    json=request_data.model_dump(),
+                    headers=headers,
+                )
+            )
+        return responses

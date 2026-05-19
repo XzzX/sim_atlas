@@ -6,7 +6,7 @@ from ..models import Annotation, NodeType
 from .metadata import Metadata
 
 
-def parse(obj: Any) -> Metadata | None:
+def parse(obj: Any) -> list[Metadata]:
     try:
         from python_workflow_definition.models import (  # noqa: PLC0415
             PythonWorkflowDefinitionInputNode,
@@ -14,10 +14,10 @@ def parse(obj: Any) -> Metadata | None:
             PythonWorkflowDefinitionWorkflow,
         )
     except ImportError:
-        return None
+        return []
 
     if not isinstance(obj, PythonWorkflowDefinitionWorkflow):
-        return None
+        return []
 
     source_code: str = obj.model_dump_json(indent=2)
 
@@ -31,13 +31,15 @@ def parse(obj: Any) -> Metadata | None:
             ann = Annotation(label=node.name)
             outputs.append(ann)
 
-    return Metadata(
-        node_type=NodeType.PYTHON_WORKFLOW_DEFINITION,
-        python_import="",
-        category="workflow",
-        source_code=source_code,
-        docstring="",
-        keywords=[],
-        inputs=inputs,
-        outputs=outputs,
-    )
+    return [
+        Metadata(
+            node_type=NodeType.PYTHON_WORKFLOW_DEFINITION,
+            python_import="",
+            category="workflow",
+            source_code=source_code,
+            docstring="",
+            keywords=[],
+            inputs=inputs,
+            outputs=outputs,
+        )
+    ]

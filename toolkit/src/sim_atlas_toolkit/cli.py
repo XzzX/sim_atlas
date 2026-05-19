@@ -29,10 +29,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--api-url",
         default=os.getenv(DEFAULT_API_URL_ENV),
-        help=(
-            f"Backend API base URL. Defaults to ${DEFAULT_API_URL_ENV} "
-            "if omitted."
-        ),
+        help=(f"Backend API base URL. Defaults to ${DEFAULT_API_URL_ENV} if omitted."),
     )
     parser.add_argument(
         "--api-token",
@@ -69,8 +66,7 @@ def main() -> int:
 
     if not args.api_url:
         parser.error(
-            "Missing API URL. Provide --api-url or set "
-            f"{DEFAULT_API_URL_ENV}."
+            f"Missing API URL. Provide --api-url or set {DEFAULT_API_URL_ENV}."
         )
 
     # Fail fast on import errors so CLI can return a non-zero exit code.

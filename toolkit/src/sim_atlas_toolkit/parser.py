@@ -11,8 +11,8 @@ from .parsers.metadata import Metadata
 
 
 def get_metadata(
-    obj: Any, parsers: list[Callable[[Any], Metadata | None]] | None
-) -> Metadata:
+    obj: Any, parsers: list[Callable[[Any], list[Metadata]]] | None
+) -> list[Metadata]:
     if parsers is None:
         parsers = [
             pyiron_workflow.parse,

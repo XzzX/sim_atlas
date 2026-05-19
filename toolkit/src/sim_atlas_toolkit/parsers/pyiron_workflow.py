@@ -7,18 +7,18 @@ from ..models import Annotation, NodeType
 from .metadata import Metadata, parse_annotation
 
 
-def parse(node: Any) -> Metadata | None:
+def parse(node: Any) -> list[Metadata]:
     if not isinstance(node, type):
-        return None
+        return []
 
     try:
         from pyiron_workflow.api import NOT_DATA  # noqa: PLC0415
         from pyiron_workflow.nodes.function import Function  # noqa: PLC0415
     except ImportError:
-        return None
+        return []
 
     if not issubclass(node, Function):
-        return None
+        return []
 
     source_code = inspect.getsource(node.node_function)
 
@@ -34,13 +34,15 @@ def parse(node: Any) -> Metadata | None:
         ann.label = k
         outputs.append(ann)
 
-    return Metadata(
-        node_type=NodeType.PYIRON_WORKFLOW_FUNCTION,
-        python_import=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
-        category=f"{node.node_function.__module__}".replace(".", ">"),
-        source_code=source_code,
-        docstring=node.node_function.__doc__ or "",
-        keywords=node.node_function.__module__.split("."),
-        inputs=inputs,
-        outputs=outputs,
-    )
+    return [
+        Metadata(
+            node_type=NodeType.PYIRON_WORKFLOW_FUNCTION,
+            python_import=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
+            category=f"{node.node_function.__module__}".replace(".", ">"),
+            source_code=source_code,
+            docstring=node.node_function.__doc__ or "",
+            keywords=node.node_function.__module__.split("."),
+            inputs=inputs,
+            outputs=outputs,
+        )
+    ]

@@ -151,7 +151,7 @@ async def execute_search_nodes(
         port_type=args.port_type,
     )
     filter_arg = f if f.model_fields_set else None
-    response = storage.search_hybrid(args.query, filter_arg, limit=args.limit)
+    response = await storage.search_hybrid(args.query, filter_arg, limit=args.limit)
     return SearchNodesResult(
         results=[
             SearchNodeItem(
@@ -187,7 +187,7 @@ async def execute_find_compatible_nodes(
         port_type=args.port_type,
     )
     if args.query:
-        response = storage.search_semantic(args.query, f, limit=args.limit)
+        response = await storage.search_semantic(args.query, f, limit=args.limit)
     else:
         response = storage.search(query=None, filter=f, limit=args.limit)
     return FindCompatibleNodesResult(

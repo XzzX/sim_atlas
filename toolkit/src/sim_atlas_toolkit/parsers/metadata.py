@@ -8,6 +8,7 @@ from ..models import Annotation, NodeType
 
 
 class Metadata(BaseModel):
+    name: str | None = None
     node_type: NodeType
     category: str
 

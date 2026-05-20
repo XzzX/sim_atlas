@@ -22,6 +22,7 @@ def parse(obj: Any) -> list[Metadata]:
 
     return [
         Metadata(
+            name=f"{instance._func.__module__}.{instance._func.__qualname__}",
             node_type=NodeType.PYIRON_CORE_NODE,
             python_import=f"{instance._func.__module__}.{instance._func.__qualname__}",
             category=f"{instance._func.__module__}".replace(".", ">"),

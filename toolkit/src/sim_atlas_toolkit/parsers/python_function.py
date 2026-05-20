@@ -57,6 +57,7 @@ def parse(obj: Any) -> list[Metadata]:
 
     return [
         Metadata(
+            name=f"{obj.__module__}.{obj.__qualname__}",
             node_type=NodeType.FUNCTION,
             python_import=f"{obj.__module__}.{obj.__qualname__}",
             category=f"{obj.__module__}".replace(".", ">"),

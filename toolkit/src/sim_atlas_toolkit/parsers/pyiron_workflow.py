@@ -36,6 +36,7 @@ def parse(node: Any) -> list[Metadata]:
 
     return [
         Metadata(
+            name=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
             node_type=NodeType.PYIRON_WORKFLOW_FUNCTION,
             python_import=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
             category=f"{node.node_function.__module__}".replace(".", ">"),

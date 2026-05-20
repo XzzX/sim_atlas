@@ -173,8 +173,6 @@ class NodeStore:
         for metadata in metadata_list:
             metadata_dict = metadata.model_dump()
             metadata_dict.update(general_metadata)
-            if v := metadata_dict.get("python_import"):
-                metadata_dict["name"] = v
             metadata_dict.update(kwargs)
 
             request_data = NodeRequest.model_validate(metadata_dict)

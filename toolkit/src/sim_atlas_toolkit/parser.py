@@ -2,6 +2,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .parsers import (
+    dataclass_node,
     pyiron_core,
     pyiron_workflow,
     python_function,
@@ -15,6 +16,7 @@ def get_metadata(
 ) -> list[Metadata]:
     if parsers is None:
         parsers = [
+            dataclass_node.parse,
             pyiron_workflow.parse,
             pyiron_core.parse,
             python_workflow_definition.parse,

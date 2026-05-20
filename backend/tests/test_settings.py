@@ -39,11 +39,11 @@ def test_config_template_structure():
 
     # Check that template has verbose comments
     comment_lines = [
-        line
-        for line in CONFIG_TEMPLATE.split("\n")
-        if line.strip().startswith("#")
+        line for line in CONFIG_TEMPLATE.split("\n") if line.strip().startswith("#")
     ]
-    assert len(comment_lines) > MIN_COMMENT_LINES, "Template should have verbose comments"
+    assert len(comment_lines) > MIN_COMMENT_LINES, (
+        "Template should have verbose comments"
+    )
 
 
 def test_load_settings_caching():
@@ -69,7 +69,8 @@ def test_template_has_examples_and_hints():
     assert "pa-" in CONFIG_TEMPLATE  # VoyageAI key example
     assert "http://localhost:11434/v1" in CONFIG_TEMPLATE  # Ollama example
     assert (
-        "gpt-4" in CONFIG_TEMPLATE or "neural-chat" in CONFIG_TEMPLATE
+        "qwen3.5-27b" in CONFIG_TEMPLATE
+        or "multilingual-e5-large-instruct" in CONFIG_TEMPLATE
     )  # Model examples
 
 

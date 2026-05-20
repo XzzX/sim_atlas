@@ -154,7 +154,9 @@ async def run_agent_stream(
                 yield to_sse(ToolCallEvent(name=tc.function.name, args=args))
 
                 try:
-                    result = await execute_tool(tc.function.name, args, storage, scratch)
+                    result = await execute_tool(
+                        tc.function.name, args, storage, scratch
+                    )
                     content = result.model_dump_json()
                 except ValidationError as exc:
                     content = json.dumps(
@@ -173,7 +175,12 @@ async def run_agent_stream(
                         "content": content,
                     }
                 )
-                trace.update(input={"request": request.model_dump(), "messages": _snapshot_messages(messages)})
+                trace.update(
+                    input={
+                        "request": request.model_dump(),
+                        "messages": _snapshot_messages(messages),
+                    }
+                )
 
             yield to_sse(_graph_update_event(scratch))
 

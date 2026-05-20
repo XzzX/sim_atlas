@@ -18,9 +18,11 @@ _CONFIG_FILES = [
     Path(".sim_atlas") / "config.toml",  # working directory (highest among files)
 ]
 
+
 def _get_config_files() -> list[str]:
     """Get list of config file paths to search for."""
     return [str(p) for p in _CONFIG_FILES]
+
 
 CONFIG_TEMPLATE = """# Sim Atlas Configuration Template
 # Fill in required fields, uncomment and configure optional sections as needed.
@@ -139,6 +141,14 @@ class Settings(BaseSettings):
             dotenv_settings,
             TomlConfigSettingsSource(settings_cls),
         )
+
+    @property
+    def config_dir(self) -> Path:
+        """Directory of the highest-priority config file that exists, or cwd."""
+        for path in reversed(_CONFIG_FILES):  # highest priority first
+            if path.exists():
+                return path.parent
+        return Path(".")
 
     @property
     def langfuse_enabled(self) -> bool:

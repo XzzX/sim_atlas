@@ -6,7 +6,9 @@ from .exceptions import AINotConfiguredError
 from .settings import load_settings
 
 
-async def create_embedding(documents: list[str], input_type: str = "document") -> np.ndarray:
+async def create_embedding(
+    documents: list[str], input_type: str = "document"
+) -> np.ndarray:
     settings = load_settings()
     if not settings.voyage_api_key:
         raise AINotConfiguredError("voyage_api_key is not configured")

@@ -225,6 +225,12 @@ async def execute_get_node_details(
         atlas_node_id=node.id,
         name=node.name,
         docstring=node.ai_description or node.docstring,
-        inputs=[PortMetadata.model_validate(a.model_dump(exclude_none=True)) for a in node.inputs],
-        outputs=[PortMetadata.model_validate(a.model_dump(exclude_none=True)) for a in node.outputs],
+        inputs=[
+            PortMetadata.model_validate(a.model_dump(exclude_none=True))
+            for a in node.inputs
+        ],
+        outputs=[
+            PortMetadata.model_validate(a.model_dump(exclude_none=True))
+            for a in node.outputs
+        ],
     )

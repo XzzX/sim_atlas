@@ -71,7 +71,9 @@ class AddOutputNodeResult(BaseModel):
 
 class AddEdgeInput(BaseModel):
     source_graph_id: str = Field(description="graph_id of the source node.")
-    source_handle: str = Field(description="Name of the output port on the source node.")
+    source_handle: str = Field(
+        description="Name of the output port on the source node."
+    )
     target_graph_id: str = Field(description="graph_id of the target node.")
     target_handle: str = Field(description="Name of the input port on the target node.")
 
@@ -82,7 +84,9 @@ class AddEdgeResult(BaseModel):
 
 class RemoveEdgeInput(BaseModel):
     source_graph_id: str = Field(description="graph_id of the source node.")
-    source_handle: str = Field(description="Name of the output port on the source node.")
+    source_handle: str = Field(
+        description="Name of the output port on the source node."
+    )
     target_graph_id: str = Field(description="graph_id of the target node.")
     target_handle: str = Field(description="Name of the input port on the target node.")
 
@@ -146,8 +150,14 @@ async def execute_add_function_node(
     )
     return AddFunctionNodeResult(
         graph_id=graph_id,
-        inputs=[PortMetadata.model_validate(a.model_dump(exclude_none=True)) for a in node.inputs],
-        outputs=[PortMetadata.model_validate(a.model_dump(exclude_none=True)) for a in node.outputs],
+        inputs=[
+            PortMetadata.model_validate(a.model_dump(exclude_none=True))
+            for a in node.inputs
+        ],
+        outputs=[
+            PortMetadata.model_validate(a.model_dump(exclude_none=True))
+            for a in node.outputs
+        ],
     )
 
 

@@ -89,5 +89,8 @@ def get_storage_backend() -> StorageInterface:
     """
 
     from .file_system_storage import FileSystemStorage  # noqa: PLC0415
+    from .settings import load_settings  # noqa: PLC0415
 
-    return FileSystemStorage()
+    return FileSystemStorage(
+        filename=str(load_settings().config_dir / "filesystem.json")
+    )

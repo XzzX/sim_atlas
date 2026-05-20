@@ -5,9 +5,7 @@ from sim_atlas_backend.agent._observability import build_agent_observability
 from sim_atlas_backend.models import AgentRequest
 from sim_atlas_backend.settings import Settings
 
-observability_module = importlib.import_module(
-    "sim_atlas_backend.agent._observability"
-)
+observability_module = importlib.import_module("sim_atlas_backend.agent._observability")
 
 
 def _agent_request() -> AgentRequest:

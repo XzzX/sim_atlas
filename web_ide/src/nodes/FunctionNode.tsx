@@ -100,7 +100,12 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
     >
       <BaseNodeHeader className="border-b rounded-t-md bg-function-node-background">
         <div className="flex items-center justify-between w-full gap-4">
-          <BaseNodeHeaderTitle>{data.label}</BaseNodeHeaderTitle>
+          <div className="flex flex-col min-w-0">
+            <BaseNodeHeaderTitle>{data.label}</BaseNodeHeaderTitle>
+            <span className="text-xs text-muted-foreground truncate">
+              {data.metadata.python_import}
+            </span>
+          </div>
         </div>
       </BaseNodeHeader>
       <BaseNodeContent className="pl-0 pr-0 pt-3 pb-3">

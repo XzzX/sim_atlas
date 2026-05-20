@@ -50,21 +50,20 @@ jwt_algorithm = "HS256"
 
 # OpenAI-compatible LLM API URL
 # Base URL of the OpenAI-compatible API server.
-# Examples: https://api.openai.com/v1 (OpenAI)
+# Examples: https://chat-ai.academiccloud.de/v1/ (GWDG)
 #           http://localhost:11434/v1 (Ollama local)
 # Must be a valid HTTP(S) URL.
-# llm_api_url = "http://localhost:11434/v1"
+# llm_api_url = "https://chat-ai.academiccloud.de/v1/"
 
 # LLM Chat Model Name
 # Name of the model to use for conversational docstring refinement.
-# Examples: gpt-4, gpt-3.5-turbo (OpenAI), neural-chat (Ollama)
-# llm_chat_model = "neural-chat"
+# llm_chat_model = "qwen3.5-27b"
 
 # LLM Embedding Model Name
 # Name of the model to use for generating text embeddings.
 # Required only if using embedding-based semantic search.
 # Examples: text-embedding-3-small (OpenAI), nomic-embed-text (Ollama)
-# llm_embedding_model = "nomic-embed-text"
+# llm_embedding_model = "multilingual-e5-large-instruct"
 
 # LLM Enrichment Concurrency
 # Maximum number of simultaneous LLM requests during bulk enrichment.

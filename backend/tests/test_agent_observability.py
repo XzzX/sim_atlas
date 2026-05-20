@@ -1,5 +1,8 @@
 import importlib
 from types import SimpleNamespace
+from typing import Any
+
+import pytest
 
 from sim_atlas_backend.agent._observability import build_agent_observability
 from sim_atlas_backend.models import AgentRequest
@@ -26,47 +29,50 @@ def test_build_agent_observability_is_noop_without_langfuse():
     assert trace.__class__.__name__ == "_NoopTrace"
 
 
-def test_build_agent_observability_uses_langfuse_client(monkeypatch):
-    captured: dict[str, object] = {}
+def test_build_agent_observability_uses_langfuse_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, Any] = {}
 
     class FakeTrace:
         def __init__(self, label: str) -> None:
             self.label = label
 
-        def span(self, *, name: str, input=None, metadata=None):
+        def span(self, *, name: str, input: object = None, metadata: object = None) -> "FakeTrace":
             captured.setdefault("spans", []).append((name, input, metadata))
             return FakeTrace(name)
 
-        def generation(self, *, name: str, model=None, input=None, metadata=None):
+        def generation(self, *, name: str, model: object = None, input: object = None, metadata: object = None) -> "FakeTrace":
             captured.setdefault("generations", []).append(
                 (name, model, input, metadata)
             )
             return FakeTrace(name)
 
-        def update(self, **kwargs):
+        def update(self, **kwargs: object) -> None:
             captured.setdefault("updates", []).append(kwargs)
 
-        def end(self, **kwargs):
+        def end(self, **kwargs: object) -> None:
             captured.setdefault("ends", []).append(kwargs)
 
-        def record_exception(self, exc):
+        def record_exception(self, exc: BaseException) -> None:
             captured.setdefault("exceptions", []).append(str(exc))
 
     class FakeLangfuse:
-        def __init__(self, **kwargs):
+        def __init__(self, **kwargs: object) -> None:
             captured["client_kwargs"] = kwargs
 
-        def trace(self, **kwargs):
-            captured["trace_kwargs"] = kwargs
-            return FakeTrace(kwargs["name"])
+        def trace(self, *, name: str, **kwargs: object) -> FakeTrace:
+            captured["trace_kwargs"] = {"name": name, **kwargs}
+            return FakeTrace(name)
 
-        def flush(self):
+        def flush(self) -> None:
             captured["flushed"] = True
+
+    def _fake_import_module(name: str) -> SimpleNamespace:
+        return SimpleNamespace(Langfuse=FakeLangfuse)
 
     monkeypatch.setattr(
         observability_module.importlib,
         "import_module",
-        lambda name: SimpleNamespace(Langfuse=FakeLangfuse),
+        _fake_import_module,
     )
 
     settings = Settings(

@@ -109,7 +109,7 @@ def test_template_has_all_fields_explained():
         assert has_comment_before, f"Field {field} should have explanatory comments"
 
 
-def test_settings_can_be_loaded_from_env(monkeypatch):
+def test_settings_can_be_loaded_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that settings can be loaded from environment variables."""
     # The module-level config should already be loaded,
     # but we can test that load_settings is a valid function

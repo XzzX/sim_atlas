@@ -14,13 +14,14 @@ uv run pyright                          # type-check (strict mode)
 
 ## Key Patterns
 
-- **Storage**: always interact via `storage_interface.py` (`StorageInterface`), never directly via `file_system_storage.py`
-- **Dependency injection**: use FastAPI `Depends()` for storage, settings, and auth — see existing routes in `main.py`
-- **Models**: Pydantic v2; all schemas defined in `models.py`
-- **Auth**: JWT-based write access in `security.py`; reads are public
-- **MCP**: routes are exposed as MCP tools via `fastapi-mcp`; keep route signatures clean (they double as tool signatures)
-- **AI**: embeddings via VoyageAI (`voyage_ai.py`); LLM calls via OpenAI-compatible API (`ai.py`); streaming agent responses in `agent/`
-- **Config**: all settings via `settings.py` (`pydantic-settings`); never hardcode secrets or URLs
+- **Storage**: always interact via `storage_interface.py` (`StorageInterface`), never directly via `file_system_storage.py`; use `get_storage_backend()` (also in `storage_interface.py`) to instantiate the backend
+- **Dependency injection**: use `Depends()` for storage (`get_storage` in `main.py`) and auth (`get_current_user` in `security.py`); settings are NOT injected via `Depends()` — call `load_settings()` directly (it is `lru_cache`-cached)
+- **Models**: Pydantic v2; all schemas in `models.py`; three distinct types: `NodeRequest` (API write input), `NodeMetadata` (internal storage schema), `NodeResponse` (API read output); `NdArray` is a custom Pydantic type for gzip-compressed numpy arrays (embeddings)
+- **Auth**: JWT tokens carried in `x-api-key` header; `get_current_user` dependency enforces auth on write routes; read routes are public
+- **MCP**: only `semantic_search`, `hybrid_search`, and `agent_stream` are exposed as MCP tools (see `include_operations` in `main.py`); keep those route signatures clean — they double as tool signatures
+- **AI**: docstring enrichment via OpenAI-compatible API (`ai.py`); embeddings via VoyageAI (`voyage_ai.py`); agent in `agent/` — SSE streaming (`_sse.py`), agentic loop (`_runner.py`), system prompt (`_prompt.py`), observability (`_observability.py`), tools in `agent/tools/`; all AI features raise `AINotConfiguredError` (from `exceptions.py`) when the required settings are absent
+- **Config**: all settings via `settings.py` (`pydantic-settings`); loaded from TOML files at `/etc/sim_atlas/config.toml`, `~/.sim_atlas/config.toml`, or `.sim_atlas/config.toml`; never hardcode secrets or URLs
+- **CLI**: entry points live in `cli/` (`server.py` starts the server, `token.py` issues JWT tokens)
 
 ## Libraries
 
@@ -64,6 +65,34 @@ When your changes create orphans:
 - Don't remove pre-existing dead code unless asked.
 
 The test: Every changed line should trace directly to the user's request.
+
+## Code Quality — Write It Right First Time
+
+**Run `uv run ruff check . && uv run ruff format --check . && uv run pyright` before declaring done. Fix all errors before moving on.**
+
+### Type safety (Pyright strict)
+- Annotate every function parameter and return type — no implicit `Any`.
+- Use `X | Y` union syntax (Python 3.10+), never `Optional[X]` or `Union[X, Y]`.
+- Prefer `X | None` over wrapping in `Optional`.
+- Use `list[X]`, `dict[K, V]`, `tuple[X, ...]` (lowercase), not `List`, `Dict`, `Tuple` from `typing`.
+- Only import from `typing` what has no builtin equivalent: `TypeVar`, `Protocol`, `TypedDict`, `Literal`, `overload`, `cast`, `TYPE_CHECKING`.
+- Narrow types explicitly with `isinstance` checks or `assert` before use; don't cast blindly.
+- Never use `# type: ignore` without a specific error code and a comment explaining why.
+
+### Ruff lint rules enforced (see pyproject.toml)
+- **UP**: use modern Python syntax — `X | Y`, `type` aliases, `match` where appropriate.
+- **I**: imports are sorted — stdlib → third-party → local, one blank line between groups.
+- **F**: no unused imports or variables; remove them (don't comment them out).
+- **B**: no mutable default arguments, no `assert` in production logic.
+- **SIM**: simplify boolean returns, `if`/`else` chains, and `with` blocks.
+- **C4**: prefer comprehensions over `map`/`filter`; avoid unnecessary `list()` wrapping.
+- **ERA**: no commented-out code.
+- **PL**: Pylint rules — avoid too-many-branches, too-many-return-statements, etc.
+
+### Formatting (ruff format)
+- 88-character line limit (E501 is ignored so long lines won't error, but keep them readable).
+- Use double quotes for strings.
+- Trailing commas in multi-line collections.
 
 ## Goal-Driven Execution
 

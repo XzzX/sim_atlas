@@ -64,7 +64,7 @@ class NodeStore:
                 )
 
         if hasattr(module, "__all__"):
-            items = ((k, module.__dict__[k]) for k in module.__all__)
+            items = ((k, getattr(module, k)) for k in module.__all__)
         else:
             items = module.__dict__.items()
 

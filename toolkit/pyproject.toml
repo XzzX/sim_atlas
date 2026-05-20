@@ -33,6 +33,7 @@ sim-atlas-upload = "sim_atlas_toolkit.cli:main"
 [dependency-groups]
 dev = [
     "pyiron-workflow>=0.15.6",
+    "pytest>=8",
     "pyright>=1.1.407",
     "python-workflow-definition>=0.1.0",
     "ruff>=0.14.6",

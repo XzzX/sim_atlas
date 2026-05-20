@@ -26,7 +26,6 @@ def _parse_and_unpack_annotation(annotation: Any) -> list[Annotation]:
 
     if origin is tuple:
         annotations: list[Annotation] = []
-        args = get_args(annotation)
         for i, arg in enumerate(args):
             ann = parse_annotation(arg)
             ann.label = ann.label if ann.label is not None else str(i)

@@ -8,6 +8,8 @@ class NodeType(StrEnum):
     PYTHON_WORKFLOW_DEFINITION = "python_workflow_definition"
     PYIRON_WORKFLOW_FUNCTION = "pyiron_workflow_function"
     PYIRON_CORE_NODE = "pyiron_core_node"
+    PACK = "pack"
+    UNPACK = "unpack"
 
 
 class Annotation(BaseModel):

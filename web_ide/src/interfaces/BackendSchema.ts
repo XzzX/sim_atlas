@@ -5,6 +5,8 @@ export const NodeTypeSchema = z.enum([
   "python_workflow_definition",
   "pyiron_workflow_function",
   "pyiron_core_node",
+  "pack",
+  "unpack",
 ]);
 export type NodeType = z.infer<typeof NodeTypeSchema>;
 export const NodeType = NodeTypeSchema.enum;

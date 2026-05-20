@@ -28,9 +28,13 @@ export function toWorkflowDefinition(
 
       if (node.type === "FunctionNode") {
         const fn = node as FunctionNodeType;
+        const nt = fn.data.metadata.node_type;
         return {
           id,
-          type: "function",
+          type:
+            nt === "pack" ? "pack"
+            : nt === "unpack" ? "unpack"
+            : "function",
           value: fn.data.metadata.python_import,
         };
       }

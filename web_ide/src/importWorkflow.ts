@@ -6,12 +6,20 @@ import {
 } from "./interfaces/PythonWorkflowDefinitionSchema";
 import type { Edge } from "@xyflow/react";
 import { simAtlasAPI } from "./services/api";
+import type { NodeType } from "./interfaces/BackendSchema";
 
 async function convertToNode(
   n: PythonWorkflowDefinitionNode,
 ): Promise<WorkflowNode | null> {
-  if (n.type === "function") {
-    const response = await simAtlasAPI.search(n.value, null);
+  if (n.type === "function" || n.type === "pack" || n.type === "unpack") {
+    const nodeTypeFilter: NodeType | undefined =
+      n.type === "pack" ? "pack"
+      : n.type === "unpack" ? "unpack"
+      : undefined;
+    const response = await simAtlasAPI.search(
+      n.value,
+      nodeTypeFilter !== undefined ? { type: [nodeTypeFilter] } : null,
+    );
     const meta = response.results.data.find(
       (item) => item.node.python_import === n.value,
     )?.node;

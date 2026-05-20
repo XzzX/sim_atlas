@@ -45,10 +45,27 @@ export const FunctionNodeSchema = z.object({
     ),
 });
 
+const importPathRegex = /^[^.]+(\.[^.]+)+$/;
+const importPathMessage = "'value' must be in 'module.Class' format (e.g. 'my_module.MyClass')";
+
+export const PackNodeSchema = z.object({
+  id: z.number().int(),
+  type: z.literal("pack"),
+  value: z.string().regex(importPathRegex, importPathMessage),
+});
+
+export const UnpackNodeSchema = z.object({
+  id: z.number().int(),
+  type: z.literal("unpack"),
+  value: z.string().regex(importPathRegex, importPathMessage),
+});
+
 export const NodeSchema = z.discriminatedUnion("type", [
   InputNodeSchema,
   OutputNodeSchema,
   FunctionNodeSchema,
+  PackNodeSchema,
+  UnpackNodeSchema,
 ]);
 
 export const EdgeSchema = z.object({
@@ -72,6 +89,8 @@ export type PythonWorkflowDefinitionOutputNode = z.infer<
 export type PythonWorkflowDefinitionFunctionNode = z.infer<
   typeof FunctionNodeSchema
 >;
+export type PythonWorkflowDefinitionPackNode = z.infer<typeof PackNodeSchema>;
+export type PythonWorkflowDefinitionUnpackNode = z.infer<typeof UnpackNodeSchema>;
 export type PythonWorkflowDefinitionNode = z.infer<typeof NodeSchema>;
 export type PythonWorkflowDefinitionEdge = z.infer<typeof EdgeSchema>;
 export type PythonWorkflowDefinitionWorkflow = z.infer<

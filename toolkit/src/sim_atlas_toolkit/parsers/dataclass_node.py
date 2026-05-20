@@ -39,6 +39,10 @@ def parse(obj: Any) -> list[Metadata]:
     if not (dataclasses.is_dataclass(obj) and isinstance(obj, type)):
         return []
 
+    module: str = obj.__module__
+    qualname: str = obj.__qualname__
+    python_import = f"{module}.{qualname}"
+
     try:
         raw_source = textwrap.dedent(inspect.getsource(obj).replace("\\r\\n", ""))
     except OSError:
@@ -57,9 +61,6 @@ def parse(obj: Any) -> list[Metadata]:
     pack_source = pack_note + raw_source
     unpack_source = unpack_note + raw_source
 
-    module: str = obj.__module__
-    qualname: str = obj.__qualname__
-    python_import = f"{module}.{qualname}"
     category = module.replace(".", ">")
     keywords = module.split(".")
     raw_doc = inspect.getdoc(obj) or ""

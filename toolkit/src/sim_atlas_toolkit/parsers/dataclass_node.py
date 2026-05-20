@@ -40,9 +40,22 @@ def parse(obj: Any) -> list[Metadata]:
         return []
 
     try:
-        source_code = textwrap.dedent(inspect.getsource(obj).replace("\\r\\n", ""))
+        raw_source = textwrap.dedent(inspect.getsource(obj).replace("\\r\\n", ""))
     except OSError:
         return []
+
+    pack_note = (
+        f"# NOTE: This is a virtual PACK node for {qualname}.\n"
+        "# It takes the dataclass fields as individual inputs and constructs the dataclass instance.\n"
+        "# The source code below is shown for reference only.\n"
+    )
+    unpack_note = (
+        f"# NOTE: This is a virtual UNPACK node for {qualname}.\n"
+        "# It takes a dataclass instance as input and exposes its fields as individual outputs.\n"
+        "# The source code below is shown for reference only.\n"
+    )
+    pack_source = pack_note + raw_source
+    unpack_source = unpack_note + raw_source
 
     module: str = obj.__module__
     qualname: str = obj.__qualname__
@@ -60,7 +73,7 @@ def parse(obj: Any) -> list[Metadata]:
             node_type=NodeType.PACK,
             python_import=python_import,
             category=category,
-            source_code=source_code,
+            source_code=pack_source,
             docstring=f"[PACK] {qualname}: {raw_doc}",
             keywords=keywords,
             inputs=field_annotations,
@@ -71,7 +84,7 @@ def parse(obj: Any) -> list[Metadata]:
             node_type=NodeType.UNPACK,
             python_import=python_import,
             category=category,
-            source_code=source_code,
+            source_code=unpack_source,
             docstring=f"[UNPACK] {qualname}: {raw_doc}",
             keywords=keywords,
             inputs=[dataclass_annotation],

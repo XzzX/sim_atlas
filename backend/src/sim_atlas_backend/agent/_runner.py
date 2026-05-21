@@ -196,7 +196,7 @@ async def run_agent_stream(
                     "role": "user",
                     "content": (
                         "You have reached the maximum number of turns. "
-                        "Summarise in 2\u20133 sentences: what you have built so far "
+                        "Summarise in 2-3 sentences: what you have built so far "
                         "and what still needs to be done to fulfil the original request. "
                         "End with a clear statement of the next step the user should ask you to take."
                     ),

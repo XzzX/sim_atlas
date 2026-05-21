@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from collections.abc import AsyncGenerator
 from typing import Any, cast
 
@@ -69,6 +70,7 @@ async def run_agent_stream(
 
     trace = observability.start_trace(
         name="agent_stream",
+        session_id=str(uuid.uuid4()),
         request=request,
         messages=_snapshot_messages(messages),
         metadata={
@@ -103,9 +105,9 @@ async def run_agent_stream(
             )
             generation.update(
                 output=choice.message.model_dump(exclude_unset=True),
-                usage={
-                    "input": response.usage.prompt_tokens,
-                    "output": response.usage.completion_tokens,
+                usage_details={
+                    "input_tokens": response.usage.prompt_tokens,
+                    "output_tokens": response.usage.completion_tokens,
                 }
                 if response.usage
                 else None,
@@ -229,9 +231,9 @@ async def run_agent_stream(
             final_message = summary_choice.message.content or "(turn limit reached)"
             summary_generation.update(
                 output=summary_choice.message.model_dump(exclude_unset=True),
-                usage={
-                    "input": summary_response.usage.prompt_tokens,
-                    "output": summary_response.usage.completion_tokens,
+                usage_details={
+                    "input_tokens": summary_response.usage.prompt_tokens,
+                    "output_tokens": summary_response.usage.completion_tokens,
                 }
                 if summary_response.usage
                 else None,

@@ -21,6 +21,7 @@ def test_build_agent_observability_is_noop_without_langfuse():
 
     trace = observability.start_trace(
         name="agent_stream",
+        session_id="test-session",
         request=_agent_request(),
         messages=[],
     )
@@ -96,6 +97,7 @@ def test_build_agent_observability_uses_langfuse_client(
     observability = observability_module.build_agent_observability(settings)
     trace = observability.start_trace(
         name="agent_stream",
+        session_id="test-session",
         request=_agent_request(),
         messages=[{"role": "user", "content": "hello"}],
         metadata={"request_id": "abc"},

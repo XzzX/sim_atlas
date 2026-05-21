@@ -42,6 +42,7 @@ class AgentObservability(Protocol):
         self,
         *,
         name: str,
+        session_id: str,
         request: AgentRequest,
         messages: list[dict[str, Any]],
         metadata: dict[str, Any] | None = None,
@@ -86,6 +87,7 @@ class _NoopObservability:
         self,
         *,
         name: str,
+        session_id: str,
         request: AgentRequest,
         messages: list[dict[str, Any]],
         metadata: dict[str, Any] | None = None,
@@ -161,6 +163,7 @@ class _LangfuseObservability:
         self,
         *,
         name: str,
+        session_id: str,
         request: AgentRequest,
         messages: list[dict[str, Any]],
         metadata: dict[str, Any] | None = None,
@@ -168,7 +171,7 @@ class _LangfuseObservability:
         obs = self._client.start_observation(
             name=name,
             input={"request": request.model_dump(), "messages": messages},
-            metadata=metadata,
+            metadata={**(metadata or {}), "session_id": session_id},
         )
         return _LangfuseTrace(obs)
 

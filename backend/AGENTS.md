@@ -27,6 +27,7 @@ uv run pyright                          # type-check (strict mode)
 
 - **pydantic**: [Documentation](https://pydantic.dev/docs/validation/latest/llms.txt)
 - **pydantic-settings**: [Documentation](https://pydantic.dev/docs/validation/latest/llms.txt)
+- **langfuse**: [Documentation](https://langfuse.com/llms-docs.txt)
 
 ## Think Before Coding
 

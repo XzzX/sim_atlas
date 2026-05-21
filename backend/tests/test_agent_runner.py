@@ -109,6 +109,7 @@ class _FakeObservability:
         self,
         *,
         name: str,
+        session_id: str,
         request: AgentRequest,
         messages: list[dict[str, Any]],
         metadata: dict[str, Any] | None = None,
@@ -118,6 +119,7 @@ class _FakeObservability:
                 "start_trace",
                 {
                     "name": name,
+                    "session_id": session_id,
                     "request": request.model_dump(),
                     "messages": messages,
                     "metadata": metadata,

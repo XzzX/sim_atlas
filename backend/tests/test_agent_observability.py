@@ -29,18 +29,29 @@ def test_build_agent_observability_is_noop_without_langfuse():
     assert trace.__class__.__name__ == "_NoopTrace"
 
 
-def test_build_agent_observability_uses_langfuse_client(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_agent_observability_uses_langfuse_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     captured: dict[str, Any] = {}
 
     class FakeTrace:
         def __init__(self, label: str) -> None:
             self.label = label
 
-        def span(self, *, name: str, input: object = None, metadata: object = None) -> "FakeTrace":
+        def span(
+            self, *, name: str, input: object = None, metadata: object = None
+        ) -> "FakeTrace":
             captured.setdefault("spans", []).append((name, input, metadata))
             return FakeTrace(name)
 
-        def generation(self, *, name: str, model: object = None, input: object = None, metadata: object = None) -> "FakeTrace":
+        def generation(
+            self,
+            *,
+            name: str,
+            model: object = None,
+            input: object = None,
+            metadata: object = None,
+        ) -> "FakeTrace":
             captured.setdefault("generations", []).append(
                 (name, model, input, metadata)
             )

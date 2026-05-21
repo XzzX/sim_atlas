@@ -47,6 +47,12 @@ class GraphUpdateEvent(BaseModel):
     edges: list[dict[str, Any]]
 
 
+class TruncatedEvent(BaseModel):
+    """Emitted when the runaway-check loop exhausts all turns without natural completion."""
+
+    type: Literal["truncated"] = "truncated"
+
+
 Event = (
     ReasoningEvent
     | ToolCallEvent
@@ -56,6 +62,7 @@ Event = (
     | ValidationEvent
     | ErrorEvent
     | GraphUpdateEvent
+    | TruncatedEvent
 )
 
 

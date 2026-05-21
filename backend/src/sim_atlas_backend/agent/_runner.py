@@ -79,13 +79,14 @@ async def run_agent_stream(
     )
 
     final_message: str | None = None
+    correction_rounds = 0
     max_turns = settings.agent_max_iterations
     try:
         # Runaway-check loop: exits naturally (break) when the agent finishes,
         # or falls through (no break) when the turn limit is reached.
-        for _ in range(max_turns):
+        for turn in range(max_turns):
             generation = trace.generation(
-                name="llm_completion",
+                name=f"llm_completion_{turn}",
                 model=settings.llm_chat_model,
                 input={"messages": _snapshot_messages(messages), "tools": TOOLS},
             )
@@ -100,7 +101,15 @@ async def run_agent_stream(
                 "LLM response message: %s",
                 json.dumps(choice.message.model_dump(exclude_unset=True), indent=2),
             )
-            generation.update(output=choice.message.model_dump(exclude_unset=True))
+            generation.update(
+                output=choice.message.model_dump(exclude_unset=True),
+                usage={
+                    "input": response.usage.prompt_tokens,
+                    "output": response.usage.completion_tokens,
+                }
+                if response.usage
+                else None,
+            )
             generation.end()
             messages.append(
                 cast(
@@ -122,6 +131,7 @@ async def run_agent_stream(
                     break
                 # Emit a validation event so the UI can show a correction round.
                 yield to_sse(ValidationEvent(errors=validation_errors))
+                correction_rounds += 1
                 error_text = "\n".join(f"- {e}" for e in validation_errors)
                 logger.debug(
                     "Graph validation errors (stream); asking agent to correct:\n%s",
@@ -161,16 +171,19 @@ async def run_agent_stream(
                         tc.function.name, args, storage, scratch
                     )
                     content = result
-                except ValidationError as exc:
-                    content = json.dumps(
-                        {"error": f"Invalid arguments for '{tc.function.name}': {exc}"}
+                    tool_span.update(output=content)
+                    tool_span.end()
+                except (ValidationError, ToolError) as exc:
+                    msg = (
+                        f"Invalid arguments for '{tc.function.name}': {exc}"
+                        if isinstance(exc, ValidationError)
+                        else str(exc)
                     )
-                except ToolError as exc:
-                    content = json.dumps({"error": str(exc)})
+                    content = json.dumps({"error": msg})
+                    tool_span.update(output=content)
+                    tool_span.record_exception(exc)
 
                 yield to_sse(ToolResultEvent(name=tc.function.name, content=content))
-                tool_span.update(output=content)
-                tool_span.end()
                 messages.append(
                     {
                         "role": "tool",
@@ -215,7 +228,13 @@ async def run_agent_stream(
             summary_choice = summary_response.choices[0]
             final_message = summary_choice.message.content or "(turn limit reached)"
             summary_generation.update(
-                output=summary_choice.message.model_dump(exclude_unset=True)
+                output=summary_choice.message.model_dump(exclude_unset=True),
+                usage={
+                    "input": summary_response.usage.prompt_tokens,
+                    "output": summary_response.usage.completion_tokens,
+                }
+                if summary_response.usage
+                else None,
             )
             summary_generation.end()
             logger.debug("Turn limit reached; summary: %s", final_message)
@@ -224,6 +243,7 @@ async def run_agent_stream(
             output={
                 "message": final_message,
                 "truncated": truncated,
+                "correction_rounds": correction_rounds,
                 "graph": _graph_update_event(scratch).model_dump(),
             }
         )

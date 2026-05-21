@@ -41,6 +41,7 @@ class _FakeChoice:
 
 class _FakeResponse:
     choices = [_FakeChoice()]
+    usage = None
 
 
 class _FakeCompletions:

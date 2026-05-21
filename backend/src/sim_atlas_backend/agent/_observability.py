@@ -106,9 +106,10 @@ class _NoopObservability:
         return None
 
 
-@dataclass
 class _LangfuseTrace:
-    handle: Any
+    def __init__(self, handle: Any, propagate_ctx: Any | None = None) -> None:
+        self._handle = handle
+        self._propagate_ctx = propagate_ctx
 
     def span(
         self,
@@ -118,7 +119,7 @@ class _LangfuseTrace:
         level: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _LangfuseTrace:
-        child = self.handle.start_observation(
+        child = self._handle.start_observation(
             name=name,
             as_type="span",
             input=input,
@@ -137,7 +138,7 @@ class _LangfuseTrace:
         model_parameters: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _LangfuseTrace:
-        child = self.handle.start_observation(
+        child = self._handle.start_observation(
             name=name,
             as_type="generation",
             model=model,
@@ -153,30 +154,23 @@ class _LangfuseTrace:
         return _LangfuseTrace(child)
 
     def update(self, **kwargs: Any) -> None:
-        if hasattr(self.handle, "update"):
-            self.handle.update(**kwargs)
+        self._handle.update(**kwargs)
 
     def end(self, **kwargs: Any) -> None:
-        if hasattr(self.handle, "end"):
-            self.handle.end(**kwargs)
+        self._handle.end(**kwargs)
+        if self._propagate_ctx is not None:
+            self._propagate_ctx.__exit__(None, None, None)
+            self._propagate_ctx = None
 
     def record_exception(self, exc: BaseException) -> None:
-        self.update(level="ERROR", status_message=str(exc))
-        if hasattr(self.handle, "record_exception"):
-            self.handle.record_exception(exc)
-        else:
-            self.update(
-                metadata={
-                    "error": str(exc),
-                    "error_type": exc.__class__.__name__,
-                }
-            )
+        self._handle.update(level="ERROR", status_message=str(exc))
         self.end()
 
 
 class _LangfuseObservability:
-    def __init__(self, client: Any) -> None:
+    def __init__(self, client: Any, propagate_attributes: Any) -> None:
         self._client = client
+        self._propagate_attributes = propagate_attributes
 
     def start_trace(
         self,
@@ -188,35 +182,36 @@ class _LangfuseObservability:
         user_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _LangfuseTrace:
+        ctx = self._propagate_attributes(
+            session_id=session_id,
+            **({} if user_id is None else {"user_id": user_id}),
+        )
+        ctx.__enter__()
         obs = self._client.start_observation(
             name=name,
             input={"request": request.model_dump(), "messages": messages},
-            session_id=session_id,
-            user_id=user_id,
             metadata=metadata or {},
         )
-        return _LangfuseTrace(obs)
+        return _LangfuseTrace(obs, ctx)
 
     def flush(self) -> None:
-        if hasattr(self._client, "flush"):
-            self._client.flush()
-        elif hasattr(self._client, "shutdown"):
-            self._client.shutdown()
+        self._client.flush()
 
 
 def build_agent_observability(settings: Settings) -> AgentObservability:
     if not settings.langfuse_enabled:
         return _NoopObservability()
 
-    client = _get_langfuse_client(
+    result = _get_langfuse_client(
         settings.langfuse_public_key,
         settings.langfuse_secret_key,
-        settings.langfuse_host,  # passed as base_url to the v4 constructor
+        settings.langfuse_host,
         settings.langfuse_environment,
     )
-    if client is None:
+    if result is None:
         return _NoopObservability()
-    return _LangfuseObservability(client)
+    client, propagate_attributes = result
+    return _LangfuseObservability(client, propagate_attributes)
 
 
 @lru_cache(maxsize=1)
@@ -225,7 +220,7 @@ def _get_langfuse_client(
     secret_key: str | None,
     base_url: str | None,
     environment: str | None,
-) -> Any | None:
+) -> tuple[Any, Any] | None:
     try:
         langfuse_module = importlib.import_module("langfuse")
     except ImportError:
@@ -236,14 +231,20 @@ def _get_langfuse_client(
 
     client_class = getattr(langfuse_module, "Langfuse", None)
     if client_class is None:
+        logger.warning("Langfuse SDK does not expose Langfuse; tracing is disabled.")
+        return None
+
+    propagate_attributes = getattr(langfuse_module, "propagate_attributes", None)
+    if propagate_attributes is None:
         logger.warning(
-            "Langfuse is configured but the SDK does not expose Langfuse; tracing is disabled."
+            "Langfuse SDK does not expose propagate_attributes; tracing is disabled."
         )
         return None
 
-    return client_class(
+    client = client_class(
         public_key=public_key,
         secret_key=secret_key,
         base_url=base_url,
         environment=environment,
     )
+    return client, propagate_attributes

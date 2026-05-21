@@ -1,4 +1,5 @@
 import importlib
+from contextlib import nullcontext
 from types import SimpleNamespace
 from typing import Any
 
@@ -62,9 +63,6 @@ def test_build_agent_observability_uses_langfuse_client(
         def end(self, **kwargs: object) -> None:
             captured.setdefault("ends", []).append(kwargs)
 
-        def record_exception(self, exc: BaseException) -> None:
-            captured.setdefault("exceptions", []).append(str(exc))
-
     class FakeLangfuse:
         def __init__(self, **kwargs: object) -> None:
             captured["client_kwargs"] = kwargs
@@ -76,8 +74,15 @@ def test_build_agent_observability_uses_langfuse_client(
         def flush(self) -> None:
             captured["flushed"] = True
 
+    def _fake_propagate_attributes(**kwargs: object) -> Any:
+        captured.setdefault("propagate_calls", []).append(kwargs)
+        return nullcontext()
+
     def _fake_import_module(name: str) -> SimpleNamespace:
-        return SimpleNamespace(Langfuse=FakeLangfuse)
+        return SimpleNamespace(
+            Langfuse=FakeLangfuse,
+            propagate_attributes=_fake_propagate_attributes,
+        )
 
     monkeypatch.setattr(
         observability_module.importlib,
@@ -117,4 +122,5 @@ def test_build_agent_observability_uses_langfuse_client(
     assert captured["trace_kwargs"]["name"] == "agent_stream"
     assert captured["flushed"] is True
     assert captured["spans"]
-    assert captured["exceptions"] == ["boom"]
+    assert captured["propagate_calls"] == [{"session_id": "test-session"}]
+    assert {"level": "ERROR", "status_message": "boom"} in captured["updates"]

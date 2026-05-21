@@ -161,8 +161,14 @@ async def execute_search_nodes(
             item.node.id,
             item.node.name,
             _to_short_description(item.node.ai_summary, item.node.docstring),
-            [PortMetadata.model_validate(a.model_dump(exclude_none=True)) for a in item.node.inputs],
-            [PortMetadata.model_validate(a.model_dump(exclude_none=True)) for a in item.node.outputs],
+            [
+                PortMetadata.model_validate(a.model_dump(exclude_none=True))
+                for a in item.node.inputs
+            ],
+            [
+                PortMetadata.model_validate(a.model_dump(exclude_none=True))
+                for a in item.node.outputs
+            ],
         )
         for i, item in enumerate(items, start=1)
     ]
@@ -193,8 +199,14 @@ async def execute_find_compatible_nodes(
             item.node.id,
             item.node.name,
             _to_short_description(item.node.ai_summary, item.node.docstring),
-            [PortMetadata.model_validate(a.model_dump(exclude_none=True)) for a in item.node.inputs],
-            [PortMetadata.model_validate(a.model_dump(exclude_none=True)) for a in item.node.outputs],
+            [
+                PortMetadata.model_validate(a.model_dump(exclude_none=True))
+                for a in item.node.inputs
+            ],
+            [
+                PortMetadata.model_validate(a.model_dump(exclude_none=True))
+                for a in item.node.outputs
+            ],
         )
         for i, item in enumerate(items, start=1)
     ]
@@ -210,8 +222,14 @@ async def execute_get_node_details(
         node = storage.read(args.atlas_node_id)
     except KeyError as exc:
         raise ToolError(f"Node '{args.atlas_node_id}' not found.") from exc
-    inputs = [PortMetadata.model_validate(a.model_dump(exclude_none=True)) for a in node.inputs]
-    outputs = [PortMetadata.model_validate(a.model_dump(exclude_none=True)) for a in node.outputs]
+    inputs = [
+        PortMetadata.model_validate(a.model_dump(exclude_none=True))
+        for a in node.inputs
+    ]
+    outputs = [
+        PortMetadata.model_validate(a.model_dump(exclude_none=True))
+        for a in node.outputs
+    ]
     entry = _format_item(
         1,
         node.id,

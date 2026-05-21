@@ -160,7 +160,7 @@ async def run_agent_stream(
                     result = await execute_tool(
                         tc.function.name, args, storage, scratch
                     )
-                    content = result.model_dump_json()
+                    content = result
                 except ValidationError as exc:
                     content = json.dumps(
                         {"error": f"Invalid arguments for '{tc.function.name}': {exc}"}

@@ -84,6 +84,7 @@ select = [
 ignore = [
     "E501",  # line too long
     "PLR0915", # Too many statements
+    "PLR0913", # Too many arguments in function definition
 ]
 
 [tool.pyright]

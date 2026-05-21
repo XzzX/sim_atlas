@@ -30,12 +30,11 @@ def build_system_prompt(request: AgentRequest, storage: StorageInterface) -> str
     opts = storage.get_filter_options()
     filter_section = (
         "## Available filter values\n"
-        "Use only values from these lists when supplying filter arguments to search_nodes "
-        "or find_compatible_nodes.\n"
+        "Use only values from these lists when supplying filter arguments to "
+        "find_compatible_nodes.\n"
         f"datatypes: {', '.join(sorted(opts.datatypes)) or '(none)'}\n"
         f"units: {', '.join(sorted(opts.units)) or '(none)'}\n"
-        f"quantities: {', '.join(sorted(opts.quantities)) or '(none)'}\n"
-        f"keywords: {', '.join(sorted(opts.keywords)) or '(none)'}"
+        f"quantities: {', '.join(sorted(opts.quantities)) or '(none)'}"
     )
     tool_guidance = "\n".join(f"- {line}" for line in get_tool_prompt_guidance_lines())
 

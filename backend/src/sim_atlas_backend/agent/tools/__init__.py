@@ -199,7 +199,7 @@ async def execute_tool(
     tool_args: dict[str, Any],
     storage: StorageInterface,
     scratch: ScratchGraph,
-) -> BaseModel:
+) -> str:
     tool = _TOOL_MAP.get(tool_name)
     if tool is None:
         raise ToolError(f"Unknown tool '{tool_name}'.")

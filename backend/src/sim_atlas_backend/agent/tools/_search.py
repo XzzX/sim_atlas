@@ -8,9 +8,8 @@ from ._errors import ToolError
 
 _SEARCH_NODES_DESCRIPTION_PARTS = (
     "Search the node catalog using natural language. ",
-    "Returns a list of nodes with their id, name, port metadata, and a short description. ",
-    "Optionally narrow results by port attributes (datatypes, units, quantities), ",
-    "keywords, or port_type to restrict matching to input or output ports.",
+    "Returns a formatted list of matching nodes with their atlas_node_id, ",
+    "port signatures, and a brief description.",
 )
 SEARCH_NODES_DESCRIPTION = "".join(_SEARCH_NODES_DESCRIPTION_PARTS)
 
@@ -60,27 +59,6 @@ class SearchNodesInput(BaseModel):
             "Richer queries produce better results."
         )
     )
-    limit: int = Field(default=10, description="Maximum number of results to return.")
-    datatypes: list[str] | None = Field(
-        default=None,
-        description="Restrict to nodes that have ports with these datatypes (e.g. ['float', 'int']).",
-    )
-    units: list[str] | None = Field(
-        default=None,
-        description="Restrict to nodes that have ports with these physical units (e.g. ['K', 'eV']).",
-    )
-    quantities: list[str] | None = Field(
-        default=None,
-        description="Restrict to nodes that have ports with these physical quantities (e.g. ['temperature']).",
-    )
-    keywords: list[str] | None = Field(
-        default=None,
-        description="Restrict to nodes associated with these keywords.",
-    )
-    port_type: Literal["inputs", "outputs", "both"] | None = Field(
-        default=None,
-        description="Whether port filters apply to input ports, output ports, or both.",
-    )
 
 
 class SearchNodesResult(BaseModel):
@@ -112,7 +90,6 @@ class FindCompatibleNodesInput(BaseModel):
         default="inputs",
         description="Match on input ports (default), output ports, or both.",
     )
-    limit: int = Field(default=10, description="Maximum number of results to return.")
 
 
 class FindCompatibleNodesResult(BaseModel):
@@ -138,48 +115,71 @@ def _to_short_description(ai_summary: str | None, docstring: str) -> str | None:
     return lines[0] if lines else None
 
 
+def format_port(port: PortMetadata) -> str:
+    line = port.label or "?"
+    if port.datatype:
+        line += f": {port.datatype}"
+    annots = [x for x in [port.unit, port.quantity] if x]
+    if annots:
+        line += f" [{', '.join(annots)}]"
+    if port.has_default_value:
+        line += " (optional)"
+    return line
+
+
+def _format_item(
+    index: int,
+    atlas_node_id: str,
+    name: str,
+    description: str | None,
+    inputs: list[PortMetadata],
+    outputs: list[PortMetadata],
+) -> str:
+    header = f"[{index}] {name}\natlas_node_id: {atlas_node_id}"
+    if description:
+        header += f"\nSummary:\n{description}"
+    parts = [header]
+    if inputs:
+        parts.append("Inputs:\n" + "\n".join(format_port(p) for p in inputs))
+    if outputs:
+        parts.append("Outputs:\n" + "\n".join(format_port(p) for p in outputs))
+    return "\n\n".join(parts)
+
+
 async def execute_search_nodes(
     args: SearchNodesInput,
     storage: StorageInterface,
     _scratch: Any,
-) -> SearchNodesResult:
-    f = Filter(
-        datatypes=args.datatypes,
-        units=args.units,
-        quantities=args.quantities,
-        keywords=args.keywords,
-        port_type=args.port_type,
-    )
-    filter_arg = f if f.model_fields_set else None
-    response = await storage.search_hybrid(args.query, filter_arg, limit=args.limit)
-    return SearchNodesResult(
-        results=[
-            SearchNodeItem(
-                atlas_node_id=item.node.id,
-                name=item.node.name,
-                short_description=_to_short_description(
-                    item.node.ai_summary, item.node.docstring
-                ),
-                inputs=[
-                    PortMetadata.model_validate(a.model_dump(exclude_none=True))
-                    for a in item.node.inputs
-                ],
-                outputs=[
-                    PortMetadata.model_validate(a.model_dump(exclude_none=True))
-                    for a in item.node.outputs
-                ],
-                score=round(item.score, 4),
-            )
-            for item in response.results.data
-        ]
-    )
+) -> str:
+    response = await storage.search_hybrid(args.query, None, limit=10)
+    items = response.results.data
+    if not items:
+        return "Retrieved functions:\n\n(no results found)"
+    entries = [
+        _format_item(
+            i,
+            item.node.id,
+            item.node.name,
+            _to_short_description(item.node.ai_summary, item.node.docstring),
+            [
+                PortMetadata.model_validate(a.model_dump(exclude_none=True))
+                for a in item.node.inputs
+            ],
+            [
+                PortMetadata.model_validate(a.model_dump(exclude_none=True))
+                for a in item.node.outputs
+            ],
+        )
+        for i, item in enumerate(items, start=1)
+    ]
+    return "Retrieved functions:\n\n" + "\n\n".join(entries)
 
 
 async def execute_find_compatible_nodes(
     args: FindCompatibleNodesInput,
     storage: StorageInterface,
     _scratch: Any,
-) -> FindCompatibleNodesResult:
+) -> str:
     f = Filter(
         datatypes=[args.datatype] if args.datatype else None,
         units=[args.unit] if args.unit else None,
@@ -187,50 +187,55 @@ async def execute_find_compatible_nodes(
         port_type=args.port_type,
     )
     if args.query:
-        response = await storage.search_semantic(args.query, f, limit=args.limit)
+        response = await storage.search_semantic(args.query, f, limit=10)
     else:
-        response = storage.search(query=None, filter=f, limit=args.limit)
-    return FindCompatibleNodesResult(
-        results=[
-            SearchNodeItem(
-                atlas_node_id=item.node.id,
-                name=item.node.name,
-                short_description=_to_short_description(
-                    item.node.ai_summary, item.node.docstring
-                ),
-                inputs=[
-                    PortMetadata.model_validate(a.model_dump(exclude_none=True))
-                    for a in item.node.inputs
-                ],
-                outputs=[
-                    PortMetadata.model_validate(a.model_dump(exclude_none=True))
-                    for a in item.node.outputs
-                ],
-            )
-            for item in response.results.data
-        ]
-    )
+        response = storage.search(query=None, filter=f, limit=10)
+    items = response.results.data
+    if not items:
+        return "Retrieved functions:\n\n(no results found)"
+    entries = [
+        _format_item(
+            i,
+            item.node.id,
+            item.node.name,
+            _to_short_description(item.node.ai_summary, item.node.docstring),
+            [
+                PortMetadata.model_validate(a.model_dump(exclude_none=True))
+                for a in item.node.inputs
+            ],
+            [
+                PortMetadata.model_validate(a.model_dump(exclude_none=True))
+                for a in item.node.outputs
+            ],
+        )
+        for i, item in enumerate(items, start=1)
+    ]
+    return "Retrieved functions:\n\n" + "\n\n".join(entries)
 
 
 async def execute_get_node_details(
     args: GetNodeDetailsInput,
     storage: StorageInterface,
     _scratch: Any,
-) -> GetNodeDetailsResult:
+) -> str:
     try:
         node = storage.read(args.atlas_node_id)
     except KeyError as exc:
         raise ToolError(f"Node '{args.atlas_node_id}' not found.") from exc
-    return GetNodeDetailsResult(
-        atlas_node_id=node.id,
-        name=node.name,
-        docstring=node.ai_description or node.docstring,
-        inputs=[
-            PortMetadata.model_validate(a.model_dump(exclude_none=True))
-            for a in node.inputs
-        ],
-        outputs=[
-            PortMetadata.model_validate(a.model_dump(exclude_none=True))
-            for a in node.outputs
-        ],
+    inputs = [
+        PortMetadata.model_validate(a.model_dump(exclude_none=True))
+        for a in node.inputs
+    ]
+    outputs = [
+        PortMetadata.model_validate(a.model_dump(exclude_none=True))
+        for a in node.outputs
+    ]
+    entry = _format_item(
+        1,
+        node.id,
+        node.name,
+        _to_short_description(node.ai_summary, node.docstring),
+        inputs,
+        outputs,
     )
+    return f"Node details:\n\n{entry}"

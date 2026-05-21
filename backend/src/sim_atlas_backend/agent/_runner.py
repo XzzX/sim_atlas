@@ -84,6 +84,8 @@ async def run_agent_stream(
 
     final_message: str | None = None
     correction_rounds = 0
+    total_input_tokens = 0
+    total_output_tokens = 0
     max_turns = settings.agent_max_iterations
     try:
         # Runaway-check loop: exits naturally (break) when the agent finishes,
@@ -93,6 +95,7 @@ async def run_agent_stream(
                 name=f"llm_completion_{turn}",
                 model=settings.llm_chat_model,
                 input={"messages": _snapshot_messages(messages), "tools": TOOLS},
+                model_parameters={"tool_choice": "auto"},
             )
             response = await client.chat.completions.create(
                 model=settings.llm_chat_model,
@@ -115,6 +118,9 @@ async def run_agent_stream(
                 else None,
             )
             generation.end()
+            if response.usage:
+                total_input_tokens += response.usage.prompt_tokens
+                total_output_tokens += response.usage.completion_tokens
             messages.append(
                 cast(
                     ChatCompletionMessageParam,
@@ -129,7 +135,17 @@ async def run_agent_stream(
                     input=_graph_update_event(scratch).model_dump(),
                 )
                 validation_errors = validate_graph(scratch, storage)
-                validation_span.update(output={"errors": validation_errors})
+                validation_span.update(
+                    output={"errors": validation_errors},
+                    **(
+                        {
+                            "level": "WARNING",
+                            "status_message": f"{len(validation_errors)} validation error(s)",
+                        }
+                        if validation_errors
+                        else {}
+                    ),
+                )
                 validation_span.end()
                 if not validation_errors:
                     break
@@ -141,15 +157,18 @@ async def run_agent_stream(
                     "Graph validation errors (stream); asking agent to correct:\n%s",
                     error_text,
                 )
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": (
-                            "The current graph has validation errors. "
-                            "Please fix them using the available tools:\n" + error_text
-                        ),
-                    }
+                correction_message = (
+                    "The current graph has validation errors. "
+                    "Please fix them using the available tools:\n" + error_text
                 )
+                correction_span = trace.span(
+                    name=f"correction_round_{correction_rounds}",
+                    input={"errors": validation_errors, "round": correction_rounds},
+                    level="WARNING",
+                )
+                messages.append({"role": "user", "content": correction_message})
+                correction_span.update(output={"injected_message": correction_message})
+                correction_span.end()
                 continue
 
             reasoning = (
@@ -223,6 +242,7 @@ async def run_agent_stream(
                 name="truncation_summary",
                 model=settings.llm_chat_model,
                 input={"messages": _snapshot_messages(messages)},
+                model_parameters={"tool_choice": "none"},
             )
             summary_response = await client.chat.completions.create(
                 model=settings.llm_chat_model,
@@ -241,6 +261,9 @@ async def run_agent_stream(
                 else None,
             )
             summary_generation.end()
+            if summary_response.usage:
+                total_input_tokens += summary_response.usage.prompt_tokens
+                total_output_tokens += summary_response.usage.completion_tokens
             logger.debug("Turn limit reached; summary: %s", final_message)
 
         trace.update(
@@ -248,6 +271,8 @@ async def run_agent_stream(
                 "message": final_message,
                 "truncated": truncated,
                 "correction_rounds": correction_rounds,
+                "total_input_tokens": total_input_tokens,
+                "total_output_tokens": total_output_tokens,
                 "graph": _graph_update_event(scratch).model_dump(),
             }
         )

@@ -38,23 +38,21 @@ def test_build_agent_observability_uses_langfuse_client(
         def __init__(self, label: str) -> None:
             self.label = label
 
-        def span(
-            self, *, name: str, input: object = None, metadata: object = None
-        ) -> "FakeTrace":
-            captured.setdefault("spans", []).append((name, input, metadata))
-            return FakeTrace(name)
-
-        def generation(
+        def start_observation(
             self,
             *,
             name: str,
+            as_type: str = "span",
             model: object = None,
             input: object = None,
             metadata: object = None,
         ) -> "FakeTrace":
-            captured.setdefault("generations", []).append(
-                (name, model, input, metadata)
-            )
+            if as_type == "generation":
+                captured.setdefault("generations", []).append(
+                    (name, model, input, metadata)
+                )
+            else:
+                captured.setdefault("spans", []).append((name, input, metadata))
             return FakeTrace(name)
 
         def update(self, **kwargs: object) -> None:
@@ -70,7 +68,7 @@ def test_build_agent_observability_uses_langfuse_client(
         def __init__(self, **kwargs: object) -> None:
             captured["client_kwargs"] = kwargs
 
-        def trace(self, *, name: str, **kwargs: object) -> FakeTrace:
+        def start_observation(self, *, name: str, **kwargs: object) -> FakeTrace:
             captured["trace_kwargs"] = {"name": name, **kwargs}
             return FakeTrace(name)
 
@@ -111,7 +109,7 @@ def test_build_agent_observability_uses_langfuse_client(
     assert captured["client_kwargs"] == {
         "public_key": "pk",
         "secret_key": "sk",
-        "host": "http://langfuse.local",
+        "base_url": "http://langfuse.local",
         "environment": "test",
     }
     assert captured["trace_kwargs"]["name"] == "agent_stream"

@@ -107,7 +107,12 @@ class _LangfuseTrace:
         input: Any | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _LangfuseTrace:
-        child = self.handle.span(name=name, input=input, metadata=metadata)
+        child = self.handle.start_observation(
+            name=name,
+            as_type="span",
+            input=input,
+            metadata=metadata,
+        )
         return _LangfuseTrace(child)
 
     def generation(
@@ -118,8 +123,9 @@ class _LangfuseTrace:
         input: Any | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _LangfuseTrace:
-        child = self.handle.generation(
+        child = self.handle.start_observation(
             name=name,
+            as_type="generation",
             model=model,
             input=input,
             metadata=metadata,
@@ -159,12 +165,12 @@ class _LangfuseObservability:
         messages: list[dict[str, Any]],
         metadata: dict[str, Any] | None = None,
     ) -> _LangfuseTrace:
-        trace = self._client.trace(
+        obs = self._client.start_observation(
             name=name,
             input={"request": request.model_dump(), "messages": messages},
             metadata=metadata,
         )
-        return _LangfuseTrace(trace)
+        return _LangfuseTrace(obs)
 
     def flush(self) -> None:
         if hasattr(self._client, "flush"):
@@ -180,7 +186,7 @@ def build_agent_observability(settings: Settings) -> AgentObservability:
     client = _get_langfuse_client(
         settings.langfuse_public_key,
         settings.langfuse_secret_key,
-        settings.langfuse_host,
+        settings.langfuse_host,  # passed as base_url to the v4 constructor
         settings.langfuse_environment,
     )
     if client is None:
@@ -192,7 +198,7 @@ def build_agent_observability(settings: Settings) -> AgentObservability:
 def _get_langfuse_client(
     public_key: str | None,
     secret_key: str | None,
-    host: str | None,
+    base_url: str | None,
     environment: str | None,
 ) -> Any | None:
     try:
@@ -213,6 +219,6 @@ def _get_langfuse_client(
     return client_class(
         public_key=public_key,
         secret_key=secret_key,
-        host=host,
+        base_url=base_url,
         environment=environment,
     )

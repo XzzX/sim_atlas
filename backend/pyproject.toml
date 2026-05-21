@@ -38,7 +38,7 @@ dependencies = [
 
 [project.optional-dependencies]
 langfuse = [
-    "langfuse>=3.0.0",
+    "langfuse>=4.0.0",
 ]
 
 [dependency-groups]

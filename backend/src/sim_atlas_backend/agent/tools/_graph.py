@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from ...models import Annotation, GraphEdgeContext, GraphNodeContext
 from ...storage_interface import StorageInterface
 from ._errors import ToolError
-from ._search import PortMetadata
+from ._search import PortMetadata, _format_port
 
 _ADD_FUNCTION_NODE_DESCRIPTION_PARTS = (
     "Add a function node from the catalog to the graph. ",
@@ -132,7 +132,7 @@ async def execute_add_function_node(
     args: AddFunctionNodeInput,
     storage: StorageInterface,
     scratch: ScratchGraph,
-) -> AddFunctionNodeResult:
+) -> str:
     if not storage.exists(args.atlas_node_id):
         raise ToolError(f"Node '{args.atlas_node_id}' not found in catalog.")
     node = storage.read(args.atlas_node_id)
@@ -148,24 +148,27 @@ async def execute_add_function_node(
         inputs=node.inputs,
         outputs=node.outputs,
     )
-    return AddFunctionNodeResult(
-        graph_id=graph_id,
-        inputs=[
-            PortMetadata.model_validate(a.model_dump(exclude_none=True))
-            for a in node.inputs
-        ],
-        outputs=[
-            PortMetadata.model_validate(a.model_dump(exclude_none=True))
-            for a in node.outputs
-        ],
-    )
+    inputs = [
+        PortMetadata.model_validate(a.model_dump(exclude_none=True))
+        for a in node.inputs
+    ]
+    outputs = [
+        PortMetadata.model_validate(a.model_dump(exclude_none=True))
+        for a in node.outputs
+    ]
+    parts = [f"Added node.\ngraph_id: {graph_id}"]
+    if inputs:
+        parts.append("Inputs:\n" + "\n".join(_format_port(p) for p in inputs))
+    if outputs:
+        parts.append("Outputs:\n" + "\n".join(_format_port(p) for p in outputs))
+    return "\n\n".join(parts)
 
 
 async def execute_add_input_node(
     args: AddInputNodeInput,
     _storage: StorageInterface,
     scratch: ScratchGraph,
-) -> AddInputNodeResult:
+) -> str:
     graph_id = scratch.new_graph_id(args.label)
     scratch.nodes[graph_id] = GraphNodeContext(
         graph_id=graph_id,
@@ -175,14 +178,14 @@ async def execute_add_input_node(
         inputs=[],
         outputs=[Annotation(label="output")],
     )
-    return AddInputNodeResult(graph_id=graph_id)
+    return f"Added node.\ngraph_id: {graph_id}"
 
 
 async def execute_add_output_node(
     args: AddOutputNodeInput,
     _storage: StorageInterface,
     scratch: ScratchGraph,
-) -> AddOutputNodeResult:
+) -> str:
     graph_id = scratch.new_graph_id(args.label)
     scratch.nodes[graph_id] = GraphNodeContext(
         graph_id=graph_id,
@@ -192,14 +195,14 @@ async def execute_add_output_node(
         inputs=[Annotation(label="input")],
         outputs=[],
     )
-    return AddOutputNodeResult(graph_id=graph_id)
+    return f"Added node.\ngraph_id: {graph_id}"
 
 
 async def execute_add_edge(
     args: AddEdgeInput,
     _storage: StorageInterface,
     scratch: ScratchGraph,
-) -> AddEdgeResult:
+) -> str:
     if args.source_graph_id not in scratch.nodes:
         raise ToolError(f"Source node '{args.source_graph_id}' not in graph.")
     if args.target_graph_id not in scratch.nodes:
@@ -212,14 +215,14 @@ async def execute_add_edge(
             target_handle=args.target_handle,
         )
     )
-    return AddEdgeResult()
+    return "Edge added."
 
 
 async def execute_remove_edge(
     args: RemoveEdgeInput,
     _storage: StorageInterface,
     scratch: ScratchGraph,
-) -> RemoveEdgeResult:
+) -> str:
     before = len(scratch.edges)
     scratch.edges = [
         edge
@@ -237,14 +240,14 @@ async def execute_remove_edge(
             f"'{args.source_graph_id}/{args.source_handle}' "
             f"to '{args.target_graph_id}/{args.target_handle}'."
         )
-    return RemoveEdgeResult()
+    return "Edge removed."
 
 
 async def execute_remove_node(
     args: RemoveNodeInput,
     _storage: StorageInterface,
     scratch: ScratchGraph,
-) -> RemoveNodeResult:
+) -> str:
     if args.graph_id not in scratch.nodes:
         raise ToolError(f"Node '{args.graph_id}' not in graph.")
     del scratch.nodes[args.graph_id]
@@ -253,7 +256,7 @@ async def execute_remove_node(
         for edge in scratch.edges
         if args.graph_id not in {edge.source_graph_id, edge.target_graph_id}
     ]
-    return RemoveNodeResult()
+    return "Node removed."
 
 
 def _validate_io_node(

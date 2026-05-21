@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from ...models import Annotation, GraphEdgeContext, GraphNodeContext
 from ...storage_interface import StorageInterface
 from ._errors import ToolError
-from ._search import PortMetadata, _format_port
+from ._search import PortMetadata, format_port
 
 _ADD_FUNCTION_NODE_DESCRIPTION_PARTS = (
     "Add a function node from the catalog to the graph. ",
@@ -158,9 +158,9 @@ async def execute_add_function_node(
     ]
     parts = [f"Added node.\ngraph_id: {graph_id}"]
     if inputs:
-        parts.append("Inputs:\n" + "\n".join(_format_port(p) for p in inputs))
+        parts.append("Inputs:\n" + "\n".join(format_port(p) for p in inputs))
     if outputs:
-        parts.append("Outputs:\n" + "\n".join(_format_port(p) for p in outputs))
+        parts.append("Outputs:\n" + "\n".join(format_port(p) for p in outputs))
     return "\n\n".join(parts)
 
 

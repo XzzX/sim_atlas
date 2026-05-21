@@ -115,7 +115,7 @@ def _to_short_description(ai_summary: str | None, docstring: str) -> str | None:
     return lines[0] if lines else None
 
 
-def _format_port(port: PortMetadata) -> str:
+def format_port(port: PortMetadata) -> str:
     line = port.label or "?"
     if port.datatype:
         line += f": {port.datatype}"
@@ -140,9 +140,9 @@ def _format_item(
         header += f"\nSummary:\n{description}"
     parts = [header]
     if inputs:
-        parts.append("Inputs:\n" + "\n".join(_format_port(p) for p in inputs))
+        parts.append("Inputs:\n" + "\n".join(format_port(p) for p in inputs))
     if outputs:
-        parts.append("Outputs:\n" + "\n".join(_format_port(p) for p in outputs))
+        parts.append("Outputs:\n" + "\n".join(format_port(p) for p in outputs))
     return "\n\n".join(parts)
 
 

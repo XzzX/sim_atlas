@@ -12,6 +12,7 @@ import {
   History,
   Info,
   MessageSquare,
+  PauseCircle,
   Plus,
   Search,
   ArrowRight,
@@ -59,6 +60,7 @@ interface ConversationTurn {
   text?: string;
   steps: StepItem[];
   error?: string;
+  truncated?: boolean;
 }
 
 // ---- helpers ---------------------------------------------------------------
@@ -500,6 +502,8 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
               }));
             } else if (event.type === "error") {
               updateAssistant((t) => ({ ...t, error: event.message }));
+            } else if (event.type === "truncated") {
+              updateAssistant((t) => ({ ...t, truncated: true }));
             }
           },
           ctrl.signal,
@@ -756,36 +760,80 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                   </div>
                 )}
 
-                {/* Final message */}
+                {/* Final message — Paused card (truncated) or Summary card (done) */}
                 {turn.text
-                  ? (() => {
-                      const sKey = `summary-${i}`;
-                      const sExpanded = expandedSteps.has(sKey);
-                      return (
-                        <div className="rounded-md border border-border bg-muted/30">
-                          <button
-                            type="button"
-                            onClick={() => toggleStep(sKey)}
-                            className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                            <span className="font-medium">Summary</span>
-                            <ChevronDown
-                              className={`w-3 h-3 ml-auto transition-transform ${
-                                sExpanded ? "rotate-180" : ""
-                              }`}
-                            />
-                          </button>
-                          {sExpanded && (
-                            <div className="px-3 pb-3 border-t border-border pt-2 prose prose-sm dark:prose-invert max-w-none [&_*]:text-xs">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {turn.text}
-                              </ReactMarkdown>
+                  ? turn.truncated
+                    ? (() => {
+                        const pKey = `paused-${i}`;
+                        const pExpanded = expandedSteps.has(pKey);
+                        return (
+                          <div className="rounded-md border border-amber-500/50 bg-amber-500/10">
+                            <button
+                              type="button"
+                              onClick={() => toggleStep(pKey)}
+                              className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs text-amber-600 dark:text-amber-400 hover:text-foreground transition-colors"
+                            >
+                              <PauseCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span className="font-medium">Paused — turn limit reached</span>
+                              <ChevronDown
+                                className={`w-3 h-3 ml-auto transition-transform ${
+                                  pExpanded ? "rotate-180" : ""
+                                }`}
+                              />
+                            </button>
+                            {pExpanded && (
+                              <div className="px-3 pb-3 border-t border-amber-500/30 pt-2 prose prose-sm dark:prose-invert max-w-none [&_*]:text-xs text-amber-700 dark:text-amber-300">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {turn.text}
+                                </ReactMarkdown>
+                              </div>
+                            )}
+                            <div className="px-3 pb-3">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs border-amber-500/50 hover:bg-amber-500/10"
+                                disabled={isRunning}
+                                onClick={() =>
+                                  void sendQuery(
+                                    "Please continue where you left off.",
+                                  )
+                                }
+                              >
+                                Resume
+                              </Button>
                             </div>
-                          )}
-                        </div>
-                      );
-                    })()
+                          </div>
+                        );
+                      })()
+                    : (() => {
+                        const sKey = `summary-${i}`;
+                        const sExpanded = expandedSteps.has(sKey);
+                        return (
+                          <div className="rounded-md border border-border bg-muted/30">
+                            <button
+                              type="button"
+                              onClick={() => toggleStep(sKey)}
+                              className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                              <span className="font-medium">Summary</span>
+                              <ChevronDown
+                                className={`w-3 h-3 ml-auto transition-transform ${
+                                  sExpanded ? "rotate-180" : ""
+                                }`}
+                              />
+                            </button>
+                            {sExpanded && (
+                              <div className="px-3 pb-3 border-t border-border pt-2 prose prose-sm dark:prose-invert max-w-none [&_*]:text-xs">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {turn.text}
+                                </ReactMarkdown>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()
                   : isRunning &&
                     i === messages.length - 1 &&
                     !turn.error && (

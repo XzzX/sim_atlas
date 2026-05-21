@@ -22,6 +22,7 @@ from ._sse import (
     ReasoningEvent,
     ToolCallEvent,
     ToolResultEvent,
+    TruncatedEvent,
     ValidationEvent,
     to_sse,
 )
@@ -77,10 +78,12 @@ async def run_agent_stream(
         },
     )
 
-    final_message = "Done."
-    max_iterations = 10
+    final_message: str | None = None
+    max_turns = settings.agent_max_iterations
     try:
-        for _ in range(max_iterations):
+        # Runaway-check loop: exits naturally (break) when the agent finishes,
+        # or falls through (no break) when the turn limit is reached.
+        for _ in range(max_turns):
             generation = trace.generation(
                 name="llm_completion",
                 model=settings.llm_chat_model,
@@ -107,7 +110,7 @@ async def run_agent_stream(
             )
 
             if not choice.message.tool_calls:
-                final_message = choice.message.content or "Done."
+                final_message = choice.message.content or "(no response)"
                 validation_span = trace.span(
                     name="graph_validation",
                     input=_graph_update_event(scratch).model_dump(),
@@ -184,15 +187,51 @@ async def run_agent_stream(
 
             yield to_sse(_graph_update_event(scratch))
 
+        truncated = final_message is None
+        if truncated:
+            # Turn limit reached without natural completion.
+            # Make one tool-free summary call so the history entry is honest.
+            messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "You have reached the maximum number of turns. "
+                        "Summarise in 2\u20133 sentences: what you have built so far "
+                        "and what still needs to be done to fulfil the original request. "
+                        "End with a clear statement of the next step the user should ask you to take."
+                    ),
+                }
+            )
+            summary_generation = trace.generation(
+                name="truncation_summary",
+                model=settings.llm_chat_model,
+                input={"messages": _snapshot_messages(messages)},
+            )
+            summary_response = await client.chat.completions.create(
+                model=settings.llm_chat_model,
+                messages=messages,
+                tool_choice="none",
+            )
+            summary_choice = summary_response.choices[0]
+            final_message = summary_choice.message.content or "(turn limit reached)"
+            summary_generation.update(
+                output=summary_choice.message.model_dump(exclude_unset=True)
+            )
+            summary_generation.end()
+            logger.debug("Turn limit reached; summary: %s", final_message)
+
         trace.update(
             output={
                 "message": final_message,
+                "truncated": truncated,
                 "graph": _graph_update_event(scratch).model_dump(),
             }
         )
         trace.end()
-        yield to_sse(MessageEvent(content=final_message))
         yield to_sse(_graph_update_event(scratch))
+        yield to_sse(MessageEvent(content=final_message))
+        if truncated:
+            yield to_sse(TruncatedEvent())
     except Exception as exc:  # noqa: BLE001
         logger.exception("Agent stream error")
         trace.record_exception(exc)

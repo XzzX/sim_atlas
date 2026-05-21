@@ -2,7 +2,7 @@ import sys
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import ValidationError
+from pydantic import Field, ValidationError
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -114,6 +114,7 @@ class Settings(BaseSettings):
     llm_embedding_model: str | None = None
     llm_chat_model: str | None = None
     llm_enrich_concurrency: int = 5
+    agent_max_iterations: int = Field(default=10, ge=1)
     voyage_api_key: str | None = None
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None

@@ -68,11 +68,13 @@ async def run_agent_stream(
         {"role": "user", "content": request.query},
     ]
 
+    session_id = request.session_id or str(uuid.uuid4())
     trace = observability.start_trace(
         name="agent_stream",
-        session_id=str(uuid.uuid4()),
+        session_id=session_id,
         request=request,
         messages=_snapshot_messages(messages),
+        user_id=request.user_id or None,
         metadata={
             "model": settings.llm_chat_model,
             "node_count": len(request.nodes),

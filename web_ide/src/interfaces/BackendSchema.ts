@@ -159,6 +159,8 @@ export const AgentRequestSchema = z.object({
       z.object({ role: z.enum(["user", "assistant"]), content: z.string() }),
     )
     .optional(),
+  session_id: z.string().optional(),
+  user_id: z.string().optional(),
 });
 export type AgentRequest = z.infer<typeof AgentRequestSchema>;
 

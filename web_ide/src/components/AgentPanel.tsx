@@ -333,6 +333,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   const [history, setHistory] = useState<
     { role: "user" | "assistant"; content: string }[]
   >([]);
+  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID());
   const [isRunning, setIsRunning] = useState(false);
   const [inputText, setInputText] = useState("");
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
@@ -344,6 +345,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     setMessages([]);
     setHistory([]);
     setExpandedSteps(new Set());
+    setSessionId(crypto.randomUUID());
   };
 
   const toggleStep = (key: string) => {
@@ -406,6 +408,8 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         nodes: buildAgentNodes(nodes),
         edges: buildAgentEdges(edges),
         history,
+        session_id: sessionId,
+        user_id: "default",
       };
 
       const updateAssistant = (
@@ -531,6 +535,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       nodes,
       edges,
       history,
+      sessionId,
       setNodes,
       setEdges,
       layoutRef,

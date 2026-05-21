@@ -18,6 +18,7 @@ class TraceHandle(Protocol):
         *,
         name: str,
         input: Any | None = None,
+        level: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> TraceHandle: ...
 
@@ -27,6 +28,7 @@ class TraceHandle(Protocol):
         name: str,
         model: str | None = None,
         input: Any | None = None,
+        level: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> TraceHandle: ...
 
@@ -59,6 +61,7 @@ class _NoopTrace:
         *,
         name: str,
         input: Any | None = None,
+        level: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _NoopTrace:
         return self
@@ -69,6 +72,7 @@ class _NoopTrace:
         name: str,
         model: str | None = None,
         input: Any | None = None,
+        level: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _NoopTrace:
         return self
@@ -109,6 +113,7 @@ class _LangfuseTrace:
         *,
         name: str,
         input: Any | None = None,
+        level: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _LangfuseTrace:
         child = self.handle.start_observation(
@@ -116,6 +121,7 @@ class _LangfuseTrace:
             as_type="span",
             input=input,
             metadata=metadata,
+            **({} if level is None else {"level": level}),
         )
         return _LangfuseTrace(child)
 
@@ -125,6 +131,7 @@ class _LangfuseTrace:
         name: str,
         model: str | None = None,
         input: Any | None = None,
+        level: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _LangfuseTrace:
         child = self.handle.start_observation(
@@ -133,6 +140,7 @@ class _LangfuseTrace:
             model=model,
             input=input,
             metadata=metadata,
+            **({} if level is None else {"level": level}),
         )
         return _LangfuseTrace(child)
 
@@ -145,6 +153,7 @@ class _LangfuseTrace:
             self.handle.end(**kwargs)
 
     def record_exception(self, exc: BaseException) -> None:
+        self.update(level="ERROR", status_message=str(exc))
         if hasattr(self.handle, "record_exception"):
             self.handle.record_exception(exc)
         else:

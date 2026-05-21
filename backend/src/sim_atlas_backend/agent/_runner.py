@@ -129,7 +129,17 @@ async def run_agent_stream(
                     input=_graph_update_event(scratch).model_dump(),
                 )
                 validation_errors = validate_graph(scratch, storage)
-                validation_span.update(output={"errors": validation_errors})
+                validation_span.update(
+                    output={"errors": validation_errors},
+                    **(
+                        {
+                            "level": "WARNING",
+                            "status_message": f"{len(validation_errors)} validation error(s)",
+                        }
+                        if validation_errors
+                        else {}
+                    ),
+                )
                 validation_span.end()
                 if not validation_errors:
                     break

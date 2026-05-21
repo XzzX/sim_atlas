@@ -67,10 +67,14 @@ class _FakeTrace:
         *,
         name: str,
         input: Any | None = None,
+        level: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _FakeTrace:
         self.events.append(
-            ("span", {"name": name, "input": input, "metadata": metadata})
+            (
+                "span",
+                {"name": name, "input": input, "level": level, "metadata": metadata},
+            )
         )
         return _FakeTrace(self.events)
 
@@ -80,12 +84,19 @@ class _FakeTrace:
         name: str,
         model: str | None = None,
         input: Any | None = None,
+        level: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _FakeTrace:
         self.events.append(
             (
                 "generation",
-                {"name": name, "model": model, "input": input, "metadata": metadata},
+                {
+                    "name": name,
+                    "model": model,
+                    "input": input,
+                    "level": level,
+                    "metadata": metadata,
+                },
             )
         )
         return _FakeTrace(self.events)

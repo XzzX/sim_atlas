@@ -183,6 +183,8 @@ class AgentRequest(BaseModel):
     nodes: list[GraphNodeContext]
     edges: list[GraphEdgeContext]
     history: list[HistoryMessage] = []
+    session_id: str | None = None
+    user_id: str = "default"
 
 
 class AgentResponse(BaseModel):

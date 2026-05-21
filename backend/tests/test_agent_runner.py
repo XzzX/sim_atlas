@@ -112,6 +112,7 @@ class _FakeObservability:
         session_id: str,
         request: AgentRequest,
         messages: list[dict[str, Any]],
+        user_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> _FakeTrace:
         self.events.append(

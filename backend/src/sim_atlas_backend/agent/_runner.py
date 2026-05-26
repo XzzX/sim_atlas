@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator
 from typing import Any, cast
 
 from langfuse import Langfuse, propagate_attributes
-from langfuse.openai import AsyncOpenAI
+from langfuse.openai import AsyncOpenAI  # pyright: ignore[reportPrivateImportUsage]
 from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionMessageToolCall,

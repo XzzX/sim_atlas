@@ -76,7 +76,7 @@ async def run_agent_stream(
         lf.start_as_current_observation(
             as_type="agent",
             name="workflow-builder",
-            input={"user_query": request.query},
+            input=request.query,
         ) as root_span,
         propagate_attributes(user_id=request.user_id, session_id=session_id),
     ):
@@ -198,7 +198,7 @@ async def run_agent_stream(
                     total_output_tokens += summary_response.usage.completion_tokens
                 logger.debug("Turn limit reached; summary: %s", final_message)
 
-            root_span.update(output={"message": final_message})
+            root_span.update(output=final_message)
             yield to_sse(_graph_update_event(scratch))
             yield to_sse(MessageEvent(content=final_message))
             if truncated:

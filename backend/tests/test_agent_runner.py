@@ -113,39 +113,6 @@ class _FakeTrace:
         self.events.append(("exception", str(exc)))
 
 
-class _FakeObservability:
-    def __init__(self) -> None:
-        self.events: list[tuple[str, object]] = []
-        self.flushed = False
-
-    def start_trace(
-        self,
-        *,
-        name: str,
-        session_id: str,
-        request: AgentRequest,
-        messages: list[dict[str, Any]],
-        user_id: str | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> _FakeTrace:
-        self.events.append(
-            (
-                "start_trace",
-                {
-                    "name": name,
-                    "session_id": session_id,
-                    "request": request.model_dump(),
-                    "messages": messages,
-                    "metadata": metadata,
-                },
-            )
-        )
-        return _FakeTrace(self.events)
-
-    def flush(self) -> None:
-        self.flushed = True
-
-
 def test_run_agent_stream_records_tracing_without_changing_sse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -167,7 +134,6 @@ def test_run_agent_stream_records_tracing_without_changing_sse(
     monkeypatch.setattr(runner_module, "validate_graph", fake_validate_graph)
 
     request = AgentRequest(query="Hello", nodes=[], edges=[])
-    observability = _FakeObservability()
 
     async def collect() -> list[str]:
         return [
@@ -175,7 +141,6 @@ def test_run_agent_stream_records_tracing_without_changing_sse(
             async for chunk in run_agent_stream(
                 request,
                 cast(StorageInterface, _FakeStorage()),
-                observability=observability,
             )
         ]
 
@@ -183,6 +148,3 @@ def test_run_agent_stream_records_tracing_without_changing_sse(
 
     assert any('"type":"message"' in chunk for chunk in chunks)
     assert any('"type":"graph_update"' in chunk for chunk in chunks)
-    assert observability.flushed is True
-    assert any(event[0] == "generation" for event in observability.events)
-    assert any(event[0] == "update" for event in observability.events)

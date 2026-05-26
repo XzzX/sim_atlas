@@ -18,6 +18,7 @@ class Annotation(BaseModel):
     datatype: str | None = None
     unit: str | None = None
     quantity: str | None = None
+    description: str | None = None
 
 
 class NodeRequest(BaseModel):

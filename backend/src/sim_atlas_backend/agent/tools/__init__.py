@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Any
 
-import langfuse
 from langfuse import get_client
 from openai.types.chat import ChatCompletionToolParam
 from pydantic import BaseModel

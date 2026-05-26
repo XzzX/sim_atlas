@@ -36,6 +36,7 @@ class PortMetadata(BaseModel):
     datatype: str | None = None
     unit: str | None = None
     quantity: str | None = None
+    description: str | None = None
 
 
 class SearchNodeItem(BaseModel):
@@ -124,6 +125,8 @@ def format_port(port: PortMetadata) -> str:
         line += f" [{', '.join(annots)}]"
     if port.has_default_value:
         line += " (optional)"
+    if port.description:
+        line += f" — {port.description}"
     return line
 
 

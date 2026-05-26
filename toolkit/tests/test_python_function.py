@@ -98,3 +98,28 @@ def test_non_function_returns_empty() -> None:
 
 def test_builtin_returns_one_record() -> None:
     assert len(parse(len)) == 1
+
+
+def annotated_with_description(
+    x: Annotated[
+        float,
+        {
+            "label": "temperature",
+            "unit": "K",
+            "description": "initial temperature of the simulation box",
+        },
+    ],
+) -> float:
+    return x
+
+
+def test_annotated_description_on_input() -> None:
+    (record,) = parse(annotated_with_description)
+    assert record.inputs[0].description == "initial temperature of the simulation box"
+
+
+def test_annotated_description_does_not_affect_other_fields() -> None:
+    (record,) = parse(annotated_with_description)
+    # label comes from the parameter name, not the Annotated dict
+    assert record.inputs[0].label == "x"
+    assert record.inputs[0].unit == "K"

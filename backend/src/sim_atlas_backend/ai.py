@@ -1,19 +1,27 @@
 import json
 
 from openai import AsyncOpenAI
+from pydantic import BaseModel
 
 from .exceptions import AINotConfiguredError
 from .settings import load_settings
 
 
+class _AIDescriptionResponse(BaseModel):
+    summary: str
+    description: str
+    args: dict[str, str] = {}
+
+
 async def create_ai_descriptions(
     name: str, docstring: str, source_code: str
-) -> tuple[str, str]:
+) -> tuple[str, str, dict[str, str]]:
     """Generate search-optimized descriptions for a Python function.
 
-    Returns a tuple of (ai_summary, ai_description):
+    Returns a tuple of (ai_summary, ai_description, args_descriptions):
     - ai_summary: one sentence for compact display and keyword search
     - ai_description: 2-5 sentences with rich domain vocabulary for semantic search
+    - args_descriptions: mapping of parameter name to one-sentence description
     """
     settings = load_settings()
     if (
@@ -33,7 +41,7 @@ async def create_ai_descriptions(
             {
                 "role": "user",
                 "content": f"""You are a search-indexing assistant for a scientific simulation node catalog.
-Given a Python function, produce two search-optimized descriptions as a JSON object with exactly these keys:
+Given a Python function, produce search-optimized descriptions as a JSON object with exactly these keys:
 
 "summary": One concise sentence (≤20 words) that names what the function does, what it takes as input and what it returns.
   - Use terminology a user would type into a search box.
@@ -42,6 +50,11 @@ Given a Python function, produce two search-optimized descriptions as a JSON obj
 "description": 2-5 sentences that expand on the summary for semantic search embedding.
   - Mention what the inputs represent and what the output represents in physical or conceptual terms (not just type names).
   - Use natural synonyms and alternative phrasings to maximize recall (e.g. both "velocity" and "speed").
+
+"args": An object mapping each parameter name and return value name to a one-sentence description of its physical or conceptual meaning.
+  - Use the exact parameter name as the key (e.g. "temperature", "return").
+  - Describe what the value represents in domain terms, not just its type (e.g. "initial temperature of the simulation box in Kelvin").
+  - Include all inputs and outputs; use "return" for a single return value or the tuple element name for multiple.
 
 Return only the JSON object, no other text.
 
@@ -62,7 +75,5 @@ Here is the function to describe:
         raw = raw[:start] + raw[end:]
         raw = raw.strip()
 
-    parsed = json.loads(raw)
-    ai_summary: str = parsed.get("summary", "").strip()
-    ai_description: str = parsed.get("description", "").strip()
-    return ai_summary, ai_description
+    result = _AIDescriptionResponse.model_validate(json.loads(raw))
+    return result.summary, result.description, result.args

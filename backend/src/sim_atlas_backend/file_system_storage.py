@@ -410,6 +410,17 @@ class FileSystemStorage(StorageInterface):
 
         return self._paginate(scored, page=page, limit=limit)
 
+    @staticmethod
+    def _embedding_text(node: NodeMetadata) -> str:
+        port_lines = [
+            f"{a.label}: {a.description}"
+            for a in node.inputs + node.outputs
+            if a.label and a.description
+        ]
+        if not port_lines:
+            return node.ai_description
+        return node.ai_description + "\n" + "\n".join(port_lines)
+
     async def enrich(self, only_ids: list[str] | None = None) -> None:
         sem = asyncio.Semaphore(load_settings().llm_enrich_concurrency)
         nodes_to_enrich = (
@@ -423,9 +434,12 @@ class FileSystemStorage(StorageInterface):
                 if not v.source_code:
                     return
                 try:
-                    v.ai_summary, v.ai_description = await create_ai_descriptions(
+                    v.ai_summary, v.ai_description, args = await create_ai_descriptions(
                         v.name, v.docstring, v.source_code
                     )
+                    for a in v.inputs + v.outputs:
+                        if a.label and a.description is None:
+                            a.description = args.get(a.label)
                 except Exception as e:
                     print(f"Error occurred while enriching node {v.name}: {e}")
                     print(f"docstring: {v.docstring}")
@@ -439,7 +453,7 @@ class FileSystemStorage(StorageInterface):
         self._save_to_disk()
 
         nodes_to_embed = [node for node in nodes_to_enrich if node.ai_description]
-        documents = [node.ai_description for node in nodes_to_embed]
+        documents = [self._embedding_text(node) for node in nodes_to_embed]
         if not documents:
             return
         embeddings = await create_embedding(documents, input_type="document")

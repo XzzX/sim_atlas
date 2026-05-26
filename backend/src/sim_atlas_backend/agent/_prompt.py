@@ -1,21 +1,22 @@
-from ..models import AgentRequest, GraphNodeContext
+from ..models import AgentRequest, Annotation, GraphNodeContext
 from ..storage_interface import StorageInterface
 from .tools import get_tool_prompt_guidance_lines
 
 
+def _port_str(a: Annotation) -> str:
+    s = f"{a.label}:{a.datatype or '?'}"
+    if a.unit:
+        s += f"[{a.unit}]"
+    if a.quantity:
+        s += f"({a.quantity})"
+    if a.description:
+        s += f" — {a.description}"
+    return s
+
+
 def _node_to_context(node: GraphNodeContext) -> str:
-    inputs = ", ".join(
-        f"{a.label}:{a.datatype or '?'}"
-        + (f"[{a.unit}]" if a.unit else "")
-        + (f"({a.quantity})" if a.quantity else "")
-        for a in node.inputs
-    )
-    outputs = ", ".join(
-        f"{a.label}:{a.datatype or '?'}"
-        + (f"[{a.unit}]" if a.unit else "")
-        + (f"({a.quantity})" if a.quantity else "")
-        for a in node.outputs
-    )
+    inputs = ", ".join(_port_str(a) for a in node.inputs)
+    outputs = ", ".join(_port_str(a) for a in node.outputs)
     desc = f" - {node.short_description}" if node.short_description else ""
     atlas = f" (atlas_id={node.atlas_node_id})" if node.node_kind == "function" else ""
     return f"  [{node.node_kind}:{node.graph_id}] {node.name}{atlas}{desc}\n    in: {inputs}\n    out: {outputs}"

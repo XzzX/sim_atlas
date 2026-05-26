@@ -78,4 +78,5 @@ def parse_annotation(annotation: Any) -> Annotation:
             result.label = arg.get("label", result.label)  # type: ignore
             result.unit = arg.get("unit", result.unit)  # type: ignore
             result.quantity = arg.get("quantity", result.quantity)  # type: ignore
+            result.description = arg.get("description", result.description)  # type: ignore
     return result

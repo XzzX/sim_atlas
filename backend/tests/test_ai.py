@@ -50,6 +50,7 @@ def test_create_ai_descriptions_returns_three_tuple(
                 "compute_melting_point",
                 "Compute melting point.",
                 "def compute_melting_point(): ...",
+                output_labels=["temperature"],
             )
         )
 
@@ -84,7 +85,7 @@ def test_create_ai_descriptions_raises_when_not_configured(
     monkeypatch.setattr("sim_atlas_backend.ai.load_settings", lambda: s)
 
     with pytest.raises(AINotConfiguredError):
-        asyncio.run(create_ai_descriptions("fn", "", "def fn(): ..."))
+        asyncio.run(create_ai_descriptions("fn", "", "def fn(): ...", []))
 
 
 def test_create_ai_descriptions_strips_think_tags(
@@ -109,3 +110,30 @@ def test_create_ai_descriptions_strips_think_tags(
         summary, _, _ = asyncio.run(create_ai_descriptions("fn", "", "def fn(): ..."))
 
     assert summary == "Summary."
+
+
+def test_create_ai_descriptions_output_labels_in_prompt(
+    settings_with_llm: None,
+) -> None:
+    payload: dict[str, Any] = {
+        "summary": "S.",
+        "description": "D.",
+        "args": {"energy_final": "final energy of the system"},
+    }
+    with patch("sim_atlas_backend.ai.AsyncOpenAI") as mock_cls:
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            return_value=_make_response(payload)
+        )
+        mock_cls.return_value = mock_client
+
+        asyncio.run(
+            create_ai_descriptions(
+                "fn", "", "def fn(): ...", output_labels=["energy_final", "volume"]
+            )
+        )
+
+    call_kwargs = mock_client.chat.completions.create.call_args
+    prompt_content = call_kwargs.kwargs["messages"][0]["content"]
+    assert "energy_final" in prompt_content
+    assert "volume" in prompt_content

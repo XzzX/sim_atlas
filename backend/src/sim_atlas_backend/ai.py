@@ -1,6 +1,6 @@
 import json
 
-from openai import AsyncOpenAI
+from langfuse.openai import AsyncOpenAI  # pyright: ignore[reportPrivateImportUsage]
 from pydantic import BaseModel
 
 from .exceptions import AINotConfiguredError
@@ -14,7 +14,7 @@ class _AIDescriptionResponse(BaseModel):
 
 
 async def create_ai_descriptions(
-    name: str, docstring: str, source_code: str
+    name: str, docstring: str, source_code: str, output_labels: list[str] | None = None
 ) -> tuple[str, str, dict[str, str]]:
     """Generate search-optimized descriptions for a Python function.
 
@@ -62,6 +62,7 @@ Here is the function to describe:
 ```python
 {source_code}
 ```
+{f"The parsed output port names are (use these exact strings as keys for outputs in the args object): {', '.join(output_labels)}" if output_labels else ""}
 """,
             }
         ],

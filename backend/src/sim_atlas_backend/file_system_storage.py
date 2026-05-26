@@ -434,8 +434,9 @@ class FileSystemStorage(StorageInterface):
                 if not v.source_code:
                     return
                 try:
+                    output_labels = [a.label for a in v.outputs if a.label is not None]
                     v.ai_summary, v.ai_description, args = await create_ai_descriptions(
-                        v.name, v.docstring, v.source_code
+                        v.name, v.docstring, v.source_code, output_labels
                     )
                     for a in v.inputs + v.outputs:
                         if a.label and a.description is None:

@@ -1,6 +1,5 @@
 from typing import Any, Literal
 
-from langfuse import observe
 from pydantic import BaseModel, Field
 
 from ...models import Filter
@@ -147,7 +146,6 @@ def _format_item(
     return "\n\n".join(parts)
 
 
-@observe(name="execute_search_nodes", as_type="tool")
 async def execute_search_nodes(
     args: SearchNodesInput,
     storage: StorageInterface,
@@ -177,7 +175,6 @@ async def execute_search_nodes(
     return "Retrieved functions:\n\n" + "\n\n".join(entries)
 
 
-@observe(name="execute_find_compatible_nodes", as_type="tool")
 async def execute_find_compatible_nodes(
     args: FindCompatibleNodesInput,
     storage: StorageInterface,
@@ -216,7 +213,6 @@ async def execute_find_compatible_nodes(
     return "Retrieved functions:\n\n" + "\n\n".join(entries)
 
 
-@observe(name="execute_get_node_details", as_type="tool")
 async def execute_get_node_details(
     args: GetNodeDetailsInput,
     storage: StorageInterface,

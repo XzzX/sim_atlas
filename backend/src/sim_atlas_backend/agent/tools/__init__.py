@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
 
+import langfuse
+from langfuse import get_client
 from openai.types.chat import ChatCompletionToolParam
 from pydantic import BaseModel
 
@@ -200,13 +202,20 @@ async def execute_tool(
     storage: StorageInterface,
     scratch: ScratchGraph,
 ) -> str:
-    tool = _TOOL_MAP.get(tool_name)
-    if tool is None:
-        raise ToolError(f"Unknown tool '{tool_name}'.")
+    lf = get_client()
+    with lf.start_as_current_observation(
+        as_type="tool",
+        name=tool_name,
+        input=tool_args,
+    ) as span:
+        tool = _TOOL_MAP.get(tool_name)
+        if tool is None:
+            raise ToolError(f"Unknown tool '{tool_name}'.")
 
-    validated_args = tool.input_model.model_validate(tool_args)
-    result = await tool.executor(validated_args, storage, scratch)
-    return result
+        validated_args = tool.input_model.model_validate(tool_args)
+        result = await tool.executor(validated_args, storage, scratch)
+        span.update(output=result)
+        return result
 
 
 __all__ = [

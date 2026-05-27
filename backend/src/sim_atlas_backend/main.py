@@ -258,9 +258,6 @@ async def redirect_to_ide():
 
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/ide", StaticFiles(directory=STATIC_DIR / "ide", html=True), name="ide")
-app.mount(
-    "/", StaticFiles(directory=STATIC_DIR / "frontend", html=True), name="frontend"
-)
 
 # Create an MCP server based on this app
 mcp = FastApiMCP(
@@ -274,3 +271,7 @@ mcp = FastApiMCP(
 
 # Mount the MCP server directly to your app
 mcp.mount_http()
+
+app.mount(
+    "/", StaticFiles(directory=STATIC_DIR / "frontend", html=True), name="frontend"
+)

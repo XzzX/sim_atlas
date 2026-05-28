@@ -28,7 +28,7 @@ def parse(obj: Any) -> list[Metadata]:
             category=f"{instance._func.__module__}".replace(".", ">"),
             source_code=source_code,
             docstring=instance._func.__doc__ or "",
-            keywords=instance._func.__module__.split("."),
+            keywords=["pyiron_core_node"],
             inputs=inputs,
             outputs=outputs,
         )

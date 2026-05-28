@@ -62,7 +62,6 @@ def parse(obj: Any) -> list[Metadata]:
     unpack_source = unpack_note + raw_source
 
     category = module.replace(".", ">")
-    keywords = module.split(".")
     raw_doc = inspect.getdoc(obj) or ""
 
     field_annotations = _field_annotations(obj)
@@ -76,7 +75,7 @@ def parse(obj: Any) -> list[Metadata]:
             category=category,
             source_code=pack_source,
             docstring=f"[PACK] {qualname}: {raw_doc}",
-            keywords=keywords,
+            keywords=["pack"],
             inputs=field_annotations,
             outputs=[dataclass_annotation],
         ),
@@ -87,7 +86,7 @@ def parse(obj: Any) -> list[Metadata]:
             category=category,
             source_code=unpack_source,
             docstring=f"[UNPACK] {qualname}: {raw_doc}",
-            keywords=keywords,
+            keywords=["unpack"],
             inputs=[dataclass_annotation],
             outputs=field_annotations,
         ),

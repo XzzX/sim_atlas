@@ -10,7 +10,7 @@ import numpy as np
 from pydantic import BaseModel
 from tqdm.asyncio import tqdm as atqdm
 
-from sim_atlas_backend.ai import create_ai_descriptions, create_workflow_ai_descriptions
+from sim_atlas_backend.ai import enrich_artifact_metadata
 from sim_atlas_backend.models import (
     Annotation,
     ArtifactType,
@@ -22,9 +22,6 @@ from sim_atlas_backend.models import (
     ScoredSearchResponse,
     SearchResults,
     StoredArtifact,
-    WfFunctionNode,
-    WfPackNode,
-    WfUnpackNode,
     WorkflowMetadata,
     WorkflowResponse,
 )
@@ -40,31 +37,6 @@ def _deserialize_artifact(data: dict[str, object]) -> StoredArtifact:
     if artifact_type == ArtifactType.WORKFLOW:
         return WorkflowMetadata.model_validate(data)
     return FunctionMetadata.model_validate(data)
-
-
-def _render_workflow_graph_text(
-    v: WorkflowMetadata, storage: dict[str, StoredArtifact]
-) -> str:
-    """Render a human-readable list of the workflow's constituent nodes.
-
-    For each function/pack/unpack node with a resolved atlas_node_id, uses
-    ai_summary if non-empty, else the first line of docstring. Nodes not found
-    in storage are silently skipped (best-effort, ADR-0012).
-    """
-    lines: list[str] = []
-    for node in v.definition.nodes:
-        if not isinstance(node, (WfFunctionNode, WfPackNode, WfUnpackNode)):
-            continue
-        if node.atlas_node_id is None or node.atlas_node_id not in storage:
-            continue
-        artifact = storage[node.atlas_node_id]
-        text = (
-            artifact.ai_summary
-            if artifact.ai_summary
-            else artifact.docstring.splitlines()[0]
-        )
-        lines.append(f"- {node.id}: {text}")
-    return "\n".join(lines) if lines else "(no constituent nodes resolved)"
 
 
 def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
@@ -484,41 +456,7 @@ class FileSystemStorage(StorageInterface):
 
         async def _enrich_one(v: StoredArtifact) -> None:
             async with sem:
-                if isinstance(v, FunctionMetadata):
-                    source_code = v.source_code
-                    if not source_code:
-                        return
-                    try:
-                        output_labels = [
-                            a.label for a in v.outputs if a.label is not None
-                        ]
-                        (
-                            v.ai_summary,
-                            v.ai_description,
-                            args,
-                        ) = await create_ai_descriptions(
-                            v.name, v.docstring, source_code, output_labels
-                        )
-                        for a in v.inputs + v.outputs:
-                            if a.label and a.description is None:
-                                a.description = args.get(a.label)
-                    except Exception as e:
-                        print(f"Error occurred while enriching node {v.name}: {e}")
-                        print(f"docstring: {v.docstring}")
-                        print(f"source_code: {source_code}")
-                else:
-                    graph_text = _render_workflow_graph_text(v, self._storage)
-                    try:
-                        (
-                            v.ai_summary,
-                            v.ai_description,
-                        ) = await create_workflow_ai_descriptions(
-                            v.name, v.docstring, graph_text
-                        )
-                    except Exception as e:
-                        print(f"Error occurred while enriching workflow {v.name}: {e}")
-                        print(f"docstring: {v.docstring}")
-                        print(f"graph_text: {graph_text}")
+                await enrich_artifact_metadata(v, self)
 
         await atqdm.gather(  # pyright: ignore[reportUnknownMemberType]
             *[_enrich_one(v) for v in nodes_to_enrich],

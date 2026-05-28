@@ -96,6 +96,11 @@ def test_non_function_returns_empty() -> None:
     assert parse(NotCallable) == []
 
 
+def test_keywords_is_empty() -> None:
+    (record,) = parse(simple)
+    assert record.keywords == []
+
+
 def test_builtin_returns_one_record() -> None:
     assert len(parse(len)) == 1
 

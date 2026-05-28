@@ -159,6 +159,16 @@ def test_non_dataclass_class_returns_empty() -> None:
     assert parse(NotADataclass) == []
 
 
+def test_pack_keywords() -> None:
+    pack, _ = parse(Point)
+    assert pack.keywords == ["pack"]
+
+
+def test_unpack_keywords() -> None:
+    _, unpack = parse(Point)
+    assert unpack.keywords == ["unpack"]
+
+
 def test_dataclass_instance_returns_empty() -> None:
     assert parse(Point(1.0, 2.0)) == []
 

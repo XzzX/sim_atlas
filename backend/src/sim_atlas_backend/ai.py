@@ -13,6 +13,19 @@ class _AIDescriptionResponse(BaseModel):
     args: dict[str, str] = {}
 
 
+class _AIWorkflowDescriptionResponse(BaseModel):
+    summary: str
+    description: str
+
+
+def _strip_think_tags(raw: str) -> str:
+    if "<think>" in raw and "</think>" in raw:
+        start = raw.find("<think>")
+        end = raw.find("</think>") + len("</think>")
+        raw = raw[:start] + raw[end:]
+    return raw.strip()
+
+
 async def create_ai_descriptions(
     name: str, docstring: str, source_code: str, output_labels: list[str] | None = None
 ) -> tuple[str, str, dict[str, str]]:
@@ -78,3 +91,54 @@ Here is the function to describe:
 
     result = _AIDescriptionResponse.model_validate(json.loads(raw))
     return result.summary, result.description, result.args
+
+
+async def create_workflow_ai_descriptions(
+    name: str, docstring: str, graph_text: str
+) -> tuple[str, str]:
+    """Generate search-optimized descriptions for a workflow.
+
+    Returns a tuple of (ai_summary, ai_description).
+    """
+    settings = load_settings()
+    if (
+        not settings.llm_api_key
+        or not settings.llm_api_url
+        or not settings.llm_chat_model
+    ):
+        raise AINotConfiguredError(
+            "LLM settings (llm_api_key, llm_api_url, llm_chat_model) are not configured"
+        )
+    client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
+
+    response = await client.chat.completions.create(
+        model=settings.llm_chat_model,
+        response_format={"type": "json_object"},
+        messages=[
+            {
+                "role": "user",
+                "content": f"""You are a search-indexing assistant for a scientific simulation workflow catalog.
+Given a workflow name, its docstring, and a list of its constituent nodes, produce search-optimized descriptions as a JSON object with exactly these keys:
+
+"summary": One concise sentence (≤20 words) that names what the workflow does, what it takes as input and what it returns.
+  - Use terminology a user would type into a search box.
+  - Include the workflow name or a clear paraphrase of it.
+
+"description": 2-5 sentences that expand on the summary for semantic search embedding.
+  - Describe what the workflow computes in physical or conceptual terms.
+  - Mention the key processing steps implied by the node list.
+  - Use natural synonyms and alternative phrasings to maximize recall.
+
+Return only the JSON object, no other text.
+
+Workflow name: {name}
+Docstring: {docstring or "(none)"}
+Constituent nodes:
+{graph_text}
+""",
+            }
+        ],
+    )
+    raw = _strip_think_tags(response.choices[0].message.content or "{}")
+    result = _AIWorkflowDescriptionResponse.model_validate(json.loads(raw))
+    return result.summary, result.description

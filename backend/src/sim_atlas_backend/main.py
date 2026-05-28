@@ -160,11 +160,16 @@ async def create_artifact(
     artifact = compose_artifact(request, creator)
 
     try:
-        return storage.create(artifact)
+        stored_id = storage.create(artifact)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Artifact already exists"
         ) from e
+
+    if isinstance(artifact, WorkflowMetadata):
+        await storage.enrich(only_ids=[stored_id])
+
+    return stored_id
 
 
 @api_router.get("/artifacts/{artifact_id}", tags=["artifacts"])

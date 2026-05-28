@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sim_atlas_backend.ai import create_ai_descriptions
+from sim_atlas_backend.ai import create_ai_descriptions, create_workflow_ai_descriptions
 from sim_atlas_backend.exceptions import AINotConfiguredError
 from sim_atlas_backend.settings import Settings
 
@@ -137,3 +137,69 @@ def test_create_ai_descriptions_output_labels_in_prompt(
     prompt_content = call_kwargs.kwargs["messages"][0]["content"]
     assert "energy_final" in prompt_content
     assert "volume" in prompt_content
+
+
+# ---------------------------------------------------------------------------
+# create_workflow_ai_descriptions
+# ---------------------------------------------------------------------------
+
+
+def test_create_workflow_ai_descriptions_returns_two_tuple(
+    settings_with_llm: None,
+) -> None:
+    payload: dict[str, Any] = {
+        "summary": "Compute energy minimisation pipeline.",
+        "description": "A workflow that minimises total energy via conjugate gradient.",
+    }
+    with patch("sim_atlas_backend.ai.AsyncOpenAI") as mock_cls:
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            return_value=_make_response(payload)
+        )
+        mock_cls.return_value = mock_client
+
+        summary, description = asyncio.run(
+            create_workflow_ai_descriptions(
+                "energy_minimisation",
+                "Minimise total energy.",
+                "- step1: Compute forces\n- step2: Update positions",
+            )
+        )
+
+    assert summary == "Compute energy minimisation pipeline."
+    assert (
+        description == "A workflow that minimises total energy via conjugate gradient."
+    )
+
+
+def test_create_workflow_ai_descriptions_graph_text_in_prompt(
+    settings_with_llm: None,
+) -> None:
+    payload: dict[str, Any] = {"summary": "S.", "description": "D."}
+    with patch("sim_atlas_backend.ai.AsyncOpenAI") as mock_cls:
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            return_value=_make_response(payload)
+        )
+        mock_cls.return_value = mock_client
+
+        asyncio.run(
+            create_workflow_ai_descriptions(
+                "my_wf", "My workflow.", "- node_a: Compute forces"
+            )
+        )
+
+    call_kwargs = mock_client.chat.completions.create.call_args
+    prompt_content = call_kwargs.kwargs["messages"][0]["content"]
+    assert "my_wf" in prompt_content
+    assert "node_a: Compute forces" in prompt_content
+
+
+def test_create_workflow_ai_descriptions_raises_when_not_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    s = Settings(jwt_secret_key="x", jwt_algorithm="HS256")
+    monkeypatch.setattr("sim_atlas_backend.ai.load_settings", lambda: s)
+
+    with pytest.raises(AINotConfiguredError):
+        asyncio.run(create_workflow_ai_descriptions("wf", "", ""))

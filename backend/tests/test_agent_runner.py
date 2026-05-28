@@ -8,11 +8,9 @@ import pytest
 
 from sim_atlas_backend.agent._runner import run_agent_stream
 from sim_atlas_backend.models import AgentRequest
-from sim_atlas_backend.settings import Settings
 from sim_atlas_backend.storage_interface import StorageInterface
 
 runner_module = importlib.import_module("sim_atlas_backend.agent._runner")
-settings_module = importlib.import_module("sim_atlas_backend.settings")
 
 
 class _FakeFilterOptions:
@@ -116,16 +114,6 @@ class _FakeTrace:
 def test_run_agent_stream_records_tracing_without_changing_sse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = Settings(
-        jwt_secret_key="x",
-        jwt_algorithm="HS256",
-        llm_api_key="llm-key",
-        llm_api_url="http://llm.local/v1",
-        llm_chat_model="test-model",
-    )
-
-    monkeypatch.setattr(settings_module, "load_settings", lambda: settings)
-    monkeypatch.setattr(runner_module, "load_settings", lambda: settings)
     monkeypatch.setattr(runner_module, "AsyncOpenAI", _FakeAsyncOpenAI)
 
     def fake_validate_graph(scratch: Any, storage: Any) -> list[str]:

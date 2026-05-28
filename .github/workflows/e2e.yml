@@ -1,0 +1,88 @@
+name: e2e
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
+# Cancel in-progress runs when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-upload:
+    runs-on: ubuntu-latest
+
+    env:
+      JWT_SECRET_KEY: test-secret-key-for-ci-testing-only-32chars
+      JWT_ALGORITHM: HS256
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install backend
+        run: uv sync
+        working-directory: ./backend
+
+      - name: Install toolkit
+        run: uv sync
+        working-directory: ./toolkit
+
+      - name: Start backend server
+        run: |
+          uv run sim-atlas-server --host 127.0.0.1 --port 8000 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+        working-directory: ./backend
+
+      - name: Wait for server to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8000/api/v1/filter_options > /dev/null; then
+              echo "Server is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server failed to start within 30 seconds"
+          exit 1
+
+      - name: Generate access token
+        run: |
+          TOKEN=$(uv run sim-atlas-access-token "CI Bot" "ci@example.com")
+          echo "SIM_ATLAS_API_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+        working-directory: ./backend
+
+      - name: Upload dummy module
+        run: |
+          uv run sim-atlas-upload dummy_module.functions \
+            --api-url http://127.0.0.1:8000/api/v1 \
+            --api-token "$SIM_ATLAS_API_TOKEN" \
+            --verbose
+        working-directory: ./toolkit
+        env:
+          PYTHONPATH: ${{ github.workspace }}/e2e
+
+      - name: Verify artifacts were uploaded
+        run: |
+          curl -sf -X POST "http://127.0.0.1:8000/api/v1/search?limit=10" | \
+            python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          total = d['results']['total_items']
+          assert total > 0, f'Expected at least one artifact, got: {d}'
+          print(f\"OK — {total} artifact(s) found\")
+          "
+
+      - name: Stop backend server
+        if: always()
+        run: kill "$SERVER_PID"

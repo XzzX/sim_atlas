@@ -71,9 +71,100 @@ export const FunctionResponseSchema = z.object({
 });
 export type FunctionResponse = z.infer<typeof FunctionResponseSchema>;
 
+// --- Workflow schemas ---
+
+const WfInputNodeSchema = z.object({
+  id: z.string(),
+  type: z.literal("input"),
+  name: z.string(),
+  default: z.any().optional(),
+});
+
+const WfOutputNodeSchema = z.object({
+  id: z.string(),
+  type: z.literal("output"),
+  name: z.string(),
+});
+
+const WfFunctionNodeSchema = z.object({
+  id: z.string(),
+  type: z.literal("function"),
+  python_import: z.string(),
+  atlas_node_id: z.string().nullable().optional(),
+});
+
+const WfPackNodeSchema = z.object({
+  id: z.string(),
+  type: z.literal("pack"),
+  python_import: z.string(),
+  atlas_node_id: z.string().nullable().optional(),
+});
+
+const WfUnpackNodeSchema = z.object({
+  id: z.string(),
+  type: z.literal("unpack"),
+  python_import: z.string(),
+  atlas_node_id: z.string().nullable().optional(),
+});
+
+const WfNodeSchema = z.discriminatedUnion("type", [
+  WfInputNodeSchema,
+  WfOutputNodeSchema,
+  WfFunctionNodeSchema,
+  WfPackNodeSchema,
+  WfUnpackNodeSchema,
+]);
+
+const WfEdgeSchema = z.object({
+  source: z.string(),
+  source_port: z.string().nullable().optional(),
+  target: z.string(),
+  target_port: z.string().nullable().optional(),
+});
+
+export const WorkflowDefinitionSchema = z.object({
+  nodes: z.array(WfNodeSchema),
+  edges: z.array(WfEdgeSchema),
+});
+export type WorkflowDefinition = z.infer<typeof WorkflowDefinitionSchema>;
+
+export const WorkflowResponseSchema = z.object({
+  author_name: z.string(),
+  author_email: z.string(),
+
+  creator_name: z.string(),
+  creator_email: z.string(),
+  creation_timestamp: z.string(),
+
+  id: z.string(),
+  name: z.string(),
+  artifact_type: z.literal("workflow"),
+  category: z.string(),
+  keywords: z.array(z.string()),
+
+  homepage_url: z.string(),
+  documentation_url: z.string(),
+  source_url: z.string(),
+
+  docstring: z.string(),
+  ai_summary: z.string(),
+  ai_description: z.string(),
+  inputs: z.array(AnnotationSchema),
+  outputs: z.array(AnnotationSchema),
+
+  definition: WorkflowDefinitionSchema,
+});
+export type WorkflowResponse = z.infer<typeof WorkflowResponseSchema>;
+
+export const ArtifactResponseSchema = z.discriminatedUnion("artifact_type", [
+  FunctionResponseSchema.extend({ artifact_type: z.literal("function") }),
+  WorkflowResponseSchema,
+]);
+export type ArtifactResponse = z.infer<typeof ArtifactResponseSchema>;
+
 export const ScoredSearchItemSchema = z.object({
   score: z.number(),
-  node: FunctionResponseSchema,
+  node: ArtifactResponseSchema,
 });
 export type ScoredSearchItem = z.infer<typeof ScoredSearchItemSchema>;
 

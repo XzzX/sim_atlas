@@ -1,5 +1,5 @@
 import React from "react";
-import { type FunctionResponse, ArtifactType } from "../types/index";
+import { type ArtifactResponse, ArtifactType } from "../types/index";
 import {
   Calendar,
   ClipboardCopyIcon,
@@ -53,7 +53,7 @@ const handleDownload = (filename: string, content: string) => {
 };
 
 interface NodeCardProps {
-  node: FunctionResponse;
+  node: ArtifactResponse;
   score?: number;
 }
 
@@ -110,7 +110,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
               <Code /> Sourcecode
             </Button>
           )}
-          {node.python_import && (
+          {node.artifact_type === ArtifactType.function && node.python_import && (
             <Button
               variant="outline"
               size="sm"
@@ -144,7 +144,10 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDownload(node.python_import + ".json", node.source_code);
+                handleDownload(
+                  node.name + ".json",
+                  JSON.stringify(node.definition, null, 2),
+                );
               }}
             >
               <FileDownIcon />
@@ -198,14 +201,24 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
               <Box size={14} className="mr-2" />
               Outputs ({node.outputs.length})
             </TabsTrigger>
-            <TabsTrigger value="dependencies">
-              <GitBranch size={14} className="mr-2" />
-              Dependencies ({node.dependencies ? node.dependencies.length : 0})
-            </TabsTrigger>
-            <TabsTrigger value="source">
-              <Code size={14} className="mr-2" />
-              Source Code
-            </TabsTrigger>
+            {node.artifact_type === ArtifactType.function && (
+              <TabsTrigger value="dependencies">
+                <GitBranch size={14} className="mr-2" />
+                Dependencies ({node.dependencies ? node.dependencies.length : 0})
+              </TabsTrigger>
+            )}
+            {node.artifact_type === ArtifactType.function && (
+              <TabsTrigger value="source">
+                <Code size={14} className="mr-2" />
+                Source Code
+              </TabsTrigger>
+            )}
+            {node.artifact_type === ArtifactType.workflow && (
+              <TabsTrigger value="workflow_definition">
+                <GitBranch size={14} className="mr-2" />
+                Workflow Definition
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <Card className="border-2">
@@ -300,28 +313,38 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
                 )}
               </TabsContent>
 
-              <TabsContent value="dependencies">
-                {!node.dependencies || node.dependencies.length === 0 ? (
-                  <p className="mb-0 text-muted-foreground">No dependencies</p>
-                ) : (
-                  <div className="space-y-2">
-                    {node.dependencies.map((dep, idx) => (
-                      <code
-                        key={idx}
-                        className="block rounded-md bg-muted px-2 py-1"
-                      >
-                        {dep}
-                      </code>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="source">
-                <pre className="max-h-[500px] overflow-auto rounded-md bg-muted p-3 text-sm">
-                  <code>{node.source_code}</code>
-                </pre>
-              </TabsContent>
+              {node.artifact_type === ArtifactType.function && (
+                <TabsContent value="dependencies">
+                  {!node.dependencies || node.dependencies.length === 0 ? (
+                    <p className="mb-0 text-muted-foreground">No dependencies</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {node.dependencies.map((dep, idx) => (
+                        <code
+                          key={idx}
+                          className="block rounded-md bg-muted px-2 py-1"
+                        >
+                          {dep}
+                        </code>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              )}
+              {node.artifact_type === ArtifactType.function && (
+                <TabsContent value="source">
+                  <pre className="max-h-[500px] overflow-auto rounded-md bg-muted p-3 text-sm">
+                    <code>{node.source_code}</code>
+                  </pre>
+                </TabsContent>
+              )}
+              {node.artifact_type === ArtifactType.workflow && (
+                <TabsContent value="workflow_definition">
+                  <pre className="max-h-[500px] overflow-auto rounded-md bg-muted p-3 text-sm">
+                    <code>{JSON.stringify(node.definition, null, 2)}</code>
+                  </pre>
+                </TabsContent>
+              )}
             </CardContent>
           </Card>
         </Tabs>
@@ -342,25 +365,27 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
           </div>
         )}
 
-        {node.dependencies && node.dependencies.length > 0 && (
-          <div className="mb-3">
-            <small className="text-muted-foreground">
-              <strong>Dependencies:</strong>
-            </small>
-            <div className="mt-1">
-              {node.dependencies.slice(0, 3).map((dep, idx) => (
-                <Badge key={idx} variant="outline" className="mb-1 mr-1">
-                  {dep}
-                </Badge>
-              ))}
-              {node.dependencies.length > 3 && (
-                <Badge variant="outline" className="mb-1 mr-1">
-                  +{node.dependencies.length - 3}
-                </Badge>
-              )}
+        {node.artifact_type === ArtifactType.function &&
+          node.dependencies &&
+          node.dependencies.length > 0 && (
+            <div className="mb-3">
+              <small className="text-muted-foreground">
+                <strong>Dependencies:</strong>
+              </small>
+              <div className="mt-1">
+                {node.dependencies.slice(0, 3).map((dep, idx) => (
+                  <Badge key={idx} variant="outline" className="mb-1 mr-1">
+                    {dep}
+                  </Badge>
+                ))}
+                {node.dependencies.length > 3 && (
+                  <Badge variant="outline" className="mb-1 mr-1">
+                    +{node.dependencies.length - 3}
+                  </Badge>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </CardContent>
       <CardFooter className="grid grid-cols-3 gap-2 bg-chart-1">
         <div className="flex items-center">

@@ -37,6 +37,8 @@ async def enrich_function_metadata(func: FunctionMetadata) -> None:
         )
     client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
 
+    output_labels = [a.label for a in func.outputs if a.label]
+
     response = await client.chat.completions.create(
         model=settings.llm_chat_model,
         response_format={"type": "json_object"},
@@ -65,7 +67,8 @@ Here is the function to describe:
 ```python
 {func.source_code}
 ```
-{f"The parsed output port names are (use these exact strings as keys for outputs in the args object): {', '.join(func.output_labels)}" if func.output_labels else ""}
+The parsed output port names are (use these exact strings as keys for outputs in the args object): 
+{', '.join(output_labels) if output_labels else ""}
 """,
             }
         ],

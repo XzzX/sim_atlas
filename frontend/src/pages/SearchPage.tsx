@@ -343,9 +343,7 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
         }}
         suggestions={searchResponse.results.data
           .flatMap((result) =>
-            result.node.artifact_type === "function"
-              ? [result.node.python_import]
-              : [],
+            result.node.name
           )}
         availableFilterOptions={availableFilterOptions}
         page={searchResponse.results.page}

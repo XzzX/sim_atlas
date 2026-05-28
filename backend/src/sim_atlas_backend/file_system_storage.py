@@ -305,10 +305,9 @@ class FileSystemStorage(StorageInterface):
         filtered_items = (item for item in self._storage.values() if item_filter(item))
 
         def score_item(query: str, item: StoredArtifact) -> float:
+            search_field = item.name.lower()
             if isinstance(item, FunctionMetadata):
-                search_field = item.python_import.lower()
-            else:
-                search_field = item.name.lower()
+                search_field = f"{item.name} {item.python_import}".lower()
             if query in search_field:
                 return 1.0
             if query in item.ai_summary.lower():

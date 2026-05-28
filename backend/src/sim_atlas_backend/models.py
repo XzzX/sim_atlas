@@ -57,7 +57,7 @@ class FunctionRequest(BaseModel):
     author_email: str = "unknown"
 
     name: str
-    artifact_type: ArtifactType = ArtifactType.FUNCTION
+    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
     category: str
     keywords: list[str]
 
@@ -85,7 +85,7 @@ class FunctionResponse(BaseModel):
 
     id: str
     name: str
-    artifact_type: ArtifactType = ArtifactType.FUNCTION
+    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
     category: str
     keywords: list[str]
 

@@ -21,12 +21,16 @@ from fastapi_mcp import FastApiMCP
 
 from sim_atlas_backend.models import (
     AgentRequest,
+    ArtifactRequest,
+    ArtifactResponse,
     Filter,
     FilterOptions,
     FunctionMetadata,
     FunctionRequest,
-    FunctionResponse,
     ScoredSearchResponse,
+    StoredArtifact,
+    WorkflowMetadata,
+    WorkflowRequest,
 )
 
 from .agent import run_agent_stream
@@ -86,76 +90,127 @@ async def return_creator(
     return creator
 
 
-@api_router.post("/nodes", tags=["nodes"], status_code=status.HTTP_201_CREATED)
-async def create_node(
-    node: FunctionRequest,
+def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifact:
+    match request:
+        case FunctionRequest():
+            return FunctionMetadata(
+                id=str(uuid.uuid4()),
+                author_name=request.author_name,
+                author_email=request.author_email,
+                creator_name=creator.name,
+                creator_email=creator.email,
+                creation_timestamp=dt.datetime.now(dt.UTC).isoformat(),
+                name=request.name,
+                artifact_type=request.artifact_type,
+                category=request.category,
+                keywords=request.keywords,
+                homepage_url=request.homepage_url,
+                documentation_url=request.documentation_url,
+                source_url=request.source_url,
+                python_import=request.python_import,
+                dependencies=request.dependencies,
+                source_code=request.source_code,
+                docstring=request.docstring,
+                ai_summary="",
+                ai_description="",
+                source_code_hash=hashlib.sha256(
+                    request.source_code.encode()
+                ).hexdigest(),
+                inputs=request.inputs,
+                outputs=request.outputs,
+            )
+        case WorkflowRequest():
+            return WorkflowMetadata(
+                id=str(uuid.uuid4()),
+                author_name=request.author_name,
+                author_email=request.author_email,
+                creator_name=creator.name,
+                creator_email=creator.email,
+                creation_timestamp=dt.datetime.now(dt.UTC).isoformat(),
+                name=request.name,
+                artifact_type=request.artifact_type,
+                category=request.category,
+                keywords=request.keywords,
+                homepage_url=request.homepage_url,
+                documentation_url=request.documentation_url,
+                source_url=request.source_url,
+                docstring=request.docstring,
+                ai_summary="",
+                ai_description="",
+                inputs=request.inputs,
+                outputs=request.outputs,
+                definition=request.definition,
+                source_code_hash=hashlib.sha256(
+                    request.definition.model_dump_json(by_alias=False).encode()
+                ).hexdigest(),
+            )
+        case _:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid artifact type",
+            )
+
+
+@api_router.post("/artifacts", tags=["artifacts"], status_code=status.HTTP_201_CREATED)
+async def create_artifact(
+    request: ArtifactRequest,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> str:
-    id = str(uuid.uuid4())
-    source_code_hash = hashlib.md5(
-        node.source_code.encode(), usedforsecurity=False
-    ).hexdigest()
-
-    timestamp = dt.datetime.now(dt.UTC)
-    node_metadata = FunctionMetadata(
-        **node.model_dump(),
-        id=id,
-        source_code_hash=source_code_hash,
-        ai_summary="",
-        ai_description="",
-        creator_name=creator.name,
-        creator_email=creator.email,
-        creation_timestamp=timestamp.isoformat(),
-    )
+    artifact = compose_artifact(request, creator)
 
     try:
-        return storage.create(node_metadata)
+        return storage.create(artifact)
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Node already exists"
+            status_code=status.HTTP_409_CONFLICT, detail="Artifact already exists"
         ) from e
 
 
-@api_router.get("/nodes/{node_id}", tags=["nodes"])
-async def read_node(
-    node_id: str, storage: Annotated[StorageInterface, Depends(get_storage)]
-) -> FunctionResponse:
+@api_router.get("/artifacts/{artifact_id}", tags=["artifacts"])
+async def read_artifact(
+    artifact_id: str,
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+) -> ArtifactResponse:
     try:
-        return storage.read(node_id)
+        return storage.read(artifact_id)
     except KeyError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found"
         ) from e
 
 
-@api_router.put("/nodes/{node_id}", tags=["nodes"])
-async def update_node(
-    node_id: str,
-    node: FunctionMetadata,
+@api_router.put("/artifacts/{artifact_id}", tags=["artifacts"])
+async def update_artifact(
+    artifact_id: str,
+    request: ArtifactRequest,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
-) -> FunctionResponse:
+) -> ArtifactResponse:
+    artifact = compose_artifact(request, creator)
+
     try:
-        return storage.update(node_id, node)
+        result = storage.update(artifact_id, artifact)
     except KeyError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found"
         ) from e
 
+    return result
 
-@api_router.delete("/nodes/{node_id}", tags=["nodes"])
-async def delete_node(
-    node_id: str,
+
+@api_router.delete("/artifacts/{artifact_id}", tags=["artifacts"])
+async def delete_artifact(
+    artifact_id: str,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ):
     try:
-        storage.delete(node_id)
-        return {"detail": "Node deleted"}
+        storage.delete(artifact_id)
+        return {"detail": "Artifact deleted"}
     except KeyError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="node not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found"
         ) from e
 
 

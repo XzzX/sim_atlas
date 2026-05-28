@@ -1,14 +1,17 @@
 import base64
 import gzip
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import numpy as np
 from pydantic import (
     BaseModel,
     BeforeValidator,
     ConfigDict,
+    Discriminator,
     PlainSerializer,
+    Tag,
+    model_validator,
 )
 
 
@@ -102,29 +105,161 @@ class FunctionResponse(BaseModel):
     outputs: list[Annotation]
 
 
-class ScoredSearchItem(BaseModel):
-    score: float
-    node: FunctionResponse
-
-
-class SearchResults(BaseModel):
-    data: list[ScoredSearchItem]
-    page: int
-    limit: int
-    total_items: int
-    total_pages: int
-
-
-class ScoredSearchResponse(BaseModel):
-    results: SearchResults
-    aggregations: dict[str, dict[str, int]] | None = None
-
-
 class FunctionMetadata(FunctionResponse):
     embedding: NdArray | None = None
     source_code_hash: str = ""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+# --- Workflow models ---
+
+
+class WfInputNode(BaseModel):
+    id: str
+    type: Literal["input"] = "input"
+    name: str
+    default: Any = None
+
+
+class WfOutputNode(BaseModel):
+    id: str
+    type: Literal["output"] = "output"
+    name: str
+
+
+class WfFunctionNode(BaseModel):
+    id: str
+    type: Literal["function"] = "function"
+    python_import: str
+    atlas_node_id: str | None = None
+
+
+class WfPackNode(BaseModel):
+    id: str
+    type: Literal["pack"] = "pack"
+    python_import: str
+    atlas_node_id: str | None = None
+
+
+class WfUnpackNode(BaseModel):
+    id: str
+    type: Literal["unpack"] = "unpack"
+    python_import: str
+    atlas_node_id: str | None = None
+
+
+WfNode = Annotated[
+    WfInputNode | WfOutputNode | WfFunctionNode | WfPackNode | WfUnpackNode,
+    Discriminator("type"),
+]
+
+
+class WfEdge(BaseModel):
+    source: str
+    source_port: str | None = None
+    target: str
+    target_port: str | None = None
+
+
+class WorkflowDefinition(BaseModel):
+    nodes: list[WfNode]
+    edges: list[WfEdge]
+
+
+class WorkflowRequest(BaseModel):
+    author_name: str = "unknown"
+    author_email: str = "unknown"
+
+    name: str
+    artifact_type: Literal[ArtifactType.WORKFLOW] = ArtifactType.WORKFLOW
+    category: str
+    keywords: list[str]
+
+    homepage_url: str = ""
+    documentation_url: str = ""
+    source_url: str = ""
+
+    docstring: str
+    inputs: list[Annotation]
+    outputs: list[Annotation]
+
+    definition: WorkflowDefinition
+
+    @model_validator(mode="after")
+    def check_io_names_match_definition(self) -> "WorkflowRequest":
+        input_names = {
+            n.name for n in self.definition.nodes if isinstance(n, WfInputNode)
+        }
+        output_names = {
+            n.name for n in self.definition.nodes if isinstance(n, WfOutputNode)
+        }
+        request_input_labels = {a.label for a in self.inputs if a.label is not None}
+        request_output_labels = {a.label for a in self.outputs if a.label is not None}
+        if request_input_labels != input_names:
+            raise ValueError(
+                f"inputs annotation labels {request_input_labels} do not match "
+                f"WfInputNode names {input_names}"
+            )
+        if request_output_labels != output_names:
+            raise ValueError(
+                f"outputs annotation labels {request_output_labels} do not match "
+                f"WfOutputNode names {output_names}"
+            )
+        return self
+
+
+class WorkflowResponse(BaseModel):
+    author_name: str
+    author_email: str
+
+    creator_name: str
+    creator_email: str
+    creation_timestamp: str
+
+    id: str
+    name: str
+    artifact_type: Literal[ArtifactType.WORKFLOW] = ArtifactType.WORKFLOW
+    category: str
+    keywords: list[str]
+
+    homepage_url: str
+    documentation_url: str
+    source_url: str
+
+    docstring: str
+    ai_summary: str
+    ai_description: str
+    inputs: list[Annotation]
+    outputs: list[Annotation]
+
+    definition: WorkflowDefinition
+
+
+class WorkflowMetadata(WorkflowResponse):
+    embedding: NdArray | None = None
+    source_code_hash: str = ""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+StoredArtifact = Annotated[
+    Annotated[FunctionMetadata, Tag("function")]
+    | Annotated[WorkflowMetadata, Tag("workflow")],
+    Discriminator("artifact_type"),
+]
+
+ArtifactRequest = Annotated[
+    Annotated[FunctionRequest, Tag("function")]
+    | Annotated[WorkflowRequest, Tag("workflow")],
+    Discriminator("artifact_type"),
+]
+
+ArtifactResponse = Annotated[
+    Annotated[FunctionResponse, Tag("function")]
+    | Annotated[WorkflowResponse, Tag("workflow")],
+    Discriminator("artifact_type"),
+]
 
 
 class Filter(BaseModel):
@@ -146,6 +281,24 @@ class FilterOptions(BaseModel):
     datatypes: list[str]
     units: list[str]
     quantities: list[str]
+
+
+class ScoredSearchItem(BaseModel):
+    score: float
+    node: FunctionResponse | WorkflowResponse
+
+
+class SearchResults(BaseModel):
+    data: list[ScoredSearchItem]
+    page: int
+    limit: int
+    total_items: int
+    total_pages: int
+
+
+class ScoredSearchResponse(BaseModel):
+    results: SearchResults
+    aggregations: dict[str, dict[str, int]] | None = None
 
 
 # --- Agent models ---

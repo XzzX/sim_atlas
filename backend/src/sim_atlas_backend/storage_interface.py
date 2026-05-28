@@ -5,30 +5,30 @@ from abc import ABC, abstractmethod
 from .models import (
     Filter,
     FilterOptions,
-    FunctionMetadata,
     ScoredSearchResponse,
+    StoredArtifact,
 )
 
 
 class StorageInterface(ABC):
     @abstractmethod
-    def create(self, value: FunctionMetadata, check_source_hash: bool = True) -> str:
-        """Store a new node. Returns the id.
+    def create(self, value: StoredArtifact, check_source_hash: bool = True) -> str:
+        """Store a new artifact. Returns the id.
 
-        Raises ValueError if a node with the same id already exists, or if
-        *check_source_hash* is True and a node with the same non-empty
+        Raises ValueError if an artifact with the same id already exists, or if
+        *check_source_hash* is True and an artifact with the same non-empty
         ``source_code_hash`` already exists.
         """
         pass
 
     @abstractmethod
-    def read(self, id: str) -> FunctionMetadata:
-        """Return the node for *id*. Raises KeyError if not found."""
+    def read(self, id: str) -> StoredArtifact:
+        """Return the artifact for *id*. Raises KeyError if not found."""
         pass
 
     @abstractmethod
-    def update(self, id: str, value: FunctionMetadata) -> FunctionMetadata:
-        """Replace an existing node. Raises KeyError if not found."""
+    def update(self, id: str, value: StoredArtifact) -> StoredArtifact:
+        """Replace an existing artifact. Raises KeyError if not found."""
         pass
 
     @abstractmethod

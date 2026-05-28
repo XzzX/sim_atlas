@@ -341,9 +341,10 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
         onSearchChange={(query, category, filters, page = 1) => {
           void debouncedSearch(query, category, filters, searchMode, page);
         }}
-        suggestions={searchResponse.results.data.map(
-          (result) => result.node.python_import,
-        )}
+        suggestions={searchResponse.results.data
+          .flatMap((result) =>
+            result.node.name
+          )}
         availableFilterOptions={availableFilterOptions}
         page={searchResponse.results.page}
         totalPages={searchResponse.results.total_pages}

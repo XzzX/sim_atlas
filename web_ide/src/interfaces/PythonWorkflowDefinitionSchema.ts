@@ -1,63 +1,37 @@
 import { z } from "zod";
 
-// Recursive JSON-compatible value type mirroring AllowableDefaults in the Python model
-type AllowableDefaults =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: AllowableDefaults }
-  | AllowableDefaults[];
-
-const AllowableDefaultsSchema: z.ZodType<AllowableDefaults> = z.lazy(() =>
-  z.union([
-    z.string(),
-    z.number(),
-    z.boolean(),
-    z.null(),
-    z.record(z.string(), AllowableDefaultsSchema),
-    z.array(AllowableDefaultsSchema),
-  ]),
-);
-
 export const InputNodeSchema = z.object({
-  id: z.number().int(),
+  id: z.string().min(1),
   type: z.literal("input"),
   name: z.string(),
-  value: AllowableDefaultsSchema.optional(),
+  default: z.any().optional(),
 });
 
 export const OutputNodeSchema = z.object({
-  id: z.number().int(),
+  id: z.string().min(1),
   type: z.literal("output"),
   name: z.string(),
 });
 
 export const FunctionNodeSchema = z.object({
-  id: z.number().int(),
+  id: z.string().min(1),
   type: z.literal("function"),
-  // Must be in 'module.function' format: no leading/trailing dot, at least one dot
-  value: z
-    .string()
-    .regex(
-      /^[^.]+(\.[^.]+)+$/,
-      "FunctionNode 'value' must be in 'module.function' format (e.g. 'my_module.my_func')",
-    ),
+  python_import: z.string(),
+  atlas_node_id: z.string().nullable().optional(),
 });
 
-const importPathRegex = /^[^.]+(\.[^.]+)+$/;
-const importPathMessage = "'value' must be in 'module.Class' format (e.g. 'my_module.MyClass')";
-
 export const PackNodeSchema = z.object({
-  id: z.number().int(),
+  id: z.string().min(1),
   type: z.literal("pack"),
-  value: z.string().regex(importPathRegex, importPathMessage),
+  python_import: z.string(),
+  atlas_node_id: z.string().nullable().optional(),
 });
 
 export const UnpackNodeSchema = z.object({
-  id: z.number().int(),
+  id: z.string().min(1),
   type: z.literal("unpack"),
-  value: z.string().regex(importPathRegex, importPathMessage),
+  python_import: z.string(),
+  atlas_node_id: z.string().nullable().optional(),
 });
 
 export const NodeSchema = z.discriminatedUnion("type", [
@@ -69,14 +43,13 @@ export const NodeSchema = z.discriminatedUnion("type", [
 ]);
 
 export const EdgeSchema = z.object({
-  source: z.number().int(),
-  sourcePort: z.string().nullable().optional(),
-  target: z.number().int(),
-  targetPort: z.string().nullable().optional(),
+  source: z.string().min(1),
+  source_handle: z.string().nullable().optional(),
+  target: z.string().min(1),
+  target_handle: z.string().nullable().optional(),
 });
 
 export const PythonWorkflowDefinitionWorkflowSchema = z.object({
-  version: z.string(),
   nodes: z.array(NodeSchema),
   edges: z.array(EdgeSchema),
 });

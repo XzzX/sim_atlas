@@ -122,7 +122,7 @@ class NodeStore:
 
         if isinstance(obj, FunctionRequest):
             response = requests.post(
-                f"{self.api_url}/nodes/",
+                f"{self.api_url}/artifacts",
                 json=obj.model_dump(),
                 headers=headers,
             )
@@ -179,7 +179,7 @@ class NodeStore:
 
             responses.append(
                 requests.post(
-                    f"{self.api_url}/nodes",
+                    f"{self.api_url}/artifacts",
                     json=request_data.model_dump(),
                     headers=headers,
                 )

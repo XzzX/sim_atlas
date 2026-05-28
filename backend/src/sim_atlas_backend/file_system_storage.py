@@ -56,7 +56,9 @@ class NodeFilter:
         self.category = (
             filter_options.category.lower() if filter_options.category else None
         )
-        self.type = filter_options.artifact_type if filter_options.artifact_type else None
+        self.type = (
+            filter_options.artifact_type if filter_options.artifact_type else None
+        )
         self.author = filter_options.author if filter_options.author else None
         self.keywords = filter_options.keywords if filter_options.keywords else None
         self.datatypes = filter_options.datatypes if filter_options.datatypes else None

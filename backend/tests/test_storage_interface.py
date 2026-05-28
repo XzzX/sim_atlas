@@ -334,9 +334,7 @@ class StorageContractTests:
         assert result.results.data[0].node.category == "physics"
 
     def test_search_filter_by_type(self, storage: StorageInterface) -> None:
-        storage.create(
-            make_node(source_code="def func(): pass")
-        )
+        storage.create(make_node(source_code="def func(): pass"))
         result = storage.search(None, Filter(artifact_type=[ArtifactType.FUNCTION]))
         assert result.results.total_items == 1
         assert result.results.data[0].node.artifact_type == ArtifactType.FUNCTION

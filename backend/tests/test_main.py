@@ -153,8 +153,12 @@ def test_create_duplicate_artifact_returns_409(client: TestClient) -> None:
     assert response.status_code == status.HTTP_409_CONFLICT
 
 
-def test_create_artifact_unauthenticated_returns_401(unauthed_client: TestClient) -> None:
-    response = unauthed_client.post("/api/v1/artifacts", json=make_function_request_body())
+def test_create_artifact_unauthenticated_returns_401(
+    unauthed_client: TestClient,
+) -> None:
+    response = unauthed_client.post(
+        "/api/v1/artifacts", json=make_function_request_body()
+    )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -164,7 +168,9 @@ def test_create_artifact_unauthenticated_returns_401(unauthed_client: TestClient
 
 
 def test_read_artifact_returns_200(client: TestClient) -> None:
-    artifact_id = client.post("/api/v1/artifacts", json=make_function_request_body()).json()
+    artifact_id = client.post(
+        "/api/v1/artifacts", json=make_function_request_body()
+    ).json()
     response = client.get(f"/api/v1/artifacts/{artifact_id}")
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
@@ -183,7 +189,9 @@ def test_read_artifact_not_found_returns_404(client: TestClient) -> None:
 
 
 def test_update_artifact_returns_updated_data(client: TestClient) -> None:
-    artifact_id = client.post("/api/v1/artifacts", json=make_function_request_body()).json()
+    artifact_id = client.post(
+        "/api/v1/artifacts", json=make_function_request_body()
+    ).json()
     updated_body = make_function_request_body(
         name="updated_function",
         source_code="def updated_function(): pass",
@@ -194,12 +202,18 @@ def test_update_artifact_returns_updated_data(client: TestClient) -> None:
 
 
 def test_update_artifact_not_found_returns_404(client: TestClient) -> None:
-    response = client.put("/api/v1/artifacts/does-not-exist", json=make_function_request_body())
+    response = client.put(
+        "/api/v1/artifacts/does-not-exist", json=make_function_request_body()
+    )
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_update_artifact_unauthenticated_returns_401(unauthed_client: TestClient) -> None:
-    response = unauthed_client.put("/api/v1/artifacts/some-id", json=make_function_request_body())
+def test_update_artifact_unauthenticated_returns_401(
+    unauthed_client: TestClient,
+) -> None:
+    response = unauthed_client.put(
+        "/api/v1/artifacts/some-id", json=make_function_request_body()
+    )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -209,11 +223,16 @@ def test_update_artifact_unauthenticated_returns_401(unauthed_client: TestClient
 
 
 def test_delete_artifact_returns_200_and_removes_artifact(client: TestClient) -> None:
-    artifact_id = client.post("/api/v1/artifacts", json=make_function_request_body()).json()
+    artifact_id = client.post(
+        "/api/v1/artifacts", json=make_function_request_body()
+    ).json()
     response = client.delete(f"/api/v1/artifacts/{artifact_id}")
     assert response.status_code == status.HTTP_200_OK
     assert "deleted" in response.json()["detail"].lower()
-    assert client.get(f"/api/v1/artifacts/{artifact_id}").status_code == status.HTTP_404_NOT_FOUND
+    assert (
+        client.get(f"/api/v1/artifacts/{artifact_id}").status_code
+        == status.HTTP_404_NOT_FOUND
+    )
 
 
 def test_delete_artifact_not_found_returns_404(client: TestClient) -> None:
@@ -221,7 +240,9 @@ def test_delete_artifact_not_found_returns_404(client: TestClient) -> None:
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_delete_artifact_unauthenticated_returns_401(unauthed_client: TestClient) -> None:
+def test_delete_artifact_unauthenticated_returns_401(
+    unauthed_client: TestClient,
+) -> None:
     response = unauthed_client.delete("/api/v1/artifacts/some-id")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -242,7 +263,9 @@ def test_filter_options_empty_storage(client: TestClient) -> None:
 def test_filter_options_populated_after_creating_artifact(client: TestClient) -> None:
     client.post(
         "/api/v1/artifacts",
-        json=make_function_request_body(keywords=["unique-kw"], author_name="UniqueAuthor"),
+        json=make_function_request_body(
+            keywords=["unique-kw"], author_name="UniqueAuthor"
+        ),
     )
     response = client.get("/api/v1/filter_options")
     assert response.status_code == status.HTTP_200_OK

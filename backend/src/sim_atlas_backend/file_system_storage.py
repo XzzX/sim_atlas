@@ -13,11 +13,11 @@ from tqdm.asyncio import tqdm as atqdm
 from sim_atlas_backend.ai import create_ai_descriptions
 from sim_atlas_backend.models import (
     Annotation,
+    ArtifactType,
     Filter,
     FilterOptions,
-    NodeMetadata,
-    NodeResponse,
-    NodeType,
+    FunctionMetadata,
+    FunctionResponse,
     ScoredSearchItem,
     ScoredSearchResponse,
     SearchResults,
@@ -56,7 +56,7 @@ class NodeFilter:
         self.category = (
             filter_options.category.lower() if filter_options.category else None
         )
-        self.type = filter_options.type if filter_options.type else None
+        self.type = filter_options.artifact_type if filter_options.artifact_type else None
         self.author = filter_options.author if filter_options.author else None
         self.keywords = filter_options.keywords if filter_options.keywords else None
         self.datatypes = filter_options.datatypes if filter_options.datatypes else None
@@ -66,18 +66,18 @@ class NodeFilter:
         )
         self.port_type = filter_options.port_type or "both"
 
-    def _annotations(self, node: NodeMetadata) -> list[Annotation]:
+    def _annotations(self, node: FunctionMetadata) -> list[Annotation]:
         if self.port_type == "inputs":
             return node.inputs
         if self.port_type == "outputs":
             return node.outputs
         return node.inputs + node.outputs
 
-    def __call__(self, node: NodeMetadata) -> bool:  # noqa: PLR0911
+    def __call__(self, node: FunctionMetadata) -> bool:  # noqa: PLR0911
         if self.category and not node.category.startswith(self.category):
             return False
 
-        if self.type and node.node_type not in self.type:
+        if self.type and node.artifact_type not in self.type:
             return False
 
         if self.author and node.author_name not in self.author:
@@ -110,7 +110,7 @@ class FileSystemStorage(StorageInterface):
     """File-system-backed storage implementation for node metadata"""
 
     def __init__(self, filename: str | None = "filesystem.json") -> None:
-        self._storage: dict[str, NodeMetadata] = {}
+        self._storage: dict[str, FunctionMetadata] = {}
         self._filename = filename
         self._connected = False
 
@@ -119,7 +119,7 @@ class FileSystemStorage(StorageInterface):
                 with open(self._filename) as f:
                     data = json.load(f)
                     self._storage = {
-                        k: NodeMetadata.model_validate(v) for k, v in data.items()
+                        k: FunctionMetadata.model_validate(v) for k, v in data.items()
                     }
             except Exception:
                 pass  # If loading fails, start with empty storage
@@ -139,7 +139,7 @@ class FileSystemStorage(StorageInterface):
                     default=str,
                 )
 
-    def create(self, value: NodeMetadata, check_source_hash: bool = True) -> str:
+    def create(self, value: FunctionMetadata, check_source_hash: bool = True) -> str:
         id = value.id
         if id in self._storage:
             raise ValueError(f"Node with id '{id}' already exists.")
@@ -153,12 +153,12 @@ class FileSystemStorage(StorageInterface):
         self._save_to_disk()
         return id
 
-    def read(self, id: str) -> NodeMetadata:
+    def read(self, id: str) -> FunctionMetadata:
         if id not in self._storage:
             raise KeyError(id)
         return self._storage[id]
 
-    def update(self, id: str, value: NodeMetadata) -> NodeMetadata:
+    def update(self, id: str, value: FunctionMetadata) -> FunctionMetadata:
         if id not in self._storage:
             raise KeyError(id)
         self._storage[id] = value
@@ -182,7 +182,7 @@ class FileSystemStorage(StorageInterface):
         # https://docs.pydantic.dev/latest/concepts/fields/#mutable-default-values
         class FilterOptionsSet(BaseModel):
             category: dict[str, set[str]] = {}
-            type: set[NodeType] = set()
+            type: set[ArtifactType] = set()
             author: set[str] = set()
             keywords: set[str] = set()
             datatypes: set[str] = set()
@@ -193,10 +193,10 @@ class FileSystemStorage(StorageInterface):
             parts = category.split(">")
             return {">".join(parts[:i]): {v} for i, v in enumerate(parts)}
 
-        def extract_filter_options(node: NodeMetadata) -> FilterOptionsSet:
+        def extract_filter_options(node: FunctionMetadata) -> FilterOptionsSet:
             return FilterOptionsSet(
                 category=extract_categories(node.category),
-                type={node.node_type},
+                type={node.artifact_type},
                 author={node.author_name},
                 keywords=set(node.keywords),
                 datatypes={
@@ -244,7 +244,7 @@ class FileSystemStorage(StorageInterface):
 
         return FilterOptions(
             category={k: sorted(v) for k, v in filter_options_set.category.items()},
-            type=sorted(filter_options_set.type),
+            artifact_type=sorted(filter_options_set.type),
             author=sorted(filter_options_set.author),
             keywords=sorted(filter_options_set.keywords),
             datatypes=sorted(filter_options_set.datatypes),
@@ -292,7 +292,7 @@ class FileSystemStorage(StorageInterface):
         item_filter: NodeFilter = NodeFilter(filter or Filter())
         filtered_items = (item for item in self._storage.values() if item_filter(item))
 
-        def score_item(query: str, item: NodeMetadata) -> float:
+        def score_item(query: str, item: FunctionMetadata) -> float:
             if query in item.python_import.lower():
                 return 1.0
             if query in item.ai_summary.lower():
@@ -343,7 +343,7 @@ class FileSystemStorage(StorageInterface):
                 similarities.append(
                     ScoredSearchItem(
                         score=similarity,
-                        node=NodeResponse(**node.model_dump()),
+                        node=FunctionResponse(**node.model_dump()),
                     )
                 )
 
@@ -397,12 +397,12 @@ class FileSystemStorage(StorageInterface):
         # --- RRF merge ---
         k = 60
         candidate_ids = set(sem_rank) | set(kw_rank)
-        node_lookup: dict[str, NodeMetadata] = {n.id: n for n in filtered_nodes}
+        node_lookup: dict[str, FunctionMetadata] = {n.id: n for n in filtered_nodes}
         scored: list[ScoredSearchItem] = [
             ScoredSearchItem(
                 score=(1 / (k + sem_rank[nid]) if nid in sem_rank else 0.0)
                 + (1 / (k + kw_rank[nid]) if nid in kw_rank else 0.0),
-                node=NodeResponse(**node_lookup[nid].model_dump()),
+                node=FunctionResponse(**node_lookup[nid].model_dump()),
             )
             for nid in candidate_ids
         ]
@@ -411,7 +411,7 @@ class FileSystemStorage(StorageInterface):
         return self._paginate(scored, page=page, limit=limit)
 
     @staticmethod
-    def _embedding_text(node: NodeMetadata) -> str:
+    def _embedding_text(node: FunctionMetadata) -> str:
         port_lines = [
             f"{a.label}: {a.description}"
             for a in node.inputs + node.outputs
@@ -429,7 +429,7 @@ class FileSystemStorage(StorageInterface):
             else [node for node in self._storage.values() if node.embedding is None]
         )
 
-        async def _enrich_one(v: NodeMetadata) -> None:
+        async def _enrich_one(v: FunctionMetadata) -> None:
             async with sem:
                 if not v.source_code:
                     return

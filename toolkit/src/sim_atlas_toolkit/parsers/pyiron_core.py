@@ -1,7 +1,7 @@
 import inspect
 from typing import Any
 
-from ..models import Annotation, NodeType
+from ..models import Annotation, ArtifactType
 from .metadata import Metadata
 
 
@@ -23,7 +23,7 @@ def parse(obj: Any) -> list[Metadata]:
     return [
         Metadata(
             name=f"{instance._func.__module__}.{instance._func.__qualname__}",
-            node_type=NodeType.PYIRON_CORE_NODE,
+            artifact_type=ArtifactType.FUNCTION,
             python_import=f"{instance._func.__module__}.{instance._func.__qualname__}",
             category=f"{instance._func.__module__}".replace(".", ">"),
             source_code=source_code,

@@ -14,7 +14,7 @@ import requests
 from sim_atlas_toolkit.parsers.metadata import Metadata
 
 from .models import (
-    NodeRequest,
+    FunctionRequest,
 )
 from .parser import get_metadata
 
@@ -120,7 +120,7 @@ class NodeStore:
         if self.api_key:
             headers["x-api-key"] = self.api_key
 
-        if isinstance(obj, NodeRequest):
+        if isinstance(obj, FunctionRequest):
             response = requests.post(
                 f"{self.api_url}/nodes/",
                 json=obj.model_dump(),
@@ -175,7 +175,7 @@ class NodeStore:
             metadata_dict.update(general_metadata)
             metadata_dict.update(kwargs)
 
-            request_data = NodeRequest.model_validate(metadata_dict)
+            request_data = FunctionRequest.model_validate(metadata_dict)
 
             responses.append(
                 requests.post(

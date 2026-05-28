@@ -2,7 +2,7 @@ import inspect
 import textwrap
 from typing import Annotated, Any, get_args, get_origin
 
-from ..models import Annotation, NodeType
+from ..models import Annotation, ArtifactType
 from .metadata import Metadata, parse_annotation
 
 
@@ -57,7 +57,7 @@ def parse(obj: Any) -> list[Metadata]:
     return [
         Metadata(
             name=f"{obj.__module__}.{obj.__qualname__}",
-            node_type=NodeType.FUNCTION,
+            artifact_type=ArtifactType.FUNCTION,
             python_import=f"{obj.__module__}.{obj.__qualname__}",
             category=f"{obj.__module__}".replace(".", ">"),
             source_code=source_code,

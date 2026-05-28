@@ -5,14 +5,14 @@ from abc import ABC, abstractmethod
 from .models import (
     Filter,
     FilterOptions,
-    NodeMetadata,
+    FunctionMetadata,
     ScoredSearchResponse,
 )
 
 
 class StorageInterface(ABC):
     @abstractmethod
-    def create(self, value: NodeMetadata, check_source_hash: bool = True) -> str:
+    def create(self, value: FunctionMetadata, check_source_hash: bool = True) -> str:
         """Store a new node. Returns the id.
 
         Raises ValueError if a node with the same id already exists, or if
@@ -22,12 +22,12 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def read(self, id: str) -> NodeMetadata:
+    def read(self, id: str) -> FunctionMetadata:
         """Return the node for *id*. Raises KeyError if not found."""
         pass
 
     @abstractmethod
-    def update(self, id: str, value: NodeMetadata) -> NodeMetadata:
+    def update(self, id: str, value: FunctionMetadata) -> FunctionMetadata:
         """Replace an existing node. Raises KeyError if not found."""
         pass
 

@@ -1,7 +1,7 @@
 import dataclasses
 from typing import Annotated
 
-from sim_atlas_toolkit.models import NodeType
+from sim_atlas_toolkit.models import ArtifactType
 from sim_atlas_toolkit.parsers.dataclass_node import parse
 
 
@@ -43,12 +43,12 @@ def test_basic_returns_two_records() -> None:
 
 def test_pack_node_type() -> None:
     pack, _ = parse(Point)
-    assert pack.node_type == NodeType.PACK
+    assert pack.artifact_type == ArtifactType.FUNCTION
 
 
 def test_unpack_node_type() -> None:
     _, unpack = parse(Point)
-    assert unpack.node_type == NodeType.UNPACK
+    assert unpack.artifact_type == ArtifactType.FUNCTION
 
 
 def test_pack_name() -> None:

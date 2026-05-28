@@ -27,7 +27,6 @@ from sim_atlas_backend.models import (
     FilterOptions,
     FunctionMetadata,
     FunctionRequest,
-    FunctionResponse,
     ScoredSearchResponse,
     StoredArtifact,
     WorkflowMetadata,
@@ -90,6 +89,7 @@ async def return_creator(
 ) -> Creator:
     return creator
 
+
 def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifact:
     match request:
         case FunctionRequest():
@@ -113,7 +113,9 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 docstring=request.docstring,
                 ai_summary="",
                 ai_description="",
-                source_code_hash=hashlib.sha256(request.source_code.encode()).hexdigest(),
+                source_code_hash=hashlib.sha256(
+                    request.source_code.encode()
+                ).hexdigest(),
                 inputs=request.inputs,
                 outputs=request.outputs,
             )
@@ -139,8 +141,8 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 outputs=request.outputs,
                 definition=request.definition,
                 source_code_hash=hashlib.sha256(
-                request.definition.model_dump_json(by_alias=False).encode()
-            ).hexdigest(),
+                    request.definition.model_dump_json(by_alias=False).encode()
+                ).hexdigest(),
             )
         case _:
             raise HTTPException(
@@ -148,14 +150,15 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 detail="Invalid artifact type",
             )
 
+
 @api_router.post("/artifacts", tags=["artifacts"], status_code=status.HTTP_201_CREATED)
 async def create_artifact(
     request: ArtifactRequest,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
-) -> str: 
+) -> str:
     artifact = compose_artifact(request, creator)
-   
+
     try:
         return storage.create(artifact)
     except ValueError as e:
@@ -175,6 +178,7 @@ async def read_artifact(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found"
         ) from e
+
 
 @api_router.put("/artifacts/{artifact_id}", tags=["artifacts"])
 async def update_artifact(

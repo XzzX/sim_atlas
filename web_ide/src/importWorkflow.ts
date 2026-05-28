@@ -16,45 +16,56 @@ async function convertToNode(
       n.type === "pack" ? "pack"
       : n.type === "unpack" ? "unpack"
       : undefined;
-    const response = await simAtlasAPI.search(
-      n.value,
-      nodeTypeFilter !== undefined ? { type: [nodeTypeFilter] } : null,
-    );
-    const meta = response.results.data.find(
-      (item) => item.node.python_import === n.value,
-    )?.node;
+
+    // Prefer direct lookup by atlas_node_id; fall back to keyword search
+    let meta =
+      n.atlas_node_id != null
+        ? (await simAtlasAPI.getNode(n.atlas_node_id).catch(() => null))
+        : null;
+
     if (!meta) {
-      console.warn(`No metadata found for node with python_import: ${n.value}`);
+      const response = await simAtlasAPI.search(
+        n.python_import,
+        nodeTypeFilter !== undefined ? { type: [nodeTypeFilter] } : null,
+      );
+      meta =
+        response.results.data.find(
+          (item) => item.node.python_import === n.python_import,
+        )?.node ?? null;
+    }
+
+    if (!meta) {
+      console.warn(`No metadata found for node with python_import: ${n.python_import}`);
       return null;
     }
     return {
-      id: n.id.toString(),
+      id: n.id,
       data: {
-        label: n.value ?? meta.python_import.split(".").pop() ?? "",
+        label: n.python_import.split(".").pop() ?? n.python_import,
         metadata: meta,
       },
-      position: { x: Math.random() * 400, y: Math.random() * 400 }, // Placeholder positions
+      position: { x: Math.random() * 400, y: Math.random() * 400 },
       type: "FunctionNode",
     };
   }
   if (n.type === "input") {
     return {
-      id: n.id.toString(),
+      id: n.id,
       data: {
         label: n.name ?? "Input",
-        value: n.value != null ? JSON.stringify(n.value) : "",
+        value: n.default != null ? JSON.stringify(n.default) : "",
       },
-      position: { x: Math.random() * 400, y: Math.random() * 400 }, // Placeholder positions
+      position: { x: Math.random() * 400, y: Math.random() * 400 },
       type: "InputNode",
     };
   }
   if (n.type === "output") {
     return {
-      id: n.id.toString(),
+      id: n.id,
       data: {
         label: n.name ?? "Output",
       },
-      position: { x: Math.random() * 400, y: Math.random() * 400 }, // Placeholder positions
+      position: { x: Math.random() * 400, y: Math.random() * 400 },
       type: "OutputNode",
     };
   }
@@ -71,20 +82,17 @@ export async function toNodesAndEdges(
     await Promise.all(workflow.nodes.map((n) => convertToNode(n)))
   ).filter((n) => n !== null);
 
+  const nodeIdSet = new Set(nodes.map((n) => n.id));
   const filtered_edges = workflow.edges.filter(
-    (e) =>
-      nodes.find((n) => n.id === String(e.source)) !== undefined &&
-      nodes.find((n) => n.id === String(e.target)) !== undefined,
+    (e) => nodeIdSet.has(e.source) && nodeIdSet.has(e.target),
   );
   const edges: Edge[] = filtered_edges.map((e) => ({
-    id: `e${e.source}.${e.sourcePort ?? ""}-${e.target}.${e.targetPort ?? ""}`,
-    source: e.source.toString(),
-    target: e.target.toString(),
-    sourceHandle: e.sourcePort ?? undefined,
-    targetHandle: e.targetPort ?? undefined,
+    id: `e${e.source}.${e.source_handle ?? ""}-${e.target}.${e.target_handle ?? ""}`,
+    source: e.source,
+    target: e.target,
+    sourceHandle: e.source_handle ?? undefined,
+    targetHandle: e.target_handle ?? undefined,
   }));
-
-  console.log("Converted nodes and edges:", { nodes, edges });
 
   return { nodes, edges };
 }

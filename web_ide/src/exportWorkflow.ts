@@ -24,18 +24,17 @@ export function toWorkflowDefinition(
 ): PythonWorkflowDefinitionWorkflow {
   const pwdNodes: PythonWorkflowDefinitionNode[] = nodes
     .map((node): PythonWorkflowDefinitionNode | null => {
-      const id = parseInt(node.id, 10);
-
       if (node.type === "FunctionNode") {
         const fn = node as FunctionNodeType;
         const nt = fn.data.metadata.node_type;
         return {
-          id,
+          id: node.id,
           type:
             nt === "pack" ? "pack"
             : nt === "unpack" ? "unpack"
             : "function",
-          value: fn.data.metadata.python_import,
+          python_import: fn.data.metadata.python_import,
+          atlas_node_id: fn.data.metadata.id,
         };
       }
 
@@ -43,17 +42,17 @@ export function toWorkflowDefinition(
         const inp = node as InputNodeType;
         const parsed = tryParseValue(inp.data.value);
         return {
-          id,
+          id: node.id,
           type: "input",
           name: inp.data.label,
-          ...(parsed !== undefined ? { value: parsed as never } : {}),
+          ...(parsed !== undefined ? { default: parsed } : {}),
         };
       }
 
       if (node.type === "OutputNode") {
         const out = node as OutputNodeType;
         return {
-          id,
+          id: node.id,
           type: "output",
           name: out.data.label,
         };
@@ -67,20 +66,17 @@ export function toWorkflowDefinition(
 
   const pwdEdges: PythonWorkflowDefinitionEdge[] = edges
     .map((e): PythonWorkflowDefinitionEdge | null => {
-      const source = parseInt(e.source, 10);
-      const target = parseInt(e.target, 10);
-      if (!nodeIds.has(source) || !nodeIds.has(target)) return null;
+      if (!nodeIds.has(e.source) || !nodeIds.has(e.target)) return null;
       return {
-        source,
-        sourcePort: e.sourceHandle ?? null,
-        target,
-        targetPort: e.targetHandle ?? null,
+        source: e.source,
+        source_handle: e.sourceHandle ?? null,
+        target: e.target,
+        target_handle: e.targetHandle ?? null,
       };
     })
     .filter((e): e is PythonWorkflowDefinitionEdge => e !== null);
 
   return {
-    version: "0.1",
     nodes: pwdNodes,
     edges: pwdEdges,
   };

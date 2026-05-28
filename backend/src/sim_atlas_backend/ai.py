@@ -3,26 +3,29 @@ import json
 from langfuse.openai import AsyncOpenAI  # pyright: ignore[reportPrivateImportUsage]
 from pydantic import BaseModel
 
+from sim_atlas_backend.models import (
+    FunctionMetadata,
+    StoredArtifact,
+    WfFunctionNode,
+    WfPackNode,
+    WfUnpackNode,
+    WorkflowMetadata,
+)
+from sim_atlas_backend.storage_interface import StorageInterface
+
 from .exceptions import AINotConfiguredError
 from .settings import load_settings
 
 
-class _AIDescriptionResponse(BaseModel):
-    summary: str
-    description: str
-    args: dict[str, str] = {}
+def _strip_think_tags(raw: str) -> str:
+    if "<think>" in raw and "</think>" in raw:
+        start = raw.find("<think>")
+        end = raw.find("</think>") + len("</think>")
+        raw = raw[:start] + raw[end:]
+    return raw.strip()
 
 
-async def create_ai_descriptions(
-    name: str, docstring: str, source_code: str, output_labels: list[str] | None = None
-) -> tuple[str, str, dict[str, str]]:
-    """Generate search-optimized descriptions for a Python function.
-
-    Returns a tuple of (ai_summary, ai_description, args_descriptions):
-    - ai_summary: one sentence for compact display and keyword search
-    - ai_description: 2-5 sentences with rich domain vocabulary for semantic search
-    - args_descriptions: mapping of parameter name to one-sentence description
-    """
+async def enrich_function_metadata(func: FunctionMetadata) -> None:
     settings = load_settings()
     if (
         not settings.llm_api_key
@@ -33,6 +36,8 @@ async def create_ai_descriptions(
             "LLM settings (llm_api_key, llm_api_url, llm_chat_model) are not configured"
         )
     client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
+
+    output_labels = [a.label for a in func.outputs if a.label]
 
     response = await client.chat.completions.create(
         model=settings.llm_chat_model,
@@ -60,21 +65,121 @@ Return only the JSON object, no other text.
 
 Here is the function to describe:
 ```python
-{source_code}
+{func.source_code}
 ```
-{f"The parsed output port names are (use these exact strings as keys for outputs in the args object): {', '.join(output_labels)}" if output_labels else ""}
+The parsed output port names are (use these exact strings as keys for outputs in the args object): 
+{", ".join(output_labels) if output_labels else ""}
 """,
             }
         ],
     )
-    raw = response.choices[0].message.content or "{}"
 
-    # Remove thinking part if present (text between <think> tags)
-    if "<think>" in raw and "</think>" in raw:
-        start = raw.find("<think>")
-        end = raw.find("</think>") + len("</think>")
-        raw = raw[:start] + raw[end:]
-        raw = raw.strip()
+    raw = _strip_think_tags(response.choices[0].message.content or "{}")
+
+    class _AIDescriptionResponse(BaseModel):
+        summary: str
+        description: str
+        args: dict[str, str] = {}
 
     result = _AIDescriptionResponse.model_validate(json.loads(raw))
-    return result.summary, result.description, result.args
+    func.ai_summary = result.summary
+    func.ai_description = result.description
+    for a in func.inputs + func.outputs:
+        if a.label and a.description is None:
+            a.description = result.args.get(a.label)
+
+
+async def enrich_workflow_metadata(
+    workflow: WorkflowMetadata, storage: StorageInterface
+) -> None:
+
+    def _render_workflow_graph_text(
+        v: WorkflowMetadata, storage: StorageInterface
+    ) -> str:
+        """Render a human-readable list of the workflow's constituent nodes.
+
+        For each function/pack/unpack node with a resolved atlas_node_id, uses
+        ai_summary if non-empty, else the first line of docstring. Nodes not found
+        in storage are silently skipped (best-effort, ADR-0012).
+        """
+        lines: list[str] = []
+        for node in v.definition.nodes:
+            if not isinstance(node, (WfFunctionNode, WfPackNode, WfUnpackNode)):
+                continue
+
+            if not node.atlas_node_id:
+                continue
+
+            try:
+                artifact = storage.read(node.atlas_node_id)
+            except KeyError:
+                continue
+
+            text = (
+                artifact.ai_summary
+                if artifact.ai_summary
+                else artifact.docstring.splitlines()[0]
+            )
+            lines.append(f"- {node.id}: {text}")
+        return "\n".join(lines) if lines else "(no constituent nodes resolved)"
+
+    settings = load_settings()
+    if (
+        not settings.llm_api_key
+        or not settings.llm_api_url
+        or not settings.llm_chat_model
+    ):
+        raise AINotConfiguredError(
+            "LLM settings (llm_api_key, llm_api_url, llm_chat_model) are not configured"
+        )
+    client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
+
+    response = await client.chat.completions.create(
+        model=settings.llm_chat_model,
+        response_format={"type": "json_object"},
+        messages=[
+            {
+                "role": "user",
+                "content": f"""You are a search-indexing assistant for a scientific simulation workflow catalog.
+Given a workflow name, its docstring, and a list of its constituent nodes, produce search-optimized descriptions as a JSON object with exactly these keys:
+
+"summary": One concise sentence (≤20 words) that names what the workflow does, what it takes as input and what it returns.
+  - Use terminology a user would type into a search box.
+  - Include the workflow name or a clear paraphrase of it.
+
+"description": 2-5 sentences that expand on the summary for semantic search embedding.
+  - Describe what the workflow computes in physical or conceptual terms.
+  - Mention the key processing steps implied by the node list.
+  - Use natural synonyms and alternative phrasings to maximize recall.
+
+Return only the JSON object, no other text.
+
+Workflow name: {workflow.name}
+Docstring: {workflow.docstring or "(none)"}
+Constituent nodes:
+{_render_workflow_graph_text(workflow, storage)}
+""",
+            }
+        ],
+    )
+    raw = _strip_think_tags(response.choices[0].message.content or "{}")
+
+    class _AIWorkflowDescriptionResponse(BaseModel):
+        summary: str
+        description: str
+
+    result = _AIWorkflowDescriptionResponse.model_validate(json.loads(raw))
+    workflow.ai_summary = result.summary
+    workflow.ai_description = result.description
+
+
+async def enrich_artifact_metadata(
+    artifact: StoredArtifact, storage: StorageInterface
+) -> None:
+    match artifact:
+        case FunctionMetadata():
+            await enrich_function_metadata(artifact)
+        case WorkflowMetadata():
+            await enrich_workflow_metadata(artifact, storage)
+        case _:
+            raise ValueError(f"Unexpected artifact type: {type(artifact)}")

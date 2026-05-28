@@ -10,7 +10,7 @@ import numpy as np
 from pydantic import BaseModel
 from tqdm.asyncio import tqdm as atqdm
 
-from sim_atlas_backend.ai import create_ai_descriptions
+from sim_atlas_backend.ai import enrich_artifact_metadata
 from sim_atlas_backend.models import (
     Annotation,
     ArtifactType,
@@ -456,21 +456,7 @@ class FileSystemStorage(StorageInterface):
 
         async def _enrich_one(v: StoredArtifact) -> None:
             async with sem:
-                source_code = v.source_code if isinstance(v, FunctionMetadata) else None
-                if not source_code:
-                    return
-                try:
-                    output_labels = [a.label for a in v.outputs if a.label is not None]
-                    v.ai_summary, v.ai_description, args = await create_ai_descriptions(
-                        v.name, v.docstring, source_code, output_labels
-                    )
-                    for a in v.inputs + v.outputs:
-                        if a.label and a.description is None:
-                            a.description = args.get(a.label)
-                except Exception as e:
-                    print(f"Error occurred while enriching node {v.name}: {e}")
-                    print(f"docstring: {v.docstring}")
-                    print(f"source_code: {source_code}")
+                await enrich_artifact_metadata(v, self)
 
         await atqdm.gather(  # pyright: ignore[reportUnknownMemberType]
             *[_enrich_one(v) for v in nodes_to_enrich],

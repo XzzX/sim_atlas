@@ -42,7 +42,7 @@ def parse(node: Any) -> list[Metadata]:
             category=f"{node.node_function.__module__}".replace(".", ">"),
             source_code=source_code,
             docstring=node.node_function.__doc__ or "",
-            keywords=node.node_function.__module__.split("."),
+            keywords=["pyiron_workflow_function"],
             inputs=inputs,
             outputs=outputs,
         )

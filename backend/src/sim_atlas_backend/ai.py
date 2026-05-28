@@ -68,7 +68,7 @@ Here is the function to describe:
 {func.source_code}
 ```
 The parsed output port names are (use these exact strings as keys for outputs in the args object): 
-{', '.join(output_labels) if output_labels else ""}
+{", ".join(output_labels) if output_labels else ""}
 """,
             }
         ],

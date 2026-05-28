@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from ..models import Annotation, NodeType
+from ..models import Annotation, ArtifactType
 from .metadata import Metadata
 
 
@@ -33,7 +33,7 @@ def parse(obj: Any) -> list[Metadata]:
 
     return [
         Metadata(
-            node_type=NodeType.PYTHON_WORKFLOW_DEFINITION,
+            artifact_type=ArtifactType.FUNCTION,
             python_import="",
             category="workflow",
             source_code=source_code,

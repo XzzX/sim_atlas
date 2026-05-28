@@ -3,7 +3,7 @@ import inspect
 import textwrap
 from typing import Any, get_type_hints
 
-from ..models import Annotation, NodeType
+from ..models import Annotation, ArtifactType
 from .metadata import Metadata, parse_annotation
 
 
@@ -71,7 +71,7 @@ def parse(obj: Any) -> list[Metadata]:
     return [
         Metadata(
             name=f"[PACK] {python_import}",
-            node_type=NodeType.PACK,
+            artifact_type=ArtifactType.FUNCTION,
             python_import=python_import,
             category=category,
             source_code=pack_source,
@@ -82,7 +82,7 @@ def parse(obj: Any) -> list[Metadata]:
         ),
         Metadata(
             name=f"[UNPACK] {python_import}",
-            node_type=NodeType.UNPACK,
+            artifact_type=ArtifactType.FUNCTION,
             python_import=python_import,
             category=category,
             source_code=unpack_source,

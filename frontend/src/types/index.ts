@@ -1,15 +1,8 @@
 import { z } from "zod";
 
-export const NodeTypeSchema = z.enum([
-  "function",
-  "python_workflow_definition",
-  "pyiron_workflow_function",
-  "pyiron_core_node",
-  "pack",
-  "unpack",
-]);
-export type NodeType = z.infer<typeof NodeTypeSchema>;
-export const NodeType = NodeTypeSchema.enum;
+export const ArtifactTypeSchema = z.enum(["function", "workflow"]);
+export type ArtifactType = z.infer<typeof ArtifactTypeSchema>;
+export const ArtifactType = ArtifactTypeSchema.enum;
 
 export const AnnotationSchema = z.object({
   has_default_value: z.boolean().optional(), // default False in Pydantic
@@ -20,12 +13,12 @@ export const AnnotationSchema = z.object({
 });
 export type Annotation = z.infer<typeof AnnotationSchema>;
 
-export const NodeRequestSchema = z.object({
+export const FunctionRequestSchema = z.object({
   author_name: z.string(),
   author_email: z.string(),
 
   name: z.string(),
-  node_type: NodeTypeSchema,
+  artifact_type: ArtifactTypeSchema,
   category: z.string(),
 
   keywords: z.array(z.string()),
@@ -43,9 +36,9 @@ export const NodeRequestSchema = z.object({
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),
 });
-export type NodeRequest = z.infer<typeof NodeRequestSchema>;
+export type FunctionRequest = z.infer<typeof FunctionRequestSchema>;
 
-export const NodeResponseSchema = z.object({
+export const FunctionResponseSchema = z.object({
   author_name: z.string(),
   author_email: z.string(),
 
@@ -55,7 +48,7 @@ export const NodeResponseSchema = z.object({
 
   id: z.string(),
   name: z.string(),
-  node_type: NodeTypeSchema,
+  artifact_type: ArtifactTypeSchema,
   category: z.string(),
 
   keywords: z.array(z.string()),
@@ -76,11 +69,11 @@ export const NodeResponseSchema = z.object({
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),
 });
-export type NodeResponse = z.infer<typeof NodeResponseSchema>;
+export type FunctionResponse = z.infer<typeof FunctionResponseSchema>;
 
 export const ScoredSearchItemSchema = z.object({
   score: z.number(),
-  node: NodeResponseSchema,
+  node: FunctionResponseSchema,
 });
 export type ScoredSearchItem = z.infer<typeof ScoredSearchItemSchema>;
 
@@ -101,14 +94,14 @@ export const ScoredSearchResponseSchema = z.object({
 });
 export type ScoredSearchResponse = z.infer<typeof ScoredSearchResponseSchema>;
 
-export const NodeMetadataSchema = NodeResponseSchema.extend({
+export const FunctionMetadataSchema = FunctionResponseSchema.extend({
   embedding: z.array(z.number()).nullish(),
 });
-export type NodeMetadata = z.infer<typeof NodeMetadataSchema>;
+export type FunctionMetadata = z.infer<typeof FunctionMetadataSchema>;
 
 export const FilterSchema = z.object({
   category: z.string(),
-  type: z.array(z.string()),
+  artifact_type: z.array(z.string()),
   author: z.array(z.string()),
   keywords: z.array(z.string()),
   datatypes: z.array(z.string()),
@@ -120,7 +113,7 @@ export type Filter = z.infer<typeof FilterSchema>;
 
 export const FilterOptionsSchema = z.object({
   category: z.record(z.string(), z.array(z.string())),
-  type: z.array(NodeTypeSchema),
+  artifact_type: z.array(ArtifactTypeSchema),
   author: z.array(z.string()),
   keywords: z.array(z.string()),
   datatypes: z.array(z.string()),

@@ -35,13 +35,9 @@ NdArray = Annotated[
 ]
 
 
-class NodeType(StrEnum):
+class ArtifactType(StrEnum):
     FUNCTION = "function"
-    PYTHON_WORKFLOW_DEFINITION = "python_workflow_definition"
-    PYIRON_WORKFLOW_FUNCTION = "pyiron_workflow_function"
-    PYIRON_CORE_NODE = "pyiron_core_node"
-    PACK = "pack"
-    UNPACK = "unpack"
+    WORKFLOW = "workflow"
 
 
 class Annotation(BaseModel):
@@ -53,12 +49,12 @@ class Annotation(BaseModel):
     description: str | None = None
 
 
-class NodeRequest(BaseModel):
+class FunctionRequest(BaseModel):
     author_name: str = "unknown"
     author_email: str = "unknown"
 
     name: str
-    node_type: NodeType
+    artifact_type: ArtifactType = ArtifactType.FUNCTION
     category: str
     keywords: list[str]
 
@@ -76,7 +72,7 @@ class NodeRequest(BaseModel):
     outputs: list[Annotation]
 
 
-class NodeResponse(BaseModel):
+class FunctionResponse(BaseModel):
     author_name: str
     author_email: str
 
@@ -86,7 +82,7 @@ class NodeResponse(BaseModel):
 
     id: str
     name: str
-    node_type: NodeType
+    artifact_type: ArtifactType = ArtifactType.FUNCTION
     category: str
     keywords: list[str]
 
@@ -108,7 +104,7 @@ class NodeResponse(BaseModel):
 
 class ScoredSearchItem(BaseModel):
     score: float
-    node: NodeResponse
+    node: FunctionResponse
 
 
 class SearchResults(BaseModel):
@@ -124,7 +120,7 @@ class ScoredSearchResponse(BaseModel):
     aggregations: dict[str, dict[str, int]] | None = None
 
 
-class NodeMetadata(NodeResponse):
+class FunctionMetadata(FunctionResponse):
     embedding: NdArray | None = None
     source_code_hash: str = ""
 
@@ -133,7 +129,7 @@ class NodeMetadata(NodeResponse):
 
 class Filter(BaseModel):
     category: str | None = None
-    type: list[NodeType] | None = None
+    artifact_type: list[ArtifactType] | None = None
     author: list[str] | None = None
     keywords: list[str] | None = None
     datatypes: list[str] | None = None
@@ -144,7 +140,7 @@ class Filter(BaseModel):
 
 class FilterOptions(BaseModel):
     category: dict[str, list[str]]
-    type: list[NodeType]
+    artifact_type: list[ArtifactType]
     author: list[str]
     keywords: list[str]
     datatypes: list[str]

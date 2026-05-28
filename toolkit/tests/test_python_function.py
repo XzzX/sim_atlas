@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from sim_atlas_toolkit.models import NodeType
+from sim_atlas_toolkit.models import ArtifactType
 from sim_atlas_toolkit.parsers.python_function import parse
 
 
@@ -39,7 +39,7 @@ def test_function_returns_one_record() -> None:
 
 def test_function_node_type() -> None:
     (record,) = parse(simple)
-    assert record.node_type == NodeType.FUNCTION
+    assert record.artifact_type == ArtifactType.FUNCTION
 
 
 def test_function_input_labels() -> None:

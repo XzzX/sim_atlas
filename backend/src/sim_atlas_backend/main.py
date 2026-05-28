@@ -23,9 +23,9 @@ from sim_atlas_backend.models import (
     AgentRequest,
     Filter,
     FilterOptions,
-    NodeMetadata,
-    NodeRequest,
-    NodeResponse,
+    FunctionMetadata,
+    FunctionRequest,
+    FunctionResponse,
     ScoredSearchResponse,
 )
 
@@ -88,7 +88,7 @@ async def return_creator(
 
 @api_router.post("/nodes", tags=["nodes"], status_code=status.HTTP_201_CREATED)
 async def create_node(
-    node: NodeRequest,
+    node: FunctionRequest,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> str:
@@ -98,7 +98,7 @@ async def create_node(
     ).hexdigest()
 
     timestamp = dt.datetime.now(dt.UTC)
-    node_metadata = NodeMetadata(
+    node_metadata = FunctionMetadata(
         **node.model_dump(),
         id=id,
         source_code_hash=source_code_hash,
@@ -120,7 +120,7 @@ async def create_node(
 @api_router.get("/nodes/{node_id}", tags=["nodes"])
 async def read_node(
     node_id: str, storage: Annotated[StorageInterface, Depends(get_storage)]
-) -> NodeResponse:
+) -> FunctionResponse:
     try:
         return storage.read(node_id)
     except KeyError as e:
@@ -132,10 +132,10 @@ async def read_node(
 @api_router.put("/nodes/{node_id}", tags=["nodes"])
 async def update_node(
     node_id: str,
-    node: NodeMetadata,
+    node: FunctionMetadata,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
-) -> NodeResponse:
+) -> FunctionResponse:
     try:
         return storage.update(node_id, node)
     except KeyError as e:

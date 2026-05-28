@@ -1,5 +1,5 @@
 import React from "react";
-import { type NodeMetadata, NodeType } from "../types/index";
+import { type FunctionResponse, ArtifactType } from "../types/index";
 import {
   Calendar,
   ClipboardCopyIcon,
@@ -53,7 +53,7 @@ const handleDownload = (filename: string, content: string) => {
 };
 
 interface NodeCardProps {
-  node: NodeMetadata;
+  node: FunctionResponse;
   score?: number;
 }
 
@@ -67,7 +67,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
         </CardDescription>
         <CardDescription>
           <Badge variant="secondary" className="mr-2">
-            {node.node_type}
+            {node.artifact_type}
           </Badge>
           {score !== undefined && (
             <Badge variant="success">Score: {score.toFixed(2)}</Badge>
@@ -125,7 +125,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
               <ClipboardCopyIcon /> Python Import
             </Button>
           )}
-          {node.node_type === NodeType.python_workflow_definition && (
+          {node.artifact_type === ArtifactType.workflow && (
             <Button
               variant="outline"
               size="sm"
@@ -138,7 +138,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
               Web IDE
             </Button>
           )}
-          {node.node_type === NodeType.python_workflow_definition && (
+          {node.artifact_type === ArtifactType.workflow && (
             <Button
               variant="outline"
               size="sm"

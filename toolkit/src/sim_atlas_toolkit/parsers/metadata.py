@@ -4,12 +4,12 @@ from typing import Annotated, Any, Union, get_args, get_origin
 
 from pydantic import BaseModel
 
-from ..models import Annotation, NodeType
+from ..models import Annotation, ArtifactType
 
 
 class Metadata(BaseModel):
     name: str | None = None
-    node_type: NodeType
+    artifact_type: ArtifactType
     category: str
 
     python_import: str | None

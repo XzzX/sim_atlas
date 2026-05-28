@@ -1,7 +1,7 @@
 import axios from "axios";
 import {
-  type NodeMetadata,
-  NodeMetadataSchema,
+  type FunctionMetadata,
+  FunctionMetadataSchema,
   type ScoredSearchResponse,
   ScoredSearchResponseSchema,
   type Filter,
@@ -19,9 +19,9 @@ const api = axios.create({
 });
 
 export const simAtlasAPI = {
-  getNode: async (nodeHash: string): Promise<NodeMetadata> => {
+  getNode: async (nodeHash: string): Promise<FunctionMetadata> => {
     const response = await api.get(`/nodes/${nodeHash}`);
-    return NodeMetadataSchema.parse(response.data);
+    return FunctionMetadataSchema.parse(response.data);
   },
 
   getFilterOptions: async (): Promise<FilterOptions> => {

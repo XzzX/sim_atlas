@@ -34,10 +34,10 @@ import pytest
 
 from sim_atlas_backend.models import (
     Annotation,
+    ArtifactType,
     Filter,
     FilterOptions,
-    NodeMetadata,
-    NodeType,
+    FunctionMetadata,
     ScoredSearchResponse,
 )
 from sim_atlas_backend.storage_interface import StorageInterface
@@ -47,8 +47,8 @@ from sim_atlas_backend.storage_interface import StorageInterface
 # ---------------------------------------------------------------------------
 
 
-def make_node(**kwargs: Any) -> NodeMetadata:
-    """Return a ``NodeMetadata`` instance with sensible defaults.
+def make_node(**kwargs: Any) -> FunctionMetadata:
+    """Return a ``FunctionMetadata`` instance with sensible defaults.
 
     Keyword arguments override any default field value so tests can focus on
     the field(s) they care about.
@@ -60,7 +60,6 @@ def make_node(**kwargs: Any) -> NodeMetadata:
         "creator_email": "creator@example.com",
         "creation_timestamp": "2024-01-01T00:00:00",
         "name": "test_node",
-        "node_type": NodeType.FUNCTION,
         "category": "test",
         "keywords": ["test"],
         "homepage_url": "",
@@ -79,7 +78,7 @@ def make_node(**kwargs: Any) -> NodeMetadata:
     defaults.update(kwargs)
     if "id" not in defaults:
         defaults["id"] = str(uuid.uuid4())
-    return NodeMetadata(**defaults)
+    return FunctionMetadata(**defaults)
 
 
 # ---------------------------------------------------------------------------
@@ -187,19 +186,19 @@ class StorageContractTests:
     ) -> None:
         options = storage.get_filter_options()
         assert isinstance(options, FilterOptions)
-        assert options.type == []
+        assert options.artifact_type == []
         assert options.author == []
         assert options.keywords == []
         assert options.datatypes == []
         assert options.units == []
         assert options.quantities == []
 
-    def test_get_filter_options_includes_node_type(
+    def test_get_filter_options_includes_artifact_type(
         self, storage: StorageInterface
     ) -> None:
-        storage.create(make_node(node_type=NodeType.FUNCTION))
+        storage.create(make_node())
         options = storage.get_filter_options()
-        assert NodeType.FUNCTION in options.type
+        assert ArtifactType.FUNCTION in options.artifact_type
 
     def test_get_filter_options_includes_author(
         self, storage: StorageInterface
@@ -255,22 +254,19 @@ class StorageContractTests:
         storage.create(
             make_node(
                 author_name="Alice",
-                node_type=NodeType.FUNCTION,
                 source_code="def alice(): pass",
             )
         )
         storage.create(
             make_node(
                 author_name="Bob",
-                node_type=NodeType.PYIRON_CORE_NODE,
                 source_code="def bob(): pass",
             )
         )
         options = storage.get_filter_options()
         assert "Alice" in options.author
         assert "Bob" in options.author
-        assert NodeType.FUNCTION in options.type
-        assert NodeType.PYIRON_CORE_NODE in options.type
+        assert ArtifactType.FUNCTION in options.artifact_type
 
     # -----------------------------------------------------------------------
     # search
@@ -338,18 +334,10 @@ class StorageContractTests:
         assert result.results.data[0].node.category == "physics"
 
     def test_search_filter_by_type(self, storage: StorageInterface) -> None:
-        storage.create(
-            make_node(node_type=NodeType.FUNCTION, source_code="def func(): pass")
-        )
-        storage.create(
-            make_node(
-                node_type=NodeType.PYTHON_WORKFLOW_DEFINITION,
-                source_code="def wf(): pass",
-            )
-        )
-        result = storage.search(None, Filter(type=[NodeType.FUNCTION]))
+        storage.create(make_node(source_code="def func(): pass"))
+        result = storage.search(None, Filter(artifact_type=[ArtifactType.FUNCTION]))
         assert result.results.total_items == 1
-        assert result.results.data[0].node.node_type == NodeType.FUNCTION
+        assert result.results.data[0].node.artifact_type == ArtifactType.FUNCTION
 
     def test_search_filter_by_author(self, storage: StorageInterface) -> None:
         storage.create(make_node(author_name="Alice", source_code="def alice(): pass"))

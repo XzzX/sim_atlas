@@ -38,7 +38,13 @@ from sim_atlas_backend.models import (
     Filter,
     FilterOptions,
     FunctionMetadata,
+    FunctionResponse,
     ScoredSearchResponse,
+    WfEdge,
+    WfInputNode,
+    WfOutputNode,
+    WorkflowDefinition,
+    WorkflowMetadata,
 )
 from sim_atlas_backend.storage_interface import StorageInterface
 
@@ -79,6 +85,41 @@ def make_node(**kwargs: Any) -> FunctionMetadata:
     if "id" not in defaults:
         defaults["id"] = str(uuid.uuid4())
     return FunctionMetadata(**defaults)
+
+
+def make_workflow(**kwargs: Any) -> WorkflowMetadata:
+    """Return a ``WorkflowMetadata`` instance with sensible defaults."""
+    defaults: dict[str, Any] = {
+        "author_name": "Test Author",
+        "author_email": "test@example.com",
+        "creator_name": "Test Creator",
+        "creator_email": "creator@example.com",
+        "creation_timestamp": "2024-01-01T00:00:00",
+        "name": "test_workflow",
+        "category": "test",
+        "keywords": ["test"],
+        "homepage_url": "",
+        "documentation_url": "",
+        "source_url": "",
+        "docstring": "A test workflow",
+        "ai_summary": "",
+        "ai_description": "",
+        "inputs": [Annotation(label="x")],
+        "outputs": [Annotation(label="y")],
+        "embedding": None,
+        "source_code_hash": "",
+        "definition": WorkflowDefinition(
+            nodes=[
+                WfInputNode(id="i1", name="x"),
+                WfOutputNode(id="o1", name="y"),
+            ],
+            edges=[WfEdge(source="i1", target="o1")],
+        ),
+    }
+    defaults.update(kwargs)
+    if "id" not in defaults:
+        defaults["id"] = str(uuid.uuid4())
+    return WorkflowMetadata(**defaults)
 
 
 # ---------------------------------------------------------------------------
@@ -315,7 +356,11 @@ class StorageContractTests:
             )
         )
         result = storage.search("mypackage")
-        imports = [item.node.python_import for item in result.results.data]
+        imports = [
+            item.node.python_import
+            for item in result.results.data
+            if isinstance(item.node, FunctionResponse)
+        ]
         assert "mypackage.mymodule" in imports
 
     def test_search_filter_by_category(self, storage: StorageInterface) -> None:
@@ -567,3 +612,50 @@ class StorageContractTests:
         storage.create(make_node(source_code_hash=""))
         storage.create(make_node(source_code_hash=""))
         assert storage.count() == 2  # noqa: PLR2004
+
+    # -----------------------------------------------------------------------
+    # Workflow artifact contract tests
+    # -----------------------------------------------------------------------
+
+    def test_create_and_read_workflow_roundtrip(
+        self, storage: StorageInterface
+    ) -> None:
+        wf = make_workflow()
+        key = storage.create(wf)
+        assert key == wf.id
+        result = storage.read(key)
+        assert result == wf
+
+    def test_search_workflow_by_name(self, storage: StorageInterface) -> None:
+        wf = make_workflow(name="my_pipeline")
+        storage.create(wf)
+        result = storage.search("my_pipeline")
+        assert result.results.total_items == 1
+        assert result.results.data[0].node.name == "my_pipeline"
+
+    def test_filter_artifact_type_function_excludes_workflow(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(make_node(source_code="def f(): pass"))
+        storage.create(make_workflow())
+        result = storage.search(None, Filter(artifact_type=[ArtifactType.FUNCTION]))
+        assert result.results.total_items == 1
+        assert result.results.data[0].node.artifact_type == ArtifactType.FUNCTION
+
+    def test_filter_artifact_type_workflow_excludes_function(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(make_node(source_code="def f(): pass"))
+        storage.create(make_workflow())
+        result = storage.search(None, Filter(artifact_type=[ArtifactType.WORKFLOW]))
+        assert result.results.total_items == 1
+        assert result.results.data[0].node.artifact_type == ArtifactType.WORKFLOW
+
+    def test_get_filter_options_includes_both_artifact_types(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create(make_node(source_code="def f(): pass"))
+        storage.create(make_workflow())
+        options = storage.get_filter_options()
+        assert ArtifactType.FUNCTION in options.artifact_type
+        assert ArtifactType.WORKFLOW in options.artifact_type

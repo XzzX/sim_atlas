@@ -21,12 +21,22 @@ from sim_atlas_backend.models import (
     ScoredSearchItem,
     ScoredSearchResponse,
     SearchResults,
+    StoredArtifact,
+    WorkflowMetadata,
+    WorkflowResponse,
 )
 from sim_atlas_backend.voyage_ai import create_embedding
 
 from .settings import load_settings
 from .storage_interface import StorageInterface
 from .type_utils import collect_datatypes, datatype_matches
+
+
+def _deserialize_artifact(data: dict[str, object]) -> StoredArtifact:
+    artifact_type = data.get("artifact_type")
+    if artifact_type == ArtifactType.WORKFLOW:
+        return WorkflowMetadata.model_validate(data)
+    return FunctionMetadata.model_validate(data)
 
 
 def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
@@ -68,14 +78,14 @@ class NodeFilter:
         )
         self.port_type = filter_options.port_type or "both"
 
-    def _annotations(self, node: FunctionMetadata) -> list[Annotation]:
+    def _annotations(self, node: StoredArtifact) -> list[Annotation]:
         if self.port_type == "inputs":
             return node.inputs
         if self.port_type == "outputs":
             return node.outputs
         return node.inputs + node.outputs
 
-    def __call__(self, node: FunctionMetadata) -> bool:  # noqa: PLR0911
+    def __call__(self, node: StoredArtifact) -> bool:  # noqa: PLR0911
         if self.category and not node.category.startswith(self.category):
             return False
 
@@ -112,7 +122,7 @@ class FileSystemStorage(StorageInterface):
     """File-system-backed storage implementation for node metadata"""
 
     def __init__(self, filename: str | None = "filesystem.json") -> None:
-        self._storage: dict[str, FunctionMetadata] = {}
+        self._storage: dict[str, StoredArtifact] = {}
         self._filename = filename
         self._connected = False
 
@@ -121,7 +131,7 @@ class FileSystemStorage(StorageInterface):
                 with open(self._filename) as f:
                     data = json.load(f)
                     self._storage = {
-                        k: FunctionMetadata.model_validate(v) for k, v in data.items()
+                        k: _deserialize_artifact(v) for k, v in data.items()
                     }
             except Exception:
                 pass  # If loading fails, start with empty storage
@@ -141,7 +151,7 @@ class FileSystemStorage(StorageInterface):
                     default=str,
                 )
 
-    def create(self, value: FunctionMetadata, check_source_hash: bool = True) -> str:
+    def create(self, value: StoredArtifact, check_source_hash: bool = True) -> str:
         id = value.id
         if id in self._storage:
             raise ValueError(f"Node with id '{id}' already exists.")
@@ -155,12 +165,12 @@ class FileSystemStorage(StorageInterface):
         self._save_to_disk()
         return id
 
-    def read(self, id: str) -> FunctionMetadata:
+    def read(self, id: str) -> StoredArtifact:
         if id not in self._storage:
             raise KeyError(id)
         return self._storage[id]
 
-    def update(self, id: str, value: FunctionMetadata) -> FunctionMetadata:
+    def update(self, id: str, value: StoredArtifact) -> StoredArtifact:
         if id not in self._storage:
             raise KeyError(id)
         self._storage[id] = value
@@ -195,7 +205,7 @@ class FileSystemStorage(StorageInterface):
             parts = category.split(">")
             return {">".join(parts[:i]): {v} for i, v in enumerate(parts)}
 
-        def extract_filter_options(node: FunctionMetadata) -> FilterOptionsSet:
+        def extract_filter_options(node: StoredArtifact) -> FilterOptionsSet:
             return FilterOptionsSet(
                 category=extract_categories(node.category),
                 type={node.artifact_type},
@@ -294,8 +304,12 @@ class FileSystemStorage(StorageInterface):
         item_filter: NodeFilter = NodeFilter(filter or Filter())
         filtered_items = (item for item in self._storage.values() if item_filter(item))
 
-        def score_item(query: str, item: FunctionMetadata) -> float:
-            if query in item.python_import.lower():
+        def score_item(query: str, item: StoredArtifact) -> float:
+            if isinstance(item, FunctionMetadata):
+                search_field = item.python_import.lower()
+            else:
+                search_field = item.name.lower()
+            if query in search_field:
                 return 1.0
             if query in item.ai_summary.lower():
                 return 0.8
@@ -345,7 +359,9 @@ class FileSystemStorage(StorageInterface):
                 similarities.append(
                     ScoredSearchItem(
                         score=similarity,
-                        node=FunctionResponse(**node.model_dump()),
+                        node=FunctionResponse(**node.model_dump())
+                        if isinstance(node, FunctionMetadata)
+                        else WorkflowResponse(**node.model_dump()),
                     )
                 )
 
@@ -387,7 +403,12 @@ class FileSystemStorage(StorageInterface):
         # --- keyword rank (all filtered nodes) ---
         hit_counts: list[tuple[str, int]] = []
         for node in filtered_nodes:
-            search_text = f"{node.name} {node.python_import} {node.ai_summary}".lower()
+            if isinstance(node, FunctionMetadata):
+                search_text = (
+                    f"{node.name} {node.python_import} {node.ai_summary}".lower()
+                )
+            else:
+                search_text = f"{node.name} {node.ai_summary}".lower()
             hits = sum(1 for tok in tokens if tok in search_text)
             if hits > 0:
                 hit_counts.append((node.id, hits))
@@ -399,12 +420,14 @@ class FileSystemStorage(StorageInterface):
         # --- RRF merge ---
         k = 60
         candidate_ids = set(sem_rank) | set(kw_rank)
-        node_lookup: dict[str, FunctionMetadata] = {n.id: n for n in filtered_nodes}
+        node_lookup: dict[str, StoredArtifact] = {n.id: n for n in filtered_nodes}
         scored: list[ScoredSearchItem] = [
             ScoredSearchItem(
                 score=(1 / (k + sem_rank[nid]) if nid in sem_rank else 0.0)
                 + (1 / (k + kw_rank[nid]) if nid in kw_rank else 0.0),
-                node=FunctionResponse(**node_lookup[nid].model_dump()),
+                node=FunctionResponse(**node_lookup[nid].model_dump())
+                if isinstance(node_lookup[nid], FunctionMetadata)
+                else WorkflowResponse(**node_lookup[nid].model_dump()),
             )
             for nid in candidate_ids
         ]
@@ -413,7 +436,7 @@ class FileSystemStorage(StorageInterface):
         return self._paginate(scored, page=page, limit=limit)
 
     @staticmethod
-    def _embedding_text(node: FunctionMetadata) -> str:
+    def _embedding_text(node: StoredArtifact) -> str:
         port_lines = [
             f"{a.label}: {a.description}"
             for a in node.inputs + node.outputs
@@ -431,14 +454,15 @@ class FileSystemStorage(StorageInterface):
             else [node for node in self._storage.values() if node.embedding is None]
         )
 
-        async def _enrich_one(v: FunctionMetadata) -> None:
+        async def _enrich_one(v: StoredArtifact) -> None:
             async with sem:
-                if not v.source_code:
+                source_code = v.source_code if isinstance(v, FunctionMetadata) else None
+                if not source_code:
                     return
                 try:
                     output_labels = [a.label for a in v.outputs if a.label is not None]
                     v.ai_summary, v.ai_description, args = await create_ai_descriptions(
-                        v.name, v.docstring, v.source_code, output_labels
+                        v.name, v.docstring, source_code, output_labels
                     )
                     for a in v.inputs + v.outputs:
                         if a.label and a.description is None:
@@ -446,7 +470,7 @@ class FileSystemStorage(StorageInterface):
                 except Exception as e:
                     print(f"Error occurred while enriching node {v.name}: {e}")
                     print(f"docstring: {v.docstring}")
-                    print(f"source_code: {v.source_code}")
+                    print(f"source_code: {source_code}")
 
         await atqdm.gather(  # pyright: ignore[reportUnknownMemberType]
             *[_enrich_one(v) for v in nodes_to_enrich],

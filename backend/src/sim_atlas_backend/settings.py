@@ -36,10 +36,11 @@ CONFIG_TEMPLATE = """# Sim Atlas Configuration Template
 # Minimum recommended length: 32 characters
 jwt_secret = "replace-with-strong-secret-key-min-32-chars"
 
-# JWT Algorithm for token signing (standard: HS256)
-# Determines the cryptographic algorithm for token signing.
+# === OPTIONAL: JWT SETTINGS ===
+# JWT Algorithm for token signing (default: HS256)
+# Override only if you need a different algorithm.
 # Common values: HS256 (HMAC with SHA-256), HS512 (HMAC with SHA-512)
-jwt_algorithm = "HS256"
+# jwt_algorithm = "HS256"
 
 # === OPTIONAL: LLM / AI ENRICHMENT ===
 # Leave commented out if you don't use AI features (semantic search, docstring enrichment).
@@ -108,7 +109,7 @@ jwt_algorithm = "HS256"
 
 class Settings(BaseSettings):
     jwt_secret: str
-    jwt_algorithm: str
+    jwt_algorithm: str = "HS256"
     llm_api_key: str | None = None
     llm_base_url: str | None = None
     llm_embedding_model: str | None = None

@@ -21,6 +21,7 @@ def test_load_settings_returns_valid_instance():
 def test_config_template_structure():
     """Test that the template has all required sections and keys."""
     assert "=== REQUIRED SETTINGS ===" in CONFIG_TEMPLATE
+    assert "=== OPTIONAL: JWT SETTINGS ===" in CONFIG_TEMPLATE
     assert "=== OPTIONAL: LLM / AI ENRICHMENT ===" in CONFIG_TEMPLATE
     assert "=== OPTIONAL: VOYAGEAI EMBEDDINGS ===" in CONFIG_TEMPLATE
     assert "=== OPTIONAL: LANGFUSE OBSERVABILITY ===" in CONFIG_TEMPLATE

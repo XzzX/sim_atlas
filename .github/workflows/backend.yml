@@ -17,7 +17,6 @@ jobs:
 
     env:
       SIM_ATLAS_JWT_SECRET: test-secret-key-for-ci-testing-only
-      SIM_ATLAS_JWT_ALGORITHM: HS256
       SIM_ATLAS_LLM_API_KEY: test-llm-api-key
       SIM_ATLAS_LLM_BASE_URL: http://llm.local/v1
       SIM_ATLAS_LLM_CHAT_MODEL: test-model

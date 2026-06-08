@@ -17,7 +17,6 @@ jobs:
 
     env:
       SIM_ATLAS_JWT_SECRET: test-secret-key-for-ci-testing-only-32chars
-      SIM_ATLAS_JWT_ALGORITHM: HS256
 
     steps:
       - uses: actions/checkout@v6

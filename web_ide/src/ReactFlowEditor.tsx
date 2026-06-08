@@ -388,7 +388,7 @@ export const ReactFlowEditor = ({
             pendingConnection
               ? ({
                   category: null,
-                  type: null,
+                  artifact_type: null,
                   author: null,
                   keywords: null,
                   datatypes: pendingConnection.annotation?.datatype

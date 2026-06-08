@@ -26,13 +26,9 @@ export function toWorkflowDefinition(
     .map((node): PythonWorkflowDefinitionNode | null => {
       if (node.type === "FunctionNode") {
         const fn = node as FunctionNodeType;
-        const nt = fn.data.metadata.artifact_type;
         return {
           id: node.id,
-          type:
-            nt === "pack" ? "pack"
-            : nt === "unpack" ? "unpack"
-            : "function",
+          type: "function",
           python_import: fn.data.metadata.python_import,
           atlas_node_id: fn.data.metadata.id,
         };

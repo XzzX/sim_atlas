@@ -446,7 +446,7 @@ class FileSystemStorage(StorageInterface):
         return node.ai_description + "\n" + "\n".join(port_lines)
 
     async def enrich(self, only_ids: list[str] | None = None) -> None:
-        sem = asyncio.Semaphore(load_settings().llm_enrich_concurrency)
+        sem = asyncio.Semaphore(load_settings().llm_concurrency)
         nodes_to_enrich = (
             [node for node in self._storage.values() if node.id in only_ids]
             if only_ids

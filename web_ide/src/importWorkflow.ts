@@ -12,10 +12,7 @@ async function convertToNode(
   n: PythonWorkflowDefinitionNode,
 ): Promise<WorkflowNode | null> {
   if (n.type === "function" || n.type === "pack" || n.type === "unpack") {
-    const nodeTypeFilter: NodeType | undefined =
-      n.type === "pack" ? "pack"
-      : n.type === "unpack" ? "unpack"
-      : undefined;
+    const nodeTypeFilter: NodeType | undefined = undefined;
 
     // Prefer direct lookup by atlas_node_id; fall back to keyword search
     let meta =
@@ -26,7 +23,7 @@ async function convertToNode(
     if (!meta) {
       const response = await simAtlasAPI.search(
         n.python_import,
-        nodeTypeFilter !== undefined ? { type: [nodeTypeFilter] } : null,
+        nodeTypeFilter !== undefined ? { artifact_type: [nodeTypeFilter] } : null,
       );
       meta =
         response.results.data.find(

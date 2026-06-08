@@ -289,7 +289,7 @@ async def agent_stream(
     settings = load_settings()
     if (
         not settings.llm_api_key
-        or not settings.llm_api_url
+        or not settings.llm_base_url
         or not settings.llm_chat_model
     ):
         raise AINotConfiguredError

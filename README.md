@@ -1,9 +1,12 @@
-# Sim Atlas
-
-[![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.122%2B-009688)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18-61DAFB)](https://react.dev/)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+
+[![backend](https://github.com/XzzX/sim_atlas/actions/workflows/backend.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/backend.yml)
+[![frontend](https://github.com/XzzX/sim_atlas/actions/workflows/frontend.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/frontend.yml)
+[![toolkit](https://github.com/XzzX/sim_atlas/actions/workflows/toolkit.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/toolkit.yml)
+[![web-ide](https://github.com/XzzX/sim_atlas/actions/workflows/web_ide.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/web_ide.yml)
+[![e2e](https://github.com/XzzX/sim_atlas/actions/workflows/e2e.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/e2e.yml)
+
+# Sim Atlas
 
 Search and discovery platform for simulation nodes — Python functions, workflow definitions, and pyiron nodes used in scientific computing.
 

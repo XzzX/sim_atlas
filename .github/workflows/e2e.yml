@@ -27,6 +27,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
@@ -82,6 +87,18 @@ jobs:
           assert total > 0, f'Expected at least one artifact, got: {d}'
           print(f\"OK — {total} artifact(s) found\")
           "
+
+      - name: Install Playwright dependencies
+        run: npm ci
+        working-directory: ./e2e
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: ./e2e
+
+      - name: Run Playwright tests
+        run: npx playwright test
+        working-directory: ./e2e
 
       - name: Stop backend server
         if: always()

@@ -34,7 +34,7 @@ CONFIG_TEMPLATE = """# Sim Atlas Configuration Template
 # Generate a strong random key with: python -c "import secrets; print(secrets.token_urlsafe(32))"
 # This is used to sign and verify API authentication tokens.
 # Minimum recommended length: 32 characters
-jwt_secret_key = "replace-with-strong-secret-key-min-32-chars"
+jwt_secret = "replace-with-strong-secret-key-min-32-chars"
 
 # JWT Algorithm for token signing (standard: HS256)
 # Determines the cryptographic algorithm for token signing.
@@ -50,12 +50,12 @@ jwt_algorithm = "HS256"
 # Examples: OpenAI (sk-...), LocalAI, Ollama via OpenAI-compatible endpoint
 # llm_api_key = "sk-..."
 
-# OpenAI-compatible LLM API URL
+# OpenAI-compatible LLM API Base URL
 # Base URL of the OpenAI-compatible API server.
 # Examples: https://chat-ai.academiccloud.de/v1/ (GWDG)
 #           http://localhost:11434/v1 (Ollama local)
 # Must be a valid HTTP(S) URL.
-# llm_api_url = "https://chat-ai.academiccloud.de/v1/"
+# llm_base_url = "https://chat-ai.academiccloud.de/v1/"
 
 # LLM Chat Model Name
 # Name of the model to use for conversational docstring refinement.
@@ -67,10 +67,10 @@ jwt_algorithm = "HS256"
 # Examples: text-embedding-3-small (OpenAI), nomic-embed-text (Ollama)
 # llm_embedding_model = "multilingual-e5-large-instruct"
 
-# LLM Enrichment Concurrency
-# Maximum number of simultaneous LLM requests during bulk enrichment.
+# LLM Concurrency
+# Maximum number of simultaneous LLM requests.
 # Lower values reduce API load; higher values speed up large batches.
-# llm_enrich_concurrency = 5
+# llm_concurrency = 5
 
 # === OPTIONAL: VOYAGEAI EMBEDDINGS ===
 # Alternative to LLM-based embeddings; uses VoyageAI's hosted API.
@@ -107,13 +107,13 @@ jwt_algorithm = "HS256"
 
 
 class Settings(BaseSettings):
-    jwt_secret_key: str
+    jwt_secret: str
     jwt_algorithm: str
     llm_api_key: str | None = None
-    llm_api_url: str | None = None
+    llm_base_url: str | None = None
     llm_embedding_model: str | None = None
     llm_chat_model: str | None = None
-    llm_enrich_concurrency: int = 5
+    llm_concurrency: int = 5
     agent_max_iterations: int = Field(default=10, ge=1)
     voyage_api_key: str | None = None
     langfuse_public_key: str | None = None
@@ -125,6 +125,7 @@ class Settings(BaseSettings):
         toml_file=_get_config_files(),
         env_file=".env",
         env_file_encoding="utf-8",
+        env_prefix="SIM_ATLAS_",
     )
 
     @classmethod
@@ -198,10 +199,10 @@ def load_settings() -> Settings:
                     f"Configuration file created: {config_path.absolute()}",
                     f"{'=' * 70}",
                     "\nRequired fields to fill in:",
-                    "  - jwt_secret_key: A strong secret key for signing tokens",
+                    "  - jwt_secret: A strong secret key for signing tokens",
                     "  - jwt_algorithm: Usually 'HS256'",
                     "\nOptional fields (AI/semantic search):",
-                    "  - llm_api_key, llm_api_url, llm_chat_model, llm_embedding_model",
+                    "  - llm_api_key, llm_base_url, llm_chat_model, llm_embedding_model",
                     "  - voyage_api_key",
                     "  - langfuse_public_key, langfuse_secret_key, langfuse_host",
                     "\nPlease review the config file, fill in the required fields,",

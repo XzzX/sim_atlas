@@ -14,7 +14,7 @@ def test_load_settings_returns_valid_instance():
     settings = load_settings()
 
     # Should have required fields set
-    assert settings.jwt_secret_key is not None
+    assert settings.jwt_secret is not None
     assert settings.jwt_algorithm is not None
 
 
@@ -26,10 +26,10 @@ def test_config_template_structure():
     assert "=== OPTIONAL: LANGFUSE OBSERVABILITY ===" in CONFIG_TEMPLATE
 
     # Check all fields are documented
-    assert "jwt_secret_key" in CONFIG_TEMPLATE
+    assert "jwt_secret" in CONFIG_TEMPLATE
     assert "jwt_algorithm" in CONFIG_TEMPLATE
     assert "llm_api_key" in CONFIG_TEMPLATE
-    assert "llm_api_url" in CONFIG_TEMPLATE
+    assert "llm_base_url" in CONFIG_TEMPLATE
     assert "llm_embedding_model" in CONFIG_TEMPLATE
     assert "llm_chat_model" in CONFIG_TEMPLATE
     assert "voyage_api_key" in CONFIG_TEMPLATE
@@ -78,10 +78,10 @@ def test_template_has_all_fields_explained():
     """Test that every config field has explanation text."""
     # Each field should have at least one comment line explaining it
     fields = [
-        "jwt_secret_key",
+        "jwt_secret",
         "jwt_algorithm",
         "llm_api_key",
-        "llm_api_url",
+        "llm_base_url",
         "llm_chat_model",
         "llm_embedding_model",
         "voyage_api_key",
@@ -117,7 +117,7 @@ def test_settings_can_be_loaded_from_env(monkeypatch: pytest.MonkeyPatch) -> Non
     settings = load_settings()
 
     # Should have at least the required fields
-    assert hasattr(settings, "jwt_secret_key")
+    assert hasattr(settings, "jwt_secret")
     assert hasattr(settings, "jwt_algorithm")
     assert hasattr(settings, "llm_api_key")
     assert hasattr(settings, "voyage_api_key")
@@ -141,7 +141,7 @@ def test_template_mentions_deployment_scenarios():
 
 
 def test_settings_expose_langfuse_fields():
-    settings = Settings(jwt_secret_key="x", jwt_algorithm="HS256")
+    settings = Settings(jwt_secret="x", jwt_algorithm="HS256")
 
     assert settings.langfuse_public_key is None
     assert settings.langfuse_secret_key is None

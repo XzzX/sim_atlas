@@ -29,13 +29,13 @@ async def enrich_function_metadata(func: FunctionMetadata) -> None:
     settings = load_settings()
     if (
         not settings.llm_api_key
-        or not settings.llm_api_url
+        or not settings.llm_base_url
         or not settings.llm_chat_model
     ):
         raise AINotConfiguredError(
             "LLM settings (llm_api_key, llm_api_url, llm_chat_model) are not configured"
         )
-    client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
+    client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url)
 
     output_labels = [a.label for a in func.outputs if a.label]
 
@@ -126,13 +126,13 @@ async def enrich_workflow_metadata(
     settings = load_settings()
     if (
         not settings.llm_api_key
-        or not settings.llm_api_url
+        or not settings.llm_base_url
         or not settings.llm_chat_model
     ):
         raise AINotConfiguredError(
             "LLM settings (llm_api_key, llm_api_url, llm_chat_model) are not configured"
         )
-    client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
+    client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url)
 
     response = await client.chat.completions.create(
         model=settings.llm_chat_model,

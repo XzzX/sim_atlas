@@ -25,7 +25,7 @@ async def get_current_user(access_token: Annotated[str, Depends(api_key_header)]
     settings = load_settings()
     try:
         payload = jwt.decode(
-            access_token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+            access_token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
         )
         creator_name = payload.get("creator_name")
         if creator_name is None:

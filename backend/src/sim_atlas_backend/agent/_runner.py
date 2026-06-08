@@ -46,14 +46,14 @@ async def run_agent_stream(
 ) -> AsyncGenerator[str, None]:
     """Async generator that streams SSE events while running the agent loop."""
     settings = load_settings()
-    assert settings.llm_api_key and settings.llm_api_url and settings.llm_chat_model
+    assert settings.llm_api_key and settings.llm_base_url and settings.llm_chat_model
     lf = Langfuse(
         public_key=settings.langfuse_public_key,
         secret_key=settings.langfuse_secret_key,
         host=settings.langfuse_host,
         environment=settings.langfuse_environment,
     )
-    client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_api_url)
+    client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url)
     scratch = ScratchGraph(request.nodes, request.edges)
 
     history_messages: list[ChatCompletionMessageParam] = [

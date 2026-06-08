@@ -29,7 +29,7 @@ def main() -> None:
 
     print(
         create_access_token(
-            settings.jwt_secret_key, settings.jwt_algorithm, args.name, args.email
+            settings.jwt_secret, settings.jwt_algorithm, args.name, args.email
         )
     )
 

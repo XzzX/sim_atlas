@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Generator
 from math import ceil
-from typing import Any
+from typing import Any, Protocol, cast
 
+import httpx
 import pytest
 from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
@@ -31,6 +33,13 @@ from sim_atlas_backend.security import Creator, get_current_user
 # ---------------------------------------------------------------------------
 
 TEST_CREATOR = Creator(name="Test User", email="test@example.com")
+
+
+class ApiClient(Protocol):
+    def get(self, url: str, **kwargs: Any) -> httpx.Response: ...
+    def post(self, url: str, **kwargs: Any) -> httpx.Response: ...
+    def put(self, url: str, **kwargs: Any) -> httpx.Response: ...
+    def delete(self, url: str, **kwargs: Any) -> httpx.Response: ...
 
 
 # ---------------------------------------------------------------------------
@@ -92,19 +101,19 @@ def storage() -> FileSystemStorage:
 
 
 @pytest.fixture
-def client(storage: FileSystemStorage):
+def client(storage: FileSystemStorage) -> Generator[ApiClient]:
     app.dependency_overrides[get_storage] = lambda: storage
     app.dependency_overrides[get_current_user] = lambda: TEST_CREATOR
     with TestClient(app) as c:
-        yield c
+        yield cast(ApiClient, c)
     app.dependency_overrides.clear()
 
 
 @pytest.fixture
-def unauthed_client(storage: FileSystemStorage):
+def unauthed_client(storage: FileSystemStorage) -> Generator[ApiClient]:
     app.dependency_overrides[get_storage] = lambda: storage
     with TestClient(app) as c:
-        yield c
+        yield cast(ApiClient, c)
     app.dependency_overrides.clear()
 
 
@@ -113,7 +122,7 @@ def unauthed_client(storage: FileSystemStorage):
 # ---------------------------------------------------------------------------
 
 
-def test_me_returns_creator(client: TestClient) -> None:
+def test_me_returns_creator(client: ApiClient) -> None:
     response = client.get("/api/v1/me")
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
@@ -121,7 +130,7 @@ def test_me_returns_creator(client: TestClient) -> None:
     assert body["email"] == TEST_CREATOR.email
 
 
-def test_me_unauthenticated_returns_401(unauthed_client: TestClient) -> None:
+def test_me_unauthenticated_returns_401(unauthed_client: ApiClient) -> None:
     response = unauthed_client.get("/api/v1/me")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -131,7 +140,7 @@ def test_me_unauthenticated_returns_401(unauthed_client: TestClient) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_create_function_artifact_returns_201(client: TestClient) -> None:
+def test_create_function_artifact_returns_201(client: ApiClient) -> None:
     response = client.post("/api/v1/artifacts", json=make_function_request_body())
     assert response.status_code == status.HTTP_201_CREATED
     artifact_id = response.json()
@@ -139,14 +148,14 @@ def test_create_function_artifact_returns_201(client: TestClient) -> None:
     assert len(artifact_id) > 0
 
 
-def test_create_workflow_artifact_returns_201(client: TestClient) -> None:
+def test_create_workflow_artifact_returns_201(client: ApiClient) -> None:
     response = client.post("/api/v1/artifacts", json=make_workflow_request_body())
     assert response.status_code == status.HTTP_201_CREATED
     artifact_id = response.json()
     assert isinstance(artifact_id, str)
 
 
-def test_create_duplicate_artifact_returns_409(client: TestClient) -> None:
+def test_create_duplicate_artifact_returns_409(client: ApiClient) -> None:
     body = make_function_request_body()
     client.post("/api/v1/artifacts", json=body)
     response = client.post("/api/v1/artifacts", json=body)
@@ -154,7 +163,7 @@ def test_create_duplicate_artifact_returns_409(client: TestClient) -> None:
 
 
 def test_create_artifact_unauthenticated_returns_401(
-    unauthed_client: TestClient,
+    unauthed_client: ApiClient,
 ) -> None:
     response = unauthed_client.post(
         "/api/v1/artifacts", json=make_function_request_body()
@@ -167,7 +176,7 @@ def test_create_artifact_unauthenticated_returns_401(
 # ---------------------------------------------------------------------------
 
 
-def test_read_artifact_returns_200(client: TestClient) -> None:
+def test_read_artifact_returns_200(client: ApiClient) -> None:
     artifact_id = client.post(
         "/api/v1/artifacts", json=make_function_request_body()
     ).json()
@@ -178,7 +187,7 @@ def test_read_artifact_returns_200(client: TestClient) -> None:
     assert body["artifact_type"] == ArtifactType.FUNCTION
 
 
-def test_read_artifact_not_found_returns_404(client: TestClient) -> None:
+def test_read_artifact_not_found_returns_404(client: ApiClient) -> None:
     response = client.get("/api/v1/artifacts/does-not-exist")
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -188,7 +197,7 @@ def test_read_artifact_not_found_returns_404(client: TestClient) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_update_artifact_returns_updated_data(client: TestClient) -> None:
+def test_update_artifact_returns_updated_data(client: ApiClient) -> None:
     artifact_id = client.post(
         "/api/v1/artifacts", json=make_function_request_body()
     ).json()
@@ -201,7 +210,7 @@ def test_update_artifact_returns_updated_data(client: TestClient) -> None:
     assert response.json()["name"] == "updated_function"
 
 
-def test_update_artifact_not_found_returns_404(client: TestClient) -> None:
+def test_update_artifact_not_found_returns_404(client: ApiClient) -> None:
     response = client.put(
         "/api/v1/artifacts/does-not-exist", json=make_function_request_body()
     )
@@ -209,7 +218,7 @@ def test_update_artifact_not_found_returns_404(client: TestClient) -> None:
 
 
 def test_update_artifact_unauthenticated_returns_401(
-    unauthed_client: TestClient,
+    unauthed_client: ApiClient,
 ) -> None:
     response = unauthed_client.put(
         "/api/v1/artifacts/some-id", json=make_function_request_body()
@@ -222,7 +231,7 @@ def test_update_artifact_unauthenticated_returns_401(
 # ---------------------------------------------------------------------------
 
 
-def test_delete_artifact_returns_200_and_removes_artifact(client: TestClient) -> None:
+def test_delete_artifact_returns_200_and_removes_artifact(client: ApiClient) -> None:
     artifact_id = client.post(
         "/api/v1/artifacts", json=make_function_request_body()
     ).json()
@@ -235,13 +244,13 @@ def test_delete_artifact_returns_200_and_removes_artifact(client: TestClient) ->
     )
 
 
-def test_delete_artifact_not_found_returns_404(client: TestClient) -> None:
+def test_delete_artifact_not_found_returns_404(client: ApiClient) -> None:
     response = client.delete("/api/v1/artifacts/does-not-exist")
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_delete_artifact_unauthenticated_returns_401(
-    unauthed_client: TestClient,
+    unauthed_client: ApiClient,
 ) -> None:
     response = unauthed_client.delete("/api/v1/artifacts/some-id")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -252,7 +261,7 @@ def test_delete_artifact_unauthenticated_returns_401(
 # ---------------------------------------------------------------------------
 
 
-def test_filter_options_empty_storage(client: TestClient) -> None:
+def test_filter_options_empty_storage(client: ApiClient) -> None:
     response = client.get("/api/v1/filter_options")
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
@@ -260,7 +269,7 @@ def test_filter_options_empty_storage(client: TestClient) -> None:
     assert body["keywords"] == []
 
 
-def test_filter_options_populated_after_creating_artifact(client: TestClient) -> None:
+def test_filter_options_populated_after_creating_artifact(client: ApiClient) -> None:
     client.post(
         "/api/v1/artifacts",
         json=make_function_request_body(
@@ -279,13 +288,13 @@ def test_filter_options_populated_after_creating_artifact(client: TestClient) ->
 # ---------------------------------------------------------------------------
 
 
-def test_search_with_no_query_returns_200(client: TestClient) -> None:
+def test_search_with_no_query_returns_200(client: ApiClient) -> None:
     response = client.post("/api/v1/search")
     assert response.status_code == status.HTTP_200_OK
     assert "results" in response.json()
 
 
-def test_search_with_query_finds_matching_artifact(client: TestClient) -> None:
+def test_search_with_query_finds_matching_artifact(client: ApiClient) -> None:
     client.post("/api/v1/artifacts", json=make_function_request_body(name="special_fn"))
     response = client.post("/api/v1/search", params={"query": "special_fn"})
     assert response.status_code == status.HTTP_200_OK
@@ -293,7 +302,7 @@ def test_search_with_query_finds_matching_artifact(client: TestClient) -> None:
     assert "special_fn" in names
 
 
-def test_search_with_filter_returns_filtered_results(client: TestClient) -> None:
+def test_search_with_filter_returns_filtered_results(client: ApiClient) -> None:
     client.post(
         "/api/v1/artifacts",
         json=make_function_request_body(category="unique-cat"),
@@ -303,7 +312,7 @@ def test_search_with_filter_returns_filtered_results(client: TestClient) -> None
     assert response.json()["results"]["total_items"] >= 1
 
 
-def test_search_pagination_fields_are_correct(client: TestClient) -> None:
+def test_search_pagination_fields_are_correct(client: ApiClient) -> None:
     page_size = 2
     total_artifacts = 3
     for i in range(total_artifacts):
@@ -336,7 +345,7 @@ def _empty_search_response() -> ScoredSearchResponse:
 
 
 def test_semantic_search_returns_200(
-    client: TestClient,
+    client: ApiClient,
     storage: FileSystemStorage,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -350,7 +359,7 @@ def test_semantic_search_returns_200(
 
 
 def test_hybrid_search_returns_200(
-    client: TestClient,
+    client: ApiClient,
     storage: FileSystemStorage,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

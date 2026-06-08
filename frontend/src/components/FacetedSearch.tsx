@@ -1,5 +1,5 @@
 import React from "react";
-import type { ArtifactType, FilterOptions, Filter } from "../types/index";
+import type { FilterOptions, Filter } from "../types/index";
 import { CardContent } from "@/components/ui/card";
 import {
   Combobox,
@@ -63,7 +63,7 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
           values={availableFilterOptions.artifact_type.map((t) => String(t))}
           selected={(filters.artifact_type ?? []).map((value) => String(value))}
           onValueChange={(values) =>
-            onFilterChange({ ...filters, artifact_type: values as ArtifactType[] })
+            onFilterChange({ ...filters, artifact_type: values })
           }
         />
         <FacetPopover

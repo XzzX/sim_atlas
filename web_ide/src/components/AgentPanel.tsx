@@ -34,7 +34,6 @@ import type {
 import type { WorkflowNode } from "../nodes/nodes";
 import type { NodeData } from "../nodes/FunctionNode";
 import type { InputDataElement } from "../nodes/InputNode";
-import type { OutputDataElement } from "../nodes/OutputNode";
 import type { Dispatch, SetStateAction } from "react";
 
 // ---- types ----------------------------------------------------------------
@@ -216,7 +215,7 @@ function buildAgentNodes(nodes: WorkflowNode[]): GraphNodeContext[] {
       };
     }
     // OutputNode
-    const d = n.data as OutputDataElement;
+    const d = n.data;
     return {
       graph_id: n.id,
       node_kind: "output" as const,

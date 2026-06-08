@@ -3,7 +3,6 @@ import { useSearchParams } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 import { simAtlasAPI } from "../services/api";
 import type {
-  ArtifactType,
   Filter,
   FilterOptions,
   ScoredSearchItem,
@@ -99,7 +98,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
   const [category, setCategory] = useState<string>(searchParams.get("c") ?? "");
   const [filters, setFilters] = useState<Filter>({
     category: searchParams.get("category") ?? EMPTY_FILTER.category,
-    artifact_type: (searchParams.getAll("artifact_type") as ArtifactType[]) ?? EMPTY_FILTER.artifact_type,
+    artifact_type: (searchParams.getAll("artifact_type")) ?? EMPTY_FILTER.artifact_type,
     author: searchParams.getAll("author") ?? EMPTY_FILTER.author,
     keywords: searchParams.getAll("keywords") ?? EMPTY_FILTER.keywords,
     datatypes: searchParams.getAll("datatypes") ?? EMPTY_FILTER.datatypes,

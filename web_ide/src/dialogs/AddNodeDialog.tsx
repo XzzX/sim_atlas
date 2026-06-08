@@ -52,9 +52,9 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
   initialFilter,
   connectingHandleType,
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initialSearchQuery ?? "");
   const [searchMode, setSearchMode] = useState<SearchMode>("normal");
-  const [filter, setFilter] = useState<Filter>(EMPTY_FILTER);
+  const [filter, setFilter] = useState<Filter>(initialFilter ?? EMPTY_FILTER);
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(
     null,
   );
@@ -69,18 +69,6 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
   useEffect(() => {
     simAtlasAPI.getFilterOptions().then(setFilterOptions).catch(console.error);
   }, []);
-
-  // Apply prefill values each time the dialog opens
-  useEffect(() => {
-    if (!isOpen) return;
-    setSearchTerm(initialSearchQuery ?? "");
-    setFilter(initialFilter ?? EMPTY_FILTER);
-    setPage(1);
-    // Auto-expand control nodes when opened from an edge drop so the
-    // relevant control node button is immediately visible.
-    setExpandControlNodes(connectingHandleType !== undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
 
   const runSearch = useCallback(
     async (term: string, f: Filter, p: number, mode: SearchMode) => {

@@ -89,7 +89,7 @@ jobs:
           "
 
       - name: Install Playwright dependencies
-        run: npm install
+        run: npm ci
         working-directory: ./e2e
 
       - name: Install Playwright browsers

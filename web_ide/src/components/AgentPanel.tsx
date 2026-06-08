@@ -257,7 +257,7 @@ async function convertAgentGraph(
             creator_name: "",
             creator_email: "",
             creation_timestamp: "",
-            node_type: "function",
+            artifact_type: "function",
             category: "",
             keywords: [],
             homepage_url: "",

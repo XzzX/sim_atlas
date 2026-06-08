@@ -1,13 +1,6 @@
 import { z } from "zod";
 
-export const NodeTypeSchema = z.enum([
-  "function",
-  "python_workflow_definition",
-  "pyiron_workflow_function",
-  "pyiron_core_node",
-  "pack",
-  "unpack",
-]);
+export const NodeTypeSchema = z.enum(["function", "workflow"]);
 export type NodeType = z.infer<typeof NodeTypeSchema>;
 export const NodeType = NodeTypeSchema.enum;
 
@@ -17,6 +10,7 @@ export const AnnotationSchema = z.object({
   datatype: z.string().nullish(),
   unit: z.string().nullish(),
   quantity: z.string().nullish(),
+  description: z.string().nullish(),
 });
 export type Annotation = z.infer<typeof AnnotationSchema>;
 
@@ -25,7 +19,7 @@ export const NodeRequestSchema = z.object({
   author_email: z.string(),
 
   name: z.string(),
-  node_type: NodeTypeSchema,
+  artifact_type: NodeTypeSchema,
   category: z.string(),
 
   keywords: z.array(z.string()),
@@ -55,7 +49,7 @@ export const NodeResponseSchema = z.object({
 
   id: z.string(),
   name: z.string(),
-  node_type: NodeTypeSchema,
+  artifact_type: NodeTypeSchema,
   category: z.string(),
 
   keywords: z.array(z.string()),
@@ -108,7 +102,7 @@ export type NodeMetadata = z.infer<typeof NodeMetadataSchema>;
 
 export const FilterSchema = z.object({
   category: z.string().nullish(),
-  type: z.array(z.string()).nullish(),
+  artifact_type: z.array(z.string()).nullish(),
   author: z.array(z.string()).nullish(),
   keywords: z.array(z.string()).nullish(),
   datatypes: z.array(z.string()).nullish(),
@@ -120,7 +114,7 @@ export type Filter = z.infer<typeof FilterSchema>;
 
 export const FilterOptionsSchema = z.object({
   category: z.record(z.string(), z.array(z.string())),
-  type: z.array(NodeTypeSchema),
+  artifact_type: z.array(NodeTypeSchema),
   author: z.array(z.string()),
   keywords: z.array(z.string()),
   datatypes: z.array(z.string()),

@@ -26,7 +26,7 @@ export function toWorkflowDefinition(
     .map((node): PythonWorkflowDefinitionNode | null => {
       if (node.type === "FunctionNode") {
         const fn = node as FunctionNodeType;
-        const nt = fn.data.metadata.node_type;
+        const nt = fn.data.metadata.artifact_type;
         return {
           id: node.id,
           type:

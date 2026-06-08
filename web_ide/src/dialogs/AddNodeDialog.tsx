@@ -21,7 +21,7 @@ const PORT_OPTIONS = [
 
 const EMPTY_FILTER: Filter = {
   category: null,
-  type: null,
+  artifact_type: null,
   author: null,
   keywords: null,
   datatypes: null,
@@ -194,23 +194,23 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 text-sm">
-          {filterOptions && filterOptions.type.length > 0 && (
+          {filterOptions && filterOptions.artifact_type.length > 0 && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold text-gray-500 uppercase">
                 Node Type
               </label>
               <select
-                value={filter.type?.[0] ?? ""}
+                value={filter.artifact_type?.[0] ?? ""}
                 onChange={(e) =>
                   setFilter({
                     ...filter,
-                    type: e.target.value ? [e.target.value] : null,
+                    artifact_type: e.target.value ? [e.target.value] : null,
                   })
                 }
                 className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
               >
                 <option value="">All</option>
-                {filterOptions.type.map((t) => (
+                {filterOptions.artifact_type.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>

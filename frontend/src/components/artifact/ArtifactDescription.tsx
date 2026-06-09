@@ -6,10 +6,9 @@ import { Zap } from "lucide-react";
 interface ArtifactDescriptionProps {
   docstring?: string;
   description?: string;
-  brief_description?: string;
 }
 
-export const ArtifactDescription: React.FC<ArtifactDescriptionProps> = ({ docstring, description, brief_description }) => {
+export const ArtifactDescription: React.FC<ArtifactDescriptionProps> = ({ docstring, description }) => {
   return (
     <>
       <CardContent className="space-y-4">

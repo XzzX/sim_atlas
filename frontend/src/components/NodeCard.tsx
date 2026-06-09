@@ -30,7 +30,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
       <ArtifactDescription
         docstring={"docstring" in node ? node.docstring : undefined}
         description={node.description ?? undefined}
-        brief_description={node.brief_description ?? undefined}
       />
       <ArtifactDetails
         inputs={node.inputs}

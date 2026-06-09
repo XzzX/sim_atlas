@@ -158,9 +158,7 @@ class FileSystemStorage(StorageInterface):
         if check_source_hash and value.hash:
             for node in self._storage.values():
                 if node.hash == value.hash:
-                    raise ValueError(
-                        f"Node with hash '{value.hash}' already exists."
-                    )
+                    raise ValueError(f"Node with hash '{value.hash}' already exists.")
         self._storage[id] = value
         self._save_to_disk()
         return id

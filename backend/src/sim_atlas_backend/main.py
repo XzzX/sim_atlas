@@ -113,9 +113,7 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 docstring=request.docstring,
                 brief_description="",
                 description="",
-                hash=hashlib.sha256(
-                    request.source_code.encode()
-                ).hexdigest(),
+                hash=hashlib.sha256(request.source_code.encode()).hexdigest(),
                 inputs=request.inputs,
                 outputs=request.outputs,
             )

@@ -142,7 +142,7 @@ async def execute_add_function_node(
         node_kind="function",
         atlas_node_id=args.atlas_node_id,
         name=args.label,
-        short_description=node.ai_summary or node.docstring.splitlines()[0]
+        short_description=node.brief_description or node.docstring.splitlines()[0]
         if node.docstring
         else None,
         inputs=node.inputs,

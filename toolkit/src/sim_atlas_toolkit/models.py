@@ -54,9 +54,9 @@ class FunctionResponse(BaseModel):
     category: str
     keywords: list[str]
 
-    homepage_url: str
-    documentation_url: str
-    source_url: str
+    homepage_url: str | None = None
+    documentation_url: str | None = None
+    source_url: str | None = None
 
     python_import: str
     dependencies: list[str] | None = None
@@ -64,8 +64,8 @@ class FunctionResponse(BaseModel):
     source_code: str
 
     docstring: str
-    ai_summary: str
-    ai_description: str
+    brief_description: str | None = None
+    description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
 

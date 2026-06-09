@@ -109,9 +109,9 @@ class GetNodeDetailsResult(BaseModel):
     outputs: list[PortMetadata]
 
 
-def _to_short_description(ai_summary: str | None, docstring: str) -> str | None:
-    if ai_summary:
-        return ai_summary
+def _to_short_description(brief_description: str | None, docstring: str) -> str | None:
+    if brief_description:
+        return brief_description
     lines = docstring.splitlines()
     return lines[0] if lines else None
 
@@ -163,7 +163,7 @@ async def execute_search_nodes(
             i,
             item.node.id,
             item.node.name,
-            _to_short_description(item.node.ai_summary, item.node.docstring),
+            _to_short_description(item.node.brief_description, item.node.docstring),
             [
                 PortMetadata.model_validate(a.model_dump(exclude_none=True))
                 for a in item.node.inputs
@@ -201,7 +201,7 @@ async def execute_find_compatible_nodes(
             i,
             item.node.id,
             item.node.name,
-            _to_short_description(item.node.ai_summary, item.node.docstring),
+            _to_short_description(item.node.brief_description, item.node.docstring),
             [
                 PortMetadata.model_validate(a.model_dump(exclude_none=True))
                 for a in item.node.inputs
@@ -237,7 +237,7 @@ async def execute_get_node_details(
         1,
         node.id,
         node.name,
-        _to_short_description(node.ai_summary, node.docstring),
+        _to_short_description(node.brief_description, node.docstring),
         inputs,
         outputs,
     )

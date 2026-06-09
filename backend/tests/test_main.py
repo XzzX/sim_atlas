@@ -397,7 +397,7 @@ def test_compose_artifact_function_sets_expected_fields() -> None:
     assert len(artifact.id) > 0
     assert artifact.creation_timestamp != ""
     expected_hash = hashlib.sha256(request.source_code.encode()).hexdigest()
-    assert artifact.source_code_hash == expected_hash
+    assert artifact.hash == expected_hash
 
 
 def test_compose_artifact_workflow_sets_expected_fields() -> None:
@@ -423,7 +423,7 @@ def test_compose_artifact_workflow_sets_expected_fields() -> None:
     expected_hash = hashlib.sha256(
         definition.model_dump_json(by_alias=False).encode()
     ).hexdigest()
-    assert artifact.source_code_hash == expected_hash
+    assert artifact.hash == expected_hash
 
 
 def test_compose_artifact_invalid_type_raises_400() -> None:

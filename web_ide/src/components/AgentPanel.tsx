@@ -266,8 +266,8 @@ async function convertAgentGraph(
             python_import: "",
             source_code: "",
             docstring: "",
-            ai_summary: n.short_description ?? "",
-            ai_description: n.short_description ?? "",
+            brief_description: n.short_description ?? "",
+            description: n.short_description ?? "",
             inputs: n.inputs,
             outputs: n.outputs,
           };

@@ -75,8 +75,8 @@ def make_node(**kwargs: Any) -> FunctionMetadata:
         "dependencies": None,
         "source_code": "def test(): pass",
         "docstring": "A test node",
-        "ai_summary": "",
-        "ai_description": "",
+        "brief_description": "",
+        "description": "",
         "inputs": [],
         "outputs": [],
         "embedding": None,
@@ -102,12 +102,12 @@ def make_workflow(**kwargs: Any) -> WorkflowMetadata:
         "documentation_url": "",
         "source_url": "",
         "docstring": "A test workflow",
-        "ai_summary": "",
-        "ai_description": "",
+        "brief_description": "",
+        "description": "",
         "inputs": [Annotation(label="x")],
         "outputs": [Annotation(label="y")],
         "embedding": None,
-        "source_code_hash": "",
+        "hash": "",
         "definition": WorkflowDefinition(
             nodes=[
                 WfInputNode(id="i1", name="x"),
@@ -588,29 +588,29 @@ class StorageContractTests:
         assert result.results.total_items == 1
         assert result.results.data[0].node.name == "float_node"
 
-    # --- source_code_hash duplicate detection ---
+    # --- hash duplicate detection ---
 
     def test_create_raises_on_duplicate_source_hash(
         self, storage: StorageInterface
     ) -> None:
-        storage.create(make_node(source_code_hash="abc123"))
+        storage.create(make_node(hash="abc123"))
         with pytest.raises(ValueError):
-            storage.create(make_node(source_code_hash="abc123"))
+            storage.create(make_node(hash="abc123"))
 
     def test_create_allows_duplicate_source_hash_when_check_disabled(
         self, storage: StorageInterface
     ) -> None:
-        storage.create(make_node(source_code_hash="abc123"))
+        storage.create(make_node(hash="abc123"))
         # Should not raise
-        storage.create(make_node(source_code_hash="abc123"), check_source_hash=False)
+        storage.create(make_node(hash="abc123"), check_source_hash=False)
         assert storage.count() == 2  # noqa: PLR2004
 
     def test_create_empty_source_hash_never_triggers_hash_check(
         self, storage: StorageInterface
     ) -> None:
-        # Two nodes with source_code_hash="" (the default) must not conflict
-        storage.create(make_node(source_code_hash=""))
-        storage.create(make_node(source_code_hash=""))
+        # Two nodes with hash="" (the default) must not conflict
+        storage.create(make_node(hash=""))
+        storage.create(make_node(hash=""))
         assert storage.count() == 2  # noqa: PLR2004
 
     # -----------------------------------------------------------------------

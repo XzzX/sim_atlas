@@ -10,6 +10,7 @@ export const AnnotationSchema = z.object({
   datatype: z.string().nullish(),
   unit: z.string().nullish(),
   quantity: z.string().nullish(),
+  description: z.string().nullish(),
 });
 export type Annotation = z.infer<typeof AnnotationSchema>;
 
@@ -53,9 +54,9 @@ export const FunctionResponseSchema = z.object({
 
   keywords: z.array(z.string()),
 
-  homepage_url: z.string(),
-  documentation_url: z.string(),
-  source_url: z.string(),
+  homepage_url: z.string().nullish(),
+  documentation_url: z.string().nullish(),
+  source_url: z.string().nullish(),
 
   python_import: z.string(),
   dependencies: z.array(z.string()).nullish(),
@@ -63,8 +64,8 @@ export const FunctionResponseSchema = z.object({
   source_code: z.string(),
 
   docstring: z.string(),
-  ai_summary: z.string(),
-  ai_description: z.string(),
+  brief_description: z.string().nullish(),
+  description: z.string().nullish(),
 
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),
@@ -142,13 +143,12 @@ export const WorkflowResponseSchema = z.object({
   category: z.string(),
   keywords: z.array(z.string()),
 
-  homepage_url: z.string(),
-  documentation_url: z.string(),
-  source_url: z.string(),
+  homepage_url: z.string().nullish(),
+  documentation_url: z.string().nullish(),
+  source_url: z.string().nullish(),
 
-  docstring: z.string(),
-  ai_summary: z.string(),
-  ai_description: z.string(),
+  brief_description: z.string().nullish(),
+  description: z.string().nullish(),
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),
 
@@ -191,13 +191,13 @@ export const FunctionMetadataSchema = FunctionResponseSchema.extend({
 export type FunctionMetadata = z.infer<typeof FunctionMetadataSchema>;
 
 export const FilterSchema = z.object({
-  category: z.string(),
-  artifact_type: z.array(z.string()),
-  author: z.array(z.string()),
-  keywords: z.array(z.string()),
-  datatypes: z.array(z.string()),
-  units: z.array(z.string()),
-  quantities: z.array(z.string()),
+  category: z.string().nullish(),
+  artifact_type: z.array(z.string()).nullish(),
+  author: z.array(z.string()).nullish(),
+  keywords: z.array(z.string()).nullish(),
+  datatypes: z.array(z.string()).nullish(),
+  units: z.array(z.string()).nullish(),
+  quantities: z.array(z.string()).nullish(),
   port_type: z.enum(["inputs", "outputs", "both"]).nullable().optional(),
 });
 export type Filter = z.infer<typeof FilterSchema>;

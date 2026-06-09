@@ -22,15 +22,15 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
         id={node.id}
         artifact_type={node.artifact_type}
         score={score}
-        homepage_url={node.homepage_url}
-        documentation_url={node.documentation_url}
-        source_url={node.source_url}
+        homepage_url={node.homepage_url ?? undefined}
+        documentation_url={node.documentation_url ?? undefined}
+        source_url={node.source_url ?? undefined}
         python_import={"python_import" in node ? node.python_import : undefined}
       />
       <ArtifactDescription
-        docstring={node.docstring}
-        description={node.ai_description}
-        brief_description={node.ai_summary}
+        docstring={"docstring" in node ? node.docstring : undefined}
+        description={node.description ?? undefined}
+        brief_description={node.brief_description ?? undefined}
       />
       <ArtifactDetails
         inputs={node.inputs}

@@ -82,8 +82,8 @@ The parsed output port names are (use these exact strings as keys for outputs in
         args: dict[str, str] = {}
 
     result = _AIDescriptionResponse.model_validate(json.loads(raw))
-    func.ai_summary = result.summary
-    func.ai_description = result.description
+    func.brief_description = result.summary
+    func.description = result.description
     for a in func.inputs + func.outputs:
         if a.label and a.description is None:
             a.description = result.args.get(a.label)
@@ -99,7 +99,7 @@ async def enrich_workflow_metadata(
         """Render a human-readable list of the workflow's constituent nodes.
 
         For each function/pack/unpack node with a resolved atlas_node_id, uses
-        ai_summary if non-empty, else the first line of docstring. Nodes not found
+        brief_description if non-empty, else the first line of docstring. Nodes not found
         in storage are silently skipped (best-effort, ADR-0012).
         """
         lines: list[str] = []
@@ -116,8 +116,8 @@ async def enrich_workflow_metadata(
                 continue
 
             text = (
-                artifact.ai_summary
-                if artifact.ai_summary
+                artifact.brief_description
+                if artifact.brief_description
                 else artifact.docstring.splitlines()[0]
             )
             lines.append(f"- {node.id}: {text}")
@@ -169,8 +169,8 @@ Constituent nodes:
         description: str
 
     result = _AIWorkflowDescriptionResponse.model_validate(json.loads(raw))
-    workflow.ai_summary = result.summary
-    workflow.ai_description = result.description
+    workflow.brief_description = result.summary
+    workflow.description = result.description
 
 
 async def enrich_artifact_metadata(

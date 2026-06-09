@@ -155,11 +155,11 @@ class FileSystemStorage(StorageInterface):
         id = value.id
         if id in self._storage:
             raise ValueError(f"Node with id '{id}' already exists.")
-        if check_source_hash and value.source_code_hash:
+        if check_source_hash and value.hash:
             for node in self._storage.values():
-                if node.source_code_hash == value.source_code_hash:
+                if node.hash == value.hash:
                     raise ValueError(
-                        f"Node with source_code_hash '{value.source_code_hash}' already exists."
+                        f"Node with hash '{value.hash}' already exists."
                     )
         self._storage[id] = value
         self._save_to_disk()
@@ -310,7 +310,7 @@ class FileSystemStorage(StorageInterface):
                 search_field = f"{item.name} {item.python_import}".lower()
             if query in search_field:
                 return 1.0
-            if query in item.ai_summary.lower():
+            if query in item.brief_description.lower():
                 return 0.8
             if query in item.docstring.lower():
                 return 0.5
@@ -404,10 +404,10 @@ class FileSystemStorage(StorageInterface):
         for node in filtered_nodes:
             if isinstance(node, FunctionMetadata):
                 search_text = (
-                    f"{node.name} {node.python_import} {node.ai_summary}".lower()
+                    f"{node.name} {node.python_import} {node.brief_description}".lower()
                 )
             else:
-                search_text = f"{node.name} {node.ai_summary}".lower()
+                search_text = f"{node.name} {node.brief_description}".lower()
             hits = sum(1 for tok in tokens if tok in search_text)
             if hits > 0:
                 hit_counts.append((node.id, hits))
@@ -442,8 +442,8 @@ class FileSystemStorage(StorageInterface):
             if a.label and a.description
         ]
         if not port_lines:
-            return node.ai_description
-        return node.ai_description + "\n" + "\n".join(port_lines)
+            return node.description
+        return node.description + "\n" + "\n".join(port_lines)
 
     async def enrich(self, only_ids: list[str] | None = None) -> None:
         sem = asyncio.Semaphore(load_settings().llm_concurrency)
@@ -464,7 +464,7 @@ class FileSystemStorage(StorageInterface):
         )
         self._save_to_disk()
 
-        nodes_to_embed = [node for node in nodes_to_enrich if node.ai_description]
+        nodes_to_embed = [node for node in nodes_to_enrich if node.description]
         documents = [self._embedding_text(node) for node in nodes_to_embed]
         if not documents:
             return

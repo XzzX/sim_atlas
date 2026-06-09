@@ -111,9 +111,9 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 dependencies=request.dependencies,
                 source_code=request.source_code,
                 docstring=request.docstring,
-                ai_summary="",
-                ai_description="",
-                source_code_hash=hashlib.sha256(
+                brief_description="",
+                description="",
+                hash=hashlib.sha256(
                     request.source_code.encode()
                 ).hexdigest(),
                 inputs=request.inputs,
@@ -135,12 +135,12 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 documentation_url=request.documentation_url,
                 source_url=request.source_url,
                 docstring=request.docstring,
-                ai_summary="",
-                ai_description="",
+                brief_description="",
+                description="",
                 inputs=request.inputs,
                 outputs=request.outputs,
                 definition=request.definition,
-                source_code_hash=hashlib.sha256(
+                hash=hashlib.sha256(
                     request.definition.model_dump_json(by_alias=False).encode()
                 ).hexdigest(),
             )

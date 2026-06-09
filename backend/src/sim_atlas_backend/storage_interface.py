@@ -17,7 +17,7 @@ class StorageInterface(ABC):
 
         Raises ValueError if an artifact with the same id already exists, or if
         *check_source_hash* is True and an artifact with the same non-empty
-        ``source_code_hash`` already exists.
+        ``hash`` already exists.
         """
         pass
 

@@ -54,9 +54,9 @@ export const NodeResponseSchema = z.object({
 
   keywords: z.array(z.string()),
 
-  homepage_url: z.string(),
-  documentation_url: z.string(),
-  source_url: z.string(),
+  homepage_url: z.string().nullish(),
+  documentation_url: z.string().nullish(),
+  source_url: z.string().nullish(),
 
   python_import: z.string(),
   dependencies: z.array(z.string()).nullish(),
@@ -64,8 +64,8 @@ export const NodeResponseSchema = z.object({
   source_code: z.string(),
 
   docstring: z.string(),
-  ai_summary: z.string(),
-  ai_description: z.string(),
+  brief_description: z.string().nullish(),
+  description: z.string().nullish(),
 
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),

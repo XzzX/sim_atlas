@@ -53,17 +53,18 @@ class Annotation(BaseModel):
 
 
 class FunctionRequest(BaseModel):
-    author_name: str = "unknown"
-    author_email: str = "unknown"
+    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
 
     name: str
-    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
     category: str
     keywords: list[str]
 
-    homepage_url: str = ""
-    documentation_url: str = ""
-    source_url: str = ""
+    author_name: str
+    author_email: str
+
+    homepage_url: str | None = None
+    documentation_url: str | None = None
+    source_url: str | None = None
 
     python_import: str
     dependencies: list[str] | None = None
@@ -71,11 +72,20 @@ class FunctionRequest(BaseModel):
     source_code: str
 
     docstring: str
+    brief_description: str | None = None
+    description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
 
 
 class FunctionResponse(BaseModel):
+    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
+
+    id: str
+    name: str
+    category: str
+    keywords: list[str]
+
     author_name: str
     author_email: str
 
@@ -83,15 +93,9 @@ class FunctionResponse(BaseModel):
     creator_email: str
     creation_timestamp: str
 
-    id: str
-    name: str
-    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
-    category: str
-    keywords: list[str]
-
-    homepage_url: str
-    documentation_url: str
-    source_url: str
+    homepage_url: str | None = None
+    documentation_url: str | None = None
+    source_url: str | None = None
 
     python_import: str
     dependencies: list[str] | None = None
@@ -99,15 +103,15 @@ class FunctionResponse(BaseModel):
     source_code: str
 
     docstring: str
-    ai_summary: str
-    ai_description: str
+    brief_description: str | None = None
+    description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
 
 
 class FunctionMetadata(FunctionResponse):
     embedding: NdArray | None = None
-    source_code_hash: str = ""
+    hash: str = ""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -176,11 +180,13 @@ class WorkflowRequest(BaseModel):
     category: str
     keywords: list[str]
 
-    homepage_url: str = ""
-    documentation_url: str = ""
-    source_url: str = ""
+    homepage_url: str | None = None
+    documentation_url: str | None = None
+    source_url: str | None = None
 
-    docstring: str
+    brief_description: str | None = None
+    description: str | None = None
+
     inputs: list[Annotation]
     outputs: list[Annotation]
 
@@ -223,13 +229,12 @@ class WorkflowResponse(BaseModel):
     category: str
     keywords: list[str]
 
-    homepage_url: str
-    documentation_url: str
-    source_url: str
+    homepage_url: str | None = None
+    documentation_url: str | None = None
+    source_url: str | None = None
 
-    docstring: str
-    ai_summary: str
-    ai_description: str
+    brief_description: str | None = None
+    description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
 
@@ -238,7 +243,7 @@ class WorkflowResponse(BaseModel):
 
 class WorkflowMetadata(WorkflowResponse):
     embedding: NdArray | None = None
-    source_code_hash: str = ""
+    hash: str = ""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

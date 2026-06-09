@@ -13,9 +13,9 @@ from pydantic_settings import (
 from .exceptions import MissingConfigError
 
 _CONFIG_FILES = [
-    Path("/etc/sim_atlas/config.toml"),  # system (lowest priority)
-    Path.home() / ".sim_atlas" / "config.toml",  # user
-    Path(".sim_atlas") / "config.toml",  # working directory (highest among files)
+    Path("/etc/sim_atlas_config.toml"),  # system (lowest priority)
+    Path.home() / ".sim_atlas_config.toml",  # user
+    Path(".sim_atlas_config.toml"),  # working directory (highest among files)
 ]
 
 
@@ -166,7 +166,7 @@ def load_settings() -> Settings:
     Load settings from environment, .env file, or TOML config files.
 
     If required settings are missing and no config file exists in any location,
-    creates a verbose template at .sim_atlas/config.toml and raises MissingConfigError.
+    creates a verbose template at .sim_atlas_config.toml and raises MissingConfigError.
 
     Returns:
         Settings: Validated settings instance
@@ -190,7 +190,7 @@ def load_settings() -> Settings:
 
             if missing_required:
                 # Create template in working directory
-                config_path = _CONFIG_FILES[2]  # .sim_atlas/config.toml
+                config_path = _CONFIG_FILES[2]  # .sim_atlas_config.toml
                 config_path.parent.mkdir(parents=True, exist_ok=True)
                 config_path.write_text(CONFIG_TEMPLATE)
 
@@ -201,7 +201,6 @@ def load_settings() -> Settings:
                     f"{'=' * 70}",
                     "\nRequired fields to fill in:",
                     "  - jwt_secret: A strong secret key for signing tokens",
-                    "  - jwt_algorithm: Usually 'HS256'",
                     "\nOptional fields (AI/semantic search):",
                     "  - llm_api_key, llm_base_url, llm_chat_model, llm_embedding_model",
                     "  - voyage_api_key",

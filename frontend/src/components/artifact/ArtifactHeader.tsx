@@ -1,5 +1,5 @@
 import React from "react";
-import { type ArtifactResponse, ArtifactType } from "../../types/index";
+import { ArtifactType } from "../../types/index";
 import {
   ClipboardCopyIcon,
   ExternalLinkIcon,
@@ -35,73 +35,87 @@ const handleDownload = (filename: string, content: string) => {
 };
 
 interface ArtifactHeaderProps {
-  node: ArtifactResponse;
+  name: string;
+  id: string;
+  artifact_type: string;
   score?: number;
+  homepage_url?: string;
+  documentation_url?: string;
+  source_url?: string;
+  python_import?: string;
+  download?: string;
 }
 
 export const ArtifactHeader: React.FC<ArtifactHeaderProps> = ({
-  node,
+  name,
+  id,
+  artifact_type,
   score,
+  homepage_url,
+  documentation_url,
+  source_url,
+  python_import,
+  download,
 }) => {
   return (
     <CardHeader className="bg-chart-1 pb-2 pt-4">
-      <CardTitle className="text-lg">{node.name}</CardTitle>
+      <CardTitle className="text-lg">{name}</CardTitle>
       <CardDescription>
-        <small>{node.id}</small>
+        <small>{id}</small>
       </CardDescription>
       <CardDescription>
         <Badge variant="secondary" className="mr-2">
-          {node.artifact_type}
+          {artifact_type}
         </Badge>
         {score !== undefined && (
           <Badge variant="success">Score: {score.toFixed(2)}</Badge>
         )}
       </CardDescription>
       <CardAction className="space-x-2">
-        {node.homepage_url && (
+        {homepage_url && (
           <Button
             variant="outline"
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              window.open(node.homepage_url, "_blank");
+              window.open(homepage_url, "_blank");
             }}
           >
             <HouseIcon /> Homepage
           </Button>
         )}
-        {node.documentation_url && (
+        {documentation_url && (
           <Button
             variant="outline"
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              window.open(node.documentation_url, "_blank");
+              window.open(documentation_url, "_blank");
             }}
           >
             <BookIcon /> Documentation
           </Button>
         )}
-        {node.source_url && (
+        {source_url && (
           <Button
             variant="outline"
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              window.open(node.source_url, "_blank");
+              window.open(source_url, "_blank");
             }}
           >
             <Code /> Sourcecode
           </Button>
         )}
-        {node.artifact_type === ArtifactType.function && node.python_import && (
+        {python_import && (
           <Button
             variant="outline"
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
               void navigator.clipboard.writeText(
-                generatePythonImportCommand(node.python_import),
+                generatePythonImportCommand(python_import),
               );
               toast.success("Python import copied to clipboard");
             }}
@@ -109,28 +123,28 @@ export const ArtifactHeader: React.FC<ArtifactHeaderProps> = ({
             <ClipboardCopyIcon /> Python Import
           </Button>
         )}
-        {node.artifact_type === ArtifactType.workflow && (
+        {artifact_type === ArtifactType.workflow && (
           <Button
             variant="outline"
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              window.open("ide/?wf_hash=" + node.id);
+              window.open("ide/?wf_hash=" + id);
             }}
           >
             <ExternalLinkIcon />
             Web IDE
           </Button>
         )}
-        {node.artifact_type === ArtifactType.workflow && (
+        {download && (
           <Button
             variant="outline"
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
               handleDownload(
-                node.name + ".json",
-                JSON.stringify(node.definition, null, 2),
+                name + ".json",
+                JSON.stringify(download, null, 2),
               );
             }}
           >

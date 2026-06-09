@@ -1,3 +1,5 @@
 export { ArtifactHeader } from "./ArtifactHeader";
-export { ArtifactContent } from "./ArtifactContent";
+export { ArtifactDescription } from "./ArtifactDescription";
+export { ArtifactDetails } from "./ArtifactDetails";
+export { ArtifactMisc } from "./ArtifactMisc";
 export { ArtifactFooter } from "./ArtifactFooter";

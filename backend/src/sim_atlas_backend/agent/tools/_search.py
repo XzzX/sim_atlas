@@ -154,7 +154,9 @@ async def execute_search_nodes(
     storage: StorageInterface,
     _scratch: Any,
 ) -> str:
-    response = await storage.search_hybrid(args.query, Filter(artifact_type=[ArtifactType.FUNCTION]), limit=10)
+    response = await storage.search_hybrid(
+        args.query, Filter(artifact_type=[ArtifactType.FUNCTION]), limit=10
+    )
     items = response.results.data
     if not items:
         return "Retrieved functions:\n\n(no results found)"
@@ -163,7 +165,9 @@ async def execute_search_nodes(
             i,
             item.node.id,
             item.node.name,
-            _to_short_description(item.node.brief_description or "", item.node.docstring),
+            _to_short_description(
+                item.node.brief_description or "", item.node.docstring
+            ),
             [
                 PortMetadata.model_validate(a.model_dump(exclude_none=True))
                 for a in item.node.inputs
@@ -173,7 +177,8 @@ async def execute_search_nodes(
                 for a in item.node.outputs
             ],
         )
-        for i, item in enumerate(items, start=1) if isinstance(item.node, FunctionMetadata)
+        for i, item in enumerate(items, start=1)
+        if isinstance(item.node, FunctionMetadata)
     ]
     return "Retrieved functions:\n\n" + "\n\n".join(entries)
 
@@ -202,7 +207,9 @@ async def execute_find_compatible_nodes(
             i,
             item.node.id,
             item.node.name,
-            _to_short_description(item.node.brief_description or "", item.node.docstring or ""),
+            _to_short_description(
+                item.node.brief_description or "", item.node.docstring or ""
+            ),
             [
                 PortMetadata.model_validate(a.model_dump(exclude_none=True))
                 for a in item.node.inputs
@@ -212,7 +219,8 @@ async def execute_find_compatible_nodes(
                 for a in item.node.outputs
             ],
         )
-        for i, item in enumerate(items, start=1) if isinstance(item.node, FunctionMetadata)
+        for i, item in enumerate(items, start=1)
+        if isinstance(item.node, FunctionMetadata)
     ]
     return "Retrieved functions:\n\n" + "\n\n".join(entries)
 

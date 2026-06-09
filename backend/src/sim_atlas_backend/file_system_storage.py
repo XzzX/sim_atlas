@@ -304,7 +304,9 @@ class FileSystemStorage(StorageInterface):
 
         def score_item(query: str, item: StoredArtifact) -> float:
             search_field = item.name.lower()
-            brief_description = item.brief_description.lower() if item.brief_description else ""
+            brief_description = (
+                item.brief_description.lower() if item.brief_description else ""
+            )
             docstring = ""
             if isinstance(item, FunctionMetadata) and item.docstring:
                 docstring = item.docstring.lower()

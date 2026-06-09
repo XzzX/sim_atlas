@@ -115,11 +115,7 @@ async def enrich_workflow_metadata(
             except KeyError:
                 continue
 
-            text = (
-                artifact.brief_description
-                if artifact.brief_description
-                else ""
-            )
+            text = artifact.brief_description if artifact.brief_description else ""
             lines.append(f"- {node.id}: {text}")
         return "\n".join(lines) if lines else "(no constituent nodes resolved)"
 

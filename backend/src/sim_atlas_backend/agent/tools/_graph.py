@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from ...models import Annotation, GraphEdgeContext, GraphNodeContext, FunctionMetadata
+from ...models import Annotation, FunctionMetadata, GraphEdgeContext, GraphNodeContext
 from ...storage_interface import StorageInterface
 from ._errors import ToolError
 from ._search import PortMetadata, format_port

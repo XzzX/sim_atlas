@@ -2,7 +2,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from ...models import Filter
+from ...models import ArtifactType, Filter, FunctionMetadata
 from ...storage_interface import StorageInterface
 from ._errors import ToolError
 
@@ -154,7 +154,7 @@ async def execute_search_nodes(
     storage: StorageInterface,
     _scratch: Any,
 ) -> str:
-    response = await storage.search_hybrid(args.query, None, limit=10)
+    response = await storage.search_hybrid(args.query, Filter(artifact_type=[ArtifactType.FUNCTION]), limit=10)
     items = response.results.data
     if not items:
         return "Retrieved functions:\n\n(no results found)"
@@ -163,7 +163,7 @@ async def execute_search_nodes(
             i,
             item.node.id,
             item.node.name,
-            _to_short_description(item.node.brief_description, item.node.docstring),
+            _to_short_description(item.node.brief_description or "", item.node.docstring),
             [
                 PortMetadata.model_validate(a.model_dump(exclude_none=True))
                 for a in item.node.inputs
@@ -173,7 +173,7 @@ async def execute_search_nodes(
                 for a in item.node.outputs
             ],
         )
-        for i, item in enumerate(items, start=1)
+        for i, item in enumerate(items, start=1) if isinstance(item.node, FunctionMetadata)
     ]
     return "Retrieved functions:\n\n" + "\n\n".join(entries)
 
@@ -184,6 +184,7 @@ async def execute_find_compatible_nodes(
     _scratch: Any,
 ) -> str:
     f = Filter(
+        artifact_type=[ArtifactType.FUNCTION],
         datatypes=[args.datatype] if args.datatype else None,
         units=[args.unit] if args.unit else None,
         quantities=[args.quantity] if args.quantity else None,
@@ -201,7 +202,7 @@ async def execute_find_compatible_nodes(
             i,
             item.node.id,
             item.node.name,
-            _to_short_description(item.node.brief_description, item.node.docstring),
+            _to_short_description(item.node.brief_description or "", item.node.docstring or ""),
             [
                 PortMetadata.model_validate(a.model_dump(exclude_none=True))
                 for a in item.node.inputs
@@ -211,7 +212,7 @@ async def execute_find_compatible_nodes(
                 for a in item.node.outputs
             ],
         )
-        for i, item in enumerate(items, start=1)
+        for i, item in enumerate(items, start=1) if isinstance(item.node, FunctionMetadata)
     ]
     return "Retrieved functions:\n\n" + "\n\n".join(entries)
 
@@ -225,6 +226,8 @@ async def execute_get_node_details(
         node = storage.read(args.atlas_node_id)
     except KeyError as exc:
         raise ToolError(f"Node '{args.atlas_node_id}' not found.") from exc
+    if not isinstance(node, FunctionMetadata):
+        raise ToolError(f"Node '{args.atlas_node_id}' is not a function node.")
     inputs = [
         PortMetadata.model_validate(a.model_dump(exclude_none=True))
         for a in node.inputs
@@ -237,7 +240,7 @@ async def execute_get_node_details(
         1,
         node.id,
         node.name,
-        _to_short_description(node.brief_description, node.docstring),
+        _to_short_description(node.brief_description or "", node.docstring),
         inputs,
         outputs,
     )

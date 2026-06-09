@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from ...models import Annotation, GraphEdgeContext, GraphNodeContext
+from ...models import Annotation, GraphEdgeContext, GraphNodeContext, FunctionMetadata
 from ...storage_interface import StorageInterface
 from ._errors import ToolError
 from ._search import PortMetadata, format_port
@@ -136,6 +136,8 @@ async def execute_add_function_node(
     if not storage.exists(args.atlas_node_id):
         raise ToolError(f"Node '{args.atlas_node_id}' not found in catalog.")
     node = storage.read(args.atlas_node_id)
+    if not isinstance(node, FunctionMetadata):
+        raise ToolError(f"Node '{args.atlas_node_id}' is not a function node.")
     graph_id = scratch.new_graph_id(args.label)
     scratch.nodes[graph_id] = GraphNodeContext(
         graph_id=graph_id,

@@ -34,9 +34,8 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
       <ArtifactDetails
         inputs={node.inputs}
         outputs={node.outputs}
-        dependencies={"dependencies" in node ? node.dependencies : undefined}
+        dependencies={"dependencies" in node ? node.dependencies ?? undefined : undefined}
         source_code={"source_code" in node ? node.source_code : undefined}
-        definition={"workflow_definition" in node ? node.workflow_definition : undefined}
       />
       <ArtifactMisc keywords={node.keywords} />
       <ArtifactFooter node={node} />

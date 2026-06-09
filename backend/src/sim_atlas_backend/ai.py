@@ -118,7 +118,7 @@ async def enrich_workflow_metadata(
             text = (
                 artifact.brief_description
                 if artifact.brief_description
-                else artifact.docstring.splitlines()[0]
+                else ""
             )
             lines.append(f"- {node.id}: {text}")
         return "\n".join(lines) if lines else "(no constituent nodes resolved)"
@@ -155,7 +155,6 @@ Given a workflow name, its docstring, and a list of its constituent nodes, produ
 Return only the JSON object, no other text.
 
 Workflow name: {workflow.name}
-Docstring: {workflow.docstring or "(none)"}
 Constituent nodes:
 {_render_workflow_graph_text(workflow, storage)}
 """,

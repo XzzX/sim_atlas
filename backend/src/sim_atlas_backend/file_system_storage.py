@@ -304,13 +304,17 @@ class FileSystemStorage(StorageInterface):
 
         def score_item(query: str, item: StoredArtifact) -> float:
             search_field = item.name.lower()
+            brief_description = item.brief_description.lower() if item.brief_description else ""
+            docstring = ""
+            if isinstance(item, FunctionMetadata) and item.docstring:
+                docstring = item.docstring.lower()
             if isinstance(item, FunctionMetadata):
                 search_field = f"{item.name} {item.python_import}".lower()
             if query in search_field:
                 return 1.0
-            if query in item.brief_description.lower():
+            if query in brief_description:
                 return 0.8
-            if query in item.docstring.lower():
+            if query in docstring:
                 return 0.5
             return 0.0
 
@@ -434,14 +438,15 @@ class FileSystemStorage(StorageInterface):
 
     @staticmethod
     def _embedding_text(node: StoredArtifact) -> str:
+        description = node.description or ""
         port_lines = [
             f"{a.label}: {a.description}"
             for a in node.inputs + node.outputs
             if a.label and a.description
         ]
         if not port_lines:
-            return node.description
-        return node.description + "\n" + "\n".join(port_lines)
+            return description
+        return description + "\n" + "\n".join(port_lines)
 
     async def enrich(self, only_ids: list[str] | None = None) -> None:
         sem = asyncio.Semaphore(load_settings().llm_concurrency)

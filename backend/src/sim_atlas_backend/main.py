@@ -132,7 +132,6 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 homepage_url=request.homepage_url,
                 documentation_url=request.documentation_url,
                 source_url=request.source_url,
-                docstring=request.docstring,
                 brief_description="",
                 description="",
                 inputs=request.inputs,

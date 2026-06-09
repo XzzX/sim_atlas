@@ -36,11 +36,17 @@ function filtersToParams(
   extra: Record<string, string>,
   f: Filter,
 ): Record<string, string | string[]> {
-  const { port_type, ...rest } = f;
+  const { category, artifact_type, author, keywords, datatypes, units, quantities, port_type } = f;
   return {
     ...extra,
-    ...rest,
-    ...(port_type != null ? { port_type } : {}),
+    ...(category ? { category } : {}),
+    ...(artifact_type ? { artifact_type } : {}),
+    ...(author ? { author } : {}),
+    ...(keywords ? { keywords } : {}),
+    ...(datatypes ? { datatypes } : {}),
+    ...(units ? { units } : {}),
+    ...(quantities ? { quantities } : {}),
+    ...(port_type ? { port_type } : {}),
   };
 }
 

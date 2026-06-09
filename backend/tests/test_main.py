@@ -379,6 +379,8 @@ def test_hybrid_search_returns_200(
 
 def test_compose_artifact_function_sets_expected_fields() -> None:
     request = FunctionRequest(
+        author_name="Alice",
+        author_email="alice@example.com",
         name="my_fn",
         category="science",
         keywords=["test"],
@@ -409,7 +411,6 @@ def test_compose_artifact_workflow_sets_expected_fields() -> None:
         name="my_wf",
         category="pipeline",
         keywords=["wf"],
-        docstring="A workflow.",
         inputs=[Annotation(label="x")],
         outputs=[Annotation(label="y")],
         definition=definition,

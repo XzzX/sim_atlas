@@ -27,6 +27,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
+    "griffe>=2",
     "pydantic>=2",
     "requests>=2",
 ]

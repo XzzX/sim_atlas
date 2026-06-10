@@ -2,7 +2,7 @@ import inspect
 from typing import Any
 
 from ..models import Annotation, ArtifactType
-from .metadata import Metadata
+from .metadata import Metadata, enrich_from_docstring
 
 
 def parse(obj: Any) -> list[Metadata]:
@@ -19,6 +19,8 @@ def parse(obj: Any) -> list[Metadata]:
     outputs = [
         Annotation(label=k, datatype=v.type) for k, v in instance.outputs.items()
     ]
+
+    enrich_from_docstring(instance._func.__doc__ or "", inputs, outputs)
 
     return [
         Metadata(

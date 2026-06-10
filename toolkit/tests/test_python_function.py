@@ -128,3 +128,85 @@ def test_annotated_description_does_not_affect_other_fields() -> None:
     # label comes from the parameter name, not the Annotated dict
     assert record.inputs[0].label == "x"
     assert record.inputs[0].unit == "K"
+
+
+# --- docstring enrichment tests ---
+
+
+def google_docstring(x: float, y: float) -> float:
+    """Add two numbers.
+
+    Args:
+        x: The first operand.
+        y: The second operand.
+
+    Returns:
+        The sum of x and y.
+    """
+    return x + y
+
+
+def numpy_docstring(x: float, y: float) -> float:
+    """Add two numbers.
+
+    Parameters
+    ----------
+    x : float
+        The first operand.
+    y : float
+        The second operand.
+
+    Returns
+    -------
+    float
+        The sum of x and y.
+    """
+    return x + y
+
+
+def no_docstring(x: float) -> float:
+    return x
+
+
+def test_google_docstring_input_descriptions() -> None:
+    (record,) = parse(google_docstring)
+    assert record.inputs[0].description == "The first operand."
+    assert record.inputs[1].description == "The second operand."
+
+
+def test_google_docstring_output_description() -> None:
+    (record,) = parse(google_docstring)
+    assert record.outputs[0].description == "The sum of x and y."
+
+
+def test_numpy_docstring_input_descriptions() -> None:
+    (record,) = parse(numpy_docstring)
+    assert record.inputs[0].description == "The first operand."
+    assert record.inputs[1].description == "The second operand."
+
+
+def test_numpy_docstring_output_description() -> None:
+    (record,) = parse(numpy_docstring)
+    assert record.outputs[0].description == "The sum of x and y."
+
+
+def test_no_docstring_descriptions_are_none() -> None:
+    (record,) = parse(no_docstring)
+    assert record.inputs[0].description is None
+    assert record.outputs[0].description is None
+
+
+def annotated_description_wins(
+    x: Annotated[float, {"description": "from annotation"}],
+) -> float:
+    """Do something.
+
+    Args:
+        x: from docstring.
+    """
+    return x
+
+
+def test_annotated_description_not_overwritten_by_docstring() -> None:
+    (record,) = parse(annotated_description_wins)
+    assert record.inputs[0].description == "from annotation"

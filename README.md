@@ -34,22 +34,18 @@ sim_atlas/
 ```bash
 cd <sim-atlas-env>
 uv venv --python=3.12
-uv pip install <sim-atlas-clone>/backend/.
+uv pip install sim-atlas
 ```
 
 ### 2. Configure and start the backend
 
 ```bash
 cd <sim-atlas-env>
-uv run sim-atlas-server
+uv run sim-atlas
 ```
-The server will exit gracefully telling you to setup the config. Adapt the config.
-```bash
-uv run sim-atlas-server
-```
+On the first start the server will create a configuration file in the current working directory if it does not find one.
 
 The API and both SPAs are now available at `http://localhost:8000`.
-Interactive API docs: `http://localhost:8000/docs`
 
 ### 3. Generate an API token
 
@@ -64,8 +60,9 @@ export SIM_ATLAS_API_TOKEN=<token>
 
 ### 4. Upload nodes from a Python package
 
-Load the environment with the modules you want to upload. Install the sim-atlas-toolkit. And upload the module
+Load the environment with the modules you want to upload. Install the sim-atlas-toolkit into this environment. And upload the module.
+For example:
 ```bash
-uv pip install <sim-atlas-clone>/toolkit/.
-uv run sim-atlas-upload mypackage.mymodule
+uv pip install sim-atlas-toolkit
+uv run sim-atlas-upload --recursive filesystem mypackage.mymodule
 ```

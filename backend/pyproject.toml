@@ -1,5 +1,5 @@
 [project]
-name = "sim-atlas-backend"
+name = "sim-atlas"
 version = "0.0.1"
 description = "FastAPI backend for sim-atlas platform with AI integration"
 authors = [

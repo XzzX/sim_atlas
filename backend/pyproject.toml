@@ -1,7 +1,7 @@
 [project]
 name = "sim-atlas"
-version = "0.0.1"
-description = "FastAPI backend for sim-atlas platform with AI integration"
+version = "0.0.3"
+description = "Search and discovery platform for simulation nodes — Python functions, workflow definitions, and pyiron nodes used in scientific computing."
 authors = [
   { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},
 ]
@@ -12,6 +12,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "BSD-3-Clause"
 license-files = ["LICEN[CS]E*"]
+keywords = ["pyironj"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Web Environment",

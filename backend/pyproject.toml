@@ -12,7 +12,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "BSD-3-Clause"
 license-files = ["LICEN[CS]E*"]
-keywords = ["pyironj"]
+keywords = ["pyiron"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Web Environment",

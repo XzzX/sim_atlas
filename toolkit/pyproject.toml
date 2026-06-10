@@ -1,6 +1,6 @@
 [project]
 name = "sim-atlas-toolkit"
-version = "0.1.0"
+version = "0.0.2"
 description = "Tools for parsing and storing workflow nodes with support for pyiron and Python functions"
 authors = [
   { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},
@@ -9,7 +9,10 @@ maintainers = [
   { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
+license = "BSD-3-Clause"
+license-files = ["LICEN[CS]E*"]
+keywords = ["pyiron"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -17,6 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",

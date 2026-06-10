@@ -4,7 +4,7 @@ import textwrap
 from typing import Any, get_type_hints
 
 from ..models import Annotation, ArtifactType
-from .metadata import Metadata, parse_annotation
+from .metadata import Metadata, enrich_from_docstring, parse_annotation
 
 
 def _field_annotations(cls: type) -> list[Annotation]:
@@ -66,6 +66,8 @@ def parse(obj: Any) -> list[Metadata]:
 
     field_annotations = _field_annotations(obj)
     dataclass_annotation = Annotation(label=qualname, datatype=python_import)
+
+    enrich_from_docstring(raw_doc, field_annotations, field_annotations)
 
     return [
         Metadata(

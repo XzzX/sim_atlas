@@ -4,7 +4,7 @@ import inspect
 from typing import Any
 
 from ..models import Annotation, ArtifactType
-from .metadata import Metadata, parse_annotation
+from .metadata import Metadata, enrich_from_docstring, parse_annotation
 
 
 def parse(node: Any) -> list[Metadata]:
@@ -33,6 +33,8 @@ def parse(node: Any) -> list[Metadata]:
         ann = parse_annotation(v)
         ann.label = k
         outputs.append(ann)
+
+    enrich_from_docstring(node.node_function.__doc__ or "", inputs, outputs)
 
     return [
         Metadata(

@@ -3,7 +3,7 @@ import textwrap
 from typing import Annotated, Any, get_args, get_origin
 
 from ..models import Annotation, ArtifactType
-from .metadata import Metadata, parse_annotation
+from .metadata import Metadata, enrich_from_docstring, parse_annotation
 
 
 def _parse_arguments(sig: inspect.Signature) -> list[Annotation]:
@@ -53,6 +53,8 @@ def parse(obj: Any) -> list[Metadata]:
 
     return_annotation = sig.return_annotation
     outputs = _parse_and_unpack_annotation(return_annotation)
+
+    enrich_from_docstring(inspect.getdoc(obj) or "", inputs, outputs)
 
     return [
         Metadata(

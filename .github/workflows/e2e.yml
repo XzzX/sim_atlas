@@ -44,7 +44,7 @@ jobs:
 
       - name: Start backend server
         run: |
-          uv run sim-atlas-server --host 127.0.0.1 --port 8000 &
+          uv run sim-atlas --host 127.0.0.1 --port 8000 &
           echo "SERVER_PID=$!" >> "$GITHUB_ENV"
         working-directory: ./backend
 

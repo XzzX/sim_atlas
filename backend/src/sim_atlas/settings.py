@@ -1,3 +1,4 @@
+import secrets
 import sys
 from functools import lru_cache
 from pathlib import Path
@@ -9,8 +10,6 @@ from pydantic_settings import (
     SettingsConfigDict,
     TomlConfigSettingsSource,
 )
-
-from .exceptions import MissingConfigError
 
 _CONFIG_FILES = [
     Path("/etc/sim_atlas_config.toml"),  # system (lowest priority)
@@ -165,14 +164,14 @@ def load_settings() -> Settings:
     """
     Load settings from environment, .env file, or TOML config files.
 
-    If required settings are missing and no config file exists in any location,
-    creates a verbose template at .sim_atlas_config.toml and raises MissingConfigError.
+    On the first startup, if no config file exists and required settings are
+    missing, generates a strong JWT secret, writes a config file, and continues
+    loading without requiring a restart.
 
     Returns:
         Settings: Validated settings instance
 
     Raises:
-        MissingConfigError: When required fields are missing and template is created
         ValidationError: When config file exists but contains invalid values
     """
     try:
@@ -189,40 +188,38 @@ def load_settings() -> Settings:
             )
 
             if missing_required:
-                # Create template in working directory
+                # Generate a strong JWT secret so the server can start immediately
+                jwt_secret = secrets.token_urlsafe(32)
+                config_content = CONFIG_TEMPLATE.replace(
+                    'jwt_secret = "replace-with-strong-secret-key-min-32-chars"',
+                    f'jwt_secret = "{jwt_secret}"',
+                )
+
+                # Write config to working directory
                 config_path = _CONFIG_FILES[2]  # .sim_atlas_config.toml
                 config_path.parent.mkdir(parents=True, exist_ok=True)
-                config_path.write_text(CONFIG_TEMPLATE)
+                config_path.write_text(config_content)
 
-                # Print helpful message to stderr
+                # Inform the user
                 print(
                     f"\n{'=' * 70}",
-                    f"Configuration file created: {config_path.absolute()}",
+                    "New configuration file created:",
+                    f"{config_path.absolute()}",
                     f"{'=' * 70}",
-                    "\nRequired fields to fill in:",
-                    "  - jwt_secret: A strong secret key for signing tokens",
-                    "\nOptional fields (AI/semantic search):",
-                    "  - llm_api_key, llm_base_url, llm_chat_model, llm_embedding_model",
-                    "  - voyage_api_key",
-                    "  - langfuse_public_key, langfuse_secret_key, langfuse_host",
-                    "\nPlease review the config file, fill in the required fields,",
-                    "and restart the server.",
+                    "\nA strong JWT secret has been generated and saved automatically.",
+                    "You can check the configuration and restart the server if you want.",
                     f"{'=' * 70}\n",
                     sep="\n",
                     file=sys.stderr,
                 )
 
-                raise MissingConfigError(
-                    f"Configuration file created at {config_path.absolute()}. "
-                    "Please fill in required fields and restart."
-                ) from e
+                # Clear the lru_cache so the newly written file is picked up
+                load_settings.cache_clear()
+                return Settings.model_validate({})
 
         # If config exists or error is not about missing fields, re-raise
         raise
 
 
-# Load settings on import; exit gracefully if template is created
-try:
-    settings = load_settings()
-except MissingConfigError:
-    sys.exit(2)
+# Load settings on import
+settings = load_settings()

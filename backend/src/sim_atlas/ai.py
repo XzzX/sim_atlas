@@ -3,7 +3,7 @@ import json
 from langfuse.openai import AsyncOpenAI  # pyright: ignore[reportPrivateImportUsage]
 from pydantic import BaseModel
 
-from sim_atlas_backend.models import (
+from sim_atlas.models import (
     FunctionMetadata,
     StoredArtifact,
     WfFunctionNode,
@@ -11,7 +11,7 @@ from sim_atlas_backend.models import (
     WfUnpackNode,
     WorkflowMetadata,
 )
-from sim_atlas_backend.storage_interface import StorageInterface
+from sim_atlas.storage_interface import StorageInterface
 
 from .exceptions import AINotConfiguredError
 from .settings import load_settings

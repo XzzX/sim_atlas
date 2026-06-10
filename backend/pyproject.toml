@@ -1,6 +1,6 @@
 [project]
-name = "sim-atlas-backend"
-version = "0.1.0"
+name = "sim-atlas"
+version = "0.0.1"
 description = "FastAPI backend for sim-atlas platform with AI integration"
 authors = [
   { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},
@@ -50,11 +50,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.scripts]
-sim-atlas-access-token = "sim_atlas_backend.cli:token"
-sim-atlas-server = "sim_atlas_backend.cli:backend"
+sim-atlas-access-token = "sim_atlas.cli:token"
+sim-atlas = "sim_atlas.cli:backend"
 
 [tool.fastapi]
-entrypoint = "sim_atlas_backend.main:app"
+entrypoint = "sim_atlas.main:app"
 
 [tool.ruff.lint]
 select = [
@@ -90,3 +90,9 @@ reportMissingTypeStubs = false
 
 [pytest]
 strict = true
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true

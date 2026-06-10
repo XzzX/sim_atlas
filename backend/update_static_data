@@ -1,14 +1,14 @@
 #! /bin/bash
 
-rm -rv src/sim_atlas_backend/static/frontend/*
-rm -rv src/sim_atlas_backend/static/ide/*
+rm -rv src/sim_atlas/static/frontend/*
+rm -rv src/sim_atlas/static/ide/*
 
 cd ../frontend
 rm -rv dist/*
 npm run build
-cp -rv dist/* ../backend/src/sim_atlas_backend/static/frontend/.
+cp -rv dist/* ../backend/src/sim_atlas/static/frontend/.
 
 cd ../web_ide
 rm -rv dist/*
 npm run build
-cp -rv dist/* ../backend/src/sim_atlas_backend/static/ide/.
+cp -rv dist/* ../backend/src/sim_atlas/static/ide/.

@@ -12,9 +12,9 @@ import pytest
 from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 
-from sim_atlas_backend.file_system_storage import FileSystemStorage
-from sim_atlas_backend.main import app, compose_artifact, get_storage
-from sim_atlas_backend.models import (
+from sim_atlas.file_system_storage import FileSystemStorage
+from sim_atlas.main import app, compose_artifact, get_storage
+from sim_atlas.models import (
     Annotation,
     ArtifactType,
     FunctionRequest,
@@ -26,7 +26,7 @@ from sim_atlas_backend.models import (
     WorkflowDefinition,
     WorkflowRequest,
 )
-from sim_atlas_backend.security import Creator, get_current_user
+from sim_atlas.security import Creator, get_current_user
 
 # ---------------------------------------------------------------------------
 # Shared test data

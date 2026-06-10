@@ -4,7 +4,7 @@ import uvicorn
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run the sim_atlas_backend server.")
+    parser = argparse.ArgumentParser(description="Run the sim_atlas server.")
     parser.add_argument(
         "--host",
         type=str,
@@ -29,7 +29,7 @@ def parse_args():
 def main():
     args = parse_args()
     uvicorn.run(
-        "sim_atlas_backend.main:app",
+        "sim_atlas.main:app",
         host=args.host,
         port=args.port,
         reload=args.reload,

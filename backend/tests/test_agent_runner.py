@@ -6,11 +6,11 @@ from typing import Any, cast
 
 import pytest
 
-from sim_atlas_backend.agent._runner import run_agent_stream
-from sim_atlas_backend.models import AgentRequest
-from sim_atlas_backend.storage_interface import StorageInterface
+from sim_atlas.agent._runner import run_agent_stream
+from sim_atlas.models import AgentRequest
+from sim_atlas.storage_interface import StorageInterface
 
-runner_module = importlib.import_module("sim_atlas_backend.agent._runner")
+runner_module = importlib.import_module("sim_atlas.agent._runner")
 
 
 class _FakeFilterOptions:

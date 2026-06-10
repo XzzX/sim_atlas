@@ -51,7 +51,7 @@ build-backend = "hatchling.build"
 
 [project.scripts]
 sim-atlas-access-token = "sim_atlas.cli:token"
-sim-atlas-server = "sim_atlas.cli:backend"
+sim-atlas = "sim_atlas.cli:backend"
 
 [tool.fastapi]
 entrypoint = "sim_atlas.main:app"

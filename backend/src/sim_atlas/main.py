@@ -19,7 +19,7 @@ from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
 
-from sim_atlas_backend.models import (
+from sim_atlas.models import (
     AgentRequest,
     ArtifactRequest,
     ArtifactResponse,

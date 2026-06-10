@@ -50,11 +50,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.scripts]
-sim-atlas-access-token = "sim_atlas_backend.cli:token"
-sim-atlas-server = "sim_atlas_backend.cli:backend"
+sim-atlas-access-token = "sim_atlas.cli:token"
+sim-atlas-server = "sim_atlas.cli:backend"
 
 [tool.fastapi]
-entrypoint = "sim_atlas_backend.main:app"
+entrypoint = "sim_atlas.main:app"
 
 [tool.ruff.lint]
 select = [

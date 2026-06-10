@@ -32,7 +32,7 @@ from typing import Any
 
 import pytest
 
-from sim_atlas_backend.models import (
+from sim_atlas.models import (
     Annotation,
     ArtifactType,
     Filter,
@@ -46,7 +46,7 @@ from sim_atlas_backend.models import (
     WorkflowDefinition,
     WorkflowMetadata,
 )
-from sim_atlas_backend.storage_interface import StorageInterface
+from sim_atlas.storage_interface import StorageInterface
 
 # ---------------------------------------------------------------------------
 # Test data factory

@@ -2,8 +2,8 @@
 
 import pytest
 
-from sim_atlas_backend.exceptions import MissingConfigError
-from sim_atlas_backend.settings import CONFIG_TEMPLATE, Settings, load_settings
+from sim_atlas.exceptions import MissingConfigError
+from sim_atlas.settings import CONFIG_TEMPLATE, Settings, load_settings
 
 MIN_COMMENT_LINES = 20
 

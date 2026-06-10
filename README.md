@@ -45,7 +45,7 @@ uv run sim-atlas
 ```
 On the first start the server will create a configuration file in the current working directory if it does not find one.
 
-The API and both SPAs are now available at `http://localhost:8000`.
+The API and both SPAs are now available at http://localhost:8000.
 
 ### 3. Generate an API token
 
@@ -66,3 +66,8 @@ For example:
 uv pip install sim-atlas-toolkit
 uv run sim-atlas-upload --recursive filesystem mypackage.mymodule
 ```
+
+### 5. Explore your newely created nodes
+
+Head over to the webinterface and explore the nodes you uploaded:  
+http://localhost:8000

@@ -61,6 +61,7 @@ def parse(obj: Any) -> list[Metadata]:
             outputs = parse_return_annotation(sig)
             for inp, fr_inp in zip(inputs, recipe.inputs, strict=True):
                 inp.label = fr_inp
+                inp.has_default_value = fr_inp in recipe.reference.inputs_with_defaults
             for out, fr_out in zip(outputs, recipe.outputs, strict=True):
                 out.label = fr_out
             enrich_from_docstring(docstring, inputs, outputs)

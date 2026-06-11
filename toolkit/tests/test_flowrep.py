@@ -5,7 +5,7 @@ from sim_atlas_toolkit.parsers.flowrep_parser import parse
 
 
 @fr.atomic
-def kinetic_energy(mass: float, velocity: float) -> float:
+def kinetic_energy(mass: float, velocity: float = 1.0) -> float:
     """Calculate kinetic energy.
 
     Compute the kinetic energy of an object from its mass and velocity.
@@ -31,8 +31,10 @@ def test_function_returns_one_record() -> None:
     assert [a.label for a in metadata.inputs] == ["mass", "velocity"]
     assert metadata.inputs[0].datatype == "float"
     assert metadata.inputs[0].description == "Mass of the object."
+    assert not metadata.inputs[0].has_default_value
     assert metadata.inputs[1].datatype == "float"
     assert metadata.inputs[1].description == "Velocity of the object."
+    assert metadata.inputs[1].has_default_value
     assert len(metadata.outputs) == 1
     assert metadata.outputs[0].datatype == "float"
     assert metadata.outputs[0].label == "kinetic_energy"

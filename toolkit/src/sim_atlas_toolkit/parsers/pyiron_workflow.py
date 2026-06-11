@@ -34,18 +34,18 @@ def parse(node: Any) -> list[Metadata]:
         ann.label = k
         outputs.append(ann)
 
-    enrich_from_docstring(node.node_function.__doc__ or "", inputs, outputs)
+    metadata = Metadata(
+        name=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
+        artifact_type=ArtifactType.FUNCTION,
+        python_import=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
+        category=f"{node.node_function.__module__}".replace(".", ">"),
+        source_code=source_code,
+        docstring=node.node_function.__doc__ or "",
+        keywords=["pyiron_workflow_function"],
+        inputs=inputs,
+        outputs=outputs,
+    )
 
-    return [
-        Metadata(
-            name=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
-            artifact_type=ArtifactType.FUNCTION,
-            python_import=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
-            category=f"{node.node_function.__module__}".replace(".", ">"),
-            source_code=source_code,
-            docstring=node.node_function.__doc__ or "",
-            keywords=["pyiron_workflow_function"],
-            inputs=inputs,
-            outputs=outputs,
-        )
-    ]
+    enrich_from_docstring(node.node_function.__doc__ or "", metadata)
+
+    return [metadata]

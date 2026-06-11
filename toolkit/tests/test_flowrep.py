@@ -23,7 +23,7 @@ def kinetic_energy(mass: float, velocity: float = 1.0) -> float:
     return kinetic_energy
 
 
-def test_function_returns_one_record() -> None:
+def test_flowrep_parser() -> None:
     metadata_list = parse(kinetic_energy)
     assert len(metadata_list) == 1
     metadata = metadata_list[0]
@@ -41,5 +41,10 @@ def test_function_returns_one_record() -> None:
     assert (
         metadata.outputs[0].description
         == "The kinetic energy as a floating-point value."
+    )
+    assert metadata.summary == "Calculate kinetic energy."
+    assert (
+        metadata.description
+        == "Compute the kinetic energy of an object from its mass and velocity.\nThis helper is used to verify that documented atomic functions are\nparsed correctly by the flowrep integration."
     )
     print(metadata)

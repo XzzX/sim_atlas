@@ -31,19 +31,19 @@ def parse(obj: Any) -> list[Metadata]:
                 inp.has_default_value = fr_inp in recipe.reference.inputs_with_defaults
             for out, fr_out in zip(outputs, recipe.outputs, strict=True):
                 out.label = fr_out
-            enrich_from_docstring(docstring, inputs, outputs)
-            return [
-                Metadata(
-                    name=f"{obj.__module__}.{obj.__qualname__}",
-                    artifact_type=ArtifactType.FUNCTION,
-                    python_import=f"{obj.__module__}.{obj.__qualname__}",
-                    category=f"{obj.__module__}".replace(".", ">"),
-                    source_code=source_code,
-                    docstring=docstring,
-                    keywords=[],
-                    inputs=inputs,
-                    outputs=outputs,
-                )
-            ]
+
+            metadata = Metadata(
+                name=f"{obj.__module__}.{obj.__qualname__}",
+                artifact_type=ArtifactType.FUNCTION,
+                python_import=f"{obj.__module__}.{obj.__qualname__}",
+                category=f"{obj.__module__}".replace(".", ">"),
+                source_code=source_code,
+                docstring=docstring,
+                inputs=inputs,
+                outputs=outputs,
+            )
+
+            enrich_from_docstring(docstring, metadata)
+            return [metadata]
         case _:
             return []

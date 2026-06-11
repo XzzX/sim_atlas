@@ -65,31 +65,32 @@ def parse(obj: Any) -> list[Metadata]:
     raw_doc = inspect.getdoc(obj) or ""
 
     field_annotations = _field_annotations(obj)
-    dataclass_annotation = Annotation(label=qualname, datatype=python_import)
+    dataclass_annotation = Annotation(label=qualname.lower(), datatype=python_import)
 
-    enrich_from_docstring(raw_doc, field_annotations, field_annotations)
+    pack_metadata = Metadata(
+        name=f"[PACK] {python_import}",
+        artifact_type=ArtifactType.FUNCTION,
+        python_import=python_import,
+        category=category,
+        source_code=pack_source,
+        docstring=f"[PACK] {qualname}: {raw_doc}",
+        keywords=["pack"],
+        inputs=field_annotations,
+        outputs=[dataclass_annotation],
+    )
 
-    return [
-        Metadata(
-            name=f"[PACK] {python_import}",
-            artifact_type=ArtifactType.FUNCTION,
-            python_import=python_import,
-            category=category,
-            source_code=pack_source,
-            docstring=f"[PACK] {qualname}: {raw_doc}",
-            keywords=["pack"],
-            inputs=field_annotations,
-            outputs=[dataclass_annotation],
-        ),
-        Metadata(
-            name=f"[UNPACK] {python_import}",
-            artifact_type=ArtifactType.FUNCTION,
-            python_import=python_import,
-            category=category,
-            source_code=unpack_source,
-            docstring=f"[UNPACK] {qualname}: {raw_doc}",
-            keywords=["unpack"],
-            inputs=[dataclass_annotation],
-            outputs=field_annotations,
-        ),
-    ]
+    enrich_from_docstring(raw_doc, pack_metadata)
+
+    unpack_metadata = Metadata(
+        name=f"[UNPACK] {python_import}",
+        artifact_type=ArtifactType.FUNCTION,
+        python_import=python_import,
+        category=category,
+        source_code=unpack_source,
+        docstring=f"[UNPACK] {qualname}: {raw_doc}",
+        keywords=["unpack"],
+        inputs=pack_metadata.outputs,
+        outputs=pack_metadata.inputs,
+    )
+
+    return [pack_metadata, unpack_metadata]

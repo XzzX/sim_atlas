@@ -33,6 +33,7 @@ def parse(obj: Any) -> list[Metadata]:
 
     return [
         Metadata(
+            name="python_workflow_definition_workflow",
             artifact_type=ArtifactType.FUNCTION,
             python_import="",
             category="workflow",

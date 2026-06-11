@@ -25,18 +25,18 @@ def parse(obj: Any) -> list[Metadata]:
     inputs = parse_signature(sig)
     outputs = parse_return_annotation(sig)
 
-    enrich_from_docstring(inspect.getdoc(obj) or "", inputs, outputs)
+    metadata = Metadata(
+        name=f"{obj.__module__}.{obj.__qualname__}",
+        artifact_type=ArtifactType.FUNCTION,
+        python_import=f"{obj.__module__}.{obj.__qualname__}",
+        category=f"{obj.__module__}".replace(".", ">"),
+        source_code=source_code,
+        docstring=inspect.getdoc(obj) or "",
+        keywords=[],
+        inputs=inputs,
+        outputs=outputs,
+    )
 
-    return [
-        Metadata(
-            name=f"{obj.__module__}.{obj.__qualname__}",
-            artifact_type=ArtifactType.FUNCTION,
-            python_import=f"{obj.__module__}.{obj.__qualname__}",
-            category=f"{obj.__module__}".replace(".", ">"),
-            source_code=source_code,
-            docstring=inspect.getdoc(obj) or "",
-            keywords=[],
-            inputs=inputs,
-            outputs=outputs,
-        )
-    ]
+    enrich_from_docstring(inspect.getdoc(obj) or "", metadata)
+
+    return [metadata]

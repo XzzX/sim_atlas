@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -18,41 +19,14 @@ class Annotation(BaseModel):
 
 
 class FunctionRequest(BaseModel):
-    author_name: str = "unknown"
-    author_email: str = "unknown"
+    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
 
     name: str
-    artifact_type: str = "function"
     category: str
     keywords: list[str]
 
-    homepage_url: str = ""
-    documentation_url: str = ""
-    source_url: str = ""
-
-    python_import: str
-    dependencies: list[str] | None = None
-
-    source_code: str
-
-    docstring: str
-    inputs: list[Annotation]
-    outputs: list[Annotation]
-
-
-class FunctionResponse(BaseModel):
     author_name: str
     author_email: str
-
-    creator_name: str
-    creator_email: str
-    creation_timestamp: str
-
-    id: str
-    name: str
-    artifact_type: str
-    category: str
-    keywords: list[str]
 
     homepage_url: str | None = None
     documentation_url: str | None = None
@@ -70,43 +44,32 @@ class FunctionResponse(BaseModel):
     outputs: list[Annotation]
 
 
-class ScoredSearchItem(BaseModel):
-    score: float
-    node: FunctionResponse
+class FunctionResponse(BaseModel):
+    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
 
-
-class SearchResults(BaseModel):
-    data: list[ScoredSearchItem]
-    page: int
-    limit: int
-    total_items: int
-    total_pages: int
-
-
-class ScoredSearchResponse(BaseModel):
-    results: SearchResults
-    aggregations: dict[str, dict[str, int]] | None = None
-
-
-class FunctionMetadata(FunctionResponse):
-    embedding: list[float] | None = None
-
-
-class Filter(BaseModel):
-    category: str | None = None
-    artifact_type: list[ArtifactType] | None = None
-    author: list[str] | None = None
-    keywords: list[str] | None = None
-    datatypes: list[str] | None = None
-    units: list[str] | None = None
-    quantities: list[str] | None = None
-
-
-class FilterOptions(BaseModel):
-    category: dict[str, list[str]]
-    artifact_type: list[ArtifactType]
-    author: list[str]
+    id: str
+    name: str
+    category: str
     keywords: list[str]
-    datatypes: list[str]
-    units: list[str]
-    quantities: list[str]
+
+    author_name: str
+    author_email: str
+
+    creator_name: str
+    creator_email: str
+    creation_timestamp: str
+
+    homepage_url: str | None = None
+    documentation_url: str | None = None
+    source_url: str | None = None
+
+    python_import: str
+    dependencies: list[str] | None = None
+
+    source_code: str
+
+    docstring: str
+    brief_description: str | None = None
+    description: str | None = None
+    inputs: list[Annotation]
+    outputs: list[Annotation]

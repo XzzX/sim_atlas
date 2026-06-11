@@ -1,41 +1,14 @@
 import inspect
 import textwrap
-from typing import Annotated, Any, get_args, get_origin
+from typing import Any
 
-from ..models import Annotation, ArtifactType
-from .metadata import Metadata, enrich_from_docstring, parse_annotation
-
-
-def _parse_arguments(sig: inspect.Signature) -> list[Annotation]:
-    arguments: list[Annotation] = []
-    for param_name, param in sig.parameters.items():
-        ann = parse_annotation(param.annotation)
-        ann.label = param_name
-        arguments.append(ann)
-    return arguments
-
-
-def _parse_and_unpack_annotation(annotation: Any) -> list[Annotation]:
-    origin = get_origin(annotation)
-    args = get_args(annotation)
-
-    # unpack one level of Annotated
-    if origin is Annotated:
-        origin = get_origin(args[0])
-        args = get_args(args[0])
-
-    if origin is tuple:
-        annotations: list[Annotation] = []
-        for i, arg in enumerate(args):
-            ann = parse_annotation(arg)
-            ann.label = ann.label if ann.label is not None else str(i)
-            annotations.append(ann)
-        return annotations
-
-    ann = parse_annotation(annotation)
-    if not ann.label:
-        ann.label = "return"
-    return [ann]
+from ..models import ArtifactType
+from .metadata import (
+    Metadata,
+    enrich_from_docstring,
+    parse_return_annotation,
+    parse_signature,
+)
 
 
 def parse(obj: Any) -> list[Metadata]:
@@ -49,10 +22,8 @@ def parse(obj: Any) -> list[Metadata]:
     source_code = textwrap.dedent(source_code.replace("\\r\\n", ""))
 
     sig = inspect.signature(obj)
-    inputs = _parse_arguments(sig)
-
-    return_annotation = sig.return_annotation
-    outputs = _parse_and_unpack_annotation(return_annotation)
+    inputs = parse_signature(sig)
+    outputs = parse_return_annotation(sig)
 
     enrich_from_docstring(inspect.getdoc(obj) or "", inputs, outputs)
 

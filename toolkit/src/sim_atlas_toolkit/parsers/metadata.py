@@ -124,3 +124,37 @@ def parse_annotation(annotation: Any) -> Annotation:
             result.quantity = arg.get("quantity", result.quantity)  # type: ignore
             result.description = arg.get("description", result.description)  # type: ignore
     return result
+
+
+def parse_signature(sig: inspect.Signature) -> list[Annotation]:
+    arguments: list[Annotation] = []
+    for param_name, param in sig.parameters.items():
+        ann = parse_annotation(param.annotation)
+        ann.label = param_name
+        arguments.append(ann)
+    return arguments
+
+
+def parse_return_annotation(sig: inspect.Signature) -> list[Annotation]:
+    annotation = sig.return_annotation
+
+    origin = get_origin(annotation)
+    args = get_args(annotation)
+
+    # unpack one level of Annotated
+    if origin is Annotated:
+        origin = get_origin(args[0])
+        args = get_args(args[0])
+
+    if origin is tuple:
+        annotations: list[Annotation] = []
+        for i, arg in enumerate(args):
+            ann = parse_annotation(arg)
+            ann.label = ann.label if ann.label is not None else str(i)
+            annotations.append(ann)
+        return annotations
+
+    ann = parse_annotation(annotation)
+    if not ann.label:
+        ann.label = "return"
+    return [ann]

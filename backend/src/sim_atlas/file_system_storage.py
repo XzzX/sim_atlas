@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from tqdm.asyncio import tqdm as atqdm
 
 from sim_atlas.ai import enrich_artifact_metadata
+from sim_atlas.embedding import create_embedding
 from sim_atlas.models import (
     Annotation,
     ArtifactType,
@@ -25,7 +26,6 @@ from sim_atlas.models import (
     WorkflowMetadata,
     WorkflowResponse,
 )
-from sim_atlas.voyage_ai import create_embedding
 
 from .settings import load_settings
 from .storage_interface import StorageInterface

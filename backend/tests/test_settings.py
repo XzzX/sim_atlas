@@ -23,7 +23,7 @@ def test_config_template_structure():
     assert "=== REQUIRED SETTINGS ===" in CONFIG_TEMPLATE
     assert "=== OPTIONAL: JWT SETTINGS ===" in CONFIG_TEMPLATE
     assert "=== OPTIONAL: LLM / AI ENRICHMENT ===" in CONFIG_TEMPLATE
-    assert "=== OPTIONAL: VOYAGEAI EMBEDDINGS ===" in CONFIG_TEMPLATE
+    assert "=== OPTIONAL: EMBEDDINGS ===" in CONFIG_TEMPLATE
     assert "=== OPTIONAL: LANGFUSE OBSERVABILITY ===" in CONFIG_TEMPLATE
 
     # Check all fields are documented
@@ -31,9 +31,10 @@ def test_config_template_structure():
     assert "jwt_algorithm" in CONFIG_TEMPLATE
     assert "llm_api_key" in CONFIG_TEMPLATE
     assert "llm_base_url" in CONFIG_TEMPLATE
-    assert "llm_embedding_model" in CONFIG_TEMPLATE
+    assert "embedding_provider" in CONFIG_TEMPLATE
+    assert "embedding_model" in CONFIG_TEMPLATE
+    assert "embedding_api_key" in CONFIG_TEMPLATE
     assert "llm_chat_model" in CONFIG_TEMPLATE
-    assert "voyage_api_key" in CONFIG_TEMPLATE
     assert "langfuse_public_key" in CONFIG_TEMPLATE
     assert "langfuse_secret_key" in CONFIG_TEMPLATE
     assert "langfuse_host" in CONFIG_TEMPLATE
@@ -65,14 +66,10 @@ def test_load_settings_caching():
 def test_template_has_examples_and_hints():
     """Test that the template includes practical examples and generation hints."""
     assert "python -c" in CONFIG_TEMPLATE  # Secret generation hint
-    assert "https://www.voyageai.com/" in CONFIG_TEMPLATE
     assert "sk-" in CONFIG_TEMPLATE  # OpenAI key example
     assert "pa-" in CONFIG_TEMPLATE  # VoyageAI key example
     assert "http://localhost:11434/v1" in CONFIG_TEMPLATE  # Ollama example
-    assert (
-        "qwen3.5-27b" in CONFIG_TEMPLATE
-        or "multilingual-e5-large-instruct" in CONFIG_TEMPLATE
-    )  # Model examples
+    assert "qwen3.5-27b" in CONFIG_TEMPLATE  # Model examples
 
 
 def test_template_has_all_fields_explained():
@@ -84,8 +81,9 @@ def test_template_has_all_fields_explained():
         "llm_api_key",
         "llm_base_url",
         "llm_chat_model",
-        "llm_embedding_model",
-        "voyage_api_key",
+        "embedding_provider",
+        "embedding_model",
+        "embedding_api_key",
         "langfuse_public_key",
         "langfuse_secret_key",
         "langfuse_host",
@@ -121,7 +119,7 @@ def test_settings_can_be_loaded_from_env(monkeypatch: pytest.MonkeyPatch) -> Non
     assert hasattr(settings, "jwt_secret")
     assert hasattr(settings, "jwt_algorithm")
     assert hasattr(settings, "llm_api_key")
-    assert hasattr(settings, "voyage_api_key")
+    assert hasattr(settings, "embedding_provider")
 
 
 def test_missing_config_error_exists():

@@ -1,5 +1,3 @@
-import asyncio
-
 import numpy as np
 import voyageai  # pyright: ignore[reportMissingTypeStubs]
 from fastembed import TextEmbedding
@@ -69,14 +67,16 @@ async def create_embedding(
         case "fastembed":
             model_name = settings.embedding_model or "nomic-ai/nomic-embed-text-v1.5"
             ft_model = TextEmbedding(model_name=model_name)
-            embeddings: list[list[float]] = []
+            fastembed_embeddings: list[np.ndarray] = []
             for i in tqdm(
                 range(0, len(documents), settings.embedding_batch_size),
                 desc="Creating embeddings",
             ):
-                response = ft_model.embed(
-                    documents[i : i + settings.embedding_batch_size],
-                    batch_size=settings.embedding_batch_size,
+                response = list(
+                    ft_model.embed(
+                        documents[i : i + settings.embedding_batch_size],
+                        batch_size=settings.embedding_batch_size,
+                    )
                 )
-                embeddings += response
-            return np.array(embeddings, dtype=np.float32)
+                fastembed_embeddings += response
+            return np.array(fastembed_embeddings, dtype=np.float32)

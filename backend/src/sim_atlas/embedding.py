@@ -2,6 +2,7 @@ import asyncio
 
 import numpy as np
 import voyageai  # pyright: ignore[reportMissingTypeStubs]
+from fastembed import TextEmbedding
 from openai import AsyncOpenAI
 from tqdm import tqdm
 
@@ -60,18 +61,8 @@ async def create_embedding(
             openai_embeddings += [e.embedding for e in response.data]
         return np.array(openai_embeddings, dtype=np.float32)
 
-    if not settings.embedding_model:
-        raise AINotConfiguredError(
-            "embedding_model is required for the sentence_transformer provider"
-        )
-    try:
-        from sentence_transformers import (  # noqa: PLC0415  # pyright: ignore[reportMissingImports] -- optional dep
-            SentenceTransformer,  # pyright: ignore[reportUnknownVariableType]
-        )
-    except ImportError as e:
-        raise AINotConfiguredError(
-            "sentence-transformers is not installed — run: pip install 'sim-atlas[local]'"
-        ) from e
-    model = SentenceTransformer(settings.embedding_model)  # pyright: ignore[reportUnknownVariableType]
-    vecs: np.ndarray = await asyncio.to_thread(model.encode, documents)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-    return np.array(vecs, dtype=np.float32)
+    model_name = settings.embedding_model or "BAAI/bge-small-en-v1.5"
+    ft_model = TextEmbedding(model_name=model_name)
+    return await asyncio.to_thread(
+        lambda: np.array(list(ft_model.embed(documents)), dtype=np.float32)
+    )

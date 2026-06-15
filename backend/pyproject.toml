@@ -36,12 +36,10 @@ dependencies = [
     "pydantic-settings[toml]>=2.13.1",
     "pyjwt>=2.12.1",
     "python-workflow-definition>=0.1.2",
+    "fastembed>=0.4",
     "tqdm>=4.67.3",
     "voyageai>=0.3.7",
 ]
-
-[project.optional-dependencies]
-local = ["sentence-transformers"]
 
 [dependency-groups]
 dev = [

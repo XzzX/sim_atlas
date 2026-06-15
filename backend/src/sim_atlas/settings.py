@@ -70,7 +70,7 @@ jwt_secret = "replace-with-strong-secret-key-min-32-chars"
 # === OPTIONAL: EMBEDDINGS ===
 # Configure the embedding provider for semantic search.
 # embedding_provider = "voyageai"        # sentence_transformer | openai | voyageai
-# embedding_model = "voyage-3"           # model name (provider-specific)
+# embedding_model = "voyage-3"           # model name; sentence_transformer defaults to BAAI/bge-small-en-v1.5
 # embedding_api_key = "pa-..."           # API key (voyageai or openai; omit for sentence_transformer)
 # embedding_base_url = "https://..."     # base URL for openai-compatible endpoint (openai provider only)
 

@@ -1,8 +1,10 @@
 import json
 
-from langfuse.openai import AsyncOpenAI  # pyright: ignore[reportPrivateImportUsage]
 from pydantic import BaseModel
 
+from sim_atlas.agent._observability import (
+    AsyncOpenAI,  # pyright: ignore[reportPrivateImportUsage]
+)
 from sim_atlas.models import (
     FunctionMetadata,
     StoredArtifact,

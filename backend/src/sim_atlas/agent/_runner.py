@@ -4,8 +4,6 @@ import uuid
 from collections.abc import AsyncGenerator
 from typing import Any, cast
 
-from langfuse import Langfuse, propagate_attributes
-from langfuse.openai import AsyncOpenAI  # pyright: ignore[reportPrivateImportUsage]
 from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionMessageToolCall,
@@ -15,6 +13,11 @@ from pydantic import ValidationError
 from ..models import AgentRequest
 from ..settings import load_settings
 from ..storage_interface import StorageInterface
+from ._observability import (
+    AsyncOpenAI,  # pyright: ignore[reportPrivateImportUsage]
+    Langfuse,
+    propagate_attributes,
+)
 from ._prompt import build_system_prompt
 from ._sse import (
     ErrorEvent,

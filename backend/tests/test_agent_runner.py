@@ -56,64 +56,21 @@ class _FakeAsyncOpenAI:
         self.chat = _FakeChat()
 
 
-class _FakeTrace:
-    def __init__(self, events: list[tuple[str, object]]) -> None:
-        self.events = events
-
-    def span(
-        self,
-        *,
-        name: str,
-        input: Any | None = None,
-        level: str | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> _FakeTrace:
-        self.events.append(
-            (
-                "span",
-                {"name": name, "input": input, "level": level, "metadata": metadata},
-            )
-        )
-        return _FakeTrace(self.events)
-
-    def generation(
-        self,
-        *,
-        name: str,
-        model: str | None = None,
-        input: Any | None = None,
-        level: str | None = None,
-        model_parameters: dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> _FakeTrace:
-        self.events.append(
-            (
-                "generation",
-                {
-                    "name": name,
-                    "model": model,
-                    "input": input,
-                    "level": level,
-                    "model_parameters": model_parameters,
-                    "metadata": metadata,
-                },
-            )
-        )
-        return _FakeTrace(self.events)
-
-    def update(self, **kwargs: Any) -> None:
-        self.events.append(("update", kwargs))
-
-    def end(self, **kwargs: Any) -> None:
-        self.events.append(("end", kwargs))
-
-    def record_exception(self, exc: BaseException) -> None:
-        self.events.append(("exception", str(exc)))
+class _FakeSettings:
+    llm_api_key = "test-key"
+    llm_base_url = "http://localhost"
+    llm_chat_model = "test-model"
+    agent_max_iterations = 10
+    langfuse_public_key = None
+    langfuse_secret_key = None
+    langfuse_host = None
+    langfuse_environment = None
 
 
 def test_run_agent_stream_records_tracing_without_changing_sse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
     monkeypatch.setattr(runner_module, "AsyncOpenAI", _FakeAsyncOpenAI)
 
     def fake_validate_graph(scratch: Any, storage: Any) -> list[str]:

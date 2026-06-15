@@ -3,6 +3,7 @@ from typing import Any
 
 from .parsers import (
     dataclass_node,
+    flowrep_parser,
     pyiron_core,
     pyiron_workflow,
     python_function,
@@ -20,6 +21,7 @@ def get_metadata(
             pyiron_workflow.parse,
             pyiron_core.parse,
             python_workflow_definition.parse,
+            flowrep_parser.parse,
             python_function.parse,
         ]
 

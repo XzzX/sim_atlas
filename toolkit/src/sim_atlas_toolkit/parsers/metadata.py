@@ -7,6 +7,7 @@ from griffe import (
     DocstringSectionAttributes,
     DocstringSectionParameters,
     DocstringSectionReturns,
+    DocstringSectionText,
     GoogleOptions,
     NumpyOptions,
     PerStyleOptions,
@@ -19,16 +20,19 @@ from ..models import Annotation, ArtifactType
 
 
 class Metadata(BaseModel):
-    name: str | None = None
     artifact_type: ArtifactType
+
+    name: str
     category: str
 
-    python_import: str | None
+    python_import: str
     source_code: str
 
-    keywords: list[str]
+    keywords: list[str] | None = None
 
-    docstring: str
+    docstring: str | None = None
+    summary: str | None = None
+    description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
 
@@ -72,28 +76,40 @@ _SILENCE: PerStyleOptions = {
 
 def enrich_from_docstring(
     docstring: str,
-    inputs: list[Annotation],
-    outputs: list[Annotation],
-) -> None:
+    metadata: Metadata,
+) -> Metadata:
     """Fill Annotation.description from a parsed docstring; existing values are not overwritten."""
     if not docstring:
-        return
+        return metadata
     sections = parse_auto(Docstring(docstring), per_style_options=_SILENCE)
     for section in sections:
-        if isinstance(section, DocstringSectionParameters | DocstringSectionAttributes):
-            by_label = {a.label: a for a in inputs if a.label}
-            for p in section.value:
-                ann = by_label.get(p.name)
-                if ann is not None and ann.description is None and p.description:
-                    ann.description = p.description
-        elif isinstance(section, DocstringSectionReturns):
-            for i, ret in enumerate(section.value):
-                if (
-                    i < len(outputs)
-                    and outputs[i].description is None
-                    and ret.description
-                ):
-                    outputs[i].description = ret.description
+        match section:
+            case DocstringSectionParameters() | DocstringSectionAttributes() as s:
+                by_label = {a.label: a for a in metadata.inputs if a.label}
+                for p in section.value:
+                    ann = by_label.get(p.name)
+                    if ann is not None and ann.description is None and p.description:
+                        ann.description = p.description
+            case DocstringSectionReturns():
+                for i, ret in enumerate(section.value):
+                    if (
+                        i < len(metadata.outputs)
+                        and metadata.outputs[i].description is None
+                        and ret.description
+                    ):
+                        metadata.outputs[i].description = ret.description
+            case DocstringSectionText() as s:
+                print(s.value)
+                brief, _, long = s.value.partition("\n\n")
+                print(brief)
+                print(long)
+                if metadata.summary is None:
+                    metadata.summary = brief.strip()
+                if metadata.description is None:
+                    metadata.description = long.strip()
+            case _:
+                pass
+    return metadata
 
 
 def parse_annotation(annotation: Any) -> Annotation:
@@ -124,3 +140,37 @@ def parse_annotation(annotation: Any) -> Annotation:
             result.quantity = arg.get("quantity", result.quantity)  # type: ignore
             result.description = arg.get("description", result.description)  # type: ignore
     return result
+
+
+def parse_signature(sig: inspect.Signature) -> list[Annotation]:
+    arguments: list[Annotation] = []
+    for param_name, param in sig.parameters.items():
+        ann = parse_annotation(param.annotation)
+        ann.label = param_name
+        arguments.append(ann)
+    return arguments
+
+
+def parse_return_annotation(sig: inspect.Signature) -> list[Annotation]:
+    annotation = sig.return_annotation
+
+    origin = get_origin(annotation)
+    args = get_args(annotation)
+
+    # unpack one level of Annotated
+    if origin is Annotated:
+        origin = get_origin(args[0])
+        args = get_args(args[0])
+
+    if origin is tuple:
+        annotations: list[Annotation] = []
+        for i, arg in enumerate(args):
+            ann = parse_annotation(arg)
+            ann.label = ann.label if ann.label is not None else str(i)
+            annotations.append(ann)
+        return annotations
+
+    ann = parse_annotation(annotation)
+    if not ann.label:
+        ann.label = "return"
+    return [ann]

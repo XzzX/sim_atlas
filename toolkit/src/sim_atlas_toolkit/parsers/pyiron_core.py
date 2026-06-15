@@ -20,18 +20,18 @@ def parse(obj: Any) -> list[Metadata]:
         Annotation(label=k, datatype=v.type) for k, v in instance.outputs.items()
     ]
 
-    enrich_from_docstring(instance._func.__doc__ or "", inputs, outputs)
+    metadata = Metadata(
+        name=f"{instance._func.__module__}.{instance._func.__qualname__}",
+        artifact_type=ArtifactType.FUNCTION,
+        python_import=f"{instance._func.__module__}.{instance._func.__qualname__}",
+        category=f"{instance._func.__module__}".replace(".", ">"),
+        source_code=source_code,
+        docstring=instance._func.__doc__ or "",
+        keywords=["pyiron_core_node"],
+        inputs=inputs,
+        outputs=outputs,
+    )
 
-    return [
-        Metadata(
-            name=f"{instance._func.__module__}.{instance._func.__qualname__}",
-            artifact_type=ArtifactType.FUNCTION,
-            python_import=f"{instance._func.__module__}.{instance._func.__qualname__}",
-            category=f"{instance._func.__module__}".replace(".", ">"),
-            source_code=source_code,
-            docstring=instance._func.__doc__ or "",
-            keywords=["pyiron_core_node"],
-            inputs=inputs,
-            outputs=outputs,
-        )
-    ]
+    enrich_from_docstring(instance._func.__doc__ or "", metadata)
+
+    return [metadata]

@@ -1,6 +1,6 @@
 [project]
 name = "sim-atlas-toolkit"
-version = "0.0.1"
+version = "0.0.2"
 description = "Tools for parsing and storing workflow nodes with support for pyiron and Python functions"
 authors = [
   { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},
@@ -42,6 +42,7 @@ dev = [
     "pyright>=1.1.407",
     "python-workflow-definition>=0.1.0",
     "ruff>=0.14.6",
+    "flowrep>=0.5.1",
 ]
 
 [build-system]

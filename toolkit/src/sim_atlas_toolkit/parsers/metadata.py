@@ -84,7 +84,7 @@ def enrich_from_docstring(
     sections = parse_auto(Docstring(docstring), per_style_options=_SILENCE)
     for section in sections:
         match section:
-            case DocstringSectionParameters() | DocstringSectionAttributes() as s:
+            case DocstringSectionParameters() | DocstringSectionAttributes():
                 by_label = {a.label: a for a in metadata.inputs if a.label}
                 for p in section.value:
                     ann = by_label.get(p.name)
@@ -98,11 +98,8 @@ def enrich_from_docstring(
                         and ret.description
                     ):
                         metadata.outputs[i].description = ret.description
-            case DocstringSectionText() as s:
-                print(s.value)
-                brief, _, long = s.value.partition("\n\n")
-                print(brief)
-                print(long)
+            case DocstringSectionText():
+                brief, _, long = section.value.partition("\n\n")
                 if metadata.summary is None:
                     metadata.summary = brief.strip()
                 if metadata.description is None:

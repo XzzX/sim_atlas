@@ -2,6 +2,7 @@ import secrets
 import sys
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, ValidationError
 from pydantic_settings import (
@@ -61,26 +62,17 @@ jwt_secret = "replace-with-strong-secret-key-min-32-chars"
 # Name of the model to use for conversational docstring refinement.
 # llm_chat_model = "qwen3.5-27b"
 
-# LLM Embedding Model Name
-# Name of the model to use for generating text embeddings.
-# Required only if using embedding-based semantic search.
-# Examples: text-embedding-3-small (OpenAI), nomic-embed-text (Ollama)
-# llm_embedding_model = "multilingual-e5-large-instruct"
-
 # LLM Concurrency
 # Maximum number of simultaneous LLM requests.
 # Lower values reduce API load; higher values speed up large batches.
 # llm_concurrency = 5
 
-# === OPTIONAL: VOYAGEAI EMBEDDINGS ===
-# Alternative to LLM-based embeddings; uses VoyageAI's hosted API.
-# Choose either LLM embedding OR VoyageAI, not both.
-
-# VoyageAI API Key
-# Required for semantic search via VoyageAI (voyage-code-3 model).
-# Get an API key from https://www.voyageai.com/
-# Only needed if using VoyageAI instead of llm_embedding_model.
-# voyage_api_key = "pa-..."
+# === OPTIONAL: EMBEDDINGS ===
+# Configure the embedding provider for semantic search.
+embedding_provider = "fastembed"                    # fastembed | openai | voyageai
+embedding_model = "nomic-ai/nomic-embed-text-v1.5"  # model name
+# embedding_api_key = "pa-..."                      # API key (voyageai or openai; omit for fastembed)
+# embedding_base_url = "https://..."                # base URL for openai-compatible endpoint (openai provider only)
 
 # === OPTIONAL: LANGFUSE OBSERVABILITY ===
 # Enable this only if you want to export agent traces to Langfuse.
@@ -111,11 +103,13 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     llm_api_key: str | None = None
     llm_base_url: str | None = None
-    llm_embedding_model: str | None = None
     llm_chat_model: str | None = None
     llm_concurrency: int = 5
     agent_max_iterations: int = Field(default=10, ge=1)
-    voyage_api_key: str | None = None
+    embedding_provider: Literal["fastembed", "openai", "voyageai"] | None = None
+    embedding_model: str | None = None
+    embedding_api_key: str | None = None
+    embedding_base_url: str | None = None
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None
     langfuse_host: str | None = None

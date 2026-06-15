@@ -69,15 +69,14 @@ async def create_embedding(
         case "fastembed":
             model_name = settings.embedding_model or "nomic-ai/nomic-embed-text-v1.5"
             ft_model = TextEmbedding(model_name=model_name)
-            return await asyncio.to_thread(
-                lambda: np.array(
-                    list(
-                        ft_model.embed(
-                            documents,
-                            batch_size=settings.embedding_batch_size,
-                            progress_bar=True,
-                        )
-                    ),
-                    dtype=np.float32,
+            embeddings: list[list[float]] = []
+            for i in tqdm(
+                range(0, len(documents), settings.embedding_batch_size),
+                desc="Creating embeddings",
+            ):
+                response = ft_model.embed(
+                    documents[i : i + settings.embedding_batch_size],
+                    batch_size=settings.embedding_batch_size,
                 )
-            )
+                embeddings += response
+            return np.array(embeddings, dtype=np.float32)

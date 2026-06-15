@@ -26,7 +26,7 @@ class Point:
 
 def test_dataclass_parser() -> None:
     metadata_list = parse(Point)
-    assert len(metadata_list) == 2
+    assert len(metadata_list) == 2  # noqa: PLR2004
 
     pack_metadata = metadata_list[0]
     assert pack_metadata.artifact_type == ArtifactType.FUNCTION

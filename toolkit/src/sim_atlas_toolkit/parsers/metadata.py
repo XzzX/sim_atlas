@@ -99,10 +99,7 @@ def enrich_from_docstring(
                     ):
                         metadata.outputs[i].description = ret.description
             case DocstringSectionText() as s:
-                print(s.value)
                 brief, _, long = s.value.partition("\n\n")
-                print(brief)
-                print(long)
                 if metadata.summary is None:
                     metadata.summary = brief.strip()
                 if metadata.description is None:

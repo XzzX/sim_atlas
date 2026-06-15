@@ -47,4 +47,3 @@ def test_flowrep_parser() -> None:
         metadata.description
         == "Compute the kinetic energy of an object from its mass and velocity.\nThis helper is used to verify that documented atomic functions are\nparsed correctly by the flowrep integration."
     )
-    print(metadata)

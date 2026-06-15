@@ -43,12 +43,12 @@ def _noop_get_client() -> _NoopLangfuse:
 
 try:
     from langfuse import Langfuse, get_client, propagate_attributes
-    from langfuse.openai import AsyncOpenAI  # pyright: ignore[reportPrivateImportUsage]
+    from langfuse.openai import AsyncOpenAI
 except ImportError:
-    Langfuse = _NoopLangfuse  # type: ignore[misc,assignment]
-    propagate_attributes = _noop_propagate_attributes  # type: ignore[assignment]
-    get_client = _noop_get_client  # type: ignore[assignment]
-    from openai import AsyncOpenAI  # type: ignore[assignment]
+    Langfuse = _NoopLangfuse
+    propagate_attributes = _noop_propagate_attributes
+    get_client = _noop_get_client
+    from openai import AsyncOpenAI
 
 
 __all__ = ["AsyncOpenAI", "Langfuse", "get_client", "propagate_attributes"]

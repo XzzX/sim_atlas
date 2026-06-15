@@ -1,4 +1,7 @@
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+![PyPI - backend](https://img.shields.io/pypi/v/sim-atlas?label=backend)
+![PyPI - toolkit](https://img.shields.io/pypi/v/sim-atlas-toolkit?label=toolkit)
+
 
 [![backend](https://github.com/XzzX/sim_atlas/actions/workflows/backend.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/backend.yml)
 [![frontend](https://github.com/XzzX/sim_atlas/actions/workflows/frontend.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/frontend.yml)

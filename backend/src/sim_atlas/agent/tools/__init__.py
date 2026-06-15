@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from typing import Any
 
-from langfuse import get_client
 from openai.types.chat import ChatCompletionToolParam
 from pydantic import BaseModel
 
 from ...storage_interface import StorageInterface
+from .._observability import get_client
 from ._errors import ToolError
 from ._graph import (
     ADD_EDGE_DESCRIPTION,

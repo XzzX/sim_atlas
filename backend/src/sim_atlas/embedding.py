@@ -18,7 +18,7 @@ async def create_embedding(
     match settings.embedding_provider:
         case None:
             raise AINotConfiguredError("embedding_provider is not configured")
-        
+
         case "voyageai":
             if not settings.embedding_api_key:
                 raise AINotConfiguredError(
@@ -31,7 +31,9 @@ async def create_embedding(
             vo = voyageai.AsyncClient(api_key=settings.embedding_api_key)  # pyright: ignore[reportPrivateImportUsage]
             batch_size = 256
             embeddings: list[list[float]] = []
-            for i in tqdm(range(0, len(documents), batch_size), desc="Creating embeddings"):
+            for i in tqdm(
+                range(0, len(documents), batch_size), desc="Creating embeddings"
+            ):
                 result = await vo.embed(
                     documents[i : i + batch_size],
                     model=settings.embedding_model,
@@ -39,7 +41,7 @@ async def create_embedding(
                 )
                 embeddings += result.embeddings  # pyright: ignore[reportAssignmentType]
             return np.array(embeddings, dtype=np.float32)
-        
+
         case "openai":
             if not settings.embedding_model:
                 raise AINotConfiguredError(
@@ -54,14 +56,16 @@ async def create_embedding(
             )
             batch_size = 256
             openai_embeddings: list[list[float]] = []
-            for i in tqdm(range(0, len(documents), batch_size), desc="Creating embeddings"):
+            for i in tqdm(
+                range(0, len(documents), batch_size), desc="Creating embeddings"
+            ):
                 response = await client.embeddings.create(
                     input=documents[i : i + batch_size],
                     model=settings.embedding_model,
                 )
                 openai_embeddings += [e.embedding for e in response.data]
             return np.array(openai_embeddings, dtype=np.float32)
-        
+
         case "fastembed":
             model_name = settings.embedding_model or "nomic-ai/nomic-embed-text-v1.5"
             ft_model = TextEmbedding(model_name=model_name)

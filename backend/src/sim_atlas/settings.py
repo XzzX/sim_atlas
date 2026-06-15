@@ -106,9 +106,7 @@ class Settings(BaseSettings):
     llm_chat_model: str | None = None
     llm_concurrency: int = 5
     agent_max_iterations: int = Field(default=10, ge=1)
-    embedding_provider: Literal["fastembed", "openai", "voyageai"] | None = (
-        None
-    )
+    embedding_provider: Literal["fastembed", "openai", "voyageai"] | None = None
     embedding_model: str | None = None
     embedding_api_key: str | None = None
     embedding_base_url: str | None = None

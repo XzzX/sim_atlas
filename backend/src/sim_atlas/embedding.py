@@ -43,6 +43,10 @@ async def create_embedding(
             raise AINotConfiguredError(
                 "embedding_model is required for the openai provider"
             )
+        if not settings.embedding_api_key:
+            raise AINotConfiguredError(
+                "embedding_api_key is required for the openai provider"
+            )
         client = AsyncOpenAI(
             api_key=settings.embedding_api_key, base_url=settings.embedding_base_url
         )
@@ -66,7 +70,7 @@ async def create_embedding(
         )
     except ImportError as e:
         raise AINotConfiguredError(
-            "sentence-transformers is not installed — run: pip install 'sim-atlas-backend[local]'"
+            "sentence-transformers is not installed — run: pip install 'sim-atlas[local]'"
         ) from e
     model = SentenceTransformer(settings.embedding_model)  # pyright: ignore[reportUnknownVariableType]
     vecs: np.ndarray = await asyncio.to_thread(model.encode, documents)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]

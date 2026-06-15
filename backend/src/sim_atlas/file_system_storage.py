@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 from functools import reduce
 from math import ceil
@@ -30,6 +31,8 @@ from sim_atlas.models import (
 from .settings import load_settings
 from .storage_interface import StorageInterface
 from .type_utils import collect_datatypes, datatype_matches
+
+logger = logging.getLogger(__name__)
 
 
 def _deserialize_artifact(data: dict[str, object]) -> StoredArtifact:
@@ -460,7 +463,10 @@ class FileSystemStorage(StorageInterface):
 
         async def _enrich_one(v: StoredArtifact) -> None:
             async with sem:
-                await enrich_artifact_metadata(v, self)
+                try:
+                    await enrich_artifact_metadata(v, self)
+                except Exception:
+                    logger.exception("Failed to enrich node %s", v.id)
 
         await atqdm.gather(  # pyright: ignore[reportUnknownMemberType]
             *[_enrich_one(v) for v in nodes_to_enrich],

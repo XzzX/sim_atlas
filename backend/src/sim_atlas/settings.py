@@ -73,6 +73,7 @@ embedding_provider = "fastembed"                    # fastembed | openai | voyag
 embedding_model = "nomic-ai/nomic-embed-text-v1.5"  # model name
 # embedding_api_key = "pa-..."                      # API key (voyageai or openai; omit for fastembed)
 # embedding_base_url = "https://..."                # base URL for openai-compatible endpoint (openai provider only)
+embedding_batch_size = 8                            # number of documents per embedding batch
 
 # === OPTIONAL: LANGFUSE OBSERVABILITY ===
 # Enable this only if you want to export agent traces to Langfuse.
@@ -110,6 +111,7 @@ class Settings(BaseSettings):
     embedding_model: str | None = None
     embedding_api_key: str | None = None
     embedding_base_url: str | None = None
+    embedding_batch_size: int = 8
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None
     langfuse_host: str | None = None

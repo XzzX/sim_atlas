@@ -29,13 +29,13 @@ async def create_embedding(
                     "embedding_model is required for the voyageai provider"
                 )
             vo = voyageai.AsyncClient(api_key=settings.embedding_api_key)  # pyright: ignore[reportPrivateImportUsage]
-            batch_size = 256
             embeddings: list[list[float]] = []
             for i in tqdm(
-                range(0, len(documents), batch_size), desc="Creating embeddings"
+                range(0, len(documents), settings.embedding_batch_size),
+                desc="Creating embeddings",
             ):
                 result = await vo.embed(
-                    documents[i : i + batch_size],
+                    documents[i : i + settings.embedding_batch_size],
                     model=settings.embedding_model,
                     input_type=input_type,
                 )
@@ -54,13 +54,13 @@ async def create_embedding(
             client = AsyncOpenAI(
                 api_key=settings.embedding_api_key, base_url=settings.embedding_base_url
             )
-            batch_size = 256
             openai_embeddings: list[list[float]] = []
             for i in tqdm(
-                range(0, len(documents), batch_size), desc="Creating embeddings"
+                range(0, len(documents), settings.embedding_batch_size),
+                desc="Creating embeddings",
             ):
                 response = await client.embeddings.create(
-                    input=documents[i : i + batch_size],
+                    input=documents[i : i + settings.embedding_batch_size],
                     model=settings.embedding_model,
                 )
                 openai_embeddings += [e.embedding for e in response.data]
@@ -70,5 +70,14 @@ async def create_embedding(
             model_name = settings.embedding_model or "nomic-ai/nomic-embed-text-v1.5"
             ft_model = TextEmbedding(model_name=model_name)
             return await asyncio.to_thread(
-                lambda: np.array(list(ft_model.embed(documents)), dtype=np.float32)
+                lambda: np.array(
+                    list(
+                        ft_model.embed(
+                            documents,
+                            batch_size=settings.embedding_batch_size,
+                            progress_bar=True,
+                        )
+                    ),
+                    dtype=np.float32,
+                )
             )

@@ -69,10 +69,10 @@ jwt_secret = "replace-with-strong-secret-key-min-32-chars"
 
 # === OPTIONAL: EMBEDDINGS ===
 # Configure the embedding provider for semantic search.
-# embedding_provider = "voyageai"        # sentence_transformer | openai | voyageai
-# embedding_model = "voyage-3"           # model name; sentence_transformer defaults to BAAI/bge-small-en-v1.5
-# embedding_api_key = "pa-..."           # API key (voyageai or openai; omit for sentence_transformer)
-# embedding_base_url = "https://..."     # base URL for openai-compatible endpoint (openai provider only)
+embedding_provider = "fastembed"                    # fastembed | openai | voyageai
+embedding_model = "nomic-ai/nomic-embed-text-v1.5"  # model name
+# embedding_api_key = "pa-..."                      # API key (voyageai or openai; omit for fastembed)
+# embedding_base_url = "https://..."                # base URL for openai-compatible endpoint (openai provider only)
 
 # === OPTIONAL: LANGFUSE OBSERVABILITY ===
 # Enable this only if you want to export agent traces to Langfuse.
@@ -106,7 +106,7 @@ class Settings(BaseSettings):
     llm_chat_model: str | None = None
     llm_concurrency: int = 5
     agent_max_iterations: int = Field(default=10, ge=1)
-    embedding_provider: Literal["sentence_transformer", "openai", "voyageai"] | None = (
+    embedding_provider: Literal["fastembed", "openai", "voyageai"] | None = (
         None
     )
     embedding_model: str | None = None

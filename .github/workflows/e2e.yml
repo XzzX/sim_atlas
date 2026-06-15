@@ -15,9 +15,6 @@ jobs:
   e2e-upload:
     runs-on: ubuntu-latest
 
-    env:
-      SIM_ATLAS_JWT_SECRET: test-secret-key-for-ci-testing-only-32chars
-
     steps:
       - uses: actions/checkout@v6
 
@@ -41,6 +38,28 @@ jobs:
       - name: Install toolkit
         run: uv sync
         working-directory: ./toolkit
+
+      - name: Start backend server
+        run: |
+          uv run sim-atlas --host 127.0.0.1 --port 8000 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+        working-directory: ./backend
+
+      - name: Wait for server to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8000/api/v1/filter_options > /dev/null; then
+              echo "Server is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server failed to start within 30 seconds"
+          exit 1
+
+      - name: Stop backend server
+        if: always()
+        run: kill "$SERVER_PID"
 
       - name: Start backend server
         run: |

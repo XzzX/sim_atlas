@@ -5,7 +5,7 @@ import importlib
 import logging
 import os
 
-from .node_store import NodeStore
+from sim_atlas_toolkit import NodeStore
 
 DEFAULT_API_URL_ENV = "SIM_ATLAS_API_URL"
 DEFAULT_API_TOKEN_ENV = "SIM_ATLAS_API_TOKEN"

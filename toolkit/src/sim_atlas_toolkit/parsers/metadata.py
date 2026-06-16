@@ -31,7 +31,7 @@ class Metadata(BaseModel):
     keywords: list[str] | None = None
 
     docstring: str | None = None
-    summary: str | None = None
+    brief_description: str | None = None
     description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
@@ -100,8 +100,8 @@ def enrich_from_docstring(
                         metadata.outputs[i].description = ret.description
             case DocstringSectionText():
                 brief, _, long = section.value.partition("\n\n")
-                if metadata.summary is None:
-                    metadata.summary = brief.strip()
+                if metadata.brief_description is None:
+                    metadata.brief_description = brief.strip()
                 if metadata.description is None:
                     metadata.description = long.strip()
             case _:

@@ -102,8 +102,43 @@ jobs:
           import sys, json
           d = json.load(sys.stdin)
           total = d['results']['total_items']
-          assert total > 0, f'Expected at least one artifact, got: {d}'
-          print(f\"OK — {total} artifact(s) found\")
+          assert total == 2, f'Expected exactly 2 artifacts, got {total}: {d}'
+          print(f'OK — {total} artifact(s) found')
+
+          nodes = {item['node']['name']: item['node'] for item in d['results']['data']}
+
+          expected = {
+              'dummy_module.functions.add': {
+                  'inputs': [
+                      ('x', 'int', 'The first integer operand.'),
+                      ('y', 'int', 'The second integer operand.'),
+                  ],
+                  'output_datatype': 'int',
+                  'output_description': 'The sum of x and y.',
+              },
+              'dummy_module.functions.multiply': {
+                  'inputs': [
+                      ('x', 'float', 'The first floating-point factor.'),
+                      ('y', 'float', 'The second floating-point factor.'),
+                  ],
+                  'output_datatype': 'float',
+                  'output_description': 'The product of x and y.',
+              },
+          }
+
+          for name, checks in expected.items():
+              assert name in nodes, f'Missing artifact: {name}'
+              node = nodes[name]
+              assert node['artifact_type'] == 'function', f'{name}: unexpected artifact_type'
+              for i, (label, datatype, description) in enumerate(checks['inputs']):
+                  inp = node['inputs'][i]
+                  assert inp['label'] == label, f'{name} input[{i}]: expected label {label!r}, got {inp[\"label\"]!r}'
+                  assert inp['datatype'] == datatype, f'{name} input[{i}]: expected datatype {datatype!r}, got {inp[\"datatype\"]!r}'
+                  assert inp['description'] == description, f'{name} input[{i}]: expected description {description!r}, got {inp[\"description\"]!r}'
+              out = node['outputs'][0]
+              assert out['datatype'] == checks['output_datatype'], f'{name} output datatype mismatch'
+              assert out['description'] == checks['output_description'], f'{name} output description mismatch'
+              print(f'OK — {name} metadata verified')
           "
 
       - name: Install Playwright dependencies

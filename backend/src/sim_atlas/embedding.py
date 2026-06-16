@@ -4,8 +4,8 @@ from fastembed import TextEmbedding
 from openai import AsyncOpenAI
 from tqdm import tqdm
 
-from .exceptions import AINotConfiguredError
-from .settings import load_settings
+from sim_atlas.exceptions import AINotConfiguredError
+from sim_atlas.settings import load_settings
 
 
 async def create_embedding(

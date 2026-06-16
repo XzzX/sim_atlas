@@ -16,7 +16,7 @@ from griffe import (
 )
 from pydantic import BaseModel
 
-from ..models import Annotation, ArtifactType
+from sim_atlas_toolkit.models import Annotation, ArtifactType
 
 
 class Metadata(BaseModel):

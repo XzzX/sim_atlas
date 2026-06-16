@@ -3,10 +3,15 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from ...models import Annotation, FunctionMetadata, GraphEdgeContext, GraphNodeContext
-from ...storage_interface import StorageInterface
-from ._errors import ToolError
-from ._search import PortMetadata, format_port
+from sim_atlas.agent.tools._errors import ToolError
+from sim_atlas.agent.tools._search import PortMetadata, format_port
+from sim_atlas.models import (
+    Annotation,
+    FunctionMetadata,
+    GraphEdgeContext,
+    GraphNodeContext,
+)
+from sim_atlas.storage_interface import StorageInterface
 
 _ADD_FUNCTION_NODE_DESCRIPTION_PARTS = (
     "Add a function node from the catalog to the graph. ",

@@ -27,10 +27,9 @@ from sim_atlas.models import (
     WorkflowMetadata,
     WorkflowResponse,
 )
-
-from .settings import load_settings
-from .storage_interface import StorageInterface
-from .type_utils import collect_datatypes, datatype_matches
+from sim_atlas.settings import load_settings
+from sim_atlas.storage_interface import StorageInterface
+from sim_atlas.type_utils import collect_datatypes, datatype_matches
 
 logger = logging.getLogger(__name__)
 

@@ -1,8 +1,8 @@
 import inspect
 from typing import Any
 
-from ..models import Annotation, ArtifactType
-from .metadata import Metadata, enrich_from_docstring
+from sim_atlas_toolkit.models import Annotation, ArtifactType
+from sim_atlas_toolkit.parsers.metadata import Metadata, enrich_from_docstring
 
 
 def parse(obj: Any) -> list[Metadata]:

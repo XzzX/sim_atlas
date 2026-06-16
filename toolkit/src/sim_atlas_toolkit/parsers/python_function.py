@@ -2,8 +2,8 @@ import inspect
 import textwrap
 from typing import Any
 
-from ..models import ArtifactType
-from .metadata import (
+from sim_atlas_toolkit.models import ArtifactType
+from sim_atlas_toolkit.parsers.metadata import (
     Metadata,
     enrich_from_docstring,
     parse_return_annotation,

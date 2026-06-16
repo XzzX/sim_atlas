@@ -19,6 +19,8 @@ from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
 
+from sim_atlas.agent import run_agent_stream
+from sim_atlas.exceptions import AINotConfiguredError
 from sim_atlas.models import (
     AgentRequest,
     ArtifactRequest,
@@ -32,12 +34,9 @@ from sim_atlas.models import (
     WorkflowMetadata,
     WorkflowRequest,
 )
-
-from .agent import run_agent_stream
-from .exceptions import AINotConfiguredError
-from .security import Creator, get_current_user
-from .settings import load_settings
-from .storage_interface import StorageInterface, get_storage_backend
+from sim_atlas.security import Creator, get_current_user
+from sim_atlas.settings import load_settings
+from sim_atlas.storage_interface import StorageInterface, get_storage_backend
 
 
 @asynccontextmanager

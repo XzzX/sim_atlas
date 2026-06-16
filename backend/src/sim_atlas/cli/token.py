@@ -2,8 +2,8 @@ import argparse
 
 import jwt
 
-from ..exceptions import MissingConfigError
-from ..settings import load_settings
+from sim_atlas.exceptions import MissingConfigError
+from sim_atlas.settings import load_settings
 
 
 def create_access_token(

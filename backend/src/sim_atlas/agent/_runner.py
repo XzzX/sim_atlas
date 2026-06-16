@@ -10,16 +10,13 @@ from openai.types.chat import (
 )
 from pydantic import ValidationError
 
-from ..models import AgentRequest
-from ..settings import load_settings
-from ..storage_interface import StorageInterface
-from ._observability import (
+from sim_atlas.agent._observability import (
     AsyncOpenAI,  # pyright: ignore[reportPrivateImportUsage]
     Langfuse,
     propagate_attributes,
 )
-from ._prompt import build_system_prompt
-from ._sse import (
+from sim_atlas.agent._prompt import build_system_prompt
+from sim_atlas.agent._sse import (
     ErrorEvent,
     GraphUpdateEvent,
     MessageEvent,
@@ -30,7 +27,16 @@ from ._sse import (
     ValidationEvent,
     to_sse,
 )
-from .tools import TOOLS, ScratchGraph, ToolError, execute_tool, validate_graph
+from sim_atlas.agent.tools import (
+    TOOLS,
+    ScratchGraph,
+    ToolError,
+    execute_tool,
+    validate_graph,
+)
+from sim_atlas.models import AgentRequest
+from sim_atlas.settings import load_settings
+from sim_atlas.storage_interface import StorageInterface
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

@@ -6,7 +6,7 @@ from fastapi.security import APIKeyHeader
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel
 
-from .settings import load_settings
+from sim_atlas.settings import load_settings
 
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 

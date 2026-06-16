@@ -2,9 +2,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from ...models import ArtifactType, Filter, FunctionMetadata
-from ...storage_interface import StorageInterface
-from ._errors import ToolError
+from sim_atlas.agent.tools._errors import ToolError
+from sim_atlas.models import ArtifactType, Filter, FunctionMetadata
+from sim_atlas.storage_interface import StorageInterface
 
 _SEARCH_NODES_DESCRIPTION_PARTS = (
     "Search the node catalog using natural language. ",

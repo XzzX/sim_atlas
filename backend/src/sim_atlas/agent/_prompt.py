@@ -1,6 +1,6 @@
-from ..models import AgentRequest, Annotation, GraphNodeContext
-from ..storage_interface import StorageInterface
-from .tools import get_tool_prompt_guidance_lines
+from sim_atlas.agent.tools import get_tool_prompt_guidance_lines
+from sim_atlas.models import AgentRequest, Annotation, GraphNodeContext
+from sim_atlas.storage_interface import StorageInterface
 
 
 def _port_str(a: Annotation) -> str:

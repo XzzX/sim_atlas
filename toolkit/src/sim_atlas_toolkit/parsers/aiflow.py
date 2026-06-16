@@ -79,7 +79,11 @@ def _resolve_func(wrapped: Any) -> tuple[Any, Any]:
     elif hasattr(wrapped, "func"):
         func = wrapped.func
         node_instance = wrapped
-    elif FunctionNode is not None and inspect.isclass(wrapped) and issubclass(wrapped, FunctionNode):
+    elif (
+        FunctionNode is not None
+        and inspect.isclass(wrapped)
+        and issubclass(wrapped, FunctionNode)
+    ):
         node_instance = wrapped()
         func = node_instance.func
     elif callable(wrapped):
@@ -115,7 +119,11 @@ def parse_function_node(obj: Any) -> list[Metadata]:
     for ann, param in zip(inputs, sig.parameters.values(), strict=False):
         ann.has_default_value = param.default is not inspect.Parameter.empty
 
-    if node_instance is not None and hasattr(node_instance, "outputs") and hasattr(node_instance.outputs, "ports"):
+    if (
+        node_instance is not None
+        and hasattr(node_instance, "outputs")
+        and hasattr(node_instance.outputs, "ports")
+    ):
         port_names = list(node_instance.outputs.ports.keys())
         return_anns = parse_return_annotation(sig)
         outputs: list[Annotation] = []
@@ -153,11 +161,15 @@ def parse_function_node(obj: Any) -> list[Metadata]:
 
 def parse_inp_dataclass_node(obj: Any) -> list[Metadata]:
     original_cls = getattr(obj, "_original_dataclass", None)
-    if original_cls is None or not (dataclasses.is_dataclass(original_cls) and isinstance(original_cls, type)):
+    if original_cls is None or not (
+        dataclasses.is_dataclass(original_cls) and isinstance(original_cls, type)
+    ):
         return []
 
     try:
-        raw_source = textwrap.dedent(inspect.getsource(original_cls).replace("\r\n", ""))
+        raw_source = textwrap.dedent(
+            inspect.getsource(original_cls).replace("\r\n", "")
+        )
     except OSError:
         return []
 
@@ -188,11 +200,15 @@ def parse_inp_dataclass_node(obj: Any) -> list[Metadata]:
 
 def parse_out_dataclass_node(obj: Any) -> list[Metadata]:
     original_cls = getattr(obj, "_original_dataclass", None)
-    if original_cls is None or not (dataclasses.is_dataclass(original_cls) and isinstance(original_cls, type)):
+    if original_cls is None or not (
+        dataclasses.is_dataclass(original_cls) and isinstance(original_cls, type)
+    ):
         return []
 
     try:
-        raw_source = textwrap.dedent(inspect.getsource(original_cls).replace("\r\n", ""))
+        raw_source = textwrap.dedent(
+            inspect.getsource(original_cls).replace("\r\n", "")
+        )
     except OSError:
         return []
 
@@ -219,6 +235,7 @@ def parse_out_dataclass_node(obj: Any) -> list[Metadata]:
     enrich_from_docstring(raw_doc, metadata)
 
     return [metadata]
+
 
 def parse(obj: Any) -> list[Metadata]:
     if _is_aiflow_function_node(obj):

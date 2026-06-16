@@ -109,6 +109,9 @@ jobs:
 
           expected = {
               'dummy_module.functions.add': {
+                  'docstring_prefix': 'Add two integers and return their sum.',
+                  'brief_description': 'Add two integers and return their sum.',
+                  'description': 'Performs simple integer addition without overflow checks.',
                   'inputs': [
                       ('x', 'int', 'The first integer operand.'),
                       ('y', 'int', 'The second integer operand.'),
@@ -117,6 +120,9 @@ jobs:
                   'output_description': 'The sum of x and y.',
               },
               'dummy_module.functions.multiply': {
+                  'docstring_prefix': 'Multiply two floats and return their product.',
+                  'brief_description': 'Multiply two floats and return their product.',
+                  'description': 'Performs standard floating-point multiplication.',
                   'inputs': [
                       ('x', 'float', 'The first floating-point factor.'),
                       ('y', 'float', 'The second floating-point factor.'),
@@ -130,6 +136,9 @@ jobs:
               assert name in nodes, f'Missing artifact: {name}'
               node = nodes[name]
               assert node['artifact_type'] == 'function', f'{name}: unexpected artifact_type'
+              assert node['docstring'].startswith(checks['docstring_prefix']), f'{name}: docstring mismatch: {node[\"docstring\"]!r}'
+              assert node['brief_description'] == checks['brief_description'], f'{name}: brief_description mismatch: {node[\"brief_description\"]!r}'
+              assert node['description'] == checks['description'], f'{name}: description mismatch: {node[\"description\"]!r}'
               for i, (label, datatype, description) in enumerate(checks['inputs']):
                   inp = node['inputs'][i]
                   assert inp['label'] == label, f'{name} input[{i}]: expected label {label!r}, got {inp[\"label\"]!r}'

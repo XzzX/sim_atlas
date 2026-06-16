@@ -1,6 +1,8 @@
 def add(x: int, y: int) -> int:
     """Add two integers and return their sum.
 
+    Performs simple integer addition without overflow checks.
+
     Args:
         x: The first integer operand.
         y: The second integer operand.
@@ -13,6 +15,8 @@ def add(x: int, y: int) -> int:
 
 def multiply(x: float, y: float) -> float:
     """Multiply two floats and return their product.
+
+    Performs standard floating-point multiplication.
 
     Args:
         x: The first floating-point factor.

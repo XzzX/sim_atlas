@@ -42,7 +42,7 @@ def test_flowrep_parser() -> None:
         metadata.outputs[0].description
         == "The kinetic energy as a floating-point value."
     )
-    assert metadata.summary == "Calculate kinetic energy."
+    assert metadata.brief_description == "Calculate kinetic energy."
     assert (
         metadata.description
         == "Compute the kinetic energy of an object from its mass and velocity.\nThis helper is used to verify that documented atomic functions are\nparsed correctly by the flowrep integration."

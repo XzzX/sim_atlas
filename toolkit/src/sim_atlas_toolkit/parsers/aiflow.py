@@ -108,3 +108,197 @@ def parse(obj: Any) -> list[Metadata]:
     enrich_from_docstring(inspect.getdoc(func) or "", metadata)
 
     return [metadata]
+
+from __future__ import annotations
+
+import inspect
+import textwrap
+import uuid
+from dataclasses import MISSING, fields, is_dataclass, dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+
+def _type_to_str(tp: Any) -> str:
+    if tp is None:
+        return "None"
+    if isinstance(tp, str):
+        return tp
+    if getattr(tp, "__module__", None) == "builtins":
+        return getattr(tp, "__name__", str(tp))
+    if hasattr(tp, "__name__"):
+        return tp.__name__
+    return str(tp).replace("typing.", "")
+
+
+def _clean_docstring(obj: Any) -> str:
+    return inspect.getdoc(obj) or ""
+
+
+def _get_source_code(obj: Any) -> str:
+    try:
+        return textwrap.dedent(inspect.getsource(obj))
+    except Exception:
+        return ""
+
+
+def _module_rel(obj: Any, root_path: str | Path | None = None) -> str:
+    if root_path is not None:
+        try:
+            source_file = inspect.getsourcefile(obj)
+            if source_file:
+                rel_path = Path(source_file).resolve().relative_to(Path(root_path).resolve())
+                return ".".join(rel_path.with_suffix("").parts)
+        except Exception:
+            pass
+    return getattr(obj, "__module__", "") or ""
+
+
+def _category_from_module(module_rel: str) -> str:
+    parts = module_rel.split(".")
+    if len(parts) <= 1:
+        return module_rel
+    return ">".join(parts[:-1])
+
+
+def _full_name(module_rel: str, cls_name: str) -> str:
+    return f"{module_rel}.{cls_name}" if module_rel else cls_name
+
+
+def _unwrap_original_dataclass(obj: Any) -> tuple[Any, str]:
+    """
+    Returns (original_dataclass_class, direction)
+
+    direction:
+      - "input"  for @as_inp_dataclass_node
+      - "output" for @as_out_dataclass_node
+      - "plain"  for undecorated dataclass
+    """
+    if hasattr(obj, "_is_inp_dataclass_node") and getattr(obj, "_is_inp_dataclass_node"):
+        return obj._original_dataclass, "input"
+
+    if hasattr(obj, "_original_dataclass"):
+        return obj._original_dataclass, "output"
+
+    return obj, "plain"
+
+
+def _extract_input_ports_from_dataclass(cls: Any) -> list[dict[str, Any]]:
+    result = []
+    for f in fields(cls):
+        has_default = not (f.default is MISSING and getattr(f, "default_factory", MISSING) is MISSING)
+        entry = {
+            "has_default_value": has_default,
+            "label": f.name,
+            "datatype": _type_to_str(f.type),
+            "unit": None,
+            "quantity": None,
+            "description": None,
+        }
+        if f.default is not MISSING:
+            entry["default_value"] = f.default
+        elif getattr(f, "default_factory", MISSING) is not MISSING:
+            try:
+                entry["default_value"] = f.default_factory()
+            except Exception:
+                entry["default_value"] = None
+        result.append(entry)
+    return result
+
+
+def _extract_output_ports_from_dataclass(cls: Any) -> list[dict[str, Any]]:
+    return [
+        {
+            "has_default_value": False,
+            "label": f.name,
+            "datatype": _type_to_str(f.type),
+            "unit": None,
+            "quantity": None,
+            "description": None,
+        }
+        for f in fields(cls)
+    ]
+
+
+def convert_dataclass_node_to_artifact(
+    wrapped: Any,
+    *,
+    root_path: str | Path | None = None,
+    artifact_id: str | None = None,
+    author_name: str | None = None,
+    author_email: str | None = None,
+    creator_name: str | None = None,
+    creator_email: str | None = None,
+    creation_timestamp: str | None = None,
+    homepage_url: str | None = None,
+    documentation_url: str | None = None,
+    source_url: str | None = None,
+    keywords: list[str] | None = None,
+    brief_description: str = "",
+    description: str = "",
+) -> dict[str, Any]:
+    original_cls, direction = _unwrap_original_dataclass(wrapped)
+
+    if not is_dataclass(original_cls):
+        try:
+            original_cls = dataclass(original_cls)
+        except Exception as exc:
+            raise TypeError(f"Object is not a dataclass or dataclass-node: {wrapped!r}") from exc
+
+    module_rel = _module_rel(original_cls, root_path=root_path)
+    cls_name = original_cls.__name__
+    full_name = _full_name(module_rel, cls_name)
+
+    if direction == "input":
+        inputs = _extract_input_ports_from_dataclass(original_cls)
+        outputs = [
+            {
+                "has_default_value": False,
+                "label": "output",
+                "datatype": cls_name,
+                "unit": None,
+                "quantity": None,
+                "description": None,
+            }
+        ]
+    elif direction == "output":
+        inputs = [
+            {
+                "has_default_value": False,
+                "label": "input",
+                "datatype": cls_name,
+                "unit": None,
+                "quantity": None,
+                "description": None,
+            }
+        ]
+        outputs = _extract_output_ports_from_dataclass(original_cls)
+    else:
+        inputs = _extract_input_ports_from_dataclass(original_cls)
+        outputs = []
+
+    return {
+        "artifact_type": "dataclass",
+        "dataclass_role": direction,
+        "id": artifact_id or str(uuid.uuid4()),
+        "name": full_name,
+        "category": _category_from_module(module_rel),
+        "keywords": keywords or [],
+        "author_name": author_name,
+        "author_email": author_email,
+        "creator_name": creator_name or author_name,
+        "creator_email": creator_email or author_email,
+        "creation_timestamp": creation_timestamp or datetime.now(timezone.utc).isoformat(),
+        "homepage_url": homepage_url,
+        "documentation_url": documentation_url,
+        "source_url": source_url,
+        "python_import": full_name,
+        "dependencies": None,
+        "source_code": _get_source_code(original_cls),
+        "docstring": _clean_docstring(original_cls),
+        "brief_description": brief_description,
+        "description": description,
+        "inputs": inputs,
+        "outputs": outputs,
+    }

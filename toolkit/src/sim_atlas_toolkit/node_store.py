@@ -89,8 +89,7 @@ class NodeStore:
                 continue
 
             if not v.__module__.startswith(module.__name__) and not any(
-                v.__module__.startswith(prefix)
-                for prefix in (module_allowlist or [])
+                v.__module__.startswith(prefix) for prefix in (module_allowlist or [])
             ):
                 continue
 

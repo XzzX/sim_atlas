@@ -51,6 +51,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Update existing nodes if they already exist.",
     )
     parser.add_argument(
+        "--module-allow",
+        action="append",
+        dest="module_allowlist",
+        metavar="MODULE",
+        help=(
+            "Allow symbols from MODULE (by prefix) even if they are not defined in "
+            "the uploaded module. Can be repeated: --module-allow foo --module-allow bar."
+        ),
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose logging.",
@@ -90,6 +100,7 @@ def main() -> int:
             module_name,
             update_existing=args.update_existing,
             recursive=args.recursive,
+            module_allowlist=args.module_allowlist,
         )
 
     return 0

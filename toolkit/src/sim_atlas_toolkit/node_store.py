@@ -32,6 +32,7 @@ class NodeStore:
         update_existing: bool = False,
         parsers: list[Callable[[Any], list[Metadata]]] | None = None,
         recursive: Literal["no", "import", "filesystem"] = "no",
+        module_allowlist: list[str] | None = None,
         **kwargs: dict[str, Any],
     ) -> None:
         try:
@@ -60,6 +61,7 @@ class NodeStore:
                     update_existing=update_existing,
                     parsers=parsers,
                     recursive="no",
+                    module_allowlist=module_allowlist,
                     **kwargs,
                 )
 
@@ -78,6 +80,7 @@ class NodeStore:
                         update_existing=update_existing,
                         parsers=parsers,
                         recursive=recursive,
+                        module_allowlist=module_allowlist,
                         **kwargs,
                     )
                 continue
@@ -85,7 +88,9 @@ class NodeStore:
             if not hasattr(v, "__module__"):
                 continue
 
-            if not v.__module__.startswith(module.__name__):
+            if not v.__module__.startswith(module.__name__) and not any(
+                v.__module__.startswith(prefix) for prefix in (module_allowlist or [])
+            ):
                 continue
 
             if k.startswith("_"):

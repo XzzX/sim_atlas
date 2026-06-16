@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from .models import (
+from sim_atlas.models import (
     Filter,
     FilterOptions,
     ScoredSearchResponse,
@@ -88,8 +88,8 @@ def get_storage_backend() -> StorageInterface:
         ValueError: If the configured backend is not supported
     """
 
-    from .file_system_storage import FileSystemStorage  # noqa: PLC0415
-    from .settings import load_settings  # noqa: PLC0415
+    from sim_atlas.file_system_storage import FileSystemStorage  # noqa: PLC0415
+    from sim_atlas.settings import load_settings  # noqa: PLC0415
 
     return FileSystemStorage(
         filename=str(load_settings().config_dir / "filesystem.json")

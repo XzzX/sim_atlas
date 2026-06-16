@@ -3,8 +3,12 @@ import inspect
 import textwrap
 from typing import Any, get_type_hints
 
-from ..models import Annotation, ArtifactType
-from .metadata import Metadata, enrich_from_docstring, parse_annotation
+from sim_atlas_toolkit.models import Annotation, ArtifactType
+from sim_atlas_toolkit.parsers.metadata import (
+    Metadata,
+    enrich_from_docstring,
+    parse_annotation,
+)
 
 
 def _field_annotations(cls: type) -> list[Annotation]:

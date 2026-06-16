@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import Any
 
-from .parsers import (
+from sim_atlas_toolkit.parsers import (
     aiflow,
     dataclass_node,
     flowrep_parser,
@@ -10,7 +10,7 @@ from .parsers import (
     python_function,
     python_workflow_definition,
 )
-from .parsers.metadata import Metadata
+from sim_atlas_toolkit.parsers.metadata import Metadata
 
 
 def get_metadata(

@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from ..models import Annotation, ArtifactType
-from .metadata import Metadata
+from sim_atlas_toolkit.models import Annotation, ArtifactType
+from sim_atlas_toolkit.parsers.metadata import Metadata
 
 
 def parse(obj: Any) -> list[Metadata]:

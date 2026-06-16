@@ -11,12 +11,11 @@ from typing import Any, Literal
 
 import requests
 
-from sim_atlas_toolkit.parsers.metadata import Metadata
-
-from .models import (
+from sim_atlas_toolkit.models import (
     FunctionRequest,
 )
-from .parser import get_metadata
+from sim_atlas_toolkit.parser import get_metadata
+from sim_atlas_toolkit.parsers.metadata import Metadata
 
 logger = logging.getLogger("SimAtlas")
 

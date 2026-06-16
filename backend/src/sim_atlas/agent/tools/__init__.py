@@ -4,10 +4,9 @@ from typing import Any
 from openai.types.chat import ChatCompletionToolParam
 from pydantic import BaseModel
 
-from ...storage_interface import StorageInterface
-from .._observability import get_client
-from ._errors import ToolError
-from ._graph import (
+from sim_atlas.agent._observability import get_client
+from sim_atlas.agent.tools._errors import ToolError
+from sim_atlas.agent.tools._graph import (
     ADD_EDGE_DESCRIPTION,
     ADD_FUNCTION_NODE_DESCRIPTION,
     ADD_INPUT_NODE_DESCRIPTION,
@@ -35,7 +34,7 @@ from ._graph import (
     execute_remove_node,
     validate_graph,
 )
-from ._search import (
+from sim_atlas.agent.tools._search import (
     FIND_COMPATIBLE_DESCRIPTION,
     GET_NODE_DETAILS_DESCRIPTION,
     SEARCH_NODES_DESCRIPTION,
@@ -49,6 +48,7 @@ from ._search import (
     execute_get_node_details,
     execute_search_nodes,
 )
+from sim_atlas.storage_interface import StorageInterface
 
 ExecutorFn = Any
 

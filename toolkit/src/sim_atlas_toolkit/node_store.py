@@ -180,7 +180,7 @@ class NodeStore:
             metadata_dict.update(kwargs)
 
             if metadata.children:
-                responses = [self.upload(child.obj, update_existing=update_existing, parsers=parsers, **kwargs) for child in metadata.children]
+                responses = self.upload([child.obj for child in metadata.children], update_existing=update_existing, parsers=parsers, **kwargs) 
             children = [{'label': child.label, 'id': response.content.decode()} for child, response in zip(metadata.children, responses, strict=True) if response.status_code == HTTPStatus.CREATED]
             metadata_dict['children'] = children
 

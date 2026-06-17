@@ -1,7 +1,7 @@
 from enum import StrEnum
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Discriminator, Tag, TypeAdapter
 
 
 class ArtifactType(StrEnum):
@@ -29,8 +29,8 @@ class FunctionRequest(BaseModel):
     category: str
     keywords: list[str]
 
-    author_name: str = "Unknown"
-    author_email: str = "Unknown"
+    author_name: str
+    author_email: str
 
     homepage_url: str | None = None
     documentation_url: str | None = None
@@ -48,7 +48,6 @@ class FunctionRequest(BaseModel):
     outputs: list[Annotation]
 
     see_also: list[Reference] = []
-    children: list[Reference] = []
 
 
 class FunctionResponse(BaseModel):
@@ -82,4 +81,69 @@ class FunctionResponse(BaseModel):
     outputs: list[Annotation]
 
     see_also: list[Reference] = []
+
+
+class WorkflowRequest(BaseModel):
+    author_name: str = "unknown"
+    author_email: str = "unknown"
+
+    name: str
+    artifact_type: Literal[ArtifactType.WORKFLOW] = ArtifactType.WORKFLOW
+    category: str
+    keywords: list[str]
+
+    homepage_url: str | None = None
+    documentation_url: str | None = None
+    source_url: str | None = None
+
+    brief_description: str | None = None
+    description: str | None = None
+
+    inputs: list[Annotation]
+    outputs: list[Annotation]
+
+    see_also: list[Reference] = []
     children: list[Reference] = []
+
+
+class WorkflowResponse(BaseModel):
+    author_name: str
+    author_email: str
+
+    creator_name: str
+    creator_email: str
+    creation_timestamp: str
+
+    id: str
+    name: str
+    artifact_type: Literal[ArtifactType.WORKFLOW] = ArtifactType.WORKFLOW
+    category: str
+    keywords: list[str]
+
+    homepage_url: str | None = None
+    documentation_url: str | None = None
+    source_url: str | None = None
+
+    brief_description: str | None = None
+    description: str | None = None
+    inputs: list[Annotation]
+    outputs: list[Annotation]
+
+    see_also: list[Reference] = []
+    children: list[Reference] = []
+
+ArtifactRequest = Annotated[
+    Annotated[FunctionRequest, Tag("function")]
+    | Annotated[WorkflowRequest, Tag("workflow")],
+    Discriminator("artifact_type"),
+]
+
+artifact_request_adapter: TypeAdapter[FunctionRequest | WorkflowRequest] = TypeAdapter(ArtifactRequest)
+
+ArtifactResponse = Annotated[
+    Annotated[FunctionResponse, Tag("function")]
+    | Annotated[WorkflowResponse, Tag("workflow")],
+    Discriminator("artifact_type"),
+]
+
+artifact_response_adapter: TypeAdapter[FunctionRequest | WorkflowRequest] = TypeAdapter(ArtifactResponse)

@@ -13,6 +13,8 @@ import requests
 
 from sim_atlas_toolkit.models import (
     FunctionRequest,
+    WorkflowRequest,
+    artifact_request_adapter,
 )
 from sim_atlas_toolkit.parser import get_metadata
 from sim_atlas_toolkit.parsers.metadata import Metadata
@@ -124,7 +126,7 @@ class NodeStore:
         if self.api_key:
             headers["x-api-key"] = self.api_key
 
-        if isinstance(obj, FunctionRequest):
+        if isinstance(obj, FunctionRequest) or isinstance(obj, WorkflowRequest):
             response = requests.post(
                 f"{self.api_url}/artifacts",
                 json=obj.model_dump(),
@@ -194,7 +196,10 @@ class NodeStore:
                     if responses
                 ]
                 children = [
-                    {"label": child.label, "id": response.json().get("detail", {}).get("id")}
+                    {
+                        "label": child.label,
+                        "id": response.json().get("detail", {}).get("id"),
+                    }
                     for child, response in zip(
                         metadata.children, responses, strict=True
                     )
@@ -202,12 +207,12 @@ class NodeStore:
                 ]
                 metadata_dict["children"] = children
 
-            request_data = FunctionRequest.model_validate(metadata_dict)
+            request_data = artifact_request_adapter.validate_python(metadata_dict)
 
             responses.append(
                 requests.post(
                     f"{self.api_url}/artifacts",
-                    json=request_data.model_dump(),
+                    json=artifact_request_adapter.dump_python(request_data),
                     headers=headers,
                 )
             )

@@ -201,7 +201,7 @@ class WorkflowRequest(BaseModel):
     see_also: list[Reference] = []
     children: list[Reference] = []
 
-    definition: WorkflowDefinition
+    definition: WorkflowDefinition = WorkflowDefinition(nodes=[], edges=[])
 
     @model_validator(mode="after")
     def check_io_names_match_definition(self) -> "WorkflowRequest":
@@ -252,7 +252,7 @@ class WorkflowResponse(BaseModel):
     see_also: list[Reference] = []
     children: list[Reference] = []
 
-    definition: WorkflowDefinition
+    definition: WorkflowDefinition = WorkflowDefinition(nodes=[], edges=[])
 
 
 class WorkflowMetadata(WorkflowResponse):

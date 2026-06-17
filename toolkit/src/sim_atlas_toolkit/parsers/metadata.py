@@ -28,7 +28,7 @@ class Metadata(BaseModel):
     python_import: str
     source_code: str
 
-    keywords: list[str] | None = None
+    keywords: list[str] = []
 
     docstring: str | None = None
     brief_description: str | None = None

@@ -96,6 +96,9 @@ class WorkflowRequest(BaseModel):
     documentation_url: str | None = None
     source_url: str | None = None
 
+    source_code: str
+    docstring: str | None = None
+
     brief_description: str | None = None
     description: str | None = None
 
@@ -123,6 +126,9 @@ class WorkflowResponse(BaseModel):
     homepage_url: str | None = None
     documentation_url: str | None = None
     source_url: str | None = None
+
+    source_code: str
+    docstring: str | None = None
 
     brief_description: str | None = None
     description: str | None = None

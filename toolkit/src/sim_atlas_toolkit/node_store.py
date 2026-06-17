@@ -198,12 +198,15 @@ class NodeStore:
                 children = [
                     {
                         "label": child.label,
-                        "id": response.json().get("detail", {}).get("id"),
+                        "id": response.json().get("detail", {'id': response.json()}).get("id"),
                     }
                     for child, response in zip(
                         metadata.children, responses, strict=True
                     )
-                    if response.status_code == HTTPStatus.CREATED
+                    if response.status_code in (
+                        HTTPStatus.CREATED,
+                        HTTPStatus.CONFLICT,
+                    )
                 ]
                 metadata_dict["children"] = children
 

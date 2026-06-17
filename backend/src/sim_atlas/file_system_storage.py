@@ -156,11 +156,11 @@ class FileSystemStorage(StorageInterface):
     def create(self, value: StoredArtifact, check_source_hash: bool = True) -> str:
         id = value.id
         if id in self._storage:
-            raise ValueError(f"Node with id '{id}' already exists.")
+            raise ValueError(id)
         if check_source_hash and value.hash:
             for node in self._storage.values():
                 if node.hash == value.hash:
-                    raise ValueError(f"Node with hash '{value.hash}' already exists.")
+                    raise ValueError(id)
         self._storage[id] = value
         self._save_to_disk()
         return id

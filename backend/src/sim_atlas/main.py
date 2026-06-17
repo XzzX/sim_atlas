@@ -159,7 +159,7 @@ async def create_artifact(
         return storage.create(artifact)
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Artifact already exists"
+            status_code=status.HTTP_409_CONFLICT, detail=str(e)
         ) from e
 
 

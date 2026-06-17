@@ -28,7 +28,11 @@ from sim_atlas.models import (
     WorkflowResponse,
 )
 from sim_atlas.settings import load_settings
-from sim_atlas.storage_interface import StorageInterface
+from sim_atlas.storage_interface import (
+    ArtifactAlreadyExistsError,
+    ArtifactDuplicateError,
+    StorageInterface,
+)
 from sim_atlas.type_utils import collect_datatypes, datatype_matches
 
 logger = logging.getLogger(__name__)
@@ -156,11 +160,11 @@ class FileSystemStorage(StorageInterface):
     def create(self, value: StoredArtifact, check_source_hash: bool = True) -> str:
         id = value.id
         if id in self._storage:
-            raise ValueError(f"Node with id '{id}' already exists.")
+            raise ArtifactAlreadyExistsError(id)
         if check_source_hash and value.hash:
             for node in self._storage.values():
                 if node.hash == value.hash:
-                    raise ValueError(f"Node with hash '{value.hash}' already exists.")
+                    raise ArtifactDuplicateError(id)
         self._storage[id] = value
         self._save_to_disk()
         return id

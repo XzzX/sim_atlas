@@ -41,6 +41,7 @@ def parse(obj: Any) -> list[Metadata]:
                 docstring=docstring,
                 inputs=inputs,
                 outputs=outputs,
+                keywords=["flowrep"]
             )
 
             enrich_from_docstring(docstring, metadata)

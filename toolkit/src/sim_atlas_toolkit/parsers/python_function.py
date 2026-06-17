@@ -32,7 +32,7 @@ def parse(obj: Any) -> list[Metadata]:
         category=f"{obj.__module__}".replace(".", ">"),
         source_code=source_code,
         docstring=inspect.getdoc(obj) or "",
-        keywords=[],
+        keywords=["python"],
         inputs=inputs,
         outputs=outputs,
     )

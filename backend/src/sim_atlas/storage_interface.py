@@ -10,14 +10,40 @@ from sim_atlas.models import (
 )
 
 
+class ArtifactAlreadyExistsError(Exception):
+    """Raised when an artifact with the same id or hash already exists in storage."""
+
+    def __init__(self, id: str) -> None:
+        super().__init__(f"Artifact with id '{id}' already exists.")
+        self.id = id
+
+
+class ArtifactDuplicateError(Exception):
+    """Raised when an artifact with the same hash already exists in storage."""
+
+    def __init__(self, id: str) -> None:
+        super().__init__(f"Artifact with hash '{id}' already exists.")
+        self.id = id
+
+
 class StorageInterface(ABC):
     @abstractmethod
     def create(self, value: StoredArtifact, check_source_hash: bool = True) -> str:
-        """Store a new artifact. Returns the id.
+        """Store a new artifact.
 
-        Raises ValueError if an artifact with the same id already exists, or if
-        *check_source_hash* is True and an artifact with the same non-empty
-        ``hash`` already exists.
+        Returns
+        -------
+        str
+            The artifact id.
+
+        Raises
+        ------
+        ArtifactAlreadyExistsError
+            Raised if an artifact with the same id already exists
+
+        ArtifactDuplicateError
+            Raised if ``check_source_hash`` is True and an artifact with the same
+            non-empty ``hash`` already exists.
         """
         pass
 

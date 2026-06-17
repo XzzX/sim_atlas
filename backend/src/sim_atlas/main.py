@@ -36,7 +36,12 @@ from sim_atlas.models import (
 )
 from sim_atlas.security import Creator, get_current_user
 from sim_atlas.settings import load_settings
-from sim_atlas.storage_interface import StorageInterface, get_storage_backend
+from sim_atlas.storage_interface import (
+    ArtifactAlreadyExistsError,
+    ArtifactDuplicateError,
+    StorageInterface,
+    get_storage_backend,
+)
 
 
 @asynccontextmanager
@@ -157,9 +162,18 @@ async def create_artifact(
 
     try:
         return storage.create(artifact)
-    except ValueError as e:
+    except ArtifactAlreadyExistsError as e:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=str(e)
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"id": e.id, "message": "Artifact with the same id already exists."},
+        ) from e
+    except ArtifactDuplicateError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "id": e.id,
+                "message": "Artifact with the same hash already exists.",
+            },
         ) from e
 
 
@@ -172,7 +186,8 @@ async def read_artifact(
         return storage.read(artifact_id)
     except KeyError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"id": e.args[0], "message": "Artifact not found"},
         ) from e
 
 
@@ -189,7 +204,8 @@ async def update_artifact(
         result = storage.update(artifact_id, artifact)
     except KeyError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"id": e.args[0], "message": "Artifact not found"},
         ) from e
 
     return result
@@ -206,7 +222,8 @@ async def delete_artifact(
         return {"detail": "Artifact deleted"}
     except KeyError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"id": e.args[0], "message": "Artifact not found"},
         ) from e
 
 

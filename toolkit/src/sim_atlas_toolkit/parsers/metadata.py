@@ -19,6 +19,11 @@ from pydantic import BaseModel
 from sim_atlas_toolkit.models import Annotation, ArtifactType
 
 
+class Reference(BaseModel):
+    label: str
+    obj: Any | None = None
+
+
 class Metadata(BaseModel):
     artifact_type: ArtifactType
 
@@ -35,6 +40,9 @@ class Metadata(BaseModel):
     description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
+
+    see_also: list[Reference] = []
+    children: list[Reference] = []
 
 
 def type_to_str(tp: Any) -> str:

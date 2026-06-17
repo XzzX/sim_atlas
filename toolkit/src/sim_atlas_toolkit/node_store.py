@@ -179,6 +179,11 @@ class NodeStore:
             metadata_dict.update(general_metadata)
             metadata_dict.update(kwargs)
 
+            if metadata.children:
+                responses = [self.upload(child.obj, update_existing=update_existing, parsers=parsers, **kwargs) for child in metadata.children]
+            children = [{'label': child.label, 'id': response.content.decode()} for child, response in zip(metadata.children, responses, strict=True) if response.status_code == HTTPStatus.CREATED]
+            metadata_dict['children'] = children
+
             request_data = FunctionRequest.model_validate(metadata_dict)
 
             responses.append(

@@ -203,28 +203,6 @@ class WorkflowRequest(BaseModel):
 
     definition: WorkflowDefinition = WorkflowDefinition(nodes=[], edges=[])
 
-    @model_validator(mode="after")
-    def check_io_names_match_definition(self) -> "WorkflowRequest":
-        input_names = {
-            n.name for n in self.definition.nodes if isinstance(n, WfInputNode)
-        }
-        output_names = {
-            n.name for n in self.definition.nodes if isinstance(n, WfOutputNode)
-        }
-        request_input_labels = {a.label for a in self.inputs if a.label is not None}
-        request_output_labels = {a.label for a in self.outputs if a.label is not None}
-        if request_input_labels != input_names:
-            raise ValueError(
-                f"inputs annotation labels {request_input_labels} do not match "
-                f"WfInputNode names {input_names}"
-            )
-        if request_output_labels != output_names:
-            raise ValueError(
-                f"outputs annotation labels {request_output_labels} do not match "
-                f"WfOutputNode names {output_names}"
-            )
-        return self
-
 
 class WorkflowResponse(BaseModel):
     author_name: str

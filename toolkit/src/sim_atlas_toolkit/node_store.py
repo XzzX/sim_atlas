@@ -194,7 +194,7 @@ class NodeStore:
                     if responses
                 ]
                 children = [
-                    {"label": child.label, "id": response.content.decode()}
+                    {"label": child.label, "id": response.json().get("detail", {}).get("id")}
                     for child, response in zip(
                         metadata.children, responses, strict=True
                     )

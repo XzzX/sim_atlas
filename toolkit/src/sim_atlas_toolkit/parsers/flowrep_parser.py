@@ -145,7 +145,7 @@ def parse(obj: Any) -> list[Metadata]:
 
             metadata = Metadata(
                 name=f"{obj.__module__}.{obj.__qualname__}",
-                artifact_type=ArtifactType.FUNCTION,
+                artifact_type=ArtifactType.WORKFLOW,
                 python_import=f"{obj.__module__}.{obj.__qualname__}",
                 category=f"{obj.__module__}".replace(".", ">"),
                 source_code=source_code,

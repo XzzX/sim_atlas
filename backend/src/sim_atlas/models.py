@@ -51,6 +51,10 @@ class Annotation(BaseModel):
     quantity: str | None = None
     description: str | None = None
 
+class Reference(BaseModel):
+    label: str
+    id: str
+
 
 class FunctionRequest(BaseModel):
     artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
@@ -76,6 +80,8 @@ class FunctionRequest(BaseModel):
     description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
+
+    see_also: list[Reference] = []
 
 
 class FunctionResponse(BaseModel):
@@ -107,6 +113,8 @@ class FunctionResponse(BaseModel):
     description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
+
+    see_also: list[Reference] = []
 
 
 class FunctionMetadata(FunctionResponse):
@@ -190,6 +198,9 @@ class WorkflowRequest(BaseModel):
     inputs: list[Annotation]
     outputs: list[Annotation]
 
+    see_also: list[Reference] = []
+    children: list[Reference] = []
+
     definition: WorkflowDefinition
 
     @model_validator(mode="after")
@@ -237,6 +248,9 @@ class WorkflowResponse(BaseModel):
     description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
+
+    see_also: list[Reference] = []
+    children: list[Reference] = []
 
     definition: WorkflowDefinition
 

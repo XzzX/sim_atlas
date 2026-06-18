@@ -8,6 +8,6 @@ test("frontend shows all uploaded functions", async ({ page }) => {
 
   // Verify both uploaded functions appear as node card titles
   const cardTitles = page.locator('[data-slot="card-title"]');
-  await expect(cardTitles.filter({ hasText: "add" })).toBeVisible();
-  await expect(cardTitles.filter({ hasText: "mul" })).toBeVisible();
+  await expect(cardTitles.filter({ hasText: "dummy_module.functions.add" })).toBeVisible();
+  await expect(cardTitles.filter({ hasText: "dummy_module.functions.mul" })).toBeVisible();
 });

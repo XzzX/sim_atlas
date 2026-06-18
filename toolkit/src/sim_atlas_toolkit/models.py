@@ -156,6 +156,6 @@ ArtifactResponse = Annotated[
     Discriminator("artifact_type"),
 ]
 
-artifact_response_adapter: TypeAdapter[FunctionResponse | WorkflowResponse] = TypeAdapter(
-    ArtifactResponse
+artifact_response_adapter: TypeAdapter[FunctionResponse | WorkflowResponse] = (
+    TypeAdapter(ArtifactResponse)
 )

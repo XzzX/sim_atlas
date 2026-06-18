@@ -41,13 +41,11 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         outputs={node.outputs}
         dependencies={"dependencies" in node ? node.dependencies ?? undefined : undefined}
         source_code={"source_code" in node ? node.source_code : undefined}
-      />
-      <ArtifactMisc
-        keywords={node.keywords}
         see_also={node.see_also ?? []}
         child_nodes={"children" in node ? (node.children ?? []) : undefined}
         onReferenceClick={onReferenceClick}
       />
+      <ArtifactMisc keywords={node.keywords} />
       <ArtifactFooter node={node} />
     </Card>
   );

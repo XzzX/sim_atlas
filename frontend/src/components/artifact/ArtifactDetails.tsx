@@ -1,6 +1,6 @@
 import React from "react";
-import { type Annotation } from "../../types/index";
-import { Code, GitBranch, Box, Zap } from "lucide-react";
+import { type Annotation, type Reference } from "../../types/index";
+import { Code, GitBranch, GitFork, Box, Zap, Link2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TabsContent, TabsList, Tabs, TabsTrigger } from "@/components/ui/tabs";
@@ -11,10 +11,24 @@ interface ArtifactDetailsProps {
   dependencies?: string[];
   source_code?: string;
   definition?: Record<string, unknown>;
-  keywords?: string[];
+  see_also?: Reference[];
+  child_nodes?: Reference[];
+  onReferenceClick?: (id: string) => void;
 }
 
-export const ArtifactDetails: React.FC<ArtifactDetailsProps> = ({ inputs, outputs, dependencies, source_code, definition }) => {
+export const ArtifactDetails: React.FC<ArtifactDetailsProps> = ({
+  inputs,
+  outputs,
+  dependencies,
+  source_code,
+  definition,
+  see_also,
+  child_nodes,
+  onReferenceClick,
+}) => {
+  const hasSeeAlso = see_also && see_also.length > 0;
+  const hasChildren = child_nodes && child_nodes.length > 0;
+
   return (
     <>
       <CardContent className="space-y-4">
@@ -48,6 +62,18 @@ export const ArtifactDetails: React.FC<ArtifactDetailsProps> = ({ inputs, output
               <TabsTrigger value="workflow_definition">
                 <GitBranch size={14} className="mr-2" />
                 Workflow Definition
+              </TabsTrigger>
+            )}
+            {hasSeeAlso && (
+              <TabsTrigger value="see_also">
+                <Link2 size={14} className="mr-2" />
+                See Also ({see_also.length})
+              </TabsTrigger>
+            )}
+            {hasChildren && (
+              <TabsTrigger value="children">
+                <GitFork size={14} className="mr-2" />
+                Children ({child_nodes.length})
               </TabsTrigger>
             )}
           </TabsList>
@@ -178,6 +204,40 @@ export const ArtifactDetails: React.FC<ArtifactDetailsProps> = ({ inputs, output
                   <pre className="max-h-[500px] overflow-auto rounded-md bg-muted p-3 text-sm">
                     <code>{JSON.stringify(definition, null, 2)}</code>
                   </pre>
+                </TabsContent>
+              )}
+
+              {hasSeeAlso && (
+                <TabsContent value="see_also">
+                  <div className="flex flex-wrap gap-1">
+                    {see_also.map((ref) => (
+                      <Badge
+                        key={ref.id}
+                        variant="outline"
+                        className={onReferenceClick ? "cursor-pointer" : ""}
+                        onClick={() => onReferenceClick?.(ref.id)}
+                      >
+                        {ref.label}
+                      </Badge>
+                    ))}
+                  </div>
+                </TabsContent>
+              )}
+
+              {hasChildren && (
+                <TabsContent value="children">
+                  <div className="flex flex-wrap gap-1">
+                    {child_nodes.map((ref) => (
+                      <Badge
+                        key={ref.id}
+                        variant="outline"
+                        className={onReferenceClick ? "cursor-pointer" : ""}
+                        onClick={() => onReferenceClick?.(ref.id)}
+                      >
+                        {ref.label}
+                      </Badge>
+                    ))}
+                  </div>
                 </TabsContent>
               )}
 

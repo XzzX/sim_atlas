@@ -411,6 +411,8 @@ def test_compose_artifact_workflow_sets_expected_fields() -> None:
         name="my_wf",
         category="pipeline",
         keywords=["wf"],
+        source_code=definition.model_dump_json(),
+        docstring="A workflow.",
         inputs=[Annotation(label="x")],
         outputs=[Annotation(label="y")],
         definition=definition,

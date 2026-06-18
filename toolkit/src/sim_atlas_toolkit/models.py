@@ -17,6 +17,7 @@ class Annotation(BaseModel):
     quantity: str | None = None
     description: str | None = None
 
+
 class Reference(BaseModel):
     label: str
     id: str
@@ -138,13 +139,16 @@ class WorkflowResponse(BaseModel):
     see_also: list[Reference] = []
     children: list[Reference] = []
 
+
 ArtifactRequest = Annotated[
     Annotated[FunctionRequest, Tag("function")]
     | Annotated[WorkflowRequest, Tag("workflow")],
     Discriminator("artifact_type"),
 ]
 
-artifact_request_adapter: TypeAdapter[FunctionRequest | WorkflowRequest] = TypeAdapter(ArtifactRequest)
+artifact_request_adapter: TypeAdapter[FunctionRequest | WorkflowRequest] = TypeAdapter(
+    ArtifactRequest
+)
 
 ArtifactResponse = Annotated[
     Annotated[FunctionResponse, Tag("function")]
@@ -152,4 +156,6 @@ ArtifactResponse = Annotated[
     Discriminator("artifact_type"),
 ]
 
-artifact_response_adapter: TypeAdapter[FunctionRequest | WorkflowRequest] = TypeAdapter(ArtifactResponse)
+artifact_response_adapter: TypeAdapter[FunctionRequest | WorkflowRequest] = TypeAdapter(
+    ArtifactResponse
+)

@@ -80,7 +80,7 @@ def parse(obj: Any) -> list[Metadata]:
 
             enrich_from_docstring(docstring, metadata)
             return [metadata]
-        
+
         case WorkflowRecipe() as recipe:
             source_code = recipe.model_dump_json(indent=2)
             docstring = inspect.getdoc(obj) or ""
@@ -161,6 +161,6 @@ def parse(obj: Any) -> list[Metadata]:
             print(f"docstring: {metadata.brief_description}")
 
             return [metadata]
-        
+
         case _:
             return []

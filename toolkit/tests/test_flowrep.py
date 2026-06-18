@@ -38,9 +38,9 @@ def mul(a: float, b: float) -> float:
 @fr.workflow
 def linear(x: float, slope: float, intercept: float) -> float:
     """y = slope * x + intercept"""
-    scaled = mul(x, slope) # type: ignore
-    result = add(scaled, intercept) # type: ignore
-    return result # type: ignore
+    scaled = mul(x, slope)  # type: ignore
+    result = add(scaled, intercept)  # type: ignore
+    return result  # type: ignore
 
 
 def test_flowrep_atomic() -> None:

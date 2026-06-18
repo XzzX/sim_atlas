@@ -11,7 +11,6 @@ from pydantic import (
     Discriminator,
     PlainSerializer,
     Tag,
-    model_validator,
 )
 
 
@@ -50,6 +49,7 @@ class Annotation(BaseModel):
     unit: str | None = None
     quantity: str | None = None
     description: str | None = None
+
 
 class Reference(BaseModel):
     label: str

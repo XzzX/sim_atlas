@@ -158,8 +158,6 @@ def parse(obj: Any) -> list[Metadata]:
 
             enrich_from_docstring(docstring, metadata)
 
-            print(f"docstring: {metadata.brief_description}")
-
             return [metadata]
 
         case _:

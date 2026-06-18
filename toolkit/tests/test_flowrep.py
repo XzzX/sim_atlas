@@ -82,7 +82,6 @@ def test_flowrep_workflow() -> None:
     assert metadata.outputs[0].datatype == "float"
     assert metadata.outputs[0].label == "result"
     assert metadata.outputs[0].description is None
-    print(f"metadata.brief_description: {metadata.description}")
     assert metadata.brief_description == "y = slope * x + intercept"
     assert metadata.description == "y = slope * x + intercept"
     assert len(metadata.children) == 2  # noqa: PLR2004

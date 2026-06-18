@@ -87,17 +87,7 @@ jobs:
 
       - name: Upload dummy module
         run: |
-          uv run sim-atlas-upload dummy_module.functions \
-            --api-url http://127.0.0.1:8000/api/v1 \
-            --api-token "$SIM_ATLAS_API_TOKEN" \
-            --verbose
-        working-directory: ./toolkit
-        env:
-          PYTHONPATH: ${{ github.workspace }}/e2e
-
-      - name: Upload flowrep workflow
-        run: |
-          uv run sim-atlas-upload dummy_module.flowrep.linear \
+          uv run sim-atlas-upload dummy_module \
             --api-url http://127.0.0.1:8000/api/v1 \
             --api-token "$SIM_ATLAS_API_TOKEN" \
             --verbose

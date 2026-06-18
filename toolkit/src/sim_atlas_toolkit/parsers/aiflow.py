@@ -9,6 +9,7 @@ from typing import Any, get_type_hints
 from sim_atlas_toolkit.models import Annotation, ArtifactType
 from sim_atlas_toolkit.parsers.metadata import (
     Metadata,
+    Reference,
     enrich_from_docstring,
     parse_annotation,
     parse_return_annotation,
@@ -19,6 +20,11 @@ try:
     from core.node import FunctionNode  # type: ignore[import-not-found]
 except Exception:  # pragma: no cover
     FunctionNode = None
+
+try:
+    from core.workflow import Workflow  # type: ignore[import-not-found]
+except Exception:  # pragma: no cover
+    Workflow = None
 
 
 # ---------------------------------------------------------------------------
@@ -237,14 +243,113 @@ def parse_out_dataclass_node(obj: Any) -> list[Metadata]:
     return [metadata]
 
 
+# ---------------------------------------------------------------------------
+# Workflow instances
+# ---------------------------------------------------------------------------
+
+
+def _is_aiflow_workflow(obj: Any) -> bool:
+    """Return True if *obj* is an aiflow Workflow instance.
+
+    Performs an ``isinstance`` check against ``core.workflow.Workflow`` when
+    that class is importable, and falls back to duck-typing otherwise: the
+    object must not be a class, must not be a function node, and must expose
+    ``inputs.ports``, ``outputs.ports``, and a ``nodes`` dict.
+    """
+    if Workflow is not None and isinstance(obj, Workflow):
+        return True
+    return (
+        not inspect.isclass(obj)
+        and not _is_aiflow_function_node(obj)
+        and hasattr(obj, "inputs")
+        and hasattr(getattr(obj, "inputs", None), "ports")
+        and hasattr(obj, "outputs")
+        and hasattr(getattr(obj, "outputs", None), "ports")
+        and isinstance(getattr(obj, "nodes", None), dict)
+    )
+
+
+def parse_workflow(obj: Any) -> list[Metadata]:
+    """Parse an aiflow ``Workflow`` instance into a :class:`Metadata` record.
+
+    Extracts inputs and outputs from ``obj.inputs.ports`` / ``obj.outputs.ports``
+    and collects child nodes from ``obj.nodes`` as :class:`Reference` entries,
+    mirroring the representation produced by the flowrep workflow parser.
+    """
+    cls = type(obj)
+    module: str = getattr(cls, "__module__", "") or ""
+    qualname: str = getattr(cls, "__qualname__", None) or getattr(cls, "__name__", "Workflow")
+
+    try:
+        source_code = textwrap.dedent(inspect.getsource(cls).replace("\r\n", ""))
+    except OSError:
+        source_code = ""
+
+    docstring = inspect.getdoc(obj) or inspect.getdoc(cls) or ""
+
+    inputs: list[Annotation] = []
+    inputs_obj = getattr(obj, "inputs", None)
+    if inputs_obj is not None and hasattr(inputs_obj, "ports"):
+        for port_name in inputs_obj.ports:
+            inputs.append(Annotation(label=str(port_name)))
+
+    outputs: list[Annotation] = []
+    outputs_obj = getattr(obj, "outputs", None)
+    if outputs_obj is not None and hasattr(outputs_obj, "ports"):
+        for port_name in outputs_obj.ports:
+            outputs.append(Annotation(label=str(port_name)))
+
+    children: list[Reference] = []
+    for label, node in (getattr(obj, "nodes", None) or {}).items():
+        children.append(Reference(label=str(label), obj=node))
+
+    name = f"{module}.{qualname}" if module else qualname
+
+    metadata = Metadata(
+        name=name,
+        artifact_type=ArtifactType.WORKFLOW,
+        python_import=name,
+        category=module.replace(".", ">"),
+        source_code=source_code,
+        docstring=docstring,
+        keywords=["aiflow"],
+        inputs=inputs,
+        outputs=outputs,
+        children=children,
+    )
+
+    enrich_from_docstring(docstring, metadata)
+
+    return [metadata]
+
+
 def parse(obj: Any) -> list[Metadata]:
+    """Parse an aiflow object and return a list of :class:`Metadata` records.
+
+    Supported input forms:
+
+    * **FunctionNode** – a ``FunctionNode`` subclass or instance (including
+      objects with a ``_original_func`` attribute).
+    * **Workflow instance** – an instance of ``core.workflow.Workflow`` (or
+      any object that duck-types as one: non-class, non-function-node, with
+      ``inputs.ports``, ``outputs.ports``, and a ``nodes`` dict).
+    * **inp_dataclass_node** – an object with ``node_type == "inp_dataclass_node"``
+      and a ``_original_dataclass`` attribute pointing at a dataclass type.
+    * **out_dataclass_node** – an object with ``node_type == "out_dataclass_node"``
+      and a ``_original_dataclass`` attribute pointing at a dataclass type.
+    """
     if _is_aiflow_function_node(obj):
         return parse_function_node(obj)
 
-    if getattr(obj, "node_type", None) != "inp_dataclass_node":
+    if _is_aiflow_workflow(obj):
+        return parse_workflow(obj)
+
+    node_type = getattr(obj, "node_type", None)
+
+    if node_type == "inp_dataclass_node":
         return parse_inp_dataclass_node(obj)
 
-    if getattr(obj, "node_type", None) != "out_dataclass_node":
+    if node_type == "out_dataclass_node":
         return parse_out_dataclass_node(obj)
 
     return []

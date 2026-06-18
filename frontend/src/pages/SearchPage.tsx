@@ -10,6 +10,7 @@ import type {
 } from "../types/index";
 import { FacetedSearch } from "../components/FacetedSearch";
 import { NodeCard } from "../components/NodeCard";
+import { ReferenceModal } from "../components/ReferenceModal";
 import { Alert } from "@/components/ui/alert";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import {
@@ -247,29 +248,39 @@ interface ContentProps {
 }
 
 const Content: React.FC<ContentProps> = ({ loading, items }) => {
+  const [dialogRefId, setDialogRefId] = useState<string | null>(null);
+
   return (
-    <section className="min-h-[400px] rounded-xl border bg-card p-3 sm:p-4">
-      {loading ? (
-        <div className="flex min-h-56 flex-col items-center justify-center gap-3">
-          <div className="size-8 animate-spin rounded-full border-2 border-muted border-t-foreground" />
-          <p className="text-sm text-muted-foreground">Loading nodes...</p>
-        </div>
-      ) : items.length === 0 ? (
-        <Alert variant="info">
-          No nodes found. Try adjusting your search query or filters.
-        </Alert>
-      ) : (
-        <div className="grid gap-5">
-          {items.map((result) => (
-            <NodeCard
-              key={result.node.id}
-              node={result.node}
-              score={result.score}
-            />
-          ))}
-        </div>
-      )}
-    </section>
+    <>
+      <section className="min-h-[400px] rounded-xl border bg-card p-3 sm:p-4">
+        {loading ? (
+          <div className="flex min-h-56 flex-col items-center justify-center gap-3">
+            <div className="size-8 animate-spin rounded-full border-2 border-muted border-t-foreground" />
+            <p className="text-sm text-muted-foreground">Loading nodes...</p>
+          </div>
+        ) : items.length === 0 ? (
+          <Alert variant="info">
+            No nodes found. Try adjusting your search query or filters.
+          </Alert>
+        ) : (
+          <div className="grid gap-5">
+            {items.map((result) => (
+              <NodeCard
+                key={result.node.id}
+                node={result.node}
+                score={result.score}
+                onReferenceClick={setDialogRefId}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+      <ReferenceModal
+        refId={dialogRefId}
+        open={dialogRefId !== null}
+        onClose={() => setDialogRefId(null)}
+      />
+    </>
   );
 };
 

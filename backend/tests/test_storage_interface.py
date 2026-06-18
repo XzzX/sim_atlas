@@ -46,7 +46,11 @@ from sim_atlas.models import (
     WorkflowDefinition,
     WorkflowMetadata,
 )
-from sim_atlas.storage_interface import StorageInterface
+from sim_atlas.storage_interface import (
+    ArtifactAlreadyExistsError,
+    ArtifactDuplicateError,
+    StorageInterface,
+)
 
 # ---------------------------------------------------------------------------
 # Test data factory
@@ -101,6 +105,7 @@ def make_workflow(**kwargs: Any) -> WorkflowMetadata:
         "homepage_url": "",
         "documentation_url": "",
         "source_url": "",
+        "source_code": "",
         "docstring": "A test workflow",
         "brief_description": "",
         "description": "",
@@ -215,7 +220,7 @@ class StorageContractTests:
     ) -> None:
         fixed_id = str(uuid.uuid4())
         storage.create(make_node(id=fixed_id))
-        with pytest.raises(ValueError):
+        with pytest.raises(ArtifactAlreadyExistsError):
             storage.create(make_node(id=fixed_id))  # same id
 
     # -----------------------------------------------------------------------
@@ -594,7 +599,7 @@ class StorageContractTests:
         self, storage: StorageInterface
     ) -> None:
         storage.create(make_node(hash="abc123"))
-        with pytest.raises(ValueError):
+        with pytest.raises(ArtifactDuplicateError):
             storage.create(make_node(hash="abc123"))
 
     def test_create_allows_duplicate_source_hash_when_check_disabled(

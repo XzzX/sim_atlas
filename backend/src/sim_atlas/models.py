@@ -11,7 +11,6 @@ from pydantic import (
     Discriminator,
     PlainSerializer,
     Tag,
-    model_validator,
 )
 
 
@@ -52,6 +51,11 @@ class Annotation(BaseModel):
     description: str | None = None
 
 
+class Reference(BaseModel):
+    label: str
+    id: str
+
+
 class FunctionRequest(BaseModel):
     artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
 
@@ -76,6 +80,8 @@ class FunctionRequest(BaseModel):
     description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
+
+    see_also: list[Reference] = []
 
 
 class FunctionResponse(BaseModel):
@@ -107,6 +113,8 @@ class FunctionResponse(BaseModel):
     description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
+
+    see_also: list[Reference] = []
 
 
 class FunctionMetadata(FunctionResponse):
@@ -184,35 +192,18 @@ class WorkflowRequest(BaseModel):
     documentation_url: str | None = None
     source_url: str | None = None
 
+    source_code: str
+    docstring: str | None = None
     brief_description: str | None = None
     description: str | None = None
 
     inputs: list[Annotation]
     outputs: list[Annotation]
 
-    definition: WorkflowDefinition
+    see_also: list[Reference] = []
+    children: list[Reference] = []
 
-    @model_validator(mode="after")
-    def check_io_names_match_definition(self) -> "WorkflowRequest":
-        input_names = {
-            n.name for n in self.definition.nodes if isinstance(n, WfInputNode)
-        }
-        output_names = {
-            n.name for n in self.definition.nodes if isinstance(n, WfOutputNode)
-        }
-        request_input_labels = {a.label for a in self.inputs if a.label is not None}
-        request_output_labels = {a.label for a in self.outputs if a.label is not None}
-        if request_input_labels != input_names:
-            raise ValueError(
-                f"inputs annotation labels {request_input_labels} do not match "
-                f"WfInputNode names {input_names}"
-            )
-        if request_output_labels != output_names:
-            raise ValueError(
-                f"outputs annotation labels {request_output_labels} do not match "
-                f"WfOutputNode names {output_names}"
-            )
-        return self
+    definition: WorkflowDefinition = WorkflowDefinition(nodes=[], edges=[])
 
 
 class WorkflowResponse(BaseModel):
@@ -233,12 +224,18 @@ class WorkflowResponse(BaseModel):
     documentation_url: str | None = None
     source_url: str | None = None
 
+    source_code: str
+    docstring: str | None = None
+
     brief_description: str | None = None
     description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
 
-    definition: WorkflowDefinition
+    see_also: list[Reference] = []
+    children: list[Reference] = []
+
+    definition: WorkflowDefinition = WorkflowDefinition(nodes=[], edges=[])
 
 
 class WorkflowMetadata(WorkflowResponse):

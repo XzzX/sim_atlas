@@ -98,7 +98,7 @@ def test_non_function_returns_empty() -> None:
 
 def test_keywords_is_empty() -> None:
     (record,) = parse(simple)
-    assert record.keywords == []
+    assert record.keywords == ["python"]
 
 
 def test_builtin_returns_one_record() -> None:

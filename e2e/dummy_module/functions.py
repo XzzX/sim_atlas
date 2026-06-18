@@ -13,7 +13,7 @@ def add(x: int, y: int) -> int:
     return x + y
 
 
-def multiply(x: float, y: float) -> float:
+def mul(x: float, y: float) -> float:
     """Multiply two floats and return their product.
 
     Performs standard floating-point multiplication.

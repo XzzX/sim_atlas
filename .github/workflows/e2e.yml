@@ -87,13 +87,26 @@ jobs:
 
       - name: Upload dummy module
         run: |
-          uv run sim-atlas-upload dummy_module.functions \
+          uv run sim-atlas-upload dummy_module \
             --api-url http://127.0.0.1:8000/api/v1 \
             --api-token "$SIM_ATLAS_API_TOKEN" \
             --verbose
         working-directory: ./toolkit
         env:
           PYTHONPATH: ${{ github.workspace }}/e2e
+
+      - name: Verify flowrep artifacts
+        run: |
+          curl -sf -X POST "http://127.0.0.1:8000/api/v1/search?limit=10" \
+            -H "Content-Type: application/json" \
+            -d '{"keywords": ["flowrep"]}' | \
+            python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          total = d['results']['total_items']
+          assert total == 3, f'Expected exactly 3 flowrep artifacts, got {total}: {d}'
+          print(f'OK — {total} flowrep artifact(s) found')
+          "
 
       - name: Verify artifacts were uploaded
         run: |
@@ -102,7 +115,7 @@ jobs:
           import sys, json
           d = json.load(sys.stdin)
           total = d['results']['total_items']
-          assert total == 2, f'Expected exactly 2 artifacts, got {total}: {d}'
+          assert total == 5, f'Expected exactly 5 artifacts, got {total}: {d}'
           print(f'OK — {total} artifact(s) found')
 
           nodes = {item['node']['name']: item['node'] for item in d['results']['data']}
@@ -111,7 +124,7 @@ jobs:
               'dummy_module.functions.add': {
                   'docstring_prefix': 'Add two integers and return their sum.',
                   'brief_description': 'Add two integers and return their sum.',
-                  'description': 'Performs simple integer addition without overflow checks.',
+                  'description': 'Add two integers and return their sum.\n\nPerforms simple integer addition without overflow checks.',
                   'inputs': [
                       ('x', 'int', 'The first integer operand.'),
                       ('y', 'int', 'The second integer operand.'),
@@ -119,10 +132,10 @@ jobs:
                   'output_datatype': 'int',
                   'output_description': 'The sum of x and y.',
               },
-              'dummy_module.functions.multiply': {
+              'dummy_module.functions.mul': {
                   'docstring_prefix': 'Multiply two floats and return their product.',
                   'brief_description': 'Multiply two floats and return their product.',
-                  'description': 'Performs standard floating-point multiplication.',
+                  'description': 'Multiply two floats and return their product.\n\nPerforms standard floating-point multiplication.',
                   'inputs': [
                       ('x', 'float', 'The first floating-point factor.'),
                       ('y', 'float', 'The second floating-point factor.'),

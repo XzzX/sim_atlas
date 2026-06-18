@@ -19,8 +19,16 @@ from pydantic import BaseModel
 from sim_atlas_toolkit.models import Annotation, ArtifactType
 
 
+class Reference(BaseModel):
+    label: str
+    obj: Any | None = None
+
+
 class Metadata(BaseModel):
     artifact_type: ArtifactType
+
+    author_name: str = "unknown"
+    author_email: str = "unknown"
 
     name: str
     category: str
@@ -35,6 +43,9 @@ class Metadata(BaseModel):
     description: str | None = None
     inputs: list[Annotation]
     outputs: list[Annotation]
+
+    see_also: list[Reference] = []
+    children: list[Reference] = []
 
 
 def type_to_str(tp: Any) -> str:
@@ -99,11 +110,11 @@ def enrich_from_docstring(
                     ):
                         metadata.outputs[i].description = ret.description
             case DocstringSectionText():
-                brief, _, long = section.value.partition("\n\n")
+                brief, _, _ = section.value.partition("\n\n")
                 if metadata.brief_description is None:
                     metadata.brief_description = brief.strip()
                 if metadata.description is None:
-                    metadata.description = long.strip()
+                    metadata.description = section.value
             case _:
                 pass
     return metadata

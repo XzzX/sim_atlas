@@ -136,10 +136,14 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 homepage_url=request.homepage_url,
                 documentation_url=request.documentation_url,
                 source_url=request.source_url,
+                source_code=request.source_code,
+                docstring=request.docstring,
                 brief_description=request.brief_description or "",
                 description=request.description or "",
                 inputs=request.inputs,
                 outputs=request.outputs,
+                see_also=request.see_also,
+                children=request.children,
                 definition=request.definition,
                 hash=hashlib.sha256(
                     request.definition.model_dump_json(by_alias=False).encode()

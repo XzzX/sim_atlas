@@ -13,6 +13,8 @@ import requests
 
 from sim_atlas_toolkit.models import (
     FunctionRequest,
+    WorkflowRequest,
+    artifact_request_adapter,
 )
 from sim_atlas_toolkit.parser import get_metadata
 from sim_atlas_toolkit.parsers.metadata import Metadata
@@ -124,7 +126,7 @@ class NodeStore:
         if self.api_key:
             headers["x-api-key"] = self.api_key
 
-        if isinstance(obj, FunctionRequest):
+        if isinstance(obj, (FunctionRequest, WorkflowRequest)):
             response = requests.post(
                 f"{self.api_url}/artifacts",
                 json=obj.model_dump(),
@@ -176,15 +178,44 @@ class NodeStore:
         responses: list[requests.Response] = []
         for metadata in metadata_list:
             metadata_dict = metadata.model_dump()
+            metadata_dict["children"] = []
             metadata_dict.update(general_metadata)
             metadata_dict.update(kwargs)
 
-            request_data = FunctionRequest.model_validate(metadata_dict)
+            if metadata.children:
+                for child in metadata.children:
+                    responses = self.upload(
+                        child.obj,
+                        update_existing=update_existing,
+                        parsers=parsers,
+                        **kwargs,
+                    )
+                    if len(responses) > 1:
+                        logger.warning(
+                            f"Expected at most one response for child {child.label}, got {len(responses)}"
+                        )
+                    response = responses[0] if responses else None
+                    if response is not None and response.status_code in (
+                        HTTPStatus.CREATED,
+                        HTTPStatus.CONFLICT,
+                    ):
+                        child_id = (
+                            response.json()
+                            if isinstance(response.json(), str)
+                            else response.json()
+                            .get("detail", response.json())
+                            .get("id")
+                        )
+                        metadata_dict.setdefault("children", []).append(
+                            {"label": child.label, "id": child_id}
+                        )
+
+            request_data = artifact_request_adapter.validate_python(metadata_dict)
 
             responses.append(
                 requests.post(
                     f"{self.api_url}/artifacts",
-                    json=request_data.model_dump(),
+                    json=artifact_request_adapter.dump_python(request_data),
                     headers=headers,
                 )
             )

@@ -182,36 +182,15 @@ class NodeStore:
             metadata_dict.update(kwargs)
 
             if metadata.children:
-                responses = [
-                    responses[0]
-                    for responses in [
-                        self.upload(
-                            child.obj,
-                            update_existing=update_existing,
-                            parsers=parsers,
-                            **kwargs,
-                        )
-                        for child in metadata.children
-                    ]
-                    if responses
-                ]
-                children = [
-                    {
-                        "label": child.label,
-                        "id": response.json()
-                        if isinstance(response.json(), str)
-                        else response.json().get("detail", response.json()).get("id"),
-                    }
-                    for child, response in zip(
-                        metadata.children, responses, strict=True
-                    )
-                    if response.status_code
-                    in (
-                        HTTPStatus.CREATED,
-                        HTTPStatus.CONFLICT,
-                    )
-                ]
-                metadata_dict["children"] = children
+
+                for child in metadata.children:
+                    responses = self.upload(child.obj, update_existing=update_existing, parsers=parsers, **kwargs)
+                    if len(responses) > 1:
+                        logger.warning(f"Expected at most one response for child {child.label}, got {len(responses)}")
+                    response = responses[0] if responses else None
+                    if response is not None and response.status_code in (HTTPStatus.CREATED, HTTPStatus.CONFLICT):
+                        child_id = response.json() if isinstance(response.json(), str) else response.json().get("detail", response.json()).get("id")
+                        metadata_dict.setdefault("children", []).append({"label": child.label, "id": child_id})
 
             request_data = artifact_request_adapter.validate_python(metadata_dict)
 

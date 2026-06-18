@@ -132,7 +132,7 @@ jobs:
                   'output_datatype': 'int',
                   'output_description': 'The sum of x and y.',
               },
-              'dummy_module.functions.multiply': {
+              'dummy_module.functions.mul': {
                   'docstring_prefix': 'Multiply two floats and return their product.',
                   'brief_description': 'Multiply two floats and return their product.',
                   'description': 'Performs standard floating-point multiplication.',

@@ -27,6 +27,9 @@ class Reference(BaseModel):
 class Metadata(BaseModel):
     artifact_type: ArtifactType
 
+    author_name: str = "unknown"
+    author_email: str = "unknown"
+
     name: str
     category: str
 

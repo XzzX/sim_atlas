@@ -9,5 +9,5 @@ test("frontend shows all uploaded functions", async ({ page }) => {
   // Verify both uploaded functions appear as node card titles
   const cardTitles = page.locator('[data-slot="card-title"]');
   await expect(cardTitles.filter({ hasText: "add" })).toBeVisible();
-  await expect(cardTitles.filter({ hasText: "multiply" })).toBeVisible();
+  await expect(cardTitles.filter({ hasText: "mul" })).toBeVisible();
 });

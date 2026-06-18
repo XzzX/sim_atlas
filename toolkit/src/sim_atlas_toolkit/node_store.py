@@ -199,8 +199,8 @@ class NodeStore:
                     {
                         "label": child.label,
                         "id": response.json()
-                        .get("detail", {"id": response.json()})
-                        .get("id"),
+                        if isinstance(response.json(), str)
+                        else response.json().get("detail", response.json()).get("id"),
                     }
                     for child, response in zip(
                         metadata.children, responses, strict=True

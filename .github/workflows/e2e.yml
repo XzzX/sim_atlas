@@ -95,6 +95,29 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/e2e
 
+      - name: Upload flowrep workflow
+        run: |
+          uv run sim-atlas-upload dummy_module.flowrep.linear \
+            --api-url http://127.0.0.1:8000/api/v1 \
+            --api-token "$SIM_ATLAS_API_TOKEN" \
+            --verbose
+        working-directory: ./toolkit
+        env:
+          PYTHONPATH: ${{ github.workspace }}/e2e
+
+      - name: Verify flowrep artifacts
+        run: |
+          curl -sf -X POST "http://127.0.0.1:8000/api/v1/search?limit=10" \
+            -H "Content-Type: application/json" \
+            -d '{"keywords": ["flowrep"]}' | \
+            python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          total = d['results']['total_items']
+          assert total == 3, f'Expected exactly 3 flowrep artifacts, got {total}: {d}'
+          print(f'OK — {total} flowrep artifact(s) found')
+          "
+
       - name: Verify artifacts were uploaded
         run: |
           curl -sf -X POST "http://127.0.0.1:8000/api/v1/search?limit=10" | \
@@ -102,7 +125,7 @@ jobs:
           import sys, json
           d = json.load(sys.stdin)
           total = d['results']['total_items']
-          assert total == 2, f'Expected exactly 2 artifacts, got {total}: {d}'
+          assert total == 5, f'Expected exactly 5 artifacts, got {total}: {d}'
           print(f'OK — {total} artifact(s) found')
 
           nodes = {item['node']['name']: item['node'] for item in d['results']['data']}

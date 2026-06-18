@@ -11,7 +11,7 @@ from sim_atlas.models import (
 
 
 class ArtifactAlreadyExistsError(Exception):
-    """Raised when an artifact with the same id or hash already exists in storage."""
+    """Raised when an artifact with the same id already exists in storage."""
 
     def __init__(self, id: str) -> None:
         super().__init__(f"Artifact with id '{id}' already exists.")

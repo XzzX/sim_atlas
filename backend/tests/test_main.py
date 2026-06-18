@@ -75,6 +75,7 @@ def make_workflow_request_body(**kwargs: Any) -> dict[str, Any]:
         "name": "my_workflow",
         "category": "analysis",
         "keywords": ["workflow"],
+        "source_code": "",
         "docstring": "A test workflow.",
         "inputs": [{"label": "x"}],
         "outputs": [{"label": "y"}],

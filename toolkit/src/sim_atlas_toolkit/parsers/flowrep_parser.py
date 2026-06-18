@@ -155,6 +155,11 @@ def parse(obj: Any) -> list[Metadata]:
                 keywords=["flowrep"],
                 children=children,
             )
+
+            enrich_from_docstring(docstring, metadata)
+
+            print(f"docstring: {metadata.brief_description}")
+
             return [metadata]
         
         case _:

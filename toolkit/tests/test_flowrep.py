@@ -23,7 +23,27 @@ def kinetic_energy(mass: float, velocity: float = 1.0) -> float:
     return kinetic_energy
 
 
-def test_flowrep_parser() -> None:
+@fr.atomic
+def add(a: float, b: float) -> float:
+    """Returns the sum of a and b."""
+    return a + b
+
+
+@fr.atomic
+def mul(a: float, b: float) -> float:
+    """Returns the product of a and b."""
+    return a * b
+
+
+@fr.workflow
+def linear(x: float, slope: float, intercept: float) -> float:
+    """y = slope * x + intercept"""
+    scaled = mul(x, slope) # type: ignore
+    result = add(scaled, intercept) # type: ignore
+    return result # type: ignore
+
+
+def test_flowrep_atomic() -> None:
     metadata_list = parse(kinetic_energy)
     assert len(metadata_list) == 1
     metadata = metadata_list[0]
@@ -45,5 +65,28 @@ def test_flowrep_parser() -> None:
     assert metadata.brief_description == "Calculate kinetic energy."
     assert (
         metadata.description
-        == "Compute the kinetic energy of an object from its mass and velocity.\nThis helper is used to verify that documented atomic functions are\nparsed correctly by the flowrep integration."
+        == "Calculate kinetic energy.\n\nCompute the kinetic energy of an object from its mass and velocity.\nThis helper is used to verify that documented atomic functions are\nparsed correctly by the flowrep integration."
     )
+
+
+def test_flowrep_workflow() -> None:
+    metadata_list = parse(linear)
+    assert len(metadata_list) == 1
+    metadata = metadata_list[0]
+    assert metadata.artifact_type == ArtifactType.WORKFLOW
+    assert [a.label for a in metadata.inputs] == ["x", "slope", "intercept"]
+    assert all(a.datatype == "float" for a in metadata.inputs)
+    assert all(a.description is None for a in metadata.inputs)
+    assert not any(a.has_default_value for a in metadata.inputs)
+    assert len(metadata.outputs) == 1
+    assert metadata.outputs[0].datatype == "float"
+    assert metadata.outputs[0].label == "result"
+    assert metadata.outputs[0].description is None
+    print(f"metadata.brief_description: {metadata.description}")
+    assert metadata.brief_description == "y = slope * x + intercept"
+    assert metadata.description == "y = slope * x + intercept"
+    assert len(metadata.children) == 2  # noqa: PLR2004
+    assert metadata.children[0].label == "mul_0"
+    assert metadata.children[0].obj == mul
+    assert metadata.children[1].label == "add_0"
+    assert metadata.children[1].obj == add

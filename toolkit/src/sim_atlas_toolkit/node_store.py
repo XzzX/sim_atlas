@@ -126,7 +126,7 @@ class NodeStore:
         if self.api_key:
             headers["x-api-key"] = self.api_key
 
-        if isinstance(obj, FunctionRequest) or isinstance(obj, WorkflowRequest):
+        if isinstance(obj, (FunctionRequest, WorkflowRequest)):
             response = requests.post(
                 f"{self.api_url}/artifacts",
                 json=obj.model_dump(),

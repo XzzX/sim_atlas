@@ -94,12 +94,6 @@ def main() -> int:
         )
         return 1
 
-    kwargs: dict[str, str] = {}
-    if args.author_name is not None:
-        kwargs["author_name"] = args.author_name
-    if args.author_email is not None:
-        kwargs["author_email"] = args.author_email
-
     store = NodeStore(api_url=args.api_url, api_key=args.api_token)
     for module_name in args.modules:
         store.upload_module(
@@ -107,7 +101,6 @@ def main() -> int:
             update_existing=args.update_existing,
             recursive=args.recursive,
             module_allowlist=args.module_allowlist,
-            **kwargs,
         )
 
     return 0

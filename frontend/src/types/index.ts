@@ -81,6 +81,7 @@ export const FunctionResponseSchema = z.object({
   outputs: z.array(AnnotationSchema),
 
   see_also: z.array(ReferenceSchema).optional().default([]),
+  used_by: z.array(ReferenceSchema).nullish(),
 });
 export type FunctionResponse = z.infer<typeof FunctionResponseSchema>;
 

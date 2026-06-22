@@ -115,6 +115,7 @@ class FunctionResponse(BaseModel):
     outputs: list[Annotation]
 
     see_also: list[Reference] = []
+    used_by: list[Reference] | None = None
 
 
 class FunctionMetadata(FunctionResponse):

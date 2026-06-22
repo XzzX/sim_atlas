@@ -20,6 +20,7 @@ from sim_atlas.models import (
     FilterOptions,
     FunctionMetadata,
     FunctionResponse,
+    Reference,
     ScoredSearchItem,
     ScoredSearchResponse,
     SearchResults,
@@ -339,7 +340,25 @@ class FileSystemStorage(StorageInterface):
 
         sorted_items = sorted(scored_items, key=lambda x: x.score, reverse=True)
 
-        return self._paginate(sorted_items, page=page, limit=limit)
+        paginated_items = self._paginate(sorted_items, page=page, limit=limit)
+
+        def used_by(artifact: StoredArtifact) -> list[Reference] | None:
+            match artifact:
+                case FunctionMetadata():
+                    return [
+                        Reference(label=n.name, id=n.id)
+                        for n in self._storage.values()
+                        if isinstance(n, WorkflowMetadata)
+                        and any(c.id == artifact.id for c in n.children)
+                    ] or None
+                case WorkflowMetadata():
+                    return None
+
+        for item in paginated_items.results.data:
+            if isinstance(item.node, FunctionMetadata):
+                item.node.used_by = used_by(item.node)
+
+        return paginated_items
 
     async def search_semantic(
         self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10

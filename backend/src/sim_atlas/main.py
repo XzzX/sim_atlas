@@ -145,9 +145,7 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 see_also=request.see_also,
                 children=request.children,
                 definition=request.definition,
-                hash=hashlib.sha256(
-                    request.source_code
-                ).hexdigest(),
+                hash=hashlib.sha256(request.source_code.encode()).hexdigest(),
             )
         case _:
             raise HTTPException(

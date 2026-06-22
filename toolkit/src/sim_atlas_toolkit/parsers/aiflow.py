@@ -240,8 +240,12 @@ def parse_out_dataclass_node(obj: Any) -> list[Metadata]:
 
 def parse_workflow(obj: Any) -> list[Metadata]:
     try:
-        from core import Workflow
-        from core.graph_to_workflow import graph_to_workflow_code
+        from core import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
+            Workflow,  # pyright: ignore[reportMissingImports]
+        )
+        from core.graph_to_workflow import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
+            graph_to_workflow_code,
+        )
     except ImportError:
         return []
 
@@ -257,7 +261,9 @@ def parse_workflow(obj: Any) -> list[Metadata]:
         artifact_type=ArtifactType.WORKFLOW,
         python_import="",
         category="workflow",
-        source_code=graph_to_workflow_code(wf._graph, wf._graph.label, "decorator", True),
+        source_code=graph_to_workflow_code(
+            wf._graph, wf._graph.label, "decorator", True
+        ),
         docstring="",
         keywords=["aiflow"],
         inputs=[],

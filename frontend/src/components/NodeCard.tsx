@@ -12,9 +12,14 @@ import {
 interface NodeCardProps {
   node: ArtifactResponse;
   score?: number;
+  onReferenceClick?: (id: string) => void;
 }
 
-export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
+export const NodeCard: React.FC<NodeCardProps> = ({
+  node,
+  score,
+  onReferenceClick,
+}) => {
   return (
     <Card className="h-full pt-0 border-1 border-chart-1">
       <ArtifactHeader
@@ -36,6 +41,9 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, score }) => {
         outputs={node.outputs}
         dependencies={"dependencies" in node ? node.dependencies ?? undefined : undefined}
         source_code={"source_code" in node ? node.source_code : undefined}
+        see_also={node.see_also ?? []}
+        child_nodes={"children" in node ? (node.children ?? []) : undefined}
+        onReferenceClick={onReferenceClick}
       />
       <ArtifactMisc keywords={node.keywords} />
       <ArtifactFooter node={node} />

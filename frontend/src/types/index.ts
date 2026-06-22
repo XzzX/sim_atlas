@@ -14,6 +14,12 @@ export const AnnotationSchema = z.object({
 });
 export type Annotation = z.infer<typeof AnnotationSchema>;
 
+export const ReferenceSchema = z.object({
+  label: z.string(),
+  id: z.string(),
+});
+export type Reference = z.infer<typeof ReferenceSchema>;
+
 export const FunctionRequestSchema = z.object({
   author_name: z.string(),
   author_email: z.string(),
@@ -69,6 +75,8 @@ export const FunctionResponseSchema = z.object({
 
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),
+
+  see_also: z.array(ReferenceSchema).optional().default([]),
 });
 export type FunctionResponse = z.infer<typeof FunctionResponseSchema>;
 
@@ -151,6 +159,9 @@ export const WorkflowResponseSchema = z.object({
   description: z.string().nullish(),
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),
+
+  see_also: z.array(ReferenceSchema).optional().default([]),
+  children: z.array(ReferenceSchema).optional().default([]),
 
   definition: WorkflowDefinitionSchema,
 });

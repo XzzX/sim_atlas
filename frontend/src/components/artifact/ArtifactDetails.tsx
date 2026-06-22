@@ -1,6 +1,6 @@
 import React from "react";
 import { type Annotation, type Reference } from "../../types/index";
-import { Code, GitBranch, GitFork, Box, Zap, Link2 } from "lucide-react";
+import { Code, GitBranch, GitFork, Box, Zap, Link2, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TabsContent, TabsList, Tabs, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +13,7 @@ interface ArtifactDetailsProps {
   definition?: Record<string, unknown>;
   see_also?: Reference[];
   child_nodes?: Reference[];
+  used_by?: Reference[] | null;
   onReferenceClick?: (id: string) => void;
 }
 
@@ -24,10 +25,12 @@ export const ArtifactDetails: React.FC<ArtifactDetailsProps> = ({
   definition,
   see_also,
   child_nodes,
+  used_by,
   onReferenceClick,
 }) => {
   const hasSeeAlso = see_also && see_also.length > 0;
   const hasChildren = child_nodes && child_nodes.length > 0;
+  const hasUsedBy = used_by && used_by.length > 0;
 
   return (
     <>
@@ -74,6 +77,12 @@ export const ArtifactDetails: React.FC<ArtifactDetailsProps> = ({
               <TabsTrigger value="children">
                 <GitFork size={14} className="mr-2" />
                 Children ({child_nodes.length})
+              </TabsTrigger>
+            )}
+            {hasUsedBy && (
+              <TabsTrigger value="used_by">
+                <Share2 size={14} className="mr-2" />
+                Used By ({used_by.length})
               </TabsTrigger>
             )}
           </TabsList>
@@ -228,6 +237,23 @@ export const ArtifactDetails: React.FC<ArtifactDetailsProps> = ({
                 <TabsContent value="children">
                   <div className="flex flex-wrap gap-1">
                     {child_nodes.map((ref) => (
+                      <Badge
+                        key={ref.id}
+                        variant="outline"
+                        className={onReferenceClick ? "cursor-pointer" : ""}
+                        onClick={() => onReferenceClick?.(ref.id)}
+                      >
+                        {ref.label}
+                      </Badge>
+                    ))}
+                  </div>
+                </TabsContent>
+              )}
+
+              {hasUsedBy && (
+                <TabsContent value="used_by">
+                  <div className="flex flex-wrap gap-1">
+                    {used_by.map((ref) => (
                       <Badge
                         key={ref.id}
                         variant="outline"

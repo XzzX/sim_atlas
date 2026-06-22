@@ -43,6 +43,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         source_code={"source_code" in node ? node.source_code : undefined}
         see_also={node.see_also ?? []}
         child_nodes={"children" in node ? (node.children ?? []) : undefined}
+        used_by={"used_by" in node ? (node.used_by ?? undefined) : undefined}
         onReferenceClick={onReferenceClick}
       />
       <ArtifactMisc keywords={node.keywords} />

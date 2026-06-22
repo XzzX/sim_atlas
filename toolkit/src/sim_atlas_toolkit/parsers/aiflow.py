@@ -9,6 +9,7 @@ from typing import Any, get_type_hints
 from sim_atlas_toolkit.models import Annotation, ArtifactType
 from sim_atlas_toolkit.parsers.metadata import (
     Metadata,
+    Reference,
     enrich_from_docstring,
     parse_annotation,
     parse_return_annotation,
@@ -237,7 +238,46 @@ def parse_out_dataclass_node(obj: Any) -> list[Metadata]:
     return [metadata]
 
 
+def parse_workflow(obj: Any) -> list[Metadata]:
+    try:
+        from core import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
+            Workflow,  # pyright: ignore[reportMissingImports]
+        )
+        from core.graph_to_workflow import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
+            graph_to_workflow_code,
+        )
+    except ImportError:
+        return []
+
+    if not isinstance(obj, Workflow):
+        return []
+
+    wf: Workflow = obj
+
+    children = [Reference(label=k, obj=v) for k, v in wf._graph.nodes.items()]
+
+    metadata = Metadata(
+        name=wf._graph.label,
+        artifact_type=ArtifactType.WORKFLOW,
+        python_import="",
+        category="workflow",
+        source_code=graph_to_workflow_code(
+            wf._graph, wf._graph.label, "decorator", True
+        ),
+        docstring="",
+        keywords=["aiflow"],
+        inputs=[],
+        outputs=[],
+        children=children,
+    )
+
+    return [metadata]
+
+
 def parse(obj: Any) -> list[Metadata]:
+    if metadata := parse_workflow(obj):
+        return metadata
+
     if _is_aiflow_function_node(obj):
         return parse_function_node(obj)
 

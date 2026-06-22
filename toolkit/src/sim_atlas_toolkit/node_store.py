@@ -115,7 +115,7 @@ class NodeStore:
 
         logger.info(f"{successful_uploads}/{num_uploads} uploaded from {module}")
 
-    def upload(  # noqa: PLR0912
+    def upload(  # noqa: PLR0912, PLR0915
         self,
         obj: Any,
         update_existing: bool = False,
@@ -184,12 +184,15 @@ class NodeStore:
 
             if metadata.children:
                 for child in metadata.children:
-                    responses = self.upload(
-                        child.obj,
-                        update_existing=update_existing,
-                        parsers=parsers,
-                        **kwargs,
-                    )
+                    try:
+                        responses = self.upload(
+                            child.obj,
+                            update_existing=update_existing,
+                            parsers=parsers,
+                            **kwargs,
+                        )
+                    except Exception:
+                        continue
                     if len(responses) > 1:
                         logger.warning(
                             f"Expected at most one response for child {child.label}, got {len(responses)}"

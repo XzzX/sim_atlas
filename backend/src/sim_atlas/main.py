@@ -146,7 +146,7 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 children=request.children,
                 definition=request.definition,
                 hash=hashlib.sha256(
-                    request.definition.model_dump_json(by_alias=False).encode()
+                    request.source_code
                 ).hexdigest(),
             )
         case _:

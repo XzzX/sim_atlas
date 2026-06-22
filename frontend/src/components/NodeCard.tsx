@@ -33,7 +33,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         python_import={"python_import" in node ? node.python_import : undefined}
       />
       <ArtifactDescription
-        docstring={"docstring" in node ? node.docstring : undefined}
+        docstring={"docstring" in node ? node.docstring ?? undefined : undefined}
         description={node.description ?? undefined}
       />
       <ArtifactDetails

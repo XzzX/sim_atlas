@@ -30,9 +30,9 @@ export const FunctionRequestSchema = z.object({
 
   keywords: z.array(z.string()),
 
-  homepage_url: z.string(),
-  documentation_url: z.string(),
-  source_url: z.string(),
+  homepage_url: z.string().nullish(),
+  documentation_url: z.string().nullish(),
+  source_url: z.string().nullish(),
 
   python_import: z.string(),
   dependencies: z.array(z.string()).nullish(),
@@ -42,6 +42,10 @@ export const FunctionRequestSchema = z.object({
   docstring: z.string(),
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),
+
+  brief_description: z.string().nullish(),
+  description: z.string().nullish(),
+  see_also: z.array(ReferenceSchema).optional().default([]),
 });
 export type FunctionRequest = z.infer<typeof FunctionRequestSchema>;
 
@@ -154,6 +158,9 @@ export const WorkflowResponseSchema = z.object({
   homepage_url: z.string().nullish(),
   documentation_url: z.string().nullish(),
   source_url: z.string().nullish(),
+
+  source_code: z.string(),
+  docstring: z.string().nullish(),
 
   brief_description: z.string().nullish(),
   description: z.string().nullish(),

@@ -238,6 +238,50 @@ def parse_out_dataclass_node(obj: Any) -> list[Metadata]:
     return [metadata]
 
 
+def parse_group_node(obj: Any) -> list[Metadata]:
+    try:
+        from core.groups import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
+            WorkflowGroupFactory,
+        )
+    except ImportError:
+        return []
+
+    if not isinstance(obj, WorkflowGroupFactory):
+        return []
+
+    group_node: WorkflowGroupFactory = obj
+
+    try:
+        raw_source = textwrap.dedent(inspect.getsource(group_node).replace("\r\n", ""))
+    except OSError:
+        return []
+
+    raw_doc = inspect.getdoc(group_node) or ""
+
+    module: str = group_node.__module__
+    qualname: str = group_node.__qualname__
+    python_import = f"{module}.{qualname}"
+
+    inputs = [Annotation(label=inp) for inp in group_node.input_aliases]
+    outputs = [Annotation(label=inp) for inp in group_node.output_aliases]
+
+    metadata = Metadata(
+        name=group_node.group_name,
+        artifact_type=ArtifactType.FUNCTION,
+        python_import=python_import,
+        category=module.replace(".", ">"),
+        source_code=raw_source,
+        docstring=raw_doc,
+        keywords=["aiflow", "group_node"],
+        inputs=inputs,
+        outputs=outputs,
+    )
+
+    enrich_from_docstring(raw_doc, metadata)
+
+    return [metadata]
+
+
 def parse_workflow(obj: Any) -> list[Metadata]:
     try:
         from core import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
@@ -276,6 +320,9 @@ def parse_workflow(obj: Any) -> list[Metadata]:
 
 def parse(obj: Any) -> list[Metadata]:
     if metadata := parse_workflow(obj):
+        return metadata
+
+    if metadata := parse_group_node(obj):
         return metadata
 
     if _is_aiflow_function_node(obj):

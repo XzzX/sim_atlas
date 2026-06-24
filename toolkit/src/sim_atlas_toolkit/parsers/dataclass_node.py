@@ -3,9 +3,14 @@ import inspect
 import textwrap
 from typing import Any, get_type_hints
 
-from sim_atlas_toolkit.models import Annotation, ArtifactType
+from sim_atlas_toolkit.models import (
+    Annotation,
+    ArtifactRequest,
+    ArtifactType,
+    FunctionRequest,
+)
+from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
-    Metadata,
     enrich_from_docstring,
     parse_annotation,
 )
@@ -39,7 +44,7 @@ def _field_annotations(cls: type) -> list[Annotation]:
     return result
 
 
-def parse(obj: Any) -> list[Metadata]:
+def parse(obj: Any, _: NodeStoreAPI) -> list[ArtifactRequest]:
     if not (dataclasses.is_dataclass(obj) and isinstance(obj, type)):
         return []
 
@@ -71,7 +76,7 @@ def parse(obj: Any) -> list[Metadata]:
     field_annotations = _field_annotations(obj)
     dataclass_annotation = Annotation(label=qualname.lower(), datatype=python_import)
 
-    pack_metadata = Metadata(
+    pack_metadata = FunctionRequest.model_construct(
         name=f"[PACK] {python_import}",
         artifact_type=ArtifactType.FUNCTION,
         python_import=python_import,
@@ -85,7 +90,7 @@ def parse(obj: Any) -> list[Metadata]:
 
     enrich_from_docstring(raw_doc, pack_metadata)
 
-    unpack_metadata = Metadata(
+    unpack_metadata = FunctionRequest.model_construct(
         name=f"[UNPACK] {python_import}",
         artifact_type=ArtifactType.FUNCTION,
         python_import=python_import,

@@ -4,12 +4,22 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import textwrap
+from http import HTTPStatus
 from typing import Any, get_type_hints
 
-from sim_atlas_toolkit.models import Annotation, ArtifactType
-from sim_atlas_toolkit.parsers.metadata import (
-    Metadata,
+from requests import Response
+
+from sim_atlas_toolkit import upload
+from sim_atlas_toolkit.models import (
+    Annotation,
+    ArtifactRequest,
+    ArtifactType,
+    FunctionRequest,
     Reference,
+    WorkflowRequest,
+)
+from sim_atlas_toolkit.node_store_api import NodeStoreAPI
+from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
     parse_annotation,
     parse_return_annotation,
@@ -104,16 +114,16 @@ def _resolve_func(wrapped: Any) -> tuple[Any, Any]:
     return func, node_instance
 
 
-def parse_function_node(obj: Any) -> list[Metadata]:
+def parse_function_node(obj: Any) -> FunctionRequest | None:
     try:
         func, node_instance = _resolve_func(obj)
     except (TypeError, ValueError):
-        return []
+        return None
 
     try:
         source_code = textwrap.dedent(inspect.getsource(func).replace("\r\n", ""))
     except OSError:
-        return []
+        return None
 
     sig = inspect.signature(func)
     inputs = parse_signature(sig)
@@ -138,21 +148,20 @@ def parse_function_node(obj: Any) -> list[Metadata]:
     module = getattr(func, "__module__", "") or ""
     qualname = getattr(func, "__qualname__", func.__name__)
 
-    metadata = Metadata(
-        name=f"{module}.{qualname}",
-        artifact_type=ArtifactType.FUNCTION,
-        python_import=f"{module}.{qualname}",
-        category=module.replace(".", ">"),
-        source_code=source_code,
-        docstring=inspect.getdoc(func) or "",
-        keywords=[],
-        inputs=inputs,
-        outputs=outputs,
-    )
+    metadata = FunctionRequest.model_construct()
+    metadata.name = f"{module}.{qualname}"
+    metadata.artifact_type = ArtifactType.FUNCTION
+    metadata.python_import = f"{module}.{qualname}"
+    metadata.category = module.replace(".", ">")
+    metadata.source_code = source_code
+    metadata.docstring = inspect.getdoc(func) or ""
+    metadata.keywords = []
+    metadata.inputs = inputs
+    metadata.outputs = outputs
 
     enrich_from_docstring(inspect.getdoc(func) or "", metadata)
 
-    return [metadata]
+    return metadata
 
 
 # ---------------------------------------------------------------------------
@@ -160,19 +169,19 @@ def parse_function_node(obj: Any) -> list[Metadata]:
 # ---------------------------------------------------------------------------
 
 
-def parse_inp_dataclass_node(obj: Any) -> list[Metadata]:
+def parse_inp_dataclass_node(obj: Any) -> FunctionRequest | None:
     original_cls = getattr(obj, "_original_dataclass", None)
     if original_cls is None or not (
         dataclasses.is_dataclass(original_cls) and isinstance(original_cls, type)
     ):
-        return []
+        return None
 
     try:
         raw_source = textwrap.dedent(
             inspect.getsource(original_cls).replace("\r\n", "")
         )
     except OSError:
-        return []
+        return None
 
     module: str = original_cls.__module__
     qualname: str = original_cls.__qualname__
@@ -182,36 +191,35 @@ def parse_inp_dataclass_node(obj: Any) -> list[Metadata]:
     field_anns = _field_annotations(original_cls)
     dataclass_ann = Annotation(label="output", datatype=python_import)
 
-    metadata = Metadata(
-        name=f"[INP] {python_import}",
-        artifact_type=ArtifactType.FUNCTION,
-        python_import=python_import,
-        category=module.replace(".", ">"),
-        source_code=raw_source,
-        docstring=f"[INP] {qualname}: {raw_doc}",
-        keywords=["inp_dataclass_node"],
-        inputs=field_anns,
-        outputs=[dataclass_ann],
-    )
+    metadata = FunctionRequest.model_construct()
+    metadata.name = f"[INP] {python_import}"
+    metadata.artifact_type = ArtifactType.FUNCTION
+    metadata.python_import = python_import
+    metadata.category = module.replace(".", ">")
+    metadata.source_code = raw_source
+    metadata.docstring = f"[INP] {qualname}: {raw_doc}"
+    metadata.keywords = ["inp_dataclass_node"]
+    metadata.inputs = field_anns
+    metadata.outputs = [dataclass_ann]
 
     enrich_from_docstring(raw_doc, metadata)
 
-    return [metadata]
+    return metadata
 
 
-def parse_out_dataclass_node(obj: Any) -> list[Metadata]:
+def parse_out_dataclass_node(obj: Any) -> FunctionRequest | None:
     original_cls = getattr(obj, "_original_dataclass", None)
     if original_cls is None or not (
         dataclasses.is_dataclass(original_cls) and isinstance(original_cls, type)
     ):
-        return []
+        return None
 
     try:
         raw_source = textwrap.dedent(
             inspect.getsource(original_cls).replace("\r\n", "")
         )
     except OSError:
-        return []
+        return None
 
     module: str = original_cls.__module__
     qualname: str = original_cls.__qualname__
@@ -221,40 +229,41 @@ def parse_out_dataclass_node(obj: Any) -> list[Metadata]:
     field_anns = _field_annotations(original_cls)
     dataclass_ann = Annotation(label="input", datatype=python_import)
 
-    metadata = Metadata(
-        name=f"[OUT] {python_import}",
-        artifact_type=ArtifactType.FUNCTION,
-        python_import=python_import,
-        category=module.replace(".", ">"),
-        source_code=raw_source,
-        docstring=f"[OUT] {qualname}: {raw_doc}",
-        keywords=["out_dataclass_node"],
-        inputs=[dataclass_ann],
-        outputs=field_anns,
-    )
+    metadata = FunctionRequest.model_construct()
+    metadata.name = f"[OUT] {python_import}"
+    metadata.artifact_type = ArtifactType.FUNCTION
+    metadata.python_import = python_import
+    metadata.category = module.replace(".", ">")
+    metadata.source_code = raw_source
+    metadata.docstring = f"[OUT] {qualname}: {raw_doc}"
+    metadata.keywords = ["out_dataclass_node"]
+    metadata.inputs = [dataclass_ann]
+    metadata.outputs = field_anns
 
     enrich_from_docstring(raw_doc, metadata)
 
-    return [metadata]
+    return metadata
 
 
-def parse_group_node(obj: Any) -> list[Metadata]:
+def parse_group_node(obj: Any) -> FunctionRequest | None:
     try:
         from core.groups import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
             WorkflowGroupFactory,
         )
     except ImportError:
-        return []
+        return None
 
     if not isinstance(obj, WorkflowGroupFactory):
-        return []
+        return None
 
     group_node: WorkflowGroupFactory = obj
+
+    metadata = FunctionRequest.model_construct()
 
     try:
         raw_source = textwrap.dedent(inspect.getsource(group_node).replace("\r\n", ""))
     except OSError:
-        return []
+        return None
 
     raw_doc = inspect.getdoc(group_node) or ""
 
@@ -265,24 +274,22 @@ def parse_group_node(obj: Any) -> list[Metadata]:
     inputs = [Annotation(label=inp) for inp in group_node.input_aliases]
     outputs = [Annotation(label=inp) for inp in group_node.output_aliases]
 
-    metadata = Metadata(
-        name=group_node.group_name,
-        artifact_type=ArtifactType.FUNCTION,
-        python_import=python_import,
-        category=module.replace(".", ">"),
-        source_code=raw_source,
-        docstring=raw_doc,
-        keywords=["aiflow", "group_node"],
-        inputs=inputs,
-        outputs=outputs,
-    )
+    metadata.name = group_node.group_name
+    metadata.artifact_type = ArtifactType.FUNCTION
+    metadata.python_import = python_import
+    metadata.category = module.replace(".", ">")
+    metadata.source_code = raw_source
+    metadata.docstring = raw_doc
+    metadata.keywords = ["aiflow", "group_node"]
+    metadata.inputs = inputs
+    metadata.outputs = outputs
 
     enrich_from_docstring(raw_doc, metadata)
 
-    return [metadata]
+    return metadata
 
 
-def parse_workflow(obj: Any) -> list[Metadata]:
+def parse_workflow(obj: Any, ns: NodeStoreAPI) -> WorkflowRequest | None:
     try:
         from core import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
             Workflow,  # pyright: ignore[reportMissingImports]
@@ -291,47 +298,64 @@ def parse_workflow(obj: Any) -> list[Metadata]:
             graph_to_workflow_code,
         )
     except ImportError:
-        return []
+        return None
 
     if not isinstance(obj, Workflow):
-        return []
+        return None
 
     wf: Workflow = obj
 
-    children = [Reference(label=k, obj=v) for k, v in wf._graph.nodes.items()]
+    metadata = WorkflowRequest.model_construct()
 
-    metadata = Metadata(
-        name=wf._graph.label,
-        artifact_type=ArtifactType.WORKFLOW,
-        python_import="",
-        category="workflow",
-        source_code=graph_to_workflow_code(
-            wf._graph, wf._graph.label, "decorator", True
-        ),
-        docstring="",
-        keywords=["aiflow"],
-        inputs=[],
-        outputs=[],
-        children=children,
+    metadata.name = wf._graph.label
+    metadata.python_import = ""
+    metadata.category = "workflow"
+    metadata.source_code = graph_to_workflow_code(
+        wf._graph, wf._graph.label, "decorator", True
     )
+    metadata.docstring = ""
+    metadata.keywords = ["aiflow"]
+    metadata.inputs = []
+    metadata.outputs = []
 
-    return [metadata]
+    children_import = [(label, node) for label, node in wf._graph.nodes.items()]
+
+    children_upload = [
+        (label, upload(ns, child)[0])
+        for label, child in children_import
+        if child is not None
+    ]
+
+    def extract_id(response: Response) -> str | None:
+        if response.ok:
+            return response.json()["id"]
+        if response.status_code == HTTPStatus.CONFLICT:
+            return response.json()["detail"]["id"]
+        return None
+
+    metadata.children = [
+        Reference(label=label, id=atlas_id)
+        for label, response in children_upload
+        if (atlas_id := extract_id(response)) is not None
+    ]
+
+    return metadata
 
 
-def parse(obj: Any) -> list[Metadata]:
-    if metadata := parse_workflow(obj):
-        return metadata
+def parse(obj: Any, ns: NodeStoreAPI) -> list[ArtifactRequest]:
+    if metadata := parse_workflow(obj, ns):
+        return [metadata]
 
     if metadata := parse_group_node(obj):
-        return metadata
+        return [metadata]
 
-    if _is_aiflow_function_node(obj):
-        return parse_function_node(obj)
+    if metadata := parse_function_node(obj):
+        return [metadata]
 
-    if getattr(obj, "node_type", None) != "inp_dataclass_node":
-        return parse_inp_dataclass_node(obj)
+    if metadata := parse_inp_dataclass_node(obj):
+        return [metadata]
 
-    if getattr(obj, "node_type", None) != "out_dataclass_node":
-        return parse_out_dataclass_node(obj)
+    if metadata := parse_out_dataclass_node(obj):
+        return [metadata]
 
     return []

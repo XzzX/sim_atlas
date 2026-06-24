@@ -4,6 +4,8 @@ from typing import Annotated
 from sim_atlas_toolkit.models import ArtifactType
 from sim_atlas_toolkit.parsers.dataclass_node import parse
 
+from .mock_api import NodeStoreAPI
+
 
 @dataclasses.dataclass
 class Point:
@@ -25,7 +27,7 @@ class Point:
 
 
 def test_dataclass_parser() -> None:
-    metadata_list = parse(Point)
+    metadata_list = parse(Point, NodeStoreAPI())  # pyright: ignore[reportArgumentType]
     assert len(metadata_list) == 2  # noqa: PLR2004
 
     pack_metadata = metadata_list[0]

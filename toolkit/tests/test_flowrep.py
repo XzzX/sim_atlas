@@ -3,6 +3,8 @@ import flowrep as fr
 from sim_atlas_toolkit.models import ArtifactType
 from sim_atlas_toolkit.parsers.flowrep_parser import parse
 
+from .mock_api import NodeStoreAPI
+
 
 @fr.atomic
 def kinetic_energy(mass: float, velocity: float = 1.0) -> float:
@@ -44,7 +46,7 @@ def linear(x: float, slope: float, intercept: float) -> float:
 
 
 def test_flowrep_atomic() -> None:
-    metadata_list = parse(kinetic_energy)
+    metadata_list = parse(kinetic_energy, NodeStoreAPI())  # pyright: ignore[reportArgumentType]
     assert len(metadata_list) == 1
     metadata = metadata_list[0]
     assert metadata.artifact_type == ArtifactType.FUNCTION
@@ -70,7 +72,7 @@ def test_flowrep_atomic() -> None:
 
 
 def test_flowrep_workflow() -> None:
-    metadata_list = parse(linear)
+    metadata_list = parse(linear, NodeStoreAPI())  # pyright: ignore[reportArgumentType]
     assert len(metadata_list) == 1
     metadata = metadata_list[0]
     assert metadata.artifact_type == ArtifactType.WORKFLOW
@@ -86,6 +88,4 @@ def test_flowrep_workflow() -> None:
     assert metadata.description == "y = slope * x + intercept"
     assert len(metadata.children) == 2  # noqa: PLR2004
     assert metadata.children[0].label == "mul_0"
-    assert metadata.children[0].obj == mul
     assert metadata.children[1].label == "add_0"
-    assert metadata.children[1].obj == add

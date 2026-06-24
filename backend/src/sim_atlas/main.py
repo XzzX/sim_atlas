@@ -159,11 +159,11 @@ async def create_artifact(
     request: ArtifactRequest,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
-) -> str:
+) -> dict[str, str]:
     artifact = compose_artifact(request, creator)
 
     try:
-        return storage.create(artifact)
+        return {"id": storage.create(artifact)}
     except ArtifactAlreadyExistsError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

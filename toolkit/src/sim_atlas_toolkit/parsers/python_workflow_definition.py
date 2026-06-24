@@ -2,11 +2,15 @@
 
 from typing import Any
 
-from sim_atlas_toolkit.models import Annotation, ArtifactType
-from sim_atlas_toolkit.parsers.metadata import Metadata
+from sim_atlas_toolkit.models import (
+    Annotation,
+    ArtifactRequest,
+    FunctionRequest,
+)
+from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 
 
-def parse(obj: Any) -> list[Metadata]:
+def parse(obj: Any, _: NodeStoreAPI) -> list[ArtifactRequest]:
     try:
         from python_workflow_definition.models import (  # noqa: PLC0415
             PythonWorkflowDefinitionInputNode,
@@ -19,28 +23,24 @@ def parse(obj: Any) -> list[Metadata]:
     if not isinstance(obj, PythonWorkflowDefinitionWorkflow):
         return []
 
-    source_code: str = obj.model_dump_json(indent=2)
+    metadata = FunctionRequest.model_construct()
 
-    inputs: list[Annotation] = []
-    outputs: list[Annotation] = []
+    metadata.source_code = obj.model_dump_json(indent=2)
+
+    metadata.inputs = []
+    metadata.outputs = []
     for node in obj.nodes:
         if isinstance(node, PythonWorkflowDefinitionInputNode):
             ann = Annotation(label=node.name)
-            inputs.append(ann)
+            metadata.inputs.append(ann)
         if isinstance(node, PythonWorkflowDefinitionOutputNode):
             ann = Annotation(label=node.name)
-            outputs.append(ann)
+            metadata.outputs.append(ann)
 
-    return [
-        Metadata(
-            name="python_workflow_definition_workflow",
-            artifact_type=ArtifactType.FUNCTION,
-            python_import="",
-            category="workflow",
-            source_code=source_code,
-            docstring="",
-            keywords=[],
-            inputs=inputs,
-            outputs=outputs,
-        )
-    ]
+    metadata.name = "python_workflow_definition_workflow"
+    metadata.python_import = ""
+    metadata.category = "workflow"
+    metadata.docstring = ""
+    metadata.keywords = ["python_workflow_definition"]
+
+    return [metadata]

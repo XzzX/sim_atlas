@@ -3,15 +3,19 @@
 import inspect
 from typing import Any
 
-from sim_atlas_toolkit.models import Annotation, ArtifactType
+from sim_atlas_toolkit.models import (
+    ArtifactRequest,
+    ArtifactType,
+    FunctionRequest,
+)
+from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
-    Metadata,
     enrich_from_docstring,
     parse_annotation,
 )
 
 
-def parse(node: Any) -> list[Metadata]:
+def parse(node: Any, _: NodeStoreAPI) -> list[ArtifactRequest]:
     if not isinstance(node, type):
         return []
 
@@ -24,31 +28,30 @@ def parse(node: Any) -> list[Metadata]:
     if not issubclass(node, Function):
         return []
 
-    source_code = inspect.getsource(node.node_function)
+    metadata = FunctionRequest.model_construct()
 
-    inputs: list[Annotation] = []
-    outputs: list[Annotation] = []
+    metadata.source_code = inspect.getsource(node.node_function)
+
+    metadata.inputs = []
+    metadata.outputs = []
     for k, v in node.preview_inputs().items():
         ann = parse_annotation(v[0])
         ann.label = k
         ann.has_default_value = v[1] != NOT_DATA
-        inputs.append(ann)
+        metadata.inputs.append(ann)
     for k, v in node.preview_outputs().items():
         ann = parse_annotation(v)
         ann.label = k
-        outputs.append(ann)
+        metadata.outputs.append(ann)
 
-    metadata = Metadata(
-        name=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
-        artifact_type=ArtifactType.FUNCTION,
-        python_import=f"{node.node_function.__module__}.{node.node_function.__qualname__}",
-        category=f"{node.node_function.__module__}".replace(".", ">"),
-        source_code=source_code,
-        docstring=node.node_function.__doc__ or "",
-        keywords=["pyiron_workflow_function"],
-        inputs=inputs,
-        outputs=outputs,
+    metadata.name = f"{node.node_function.__module__}.{node.node_function.__qualname__}"
+    metadata.artifact_type = ArtifactType.FUNCTION
+    metadata.python_import = (
+        f"{node.node_function.__module__}.{node.node_function.__qualname__}"
     )
+    metadata.category = f"{node.node_function.__module__}".replace(".", ">")
+    metadata.docstring = node.node_function.__doc__ or ""
+    metadata.keywords = ["pyiron_workflow_function"]
 
     enrich_from_docstring(node.node_function.__doc__ or "", metadata)
 

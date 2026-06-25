@@ -144,7 +144,7 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 outputs=request.outputs,
                 see_also=request.see_also,
                 children=request.children,
-                definition=request.definition,
+                wf_definition=request.wf_definition,
                 hash=hashlib.sha256(request.source_code.encode()).hexdigest(),
             )
         case _:

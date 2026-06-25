@@ -40,10 +40,10 @@ from sim_atlas.models import (
     FunctionMetadata,
     FunctionResponse,
     ScoredSearchResponse,
+    WfDefinition,
     WfEdge,
     WfInputNode,
     WfOutputNode,
-    WorkflowDefinition,
     WorkflowMetadata,
 )
 from sim_atlas.storage_interface import (
@@ -113,12 +113,12 @@ def make_workflow(**kwargs: Any) -> WorkflowMetadata:
         "outputs": [Annotation(label="y")],
         "embedding": None,
         "hash": "",
-        "definition": WorkflowDefinition(
+        "wf_definition": WfDefinition(
             nodes=[
-                WfInputNode(id="i1", name="x"),
-                WfOutputNode(id="o1", name="y"),
+                WfInputNode(node_id="i1", outputs=[Annotation(label="i1")]),
+                WfOutputNode(node_id="o1", inputs=[Annotation(label="o1")]),
             ],
-            edges=[WfEdge(source="i1", target="o1")],
+            edges=[WfEdge(source_node="i1", target_node="o1")],
         ),
     }
     defaults.update(kwargs)

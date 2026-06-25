@@ -1,7 +1,7 @@
 import base64
 import gzip
 from enum import StrEnum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 import numpy as np
 from pydantic import (

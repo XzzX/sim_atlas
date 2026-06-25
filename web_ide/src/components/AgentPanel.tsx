@@ -29,7 +29,8 @@ import type {
   AgentSSEEvent,
   GraphEdgeContext,
   GraphNodeContext,
-  NodeResponse,
+  FunctionResponse,
+  WorkflowResponse,
 } from "../interfaces/BackendSchema";
 import type { WorkflowNode } from "../nodes/nodes";
 import type { NodeData } from "../nodes/FunctionNode";
@@ -244,7 +245,7 @@ async function convertAgentGraph(
     agentNodes.map(async (n) => {
       const pos = { x: 0, y: 0 };
       if (n.atlas_node_id != null) {
-        let metadata: NodeResponse | undefined;
+        let metadata: FunctionResponse | WorkflowResponse | undefined;
         try {
           metadata = await simAtlasAPI.getNode(n.atlas_node_id);
         } catch {

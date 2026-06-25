@@ -21,7 +21,7 @@ const PORT_OPTIONS = [
 
 const EMPTY_FILTER: Filter = {
   category: null,
-  artifact_type: null,
+  artifact_type: ["function"],
   author: null,
   keywords: null,
   datatypes: null,

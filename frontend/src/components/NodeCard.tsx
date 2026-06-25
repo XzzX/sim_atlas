@@ -30,7 +30,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         homepage_url={node.homepage_url ?? undefined}
         documentation_url={node.documentation_url ?? undefined}
         source_url={node.source_url ?? undefined}
-        python_import={"python_import" in node ? node.python_import : undefined}
+        python_import={"python_import" in node ? node.python_import ?? undefined : undefined}
       />
       <ArtifactDescription
         docstring={"docstring" in node ? node.docstring ?? undefined : undefined}

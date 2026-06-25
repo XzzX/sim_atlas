@@ -88,51 +88,35 @@ export type FunctionResponse = z.infer<typeof FunctionResponseSchema>;
 // --- Workflow schemas ---
 
 const WfInputNodeSchema = z.object({
-  id: z.string(),
   type: z.literal("input"),
-  name: z.string(),
-  default: z.any().optional(),
+  node_id: z.string(),
+  outputs: z.array(AnnotationSchema),
 });
 
 const WfOutputNodeSchema = z.object({
-  id: z.string(),
   type: z.literal("output"),
-  name: z.string(),
+  node_id: z.string(),
+  inputs: z.array(AnnotationSchema),
 });
 
 const WfFunctionNodeSchema = z.object({
-  id: z.string(),
   type: z.literal("function"),
-  python_import: z.string(),
-  atlas_node_id: z.string().nullable().optional(),
-});
-
-const WfPackNodeSchema = z.object({
-  id: z.string(),
-  type: z.literal("pack"),
-  python_import: z.string(),
-  atlas_node_id: z.string().nullable().optional(),
-});
-
-const WfUnpackNodeSchema = z.object({
-  id: z.string(),
-  type: z.literal("unpack"),
-  python_import: z.string(),
-  atlas_node_id: z.string().nullable().optional(),
+  node_id: z.string(),
+  inputs: z.array(AnnotationSchema),
+  outputs: z.array(AnnotationSchema),
+  atlas_id: z.string().nullable(),
 });
 
 const WfNodeSchema = z.discriminatedUnion("type", [
   WfInputNodeSchema,
   WfOutputNodeSchema,
   WfFunctionNodeSchema,
-  WfPackNodeSchema,
-  WfUnpackNodeSchema,
 ]);
 
 const WfEdgeSchema = z.object({
-  source: z.string(),
+  source_node: z.string(),
   source_port: z.string().nullable().optional(),
-  target: z.string(),
+  target_node: z.string(),
   target_port: z.string().nullable().optional(),
 });
 
@@ -160,6 +144,9 @@ export const WorkflowResponseSchema = z.object({
   documentation_url: z.string().nullish(),
   source_url: z.string().nullish(),
 
+  python_import: z.string().nullish(),
+  dependencies: z.array(z.string()).nullish(),
+
   source_code: z.string(),
   docstring: z.string().nullish(),
 
@@ -171,7 +158,7 @@ export const WorkflowResponseSchema = z.object({
   see_also: z.array(ReferenceSchema).optional().default([]),
   children: z.array(ReferenceSchema).optional().default([]),
 
-  definition: WorkflowDefinitionSchema,
+  wf_definition: WorkflowDefinitionSchema,
 });
 export type WorkflowResponse = z.infer<typeof WorkflowResponseSchema>;
 

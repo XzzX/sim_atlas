@@ -4,12 +4,14 @@ import {
   ScoredSearchResponseSchema,
   FilterOptionsSchema,
   AgentSSEEventSchema,
+  CapabilitiesResponseSchema,
   type ArtifactResponse,
   type ScoredSearchResponse,
   type Filter,
   type FilterOptions,
   type AgentRequest,
   type AgentSSEEvent,
+  type CapabilitiesResponse,
 } from "../interfaces/BackendSchema";
 
 const API_BASE_URL = "/api/v1";
@@ -62,6 +64,11 @@ export const simAtlasAPI = {
       },
     );
     return ScoredSearchResponseSchema.parse(response.data);
+  },
+
+  getCapabilities: async (): Promise<CapabilitiesResponse> => {
+    const response = await api.get("/capabilities");
+    return CapabilitiesResponseSchema.parse(response.data);
   },
 
   agentStream: async (

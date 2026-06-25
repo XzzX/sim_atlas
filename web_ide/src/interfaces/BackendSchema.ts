@@ -317,4 +317,9 @@ export const AgentSSEEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("validation"), errors: z.array(z.string()) }),
   z.object({ type: z.literal("truncated") }),
 ]);
+
+export const CapabilitiesResponseSchema = z.object({
+  agent_enabled: z.boolean(),
+});
+export type CapabilitiesResponse = z.infer<typeof CapabilitiesResponseSchema>;
 export type AgentSSEEvent = z.infer<typeof AgentSSEEventSchema>;

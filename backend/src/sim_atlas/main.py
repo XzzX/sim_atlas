@@ -279,6 +279,11 @@ async def hybrid_search(
     return await storage.search_hybrid(query, filter_options, page=page, limit=limit)
 
 
+@api_router.get("/capabilities", tags=["meta"])
+async def get_capabilities() -> dict[str, bool]:
+    return {"agent_enabled": load_settings().agent_enabled}
+
+
 @api_router.post(
     "/enrich",
     tags=["ai"],
@@ -291,31 +296,26 @@ async def enrich(
     await storage.enrich(only_ids=only_ids)
 
 
-@api_router.post(
-    "/agent/stream",
-    tags=["ai"],
-    operation_id="agent_stream",
-    response_class=StreamingResponse,
-)
-async def agent_stream(
-    request: AgentRequest,
-    storage: Annotated[StorageInterface, Depends(get_storage)],
-) -> StreamingResponse:
-    settings = load_settings()
-    if (
-        not settings.llm_api_key
-        or not settings.llm_base_url
-        or not settings.llm_chat_model
-    ):
-        raise AINotConfiguredError
-    return StreamingResponse(
-        run_agent_stream(request, storage),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+if load_settings().agent_enabled:
+
+    @api_router.post(
+        "/agent/stream",
+        tags=["ai"],
+        operation_id="agent_stream",
+        response_class=StreamingResponse,
     )
+    async def agent_stream(
+        request: AgentRequest,
+        storage: Annotated[StorageInterface, Depends(get_storage)],
+    ) -> StreamingResponse:
+        return StreamingResponse(
+            run_agent_stream(request, storage),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
 
 app.include_router(api_router)

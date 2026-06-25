@@ -17,8 +17,7 @@ test("web IDE loads linear workflow and add-node dialog shows 4 function nodes",
   expect(linearId).toBeDefined();
 
   // Navigate to the web IDE with the linear workflow
-  // Use trailing slash to avoid the 307 redirect that strips query params
-  await page.goto(`/ide/?wf_id=${linearId}`);
+  await page.goto(`/ide?wf_id=${linearId}`);
 
   // main.tsx uses top-level await for API calls before mounting React,
   // so allow extra time for the canvas to appear

@@ -17,10 +17,14 @@ test("web IDE loads linear workflow and add-node dialog shows 4 function nodes",
   expect(linearId).toBeDefined();
 
   // Navigate to the web IDE with the linear workflow
-  await page.goto(`/ide?wf_id=${linearId}`);
+  // Use trailing slash to avoid the 307 redirect that strips query params
+  await page.goto(`/ide/?wf_id=${linearId}`);
 
-  // Verify the complete workflow: 6 nodes total
-  await expect(page.locator(".react-flow__node")).toHaveCount(6);
+  // main.tsx uses top-level await for API calls before mounting React,
+  // so allow extra time for the canvas to appear
+  await expect(page.locator(".react-flow__node")).toHaveCount(6, {
+    timeout: 30_000,
+  });
 
   // 3 input nodes (label = node_id)
   await expect(page.getByText("x", { exact: true })).toBeVisible();
@@ -41,20 +45,19 @@ test("web IDE loads linear workflow and add-node dialog shows 4 function nodes",
   await expect(page.locator('[data-id="emul_0.output_0-add_0.a"]')).toBeVisible();
   await expect(page.locator('[data-id="eadd_0.output_0-result."]')).toBeVisible();
 
-  // Right-click on the empty canvas pane to open the add-node dialog
-  await page.locator(".react-flow__pane").click({ button: "right" });
+  // Right-click on a corner of the pane (avoids nodes which are placed in the centre)
+  await page.locator(".react-flow__pane").click({ button: "right", position: { x: 10, y: 10 } });
 
-  // Verify the dialog is open
-  await expect(page.getByText("Add Node")).toBeVisible();
+  // Scope all dialog assertions to the dialog overlay to avoid matching canvas nodes
+  const dialog = page.locator(".fixed.inset-0");
+  await expect(dialog.getByText("Add Node")).toBeVisible();
 
   // All 4 function artifacts should appear (workflow is excluded by default filter)
-  await expect(page.getByText("dummy_module.functions.add")).toBeVisible();
-  await expect(page.getByText("dummy_module.functions.mul")).toBeVisible();
-  await expect(page.getByText("dummy_module.flowrep.add")).toBeVisible();
-  await expect(page.getByText("dummy_module.flowrep.mul")).toBeVisible();
+  await expect(dialog.getByText("dummy_module.functions.add")).toBeVisible();
+  await expect(dialog.getByText("dummy_module.functions.mul")).toBeVisible();
+  await expect(dialog.getByText("dummy_module.flowrep.add")).toBeVisible();
+  await expect(dialog.getByText("dummy_module.flowrep.mul")).toBeVisible();
 
   // The linear workflow should not appear
-  await expect(
-    page.getByText("dummy_module.flowrep.linear"),
-  ).not.toBeVisible();
+  await expect(dialog.getByText("dummy_module.flowrep.linear")).not.toBeVisible();
 });

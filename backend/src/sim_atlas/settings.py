@@ -154,6 +154,10 @@ class Settings(BaseSettings):
             self.langfuse_public_key and self.langfuse_secret_key and self.langfuse_host
         )
 
+    @property
+    def agent_enabled(self) -> bool:
+        return bool(self.llm_api_key and self.llm_base_url and self.llm_chat_model)
+
 
 @lru_cache(maxsize=1)
 def load_settings() -> Settings:

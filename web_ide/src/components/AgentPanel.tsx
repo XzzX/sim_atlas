@@ -247,7 +247,7 @@ async function convertAgentGraph(
       if (n.atlas_node_id != null) {
         let metadata: FunctionResponse | WorkflowResponse | undefined;
         try {
-          metadata = await simAtlasAPI.getNode(n.atlas_node_id);
+          metadata = await simAtlasAPI.getArtifact(n.atlas_node_id);
         } catch {
           // fall back to minimal shape so the graph still renders
           metadata = {

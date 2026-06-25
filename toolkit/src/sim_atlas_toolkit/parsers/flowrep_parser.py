@@ -33,7 +33,11 @@ from sim_atlas_toolkit.parsers.metadata import (
 from sim_atlas_toolkit.upload import upload
 
 
-def flowrep_to_wf_definition(wf: WorkflowRecipe) -> WfDefinition:
+def flowrep_to_wf_definition(
+    wf: WorkflowRecipe, references: list[Reference]
+) -> WfDefinition:
+    reference_dict = {ref.label: ref.id for ref in references}
+
     nodes: list[WfNode] = []
     for node_id, node in wf.nodes.items():
         match node:
@@ -51,7 +55,7 @@ def flowrep_to_wf_definition(wf: WorkflowRecipe) -> WfDefinition:
                         node_id=node_id,
                         inputs=inputs,
                         outputs=outputs,
-                        atlas_id=None,
+                        atlas_id=reference_dict.get(node_id),
                     )
                 )
             case WorkflowRecipe():
@@ -75,7 +79,7 @@ def flowrep_to_wf_definition(wf: WorkflowRecipe) -> WfDefinition:
         edges.append(
             WfEdge(
                 source_node=source.port,
-                source_port=source.port,
+                source_port=None,
                 target_node=target.node,
                 target_port=target.port,
             )
@@ -117,9 +121,9 @@ def flowrep_to_wf_definition(wf: WorkflowRecipe) -> WfDefinition:
         edges.append(
             WfEdge(
                 source_node=source.node or source.port,
-                source_port=source.port,
+                source_port=None if isinstance(source, InputSource) else source.port,
                 target_node=target.port,
-                target_port=target.port,
+                target_port=None,
             )
         )
 
@@ -258,7 +262,7 @@ def parse_workflow_recipe(
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]
     metadata.children = children
-    # metadata.wf_definition = flowrep_to_wf_definition(recipe)  # noqa: ERA001
+    metadata.wf_definition = flowrep_to_wf_definition(recipe, children)
 
     enrich_from_docstring(metadata.docstring, metadata)
 

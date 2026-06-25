@@ -22,8 +22,8 @@ const api = axios.create({
 });
 
 export const simAtlasAPI = {
-  getNode: async (nodeHash: string): Promise<ArtifactResponse> => {
-    const response = await api.get(`/nodes/${nodeHash}`);
+  getArtifact: async (artifactId: string): Promise<ArtifactResponse> => {
+    const response = await api.get(`/artifacts/${artifactId}`);
     return ArtifactResponseSchema.parse(response.data);
   },
 

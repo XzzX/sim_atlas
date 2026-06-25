@@ -19,10 +19,20 @@ test("web IDE loads linear workflow and add-node dialog shows 4 function nodes",
   // Navigate to the web IDE with the linear workflow
   await page.goto(`/ide?wf_id=${linearId}`);
 
-  // Verify the 3 input nodes from the linear workflow are visible
+  // Verify the complete workflow: 6 nodes total
+  await expect(page.locator(".react-flow__node")).toHaveCount(6);
+
+  // 3 input nodes (label = node_id)
   await expect(page.getByText("x", { exact: true })).toBeVisible();
   await expect(page.getByText("slope", { exact: true })).toBeVisible();
   await expect(page.getByText("intercept", { exact: true })).toBeVisible();
+
+  // 2 function nodes — identified by their unique python_import subtitle
+  await expect(page.getByText("dummy_module.flowrep.mul")).toBeVisible();
+  await expect(page.getByText("dummy_module.flowrep.add")).toBeVisible();
+
+  // 1 output node (label = node_id)
+  await expect(page.getByText("result", { exact: true })).toBeVisible();
 
   // Right-click on the empty canvas pane to open the add-node dialog
   await page.locator(".react-flow__pane").click({ button: "right" });

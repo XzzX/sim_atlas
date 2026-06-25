@@ -34,6 +34,13 @@ test("web IDE loads linear workflow and add-node dialog shows 4 function nodes",
   // 1 output node (label = node_id)
   await expect(page.getByText("result", { exact: true })).toBeVisible();
 
+  // 5 edges verified by their data-id (format: e{source_node}.{source_port}-{target_node}.{target_port})
+  await expect(page.locator('[data-id="ex.-mul_0.a"]')).toBeVisible();
+  await expect(page.locator('[data-id="eslope.-mul_0.b"]')).toBeVisible();
+  await expect(page.locator('[data-id="eintercept.-add_0.b"]')).toBeVisible();
+  await expect(page.locator('[data-id="emul_0.output_0-add_0.a"]')).toBeVisible();
+  await expect(page.locator('[data-id="eadd_0.output_0-result."]')).toBeVisible();
+
   // Right-click on the empty canvas pane to open the add-node dialog
   await page.locator(".react-flow__pane").click({ button: "right" });
 

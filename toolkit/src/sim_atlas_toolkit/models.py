@@ -30,8 +30,8 @@ class FunctionRequest(BaseModel):
     category: str
     keywords: list[str]
 
-    author_name: str
-    author_email: str
+    author_name: str = "unknown"
+    author_email: str = "unknown"
 
     homepage_url: str | None = None
     documentation_url: str | None = None

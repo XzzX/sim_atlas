@@ -322,8 +322,9 @@ app.include_router(api_router)
 
 
 @app.get("/ide")
-async def redirect_to_ide():
-    return RedirectResponse(url="/ide/")
+async def redirect_to_ide(request: Request) -> RedirectResponse:
+    query = request.url.query
+    return RedirectResponse(url="/ide/?" + query if query else "/ide/")
 
 
 STATIC_DIR = Path(__file__).parent / "static"

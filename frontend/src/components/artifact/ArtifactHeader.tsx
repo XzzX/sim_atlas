@@ -129,7 +129,7 @@ export const ArtifactHeader: React.FC<ArtifactHeaderProps> = ({
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              window.open("ide/?wf_hash=" + id);
+              window.open("ide/?wf_id=" + id);
             }}
           >
             <ExternalLinkIcon />

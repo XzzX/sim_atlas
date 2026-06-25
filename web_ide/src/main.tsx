@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { MainLayout } from "./MainLayout";
 import { useNodesState, useEdgesState, type Edge } from "@xyflow/react";
-import { convertWorkflow } from "./importWorkflow";
+import { convertWfDefinition } from "./importWorkflow";
 import { simAtlasAPI } from "./services/api";
 import type { WorkflowNode } from "./nodes/nodes";
 import { HighlightProvider } from "./highlight/HighlightContext";
@@ -13,11 +13,13 @@ const fetchInitialNodesAndEdges = async (): Promise<{
   const urlSearchString = window.location.search;
 
   const params = new URLSearchParams(urlSearchString);
-  const wf_hash = params.get("wf_hash");
-  if (!wf_hash) return { nodes: [], edges: [] };
-  const source_code = await simAtlasAPI.getNode(wf_hash);
-  console.log(source_code);
-  const { nodes, edges } = await convertWorkflow(source_code.source_code);
+  const wf_id = params.get("wf_id");
+  if (!wf_id) return { nodes: [], edges: [] };
+  const artifact = await simAtlasAPI.getArtifact(wf_id);
+  if (artifact.artifact_type !== "workflow" || !artifact.wf_definition) {
+    return { nodes: [], edges: [] };
+  }
+  const { nodes, edges } = await convertWfDefinition(artifact.wf_definition);
   return { nodes, edges };
 };
 

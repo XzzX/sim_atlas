@@ -6,7 +6,7 @@ import {
 } from "./interfaces/PythonWorkflowDefinitionSchema";
 import type { Edge } from "@xyflow/react";
 import { simAtlasAPI } from "./services/api";
-import type { NodeType as ArtifactType } from "./interfaces/BackendSchema";
+import type { NodeType as ArtifactType, WfDefinition } from "./interfaces/BackendSchema";
 
 async function convertToNode(
   n: PythonWorkflowDefinitionNode,
@@ -17,7 +17,7 @@ async function convertToNode(
     // Prefer direct lookup by atlas_node_id; fall back to keyword search
     let meta =
       n.atlas_node_id != null
-        ? (await simAtlasAPI.getNode(n.atlas_node_id).catch(() => null))
+        ? (await simAtlasAPI.getArtifact(n.atlas_node_id).catch(() => null))
         : null;
 
     if (!meta) {
@@ -90,6 +90,61 @@ export async function toNodesAndEdges(
     sourceHandle: e.source_handle ?? undefined,
     targetHandle: e.target_handle ?? undefined,
   }));
+
+  return { nodes, edges };
+}
+
+export async function convertWfDefinition(
+  wfDef: WfDefinition,
+): Promise<{ nodes: WorkflowNode[]; edges: Edge[] }> {
+  const nodes = (
+    await Promise.all(
+      wfDef.nodes.map(async (n): Promise<WorkflowNode | null> => {
+        if (n.type === "function") {
+          if (!n.atlas_id) return null;
+          const meta = await simAtlasAPI.getArtifact(n.atlas_id).catch(() => null);
+          if (!meta) return null;
+          return {
+            id: n.node_id,
+            data: {
+              label: meta.name.split(".").pop() ?? meta.name,
+              metadata: meta,
+            },
+            position: { x: Math.random() * 400, y: Math.random() * 400 },
+            type: "FunctionNode",
+          };
+        }
+        if (n.type === "input") {
+          return {
+            id: n.node_id,
+            data: { label: n.node_id, value: "" },
+            position: { x: Math.random() * 400, y: Math.random() * 400 },
+            type: "InputNode",
+          };
+        }
+        if (n.type === "output") {
+          return {
+            id: n.node_id,
+            data: { label: n.node_id },
+            position: { x: Math.random() * 400, y: Math.random() * 400 },
+            type: "OutputNode",
+          };
+        }
+        return null;
+      }),
+    )
+  ).filter((n) => n !== null);
+
+  const nodeIdSet = new Set(nodes.map((n) => n.id));
+  const edges: Edge[] = wfDef.edges
+    .filter((e) => nodeIdSet.has(e.source_node) && nodeIdSet.has(e.target_node))
+    .map((e) => ({
+      id: `e${e.source_node}.${e.source_port ?? ""}-${e.target_node}.${e.target_port ?? ""}`,
+      source: e.source_node,
+      target: e.target_node,
+      sourceHandle: e.source_port ?? undefined,
+      targetHandle: e.target_port ?? undefined,
+    }));
 
   return { nodes, edges };
 }

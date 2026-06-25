@@ -314,20 +314,15 @@ export const ReactFlowEditor = ({
 
   const onPaneContextMenu = useCallback(
     (event: MouseEvent | React.MouseEvent) => {
-      // Prevent default context menu
       event.preventDefault();
-
-      // Check if click is on empty space (not on a node or edge)
-      if (event.target === event.currentTarget) {
-        if (rfInstance) {
-          setContextMenuPos(
-            rfInstance.screenToFlowPosition({
-              x: event.clientX,
-              y: event.clientY,
-            }),
-          );
-          setIsAddNodeDialogOpen(true);
-        }
+      if (rfInstance) {
+        setContextMenuPos(
+          rfInstance.screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+          }),
+        );
+        setIsAddNodeDialogOpen(true);
       }
     },
     [rfInstance],

@@ -5,7 +5,7 @@ import importlib
 import logging
 import os
 
-from sim_atlas_toolkit import NodeStore
+from sim_atlas_toolkit import NodeStoreAPI, upload_module
 
 DEFAULT_API_URL_ENV = "SIM_ATLAS_API_URL"
 DEFAULT_API_TOKEN_ENV = "SIM_ATLAS_API_TOKEN"
@@ -94,9 +94,10 @@ def main() -> int:
         )
         return 1
 
-    store = NodeStore(api_url=args.api_url, api_key=args.api_token)
+    store = NodeStoreAPI(api_url=args.api_url, api_key=args.api_token)
     for module_name in args.modules:
-        store.upload_module(
+        upload_module(
+            store,
             module_name,
             update_existing=args.update_existing,
             recursive=args.recursive,

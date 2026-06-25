@@ -1,7 +1,7 @@
 import base64
 import gzip
 from enum import StrEnum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 import numpy as np
 from pydantic import (
@@ -63,8 +63,8 @@ class FunctionRequest(BaseModel):
     category: str
     keywords: list[str]
 
-    author_name: str
-    author_email: str
+    author_name: str = "unknown"
+    author_email: str = "unknown"
 
     homepage_url: str | None = None
     documentation_url: str | None = None
@@ -129,53 +129,39 @@ class FunctionMetadata(FunctionResponse):
 
 
 class WfInputNode(BaseModel):
-    id: str
     type: Literal["input"] = "input"
-    name: str
-    default: Any = None
+    node_id: str
+    outputs: list[Annotation]
 
 
 class WfOutputNode(BaseModel):
-    id: str
     type: Literal["output"] = "output"
-    name: str
+    node_id: str
+    inputs: list[Annotation]
 
 
 class WfFunctionNode(BaseModel):
-    id: str
     type: Literal["function"] = "function"
-    python_import: str
-    atlas_node_id: str | None = None
-
-
-class WfPackNode(BaseModel):
-    id: str
-    type: Literal["pack"] = "pack"
-    python_import: str
-    atlas_node_id: str | None = None
-
-
-class WfUnpackNode(BaseModel):
-    id: str
-    type: Literal["unpack"] = "unpack"
-    python_import: str
-    atlas_node_id: str | None = None
+    node_id: str
+    inputs: list[Annotation]
+    outputs: list[Annotation]
+    atlas_id: str | None
 
 
 WfNode = Annotated[
-    WfInputNode | WfOutputNode | WfFunctionNode | WfPackNode | WfUnpackNode,
+    WfInputNode | WfOutputNode | WfFunctionNode,
     Discriminator("type"),
 ]
 
 
 class WfEdge(BaseModel):
-    source: str
+    source_node: str
     source_port: str | None = None
-    target: str
+    target_node: str
     target_port: str | None = None
 
 
-class WorkflowDefinition(BaseModel):
+class WfDefinition(BaseModel):
     nodes: list[WfNode]
     edges: list[WfEdge]
 
@@ -193,6 +179,9 @@ class WorkflowRequest(BaseModel):
     documentation_url: str | None = None
     source_url: str | None = None
 
+    python_import: str | None = None
+    dependencies: list[str] | None = None
+
     source_code: str
     docstring: str | None = None
     brief_description: str | None = None
@@ -204,7 +193,7 @@ class WorkflowRequest(BaseModel):
     see_also: list[Reference] = []
     children: list[Reference] = []
 
-    definition: WorkflowDefinition = WorkflowDefinition(nodes=[], edges=[])
+    wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 
 
 class WorkflowResponse(BaseModel):
@@ -225,6 +214,9 @@ class WorkflowResponse(BaseModel):
     documentation_url: str | None = None
     source_url: str | None = None
 
+    python_import: str | None = None
+    dependencies: list[str] | None = None
+
     source_code: str
     docstring: str | None = None
 
@@ -236,7 +228,7 @@ class WorkflowResponse(BaseModel):
     see_also: list[Reference] = []
     children: list[Reference] = []
 
-    definition: WorkflowDefinition = WorkflowDefinition(nodes=[], edges=[])
+    wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 
 
 class WorkflowMetadata(WorkflowResponse):

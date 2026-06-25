@@ -57,28 +57,6 @@ jobs:
           echo "Server failed to start within 30 seconds"
           exit 1
 
-      - name: Stop backend server
-        if: always()
-        run: kill "$SERVER_PID"
-
-      - name: Start backend server
-        run: |
-          uv run sim-atlas --host 127.0.0.1 --port 8000 &
-          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
-        working-directory: ./backend
-
-      - name: Wait for server to be ready
-        run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:8000/api/v1/filter_options > /dev/null; then
-              echo "Server is ready"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Server failed to start within 30 seconds"
-          exit 1
-
       - name: Generate access token
         run: |
           TOKEN=$(uv run sim-atlas-access-token "CI Bot" "ci@example.com")
@@ -106,6 +84,12 @@ jobs:
           total = d['results']['total_items']
           assert total == 3, f'Expected exactly 3 flowrep artifacts, got {total}: {d}'
           print(f'OK — {total} flowrep artifact(s) found')
+          types = [item['node']['artifact_type'] for item in d['results']['data']]
+          functions = [t for t in types if t == 'function']
+          workflows = [t for t in types if t == 'workflow']
+          assert len(functions) == 2, f'Expected 2 function artifacts among flowrep, got {len(functions)}'
+          assert len(workflows) == 1, f'Expected 1 workflow artifact among flowrep, got {len(workflows)}'
+          print(f'OK — artifact types correct: {len(functions)} function(s), {len(workflows)} workflow(s)')
           "
 
       - name: Verify artifacts were uploaded
@@ -161,6 +145,14 @@ jobs:
               assert out['datatype'] == checks['output_datatype'], f'{name} output datatype mismatch'
               assert out['description'] == checks['output_description'], f'{name} output description mismatch'
               print(f'OK — {name} metadata verified')
+
+          workflow_nodes = [item['node'] for item in d['results']['data'] if item['node']['artifact_type'] == 'workflow']
+          assert len(workflow_nodes) == 1, f'Expected exactly 1 workflow artifact, got {len(workflow_nodes)}'
+          wf = workflow_nodes[0]
+          assert 'wf_definition' in wf, f'workflow artifact missing wf_definition field'
+          assert isinstance(wf['wf_definition']['nodes'], list), f'wf_definition.nodes is not a list'
+          assert isinstance(wf['wf_definition']['edges'], list), f'wf_definition.edges is not a list'
+          print(f'OK — workflow artifact {wf[\"name\"]!r} verified')
           "
 
       - name: Install Playwright dependencies

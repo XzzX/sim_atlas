@@ -20,10 +20,10 @@ from sim_atlas.models import (
     FunctionRequest,
     ScoredSearchResponse,
     SearchResults,
+    WfDefinition,
     WfEdge,
     WfInputNode,
     WfOutputNode,
-    WorkflowDefinition,
     WorkflowRequest,
 )
 from sim_atlas.security import Creator, get_current_user
@@ -144,7 +144,7 @@ def test_me_unauthenticated_returns_401(unauthed_client: ApiClient) -> None:
 def test_create_function_artifact_returns_201(client: ApiClient) -> None:
     response = client.post("/api/v1/artifacts", json=make_function_request_body())
     assert response.status_code == status.HTTP_201_CREATED
-    artifact_id = response.json()
+    artifact_id = response.json()["id"]
     assert isinstance(artifact_id, str)
     assert len(artifact_id) > 0
 
@@ -152,7 +152,7 @@ def test_create_function_artifact_returns_201(client: ApiClient) -> None:
 def test_create_workflow_artifact_returns_201(client: ApiClient) -> None:
     response = client.post("/api/v1/artifacts", json=make_workflow_request_body())
     assert response.status_code == status.HTTP_201_CREATED
-    artifact_id = response.json()
+    artifact_id = response.json()["id"]
     assert isinstance(artifact_id, str)
 
 
@@ -180,7 +180,7 @@ def test_create_artifact_unauthenticated_returns_401(
 def test_read_artifact_returns_200(client: ApiClient) -> None:
     artifact_id = client.post(
         "/api/v1/artifacts", json=make_function_request_body()
-    ).json()
+    ).json()["id"]
     response = client.get(f"/api/v1/artifacts/{artifact_id}")
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
@@ -201,7 +201,7 @@ def test_read_artifact_not_found_returns_404(client: ApiClient) -> None:
 def test_update_artifact_returns_updated_data(client: ApiClient) -> None:
     artifact_id = client.post(
         "/api/v1/artifacts", json=make_function_request_body()
-    ).json()
+    ).json()["id"]
     updated_body = make_function_request_body(
         name="updated_function",
         source_code="def updated_function(): pass",
@@ -235,7 +235,7 @@ def test_update_artifact_unauthenticated_returns_401(
 def test_delete_artifact_returns_200_and_removes_artifact(client: ApiClient) -> None:
     artifact_id = client.post(
         "/api/v1/artifacts", json=make_function_request_body()
-    ).json()
+    ).json()["id"]
     response = client.delete(f"/api/v1/artifacts/{artifact_id}")
     assert response.status_code == status.HTTP_200_OK
     assert "deleted" in response.json()["detail"].lower()
@@ -404,19 +404,22 @@ def test_compose_artifact_function_sets_expected_fields() -> None:
 
 
 def test_compose_artifact_workflow_sets_expected_fields() -> None:
-    definition = WorkflowDefinition(
-        nodes=[WfInputNode(id="i1", name="x"), WfOutputNode(id="o1", name="y")],
-        edges=[WfEdge(source="i1", target="o1")],
+    wf_definition = WfDefinition(
+        nodes=[
+            WfInputNode(node_id="i1", outputs=[Annotation(label="i1")]),
+            WfOutputNode(node_id="o1", inputs=[Annotation(label="o1")]),
+        ],
+        edges=[WfEdge(source_node="i1", target_node="o1")],
     )
     request = WorkflowRequest(
         name="my_wf",
         category="pipeline",
         keywords=["wf"],
-        source_code=definition.model_dump_json(),
+        source_code=wf_definition.model_dump_json(),
         docstring="A workflow.",
-        inputs=[Annotation(label="x")],
-        outputs=[Annotation(label="y")],
-        definition=definition,
+        inputs=[Annotation(label="i1")],
+        outputs=[Annotation(label="o1")],
+        wf_definition=wf_definition,
     )
     creator = Creator(name="Dev", email="dev@example.com")
 
@@ -425,7 +428,7 @@ def test_compose_artifact_workflow_sets_expected_fields() -> None:
     assert artifact.creator_name == "Dev"
     assert len(artifact.id) > 0
     expected_hash = hashlib.sha256(
-        definition.model_dump_json(by_alias=False).encode()
+        request.wf_definition.model_dump_json(by_alias=False).encode()
     ).hexdigest()
     assert artifact.hash == expected_hash
 

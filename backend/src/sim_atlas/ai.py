@@ -10,8 +10,6 @@ from sim_atlas.models import (
     FunctionMetadata,
     StoredArtifact,
     WfFunctionNode,
-    WfPackNode,
-    WfUnpackNode,
     WorkflowMetadata,
 )
 from sim_atlas.settings import load_settings
@@ -104,20 +102,20 @@ async def enrich_workflow_metadata(
         in storage are silently skipped (best-effort, ADR-0012).
         """
         lines: list[str] = []
-        for node in v.definition.nodes:
-            if not isinstance(node, (WfFunctionNode, WfPackNode, WfUnpackNode)):
+        for node in v.wf_definition.nodes:
+            if not isinstance(node, (WfFunctionNode)):
                 continue
 
-            if not node.atlas_node_id:
+            if not node.atlas_id:
                 continue
 
             try:
-                artifact = storage.read(node.atlas_node_id)
+                artifact = storage.read(node.atlas_id)
             except KeyError:
                 continue
 
             text = artifact.brief_description if artifact.brief_description else ""
-            lines.append(f"- {node.id}: {text}")
+            lines.append(f"- {node.node_id}: {text}")
         return "\n".join(lines) if lines else "(no constituent nodes resolved)"
 
     settings = load_settings()

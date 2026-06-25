@@ -14,38 +14,11 @@ from griffe import (
     SphinxOptions,
     parse_auto,
 )
-from pydantic import BaseModel
 
-from sim_atlas_toolkit.models import Annotation, ArtifactType
-
-
-class Reference(BaseModel):
-    label: str
-    obj: Any | None = None
-
-
-class Metadata(BaseModel):
-    artifact_type: ArtifactType
-
-    author_name: str = "unknown"
-    author_email: str = "unknown"
-
-    name: str
-    category: str
-
-    python_import: str
-    source_code: str
-
-    keywords: list[str] = []
-
-    docstring: str | None = None
-    brief_description: str | None = None
-    description: str | None = None
-    inputs: list[Annotation]
-    outputs: list[Annotation]
-
-    see_also: list[Reference] = []
-    children: list[Reference] = []
+from sim_atlas_toolkit.models import (
+    Annotation,
+    ArtifactRequest,
+)
 
 
 def type_to_str(tp: Any) -> str:
@@ -87,8 +60,8 @@ _SILENCE: PerStyleOptions = {
 
 def enrich_from_docstring(
     docstring: str,
-    metadata: Metadata,
-) -> Metadata:
+    metadata: ArtifactRequest,
+) -> ArtifactRequest:
     """Fill Annotation.description from a parsed docstring; existing values are not overwritten."""
     if not docstring:
         return metadata

@@ -1,8 +1,8 @@
 import type { Node, Edge } from "@xyflow/react";
-import type { NodeMetadata } from "./interfaces/BackendSchema";
+import type { FunctionMetadata } from "./interfaces/BackendSchema";
 
 export const initialNodes: Node[] = [];
 
 export const initialEdges: Edge[] = [];
 
-export const allNodeMetadata: NodeMetadata[] = [];
+export const allNodeMetadata: FunctionMetadata[] = [];

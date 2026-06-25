@@ -12,7 +12,11 @@ import {
   type HandleType,
   type HandleProps,
 } from "@xyflow/react";
-import type { Annotation, NodeResponse } from "../interfaces/BackendSchema";
+import type {
+  Annotation,
+  FunctionResponse,
+  WorkflowResponse,
+} from "../interfaces/BackendSchema";
 import { useHighlight } from "@/highlight/useHighlight";
 import {
   checkCompatibility,
@@ -77,7 +81,7 @@ const OutputHandle = (props: OutputHandleProps) => {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type NodeData = {
   label: string;
-  metadata: NodeResponse;
+  metadata: FunctionResponse | WorkflowResponse;
 };
 export type FunctionNodeType = Node<NodeData>;
 export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
@@ -103,7 +107,7 @@ export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {
           <div className="flex flex-col min-w-0">
             <BaseNodeHeaderTitle>{data.label}</BaseNodeHeaderTitle>
             <span className="text-xs text-muted-foreground truncate">
-              {data.metadata.python_import}
+              {data.metadata.python_import ?? ""}
             </span>
           </div>
         </div>

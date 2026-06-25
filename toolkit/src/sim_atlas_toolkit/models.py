@@ -30,8 +30,8 @@ class FunctionRequest(BaseModel):
     category: str
     keywords: list[str]
 
-    author_name: str
-    author_email: str
+    author_name: str = "unknown"
+    author_email: str = "unknown"
 
     homepage_url: str | None = None
     documentation_url: str | None = None
@@ -84,6 +84,44 @@ class FunctionResponse(BaseModel):
     see_also: list[Reference] = []
 
 
+class WfInputNode(BaseModel):
+    type: Literal["input"] = "input"
+    node_id: str
+    outputs: list[Annotation]
+
+
+class WfOutputNode(BaseModel):
+    type: Literal["output"] = "output"
+    node_id: str
+    inputs: list[Annotation]
+
+
+class WfFunctionNode(BaseModel):
+    type: Literal["function"] = "function"
+    node_id: str
+    inputs: list[Annotation]
+    outputs: list[Annotation]
+    atlas_id: str | None
+
+
+WfNode = Annotated[
+    WfInputNode | WfOutputNode | WfFunctionNode,
+    Discriminator("type"),
+]
+
+
+class WfEdge(BaseModel):
+    source_node: str
+    source_port: str | None = None
+    target_node: str
+    target_port: str | None = None
+
+
+class WfDefinition(BaseModel):
+    nodes: list[WfNode]
+    edges: list[WfEdge]
+
+
 class WorkflowRequest(BaseModel):
     author_name: str = "unknown"
     author_email: str = "unknown"
@@ -97,9 +135,11 @@ class WorkflowRequest(BaseModel):
     documentation_url: str | None = None
     source_url: str | None = None
 
+    python_import: str | None = None
+    dependencies: list[str] | None = None
+
     source_code: str
     docstring: str | None = None
-
     brief_description: str | None = None
     description: str | None = None
 
@@ -108,6 +148,8 @@ class WorkflowRequest(BaseModel):
 
     see_also: list[Reference] = []
     children: list[Reference] = []
+
+    wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 
 
 class WorkflowResponse(BaseModel):
@@ -128,6 +170,9 @@ class WorkflowResponse(BaseModel):
     documentation_url: str | None = None
     source_url: str | None = None
 
+    python_import: str | None = None
+    dependencies: list[str] | None = None
+
     source_code: str
     docstring: str | None = None
 
@@ -138,6 +183,8 @@ class WorkflowResponse(BaseModel):
 
     see_also: list[Reference] = []
     children: list[Reference] = []
+
+    wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 
 
 ArtifactRequest = Annotated[

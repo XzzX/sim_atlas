@@ -6,13 +6,13 @@ import {
 } from "./interfaces/PythonWorkflowDefinitionSchema";
 import type { Edge } from "@xyflow/react";
 import { simAtlasAPI } from "./services/api";
-import type { NodeType } from "./interfaces/BackendSchema";
+import type { NodeType as ArtifactType } from "./interfaces/BackendSchema";
 
 async function convertToNode(
   n: PythonWorkflowDefinitionNode,
 ): Promise<WorkflowNode | null> {
   if (n.type === "function" || n.type === "pack" || n.type === "unpack") {
-    const nodeTypeFilter: NodeType | undefined = undefined;
+    const nodeTypeFilter: ArtifactType | undefined = undefined;
 
     // Prefer direct lookup by atlas_node_id; fall back to keyword search
     let meta =

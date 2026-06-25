@@ -29,7 +29,7 @@ export function toWorkflowDefinition(
         return {
           id: node.id,
           type: "function",
-          python_import: fn.data.metadata.python_import,
+          python_import: fn.data.metadata.python_import ?? "",
           atlas_node_id: fn.data.metadata.id,
         };
       }

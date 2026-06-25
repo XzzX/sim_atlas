@@ -22,9 +22,7 @@ from sim_atlas_toolkit.models import (
     WorkflowRequest,
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
-from sim_atlas_toolkit.parsers.metadata import (
-    enrich_from_docstring,
-)
+from sim_atlas_toolkit.parsers.metadata import enrich_from_docstring, type_to_str
 
 
 def parse_function_node(obj: Any) -> FunctionRequest | None:
@@ -46,8 +44,14 @@ def parse_function_node(obj: Any) -> FunctionRequest | None:
     metadata.python_import = obj._module_path
     metadata.name = metadata.python_import
     metadata.category = metadata.python_import.replace(".", ">")
-    metadata.inputs = [Annotation(label=inp.label) for inp in obj.inputs]
-    metadata.outputs = [Annotation(label=out.label) for out in obj.outputs]
+    metadata.inputs = [
+        Annotation(label=inp.label, datatype=type_to_str(inp.datatype))
+        for inp in obj.inputs
+    ]
+    metadata.outputs = [
+        Annotation(label=out.label, datatype=type_to_str(out.datatype))
+        for out in obj.outputs
+    ]
 
     match obj.node_type:
         case "function_node":
@@ -105,8 +109,14 @@ def parse_group_node(obj: Any) -> FunctionRequest | None:
     qualname: str = group_node._factory_name
     python_import = f"{module}.{qualname}"
 
-    inputs = [Annotation(label=inp.label) for inp in group_node.inputs]
-    outputs = [Annotation(label=inp.label) for inp in group_node.outputs]
+    inputs = [
+        Annotation(label=inp.label, datatype=type_to_str(inp.datatype))
+        for inp in group_node.inputs
+    ]
+    outputs = [
+        Annotation(label=out.label, datatype=type_to_str(out.datatype))
+        for out in group_node.outputs
+    ]
 
     metadata.name = group_node.label
     metadata.artifact_type = ArtifactType.FUNCTION

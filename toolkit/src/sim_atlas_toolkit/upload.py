@@ -14,7 +14,6 @@ from sim_atlas_toolkit.models import (
     WorkflowRequest,
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
-from sim_atlas_toolkit.parsers import get_metadata
 
 logger = logging.getLogger("SimAtlas")
 
@@ -33,6 +32,10 @@ def upload(
         raise ValueError(
             "Will not automatically upload modules. Use upload_module instead."
         )
+
+    from sim_atlas_toolkit.parsers import (  # noqa: PLC0415
+        get_metadata,  # avoid circular import
+    )
 
     metadata_list: list[ArtifactRequest] = get_metadata(obj, parsers, ns)
 

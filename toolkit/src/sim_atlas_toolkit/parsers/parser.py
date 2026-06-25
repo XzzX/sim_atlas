@@ -5,6 +5,7 @@ from typing import Any
 from sim_atlas_toolkit.models import ArtifactRequest
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("SimAtlas")
 
 _registered_parsers: list[Callable[..., list[ArtifactRequest]]] = []
@@ -12,7 +13,7 @@ _registered_parsers: list[Callable[..., list[ArtifactRequest]]] = []
 
 def register_parser(fn: Callable[..., list[ArtifactRequest]]) -> None:
     _registered_parsers.append(fn)
-    logger.info(f"Registered parser: {fn.__name__}")
+    logger.info(f"Registered parser: {fn.__module__}.{fn.__qualname__}")
 
 
 def get_metadata(

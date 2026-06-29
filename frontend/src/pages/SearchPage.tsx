@@ -13,6 +13,7 @@ import { Alert } from "@/components/ui/alert";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import {
   Card,
+  CardAction,
   CardHeader,
   CardTitle,
   CardDescription,
@@ -71,6 +72,7 @@ const EMPTY_FILTER_OPTIONS: FilterOptions = {
 };
 
 type SearchMode = "normal" | "semantic";
+type UIMode = "simple" | "advanced";
 
 interface SearchCardProps {
   onSearchChange: (
@@ -99,6 +101,9 @@ export const SearchCard: React.FC<SearchCardProps> = ({
   onSearchModeChange,
 }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [uiMode, setUiMode] = useState<UIMode>(
+    (searchParams.get("mode") as UIMode | null) ?? "simple",
+  );
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [category, setCategory] = useState<string>(searchParams.get("c") ?? "");
   const [filters, setFilters] = useState<Filter>({
@@ -114,14 +119,28 @@ export const SearchCard: React.FC<SearchCardProps> = ({
       "both",
   });
 
+  const effectiveCategory = uiMode === "simple" ? "" : category;
+  const effectiveFilters = uiMode === "simple" ? EMPTY_FILTER : filters;
+
   const handleSearch = () => {
-    onSearchChange(query, category, filters, 1);
+    onSearchChange(query, effectiveCategory, effectiveFilters, 1);
   };
 
   useEffect(() => {
     handleSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleModeChange = (newMode: UIMode) => {
+    setUiMode(newMode);
+    setSearchParams(filtersToParams({ q: query, c: category, mode: newMode }, filters));
+    if (newMode === "simple") {
+      onSearchModeChange("normal");
+      onSearchChange(query, "", EMPTY_FILTER, 1);
+    } else {
+      onSearchChange(query, category, filters, 1);
+    }
+  };
 
   return (
     <React.Fragment>
@@ -131,36 +150,59 @@ export const SearchCard: React.FC<SearchCardProps> = ({
           <CardDescription>
             Search and discover nodes and workflows across your projects.
           </CardDescription>
+          <CardAction>
+            <div className="flex items-center gap-0.5 rounded-lg border p-0.5 text-xs">
+              {(["simple", "advanced"] as UIMode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => handleModeChange(m)}
+                  className={`rounded-md px-2 py-1 capitalize transition-colors ${
+                    uiMode === m
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </CardAction>
         </CardHeader>
         <SearchBar
           query={query}
           onQueryChange={(v) => {
             setQuery(v);
-            setSearchParams(filtersToParams({ q: v, c: category }, filters));
-            onSearchChange(v, category, filters);
+            setSearchParams(filtersToParams({ q: v, c: category, mode: uiMode }, filters));
+            onSearchChange(v, effectiveCategory, effectiveFilters);
           }}
           items={suggestions}
           searchMode={searchMode}
           onSearchModeChange={onSearchModeChange}
+          showModeToggle={uiMode === "advanced"}
         />
-        <CategoryFilter
-          category={category}
-          categoryOptions={availableFilterOptions.category}
-          onCategoryChange={(v) => {
-            setCategory(v);
-            setSearchParams(filtersToParams({ q: query, c: v }, filters));
-            onSearchChange(query, v, filters);
-          }}
-        />
-        <FacetedSearch
-          filters={filters}
-          availableFilterOptions={availableFilterOptions}
-          onFilterChange={(v) => {
-            setFilters(v);
-            setSearchParams(filtersToParams({ q: query, c: category }, v));
-            onSearchChange(query, category, v);
-          }}
-        />
+        {uiMode === "advanced" && (
+          <>
+            <CategoryFilter
+              category={category}
+              categoryOptions={availableFilterOptions.category}
+              onCategoryChange={(v) => {
+                setCategory(v);
+                setSearchParams(filtersToParams({ q: query, c: v, mode: uiMode }, filters));
+                onSearchChange(query, v, filters);
+              }}
+            />
+            <FacetedSearch
+              filters={filters}
+              availableFilterOptions={availableFilterOptions}
+              onFilterChange={(v) => {
+                setFilters(v);
+                setSearchParams(filtersToParams({ q: query, c: category, mode: uiMode }, v));
+                onSearchChange(query, category, v);
+              }}
+            />
+          </>
+        )}
       </Card>
       <Card>
         <CardContent className="flex items-center justify-between gap-4">

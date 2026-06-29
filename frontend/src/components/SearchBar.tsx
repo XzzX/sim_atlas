@@ -17,6 +17,7 @@ interface SearchBarProps {
   items: string[];
   searchMode: "normal" | "semantic";
   onSearchModeChange: (mode: "normal" | "semantic") => void;
+  showModeToggle?: boolean;
 }
 
 export default function SearchBar({
@@ -25,37 +26,40 @@ export default function SearchBar({
   items,
   searchMode,
   onSearchModeChange,
+  showModeToggle = true,
 }: SearchBarProps) {
   return (
     <CardContent className="border-b pb-4">
       <div className="mb-2 flex items-center justify-between">
         <Label>Query</Label>
-        <div className="flex items-center gap-0.5 rounded-lg border p-0.5 text-xs">
-          <button
-            type="button"
-            onClick={() => onSearchModeChange("normal")}
-            className={`flex items-center gap-1 rounded-md px-2 py-1 transition-colors ${
-              searchMode === "normal"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <SearchIcon className="size-3" />
-            Normal
-          </button>
-          <button
-            type="button"
-            onClick={() => onSearchModeChange("semantic")}
-            className={`flex items-center gap-1 rounded-md px-2 py-1 transition-colors ${
-              searchMode === "semantic"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <BotIcon className="size-3" />
-            AI Semantic
-          </button>
-        </div>
+        {showModeToggle && (
+          <div className="flex items-center gap-0.5 rounded-lg border p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => onSearchModeChange("normal")}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 transition-colors ${
+                searchMode === "normal"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <SearchIcon className="size-3" />
+              Normal
+            </button>
+            <button
+              type="button"
+              onClick={() => onSearchModeChange("semantic")}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 transition-colors ${
+                searchMode === "semantic"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <BotIcon className="size-3" />
+              AI Semantic
+            </button>
+          </div>
+        )}
       </div>
       <Autocomplete
         value={query}

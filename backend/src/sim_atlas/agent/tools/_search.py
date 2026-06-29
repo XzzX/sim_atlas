@@ -231,7 +231,7 @@ async def execute_get_node_details(
     _scratch: Any,
 ) -> str:
     try:
-        node = storage.read(args.atlas_node_id)
+        node = storage.read_artifact(args.atlas_node_id)
     except KeyError as exc:
         raise ToolError(f"Node '{args.atlas_node_id}' not found.") from exc
     if not isinstance(node, FunctionMetadata):

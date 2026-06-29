@@ -98,7 +98,7 @@ def make_workflow_request_body(**kwargs: Any) -> dict[str, Any]:
 
 @pytest.fixture
 def storage() -> FileSystemStorage:
-    return FileSystemStorage(filename=None)
+    return FileSystemStorage(path=None)
 
 
 @pytest.fixture

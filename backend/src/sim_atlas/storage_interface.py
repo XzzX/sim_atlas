@@ -45,7 +45,9 @@ class ExecutionResultDuplicateError(Exception):
 
 class StorageInterface(ABC):
     @abstractmethod
-    def create(self, value: StoredArtifact, check_source_hash: bool = True) -> str:
+    def create_artifact(
+        self, value: StoredArtifact, check_source_hash: bool = True
+    ) -> str:
         """Store a new artifact.
 
         Returns
@@ -65,17 +67,17 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def read(self, id: str) -> StoredArtifact:
+    def read_artifact(self, id: str) -> StoredArtifact:
         """Return the artifact for *id*. Raises KeyError if not found."""
         pass
 
     @abstractmethod
-    def update(self, id: str, value: StoredArtifact) -> StoredArtifact:
+    def update_artifact(self, id: str, value: StoredArtifact) -> StoredArtifact:
         """Replace an existing artifact. Raises KeyError if not found."""
         pass
 
     @abstractmethod
-    def delete(self, id: str) -> None:
+    def delete_artifact(self, id: str) -> None:
         """Remove the node for *id*. Raises KeyError if not found."""
         pass
 
@@ -180,6 +182,4 @@ def get_storage_backend() -> StorageInterface:
     from sim_atlas.file_system_storage import FileSystemStorage  # noqa: PLC0415
     from sim_atlas.settings import load_settings  # noqa: PLC0415
 
-    return FileSystemStorage(
-        filename=str(load_settings().config_dir / "filesystem.json")
-    )
+    return FileSystemStorage(path=load_settings().config_dir)

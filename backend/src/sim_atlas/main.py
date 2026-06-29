@@ -168,7 +168,7 @@ async def create_artifact(
     artifact = compose_artifact(request, creator)
 
     try:
-        return {"id": storage.create(artifact)}
+        return {"id": storage.create_artifact(artifact)}
     except ArtifactAlreadyExistsError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -190,7 +190,7 @@ async def read_artifact(
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> ArtifactResponse:
     try:
-        return storage.read(artifact_id)
+        return storage.read_artifact(artifact_id)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -208,7 +208,7 @@ async def update_artifact(
     artifact = compose_artifact(request, creator)
 
     try:
-        result = storage.update(artifact_id, artifact)
+        result = storage.update_artifact(artifact_id, artifact)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -225,7 +225,7 @@ async def delete_artifact(
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ):
     try:
-        storage.delete(artifact_id)
+        storage.delete_artifact(artifact_id)
         return {"detail": "Artifact deleted"}
     except KeyError as e:
         raise HTTPException(

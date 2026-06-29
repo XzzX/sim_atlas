@@ -6,6 +6,7 @@ import logging
 import os
 from functools import reduce
 from math import ceil
+from pathlib import Path
 
 import numpy as np
 from pydantic import BaseModel
@@ -131,26 +132,32 @@ class NodeFilter:
 class FileSystemStorage(StorageInterface):
     """File-system-backed storage implementation for node metadata"""
 
-    def __init__(self, filename: str | None = "filesystem.json") -> None:
-        self._storage: dict[str, StoredArtifact] = {}
+    ARTIFACTS_FILENAME = "artifacts.json"
+    EXECUTION_RESULTS_FILENAME = "execution_results.json"
+
+    def __init__(self, path: Path | None = None) -> None:
+        self._artifacts: dict[str, StoredArtifact] = {}
         self._execution_results: dict[str, ExecutionResultMetadata] = {}
-        self._filename = filename
+        self._path = path
         self._connected = False
 
-        if self._filename is not None and os.path.exists(self._filename):
+        if self._path is not None and os.path.exists(
+            self._path / self.ARTIFACTS_FILENAME
+        ):
             try:
-                with open(self._filename) as f:
+                with open(self._path / self.ARTIFACTS_FILENAME) as f:
                     data = json.load(f)
-                    self._storage = {
+                    self._artifacts = {
                         k: _deserialize_artifact(v) for k, v in data.items()
                     }
             except Exception:
                 pass  # If loading fails, start with empty storage
 
-        er_filename = self._execution_results_filename()
-        if er_filename is not None and os.path.exists(er_filename):
+        if self._path is not None and os.path.exists(
+            self._path / self.EXECUTION_RESULTS_FILENAME
+        ):
             try:
-                with open(er_filename) as f:
+                with open(self._path / self.EXECUTION_RESULTS_FILENAME) as f:
                     data = json.load(f)
                     self._execution_results = {
                         k: ExecutionResultMetadata.model_validate(v)
@@ -159,30 +166,22 @@ class FileSystemStorage(StorageInterface):
             except Exception:
                 pass
 
-        print(f"FileSystemStorage initialized with {len(self._storage)} items.")
+        print(f"FileSystemStorage initialized with {len(self._artifacts)} items.")
         self._connected = True
 
-    def _execution_results_filename(self) -> str | None:
-        if self._filename is None:
-            return None
-        return os.path.join(os.path.dirname(self._filename), "execution_results.json")
-
-    def _save_to_disk(self) -> None:
-        """Save the current storage state to disk"""
-
-        if self._filename is not None:
-            with open(self._filename, "w") as f:
+    def _save_artifacts_to_disk(self) -> None:
+        if self._path is not None:
+            with open(self._path / self.ARTIFACTS_FILENAME, "w") as f:
                 json.dump(
-                    {k: v.model_dump() for k, v in self._storage.items()},
+                    {k: v.model_dump() for k, v in self._artifacts.items()},
                     f,
                     indent=2,
                     default=str,
                 )
 
     def _save_execution_results_to_disk(self) -> None:
-        er_filename = self._execution_results_filename()
-        if er_filename is not None:
-            with open(er_filename, "w") as f:
+        if self._path is not None:
+            with open(self._path / self.EXECUTION_RESULTS_FILENAME, "w") as f:
                 json.dump(
                     {k: v.model_dump() for k, v in self._execution_results.items()},
                     f,
@@ -190,41 +189,43 @@ class FileSystemStorage(StorageInterface):
                     default=str,
                 )
 
-    def create(self, value: StoredArtifact, check_source_hash: bool = True) -> str:
+    def create_artifact(
+        self, value: StoredArtifact, check_source_hash: bool = True
+    ) -> str:
         id = value.id
-        if id in self._storage:
+        if id in self._artifacts:
             raise ArtifactAlreadyExistsError(id)
         if check_source_hash and value.hash:
-            for node in self._storage.values():
+            for node in self._artifacts.values():
                 if node.hash == value.hash:
                     raise ArtifactDuplicateError(node.id)
-        self._storage[id] = value
-        self._save_to_disk()
+        self._artifacts[id] = value
+        self._save_artifacts_to_disk()
         return id
 
-    def read(self, id: str) -> StoredArtifact:
-        if id not in self._storage:
+    def read_artifact(self, id: str) -> StoredArtifact:
+        if id not in self._artifacts:
             raise KeyError(id)
-        return self._storage[id]
+        return self._artifacts[id]
 
-    def update(self, id: str, value: StoredArtifact) -> StoredArtifact:
-        if id not in self._storage:
+    def update_artifact(self, id: str, value: StoredArtifact) -> StoredArtifact:
+        if id not in self._artifacts:
             raise KeyError(id)
-        self._storage[id] = value
-        self._save_to_disk()
+        self._artifacts[id] = value
+        self._save_artifacts_to_disk()
         return value
 
-    def delete(self, id: str) -> None:
-        if id not in self._storage:
+    def delete_artifact(self, id: str) -> None:
+        if id not in self._artifacts:
             raise KeyError(id)
-        del self._storage[id]
-        self._save_to_disk()
+        del self._artifacts[id]
+        self._save_artifacts_to_disk()
 
     def exists(self, id: str) -> bool:
-        return id in self._storage
+        return id in self._artifacts
 
     def count(self) -> int:
-        return len(self._storage)
+        return len(self._artifacts)
 
     def get_filter_options(self) -> FilterOptions:
         # mutable defaults are ok here...
@@ -287,7 +288,7 @@ class FileSystemStorage(StorageInterface):
 
         filter_options_set = reduce(
             merge_filter_options,
-            (extract_filter_options(node) for node in self._storage.values()),
+            (extract_filter_options(node) for node in self._artifacts.values()),
             FilterOptionsSet(),
         )
 
@@ -327,7 +328,7 @@ class FileSystemStorage(StorageInterface):
 
         return [
             ScoredSearchItem(score=1.0, node=item)
-            for item in self._storage.values()
+            for item in self._artifacts.values()
             if item_filter(item)
         ]
 
@@ -339,7 +340,9 @@ class FileSystemStorage(StorageInterface):
         limit: int = 10,
     ) -> ScoredSearchResponse:
         item_filter: NodeFilter = NodeFilter(filter or Filter())
-        filtered_items = (item for item in self._storage.values() if item_filter(item))
+        filtered_items = (
+            item for item in self._artifacts.values() if item_filter(item)
+        )
 
         def score_item(query: str, item: StoredArtifact) -> float:
             search_field = item.name.lower()
@@ -379,7 +382,7 @@ class FileSystemStorage(StorageInterface):
                 case FunctionMetadata():
                     return [
                         Reference(label=n.name, id=n.id)
-                        for n in self._storage.values()
+                        for n in self._artifacts.values()
                         if isinstance(n, WorkflowMetadata)
                         and any(c.id == artifact.id for c in n.children)
                     ] or None
@@ -413,7 +416,7 @@ class FileSystemStorage(StorageInterface):
 
         # Calculate similarities
         similarities: list[ScoredSearchItem] = []
-        for _node_hash, node in self._storage.items():
+        for _node_hash, node in self._artifacts.items():
             if node.embedding is not None and item_filter(node):
                 similarity = cosine_similarity(query_embedding, node.embedding)
                 similarities.append(
@@ -446,7 +449,7 @@ class FileSystemStorage(StorageInterface):
             return await self.search_semantic(query, filter, page=page, limit=limit)
 
         item_filter = NodeFilter(filter or Filter())
-        filtered_nodes = [n for n in self._storage.values() if item_filter(n)]
+        filtered_nodes = [n for n in self._artifacts.values() if item_filter(n)]
 
         # --- semantic rank (only nodes with embeddings) ---
         query_embedding = (await create_embedding([query], input_type="query"))[0]
@@ -551,9 +554,9 @@ class FileSystemStorage(StorageInterface):
     async def enrich(self, only_ids: list[str] | None = None) -> None:
         sem = asyncio.Semaphore(load_settings().llm_concurrency)
         nodes_to_enrich = (
-            [node for node in self._storage.values() if node.id in only_ids]
+            [node for node in self._artifacts.values() if node.id in only_ids]
             if only_ids
-            else [node for node in self._storage.values() if node.embedding is None]
+            else [node for node in self._artifacts.values() if node.embedding is None]
         )
 
         async def _enrich_one(v: StoredArtifact) -> None:
@@ -568,7 +571,7 @@ class FileSystemStorage(StorageInterface):
             desc="generating ai descriptions",
             total=len(nodes_to_enrich),
         )
-        self._save_to_disk()
+        self._save_artifacts_to_disk()
 
         nodes_to_embed = [node for node in nodes_to_enrich if node.description]
         documents = [self._embedding_text(node) for node in nodes_to_embed]
@@ -578,4 +581,4 @@ class FileSystemStorage(StorageInterface):
         for emb, item in zip(embeddings, nodes_to_embed, strict=True):
             item.embedding = emb
 
-        self._save_to_disk()
+        self._save_artifacts_to_disk()

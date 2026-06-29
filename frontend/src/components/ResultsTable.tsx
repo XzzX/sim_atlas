@@ -26,9 +26,9 @@ function PortList({ ports, dotClass }: { ports: Annotation[]; dotClass: string }
       {visible.map((p, i) => (
         <li key={i} className="flex flex-wrap items-center gap-1.5">
           <span className={`size-2.5 shrink-0 rounded-full ${dotClass}`} />
-          {p.label && <code className="text-xs">{p.label}</code>}
+          {p.label && <code className="min-w-0 truncate text-xs">{p.label}</code>}
           {p.datatype && (
-            <span className="text-xs text-muted-foreground">{p.datatype}</span>
+            <span className="min-w-0 truncate text-xs text-muted-foreground">{p.datatype}</span>
           )}
         </li>
       ))}
@@ -140,13 +140,13 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                   ?? null;
                 return (
                   <tr key={node.id} className="border-b last:border-b-0 hover:bg-muted/30">
-                    <td className="px-4 py-3 align-top">
+                    <td className="overflow-hidden px-4 py-3 align-top">
                       <div className="flex gap-2">
                         <span className={`self-stretch w-1 shrink-0 rounded-full ${barColor}`} />
                         <div className="min-w-0">
                           <Link
                             to={`/node/${node.id}`}
-                            className="truncate font-medium hover:underline"
+                            className="block truncate font-medium hover:underline"
                             title={node.name}
                           >
                             {node.name}
@@ -166,10 +166,10 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 align-top">
+                    <td className="overflow-hidden px-4 py-3 align-top">
                       <PortList ports={node.inputs} dotClass="bg-blue-500" />
                     </td>
-                    <td className="px-4 py-3 align-top">
+                    <td className="overflow-hidden px-4 py-3 align-top">
                       <PortList ports={node.outputs} dotClass="bg-green-500" />
                     </td>
                   </tr>

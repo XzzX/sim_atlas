@@ -1,7 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { UserIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import type { ScoredSearchItem, Annotation } from "../types/index";
 
@@ -15,17 +14,35 @@ const TYPE_LABEL: Record<string, string> = {
   workflow: "Workflow",
 };
 
+const VISIBLE_COUNT = 4;
+
 function PortList({ ports, dotClass }: { ports: Annotation[]; dotClass: string }) {
+  const [expanded, setExpanded] = useState(false);
   if (ports.length === 0) return <span className="text-muted-foreground">—</span>;
+  const visible = expanded ? ports : ports.slice(0, VISIBLE_COUNT);
+  const hidden = ports.length - VISIBLE_COUNT;
   return (
     <ul className="space-y-1">
-      {ports.map((p, i) => (
+      {visible.map((p, i) => (
         <li key={i} className="flex flex-wrap items-center gap-1.5">
           <span className={`size-2.5 shrink-0 rounded-full ${dotClass}`} />
           {p.label && <code className="text-xs">{p.label}</code>}
-          {p.datatype && <Badge variant="outline">{p.datatype}</Badge>}
+          {p.datatype && (
+            <span className="text-xs text-muted-foreground">{p.datatype}</span>
+          )}
         </li>
       ))}
+      {!expanded && hidden > 0 && (
+        <li>
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            onClick={() => setExpanded(true)}
+          >
+            +{hidden} more
+          </button>
+        </li>
+      )}
     </ul>
   );
 }
@@ -102,7 +119,12 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
   return (
     <div className={embedded ? "min-h-[400px]" : "min-h-[400px] rounded-xl border bg-card"}>
       <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
+            <colgroup>
+              <col style={{ width: "40%" }} />
+              <col style={{ width: "35%" }} />
+              <col style={{ width: "25%" }} />
+            </colgroup>
             <thead>
               <tr className="border-b text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-2">Node</th>

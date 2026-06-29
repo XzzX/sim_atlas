@@ -98,7 +98,7 @@ def make_workflow_request_body(**kwargs: Any) -> dict[str, Any]:
 
 @pytest.fixture
 def storage() -> FileSystemStorage:
-    return FileSystemStorage(filename=None)
+    return FileSystemStorage(path=None)
 
 
 @pytest.fixture
@@ -440,3 +440,171 @@ def test_compose_artifact_invalid_type_raises_400() -> None:
     with pytest.raises(HTTPException) as exc_info:
         compose_artifact(_BadRequest(), TEST_CREATOR)  # type: ignore[arg-type]
     assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# ---------------------------------------------------------------------------
+# Execution Results — request body factory
+# ---------------------------------------------------------------------------
+
+
+def make_execution_result_request_body(**kwargs: Any) -> dict[str, Any]:
+    """Return a JSON-serialisable dict for an ExecutionResultRequest with sensible defaults."""
+    defaults: dict[str, Any] = {
+        "author_name": "Alice",
+        "author_email": "alice@example.com",
+        "artifact_id": "some-artifact-id",
+        "inputs": [{"label": "a", "value": 1}, {"label": "b", "value": 2}],
+        "outputs": "3",
+    }
+    defaults.update(kwargs)
+    return defaults
+
+
+# ---------------------------------------------------------------------------
+# Execution Results CRUD — create
+# ---------------------------------------------------------------------------
+
+
+def test_create_execution_result_returns_201(client: ApiClient) -> None:
+    response = client.post(
+        "/api/v1/execution_results", json=make_execution_result_request_body()
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    result_id = response.json()["id"]
+    assert isinstance(result_id, str)
+    assert len(result_id) > 0
+
+
+def test_create_duplicate_execution_result_returns_409(client: ApiClient) -> None:
+    body = make_execution_result_request_body()
+    client.post("/api/v1/execution_results", json=body)
+    response = client.post("/api/v1/execution_results", json=body)
+    assert response.status_code == status.HTTP_409_CONFLICT
+
+
+def test_create_execution_result_unauthenticated_returns_401(
+    unauthed_client: ApiClient,
+) -> None:
+    response = unauthed_client.post(
+        "/api/v1/execution_results", json=make_execution_result_request_body()
+    )
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# ---------------------------------------------------------------------------
+# Execution Results CRUD — read
+# ---------------------------------------------------------------------------
+
+
+def test_read_execution_result_returns_200(client: ApiClient) -> None:
+    result_id = client.post(
+        "/api/v1/execution_results", json=make_execution_result_request_body()
+    ).json()["id"]
+    response = client.get(f"/api/v1/execution_results/{result_id}")
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    assert body["artifact_id"] == "some-artifact-id"
+    assert body["creator_name"] == TEST_CREATOR.name
+
+
+def test_read_execution_result_not_found_returns_404(client: ApiClient) -> None:
+    response = client.get("/api/v1/execution_results/does-not-exist")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ---------------------------------------------------------------------------
+# Execution Results CRUD — update
+# ---------------------------------------------------------------------------
+
+
+def test_update_execution_result_returns_updated_data(client: ApiClient) -> None:
+    result_id = client.post(
+        "/api/v1/execution_results", json=make_execution_result_request_body()
+    ).json()["id"]
+    updated_body = make_execution_result_request_body(outputs="99")
+    response = client.put(f"/api/v1/execution_results/{result_id}", json=updated_body)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["outputs"] == "99"
+
+
+def test_update_execution_result_not_found_returns_404(client: ApiClient) -> None:
+    response = client.put(
+        "/api/v1/execution_results/does-not-exist",
+        json=make_execution_result_request_body(),
+    )
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def test_update_execution_result_unauthenticated_returns_401(
+    unauthed_client: ApiClient,
+) -> None:
+    response = unauthed_client.put(
+        "/api/v1/execution_results/some-id",
+        json=make_execution_result_request_body(),
+    )
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# ---------------------------------------------------------------------------
+# Execution Results CRUD — delete
+# ---------------------------------------------------------------------------
+
+
+def test_delete_execution_result_returns_200_and_removes_result(
+    client: ApiClient,
+) -> None:
+    result_id = client.post(
+        "/api/v1/execution_results", json=make_execution_result_request_body()
+    ).json()["id"]
+    response = client.delete(f"/api/v1/execution_results/{result_id}")
+    assert response.status_code == status.HTTP_200_OK
+    assert "deleted" in response.json()["detail"].lower()
+    assert (
+        client.get(f"/api/v1/execution_results/{result_id}").status_code
+        == status.HTTP_404_NOT_FOUND
+    )
+
+
+def test_delete_execution_result_not_found_returns_404(client: ApiClient) -> None:
+    response = client.delete("/api/v1/execution_results/does-not-exist")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def test_delete_execution_result_unauthenticated_returns_401(
+    unauthed_client: ApiClient,
+) -> None:
+    response = unauthed_client.delete("/api/v1/execution_results/some-id")
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# ---------------------------------------------------------------------------
+# Execution Results — list by artifact
+# ---------------------------------------------------------------------------
+
+
+def test_list_execution_results_by_artifact_returns_matching_results(
+    client: ApiClient,
+) -> None:
+    client.post(
+        "/api/v1/execution_results",
+        json=make_execution_result_request_body(artifact_id="artifact-a"),
+    )
+    client.post(
+        "/api/v1/execution_results",
+        json=make_execution_result_request_body(
+            artifact_id="artifact-b", inputs=[{"label": "x", "value": 5}]
+        ),
+    )
+    response = client.get("/api/v1/artifacts/artifact-a/execution_results")
+    assert response.status_code == status.HTTP_200_OK
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["artifact_id"] == "artifact-a"
+
+
+def test_list_execution_results_by_artifact_returns_empty_for_unknown(
+    client: ApiClient,
+) -> None:
+    response = client.get("/api/v1/artifacts/unknown-artifact/execution_results")
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == []

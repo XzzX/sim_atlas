@@ -140,7 +140,7 @@ async def execute_add_function_node(
 ) -> str:
     if not storage.exists(args.atlas_node_id):
         raise ToolError(f"Node '{args.atlas_node_id}' not found in catalog.")
-    node = storage.read(args.atlas_node_id)
+    node = storage.read_artifact(args.atlas_node_id)
     if not isinstance(node, FunctionMetadata):
         raise ToolError(f"Node '{args.atlas_node_id}' is not a function node.")
     graph_id = scratch.new_graph_id(args.label)

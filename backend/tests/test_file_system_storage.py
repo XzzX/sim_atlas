@@ -14,5 +14,5 @@ class TestFileSystemStorage(StorageContractTests):
 
     @pytest.fixture
     def storage(self) -> FileSystemStorage:
-        s = FileSystemStorage(filename=None)
+        s = FileSystemStorage(path=None)
         return s

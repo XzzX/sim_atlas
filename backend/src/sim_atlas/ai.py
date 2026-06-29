@@ -110,7 +110,7 @@ async def enrich_workflow_metadata(
                 continue
 
             try:
-                artifact = storage.read(node.atlas_id)
+                artifact = storage.read_artifact(node.atlas_id)
             except KeyError:
                 continue
 

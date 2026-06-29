@@ -25,6 +25,9 @@ from sim_atlas.models import (
     AgentRequest,
     ArtifactRequest,
     ArtifactResponse,
+    ExecutionResultMetadata,
+    ExecutionResultRequest,
+    ExecutionResultResponse,
     Filter,
     FilterOptions,
     FunctionMetadata,
@@ -39,6 +42,8 @@ from sim_atlas.settings import load_settings
 from sim_atlas.storage_interface import (
     ArtifactAlreadyExistsError,
     ArtifactDuplicateError,
+    ExecutionResultAlreadyExistsError,
+    ExecutionResultDuplicateError,
     StorageInterface,
     get_storage_backend,
 )
@@ -163,7 +168,7 @@ async def create_artifact(
     artifact = compose_artifact(request, creator)
 
     try:
-        return {"id": storage.create(artifact)}
+        return {"id": storage.create_artifact(artifact)}
     except ArtifactAlreadyExistsError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -185,7 +190,7 @@ async def read_artifact(
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> ArtifactResponse:
     try:
-        return storage.read(artifact_id)
+        return storage.read_artifact(artifact_id)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -203,7 +208,7 @@ async def update_artifact(
     artifact = compose_artifact(request, creator)
 
     try:
-        result = storage.update(artifact_id, artifact)
+        result = storage.update_artifact(artifact_id, artifact)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -220,13 +225,133 @@ async def delete_artifact(
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ):
     try:
-        storage.delete(artifact_id)
+        storage.delete_artifact(artifact_id)
         return {"detail": "Artifact deleted"}
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"id": e.args[0], "message": "Artifact not found"},
         ) from e
+
+
+def compose_execution_result(
+    request: ExecutionResultRequest, creator: Creator
+) -> ExecutionResultMetadata:
+    hash_input = (
+        request.artifact_id
+        + "".join(f"{v.label}={v.value}" for v in request.inputs)
+        + request.outputs
+    )
+    return ExecutionResultMetadata(
+        id=str(uuid.uuid4()),
+        author_name=request.author_name,
+        author_email=request.author_email,
+        creator_name=creator.name,
+        creator_email=creator.email,
+        creation_timestamp=dt.datetime.now(dt.UTC).isoformat(),
+        artifact_id=request.artifact_id,
+        inputs=request.inputs,
+        outputs=request.outputs,
+        hash=hashlib.sha256(hash_input.encode()).hexdigest(),
+    )
+
+
+@api_router.post(
+    "/execution_results",
+    tags=["execution_results"],
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_execution_result(
+    request: ExecutionResultRequest,
+    creator: Annotated[Creator, Depends(get_current_user)],
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+) -> dict[str, str]:
+    result = compose_execution_result(request, creator)
+    try:
+        return {"id": storage.create_execution_result(result)}
+    except ExecutionResultAlreadyExistsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "id": e.id,
+                "message": "Execution result with the same id already exists.",
+            },
+        ) from e
+    except ExecutionResultDuplicateError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "id": e.id,
+                "message": "Execution result with the same hash already exists.",
+            },
+        ) from e
+
+
+@api_router.get(
+    "/execution_results/{result_id}",
+    tags=["execution_results"],
+)
+async def read_execution_result(
+    result_id: str,
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+) -> ExecutionResultResponse:
+    try:
+        return storage.read_execution_result(result_id)
+    except KeyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"id": e.args[0], "message": "Execution result not found"},
+        ) from e
+
+
+@api_router.put(
+    "/execution_results/{result_id}",
+    tags=["execution_results"],
+)
+async def update_execution_result(
+    result_id: str,
+    request: ExecutionResultRequest,
+    creator: Annotated[Creator, Depends(get_current_user)],
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+) -> ExecutionResultResponse:
+    result = compose_execution_result(request, creator)
+    try:
+        return storage.update_execution_result(result_id, result)
+    except KeyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"id": e.args[0], "message": "Execution result not found"},
+        ) from e
+
+
+@api_router.delete(
+    "/execution_results/{result_id}",
+    tags=["execution_results"],
+)
+async def delete_execution_result(
+    result_id: str,
+    creator: Annotated[Creator, Depends(get_current_user)],
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+) -> dict[str, str]:
+    try:
+        storage.delete_execution_result(result_id)
+        return {"detail": "Execution result deleted"}
+    except KeyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"id": e.args[0], "message": "Execution result not found"},
+        ) from e
+
+
+@api_router.get(
+    "/artifacts/{artifact_id}/execution_results",
+    tags=["execution_results"],
+)
+async def list_execution_results_by_artifact(
+    artifact_id: str,
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+) -> list[ExecutionResultMetadata]:
+    return storage.read_execution_results_by_artifact(artifact_id)
 
 
 @api_router.get("/filter_options", response_model=FilterOptions, tags=["search"])

@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { SearchPage } from "./pages/SearchPage";
+import { NodePage } from "./pages/NodePage";
 import { useState } from "react";
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
             />
           }
         />
+        <Route path="/node/:id" element={<NodePage />} />
       </Routes>
     </Router>
   );

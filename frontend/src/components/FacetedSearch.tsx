@@ -1,6 +1,5 @@
 import React from "react";
 import type { FilterOptions, Filter } from "../types/index";
-import { CardContent } from "@/components/ui/card";
 import {
   Combobox,
   ComboboxChips,
@@ -13,14 +12,11 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@/components/ui/combobox";
-import { Label } from "./ui/label";
-import { Button } from "./ui/button";
-import { ArrowDownToLine, ArrowUpDown, ArrowUpFromLine } from "lucide-react";
 
 const PORT_OPTIONS = [
-  { value: null, Icon: ArrowUpDown, label: "Both" },
-  { value: "inputs" as const, Icon: ArrowDownToLine, label: "Inputs" },
-  { value: "outputs" as const, Icon: ArrowUpFromLine, label: "Outputs" },
+  { value: null, label: "Both" },
+  { value: "inputs" as const, label: "In" },
+  { value: "outputs" as const, label: "Out" },
 ];
 
 interface FacetedSearchProps {
@@ -29,179 +25,199 @@ interface FacetedSearchProps {
   onFilterChange: (filters: Filter) => void;
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+function FacetCombobox({
+  values,
+  selected,
+  onValueChange,
+}: {
+  label?: string;
+  values: string[];
+  selected: string[];
+  onValueChange: (values: string[]) => void;
+}) {
+  const anchor = useComboboxAnchor();
+  return (
+    <Combobox multiple autoHighlight items={values} value={selected} onValueChange={onValueChange}>
+      <ComboboxChips ref={anchor} className="w-full">
+        <ComboboxValue>
+          {(selectedValues: string[]) => (
+            <React.Fragment>
+              {selectedValues.map((v: string) => (
+                <ComboboxChip key={v}>{v}</ComboboxChip>
+              ))}
+              <ComboboxChipsInput placeholder={selected.length === 0 ? "any" : ""} />
+            </React.Fragment>
+          )}
+        </ComboboxValue>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor}>
+        <ComboboxEmpty>No options</ComboboxEmpty>
+        <ComboboxList>
+          {(item: string) => (
+            <ComboboxItem key={item} value={item}>
+              {item}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
 export const FacetedSearch: React.FC<FacetedSearchProps> = ({
   filters,
   availableFilterOptions,
   onFilterChange,
 }) => {
+  const selectedTypes = (filters.artifact_type ?? []).map(String);
+
+  const toggleType = (val: string) => {
+    const updated = selectedTypes.includes(val)
+      ? selectedTypes.filter((t) => t !== val)
+      : [...selectedTypes, val];
+    onFilterChange({ ...filters, artifact_type: updated });
+  };
+
+  const typeBtn = (label: string, active: boolean, onClick: () => void) => (
+    <button
+      key={label}
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-md border px-3 py-1.5 text-left text-sm capitalize transition-colors ${
+        active
+          ? "border-foreground font-medium"
+          : "border-border text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <CardContent className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Label>Facet Filters</Label>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() =>
-            onFilterChange({ ...filters, artifact_type: [],
-              author: [],
-              keywords: [],
-              datatypes: [],
-              units: [],
-              quantities: [],
-              port_type: null,
-            })
-          }
-        >
-          Clear all
-        </Button>
+    <div className="space-y-5 px-4 py-3">
+      {/* Node Type */}
+      <div className="space-y-1.5">
+        <SectionLabel>Node Type</SectionLabel>
+        <div className="space-y-1">
+          {typeBtn("All", selectedTypes.length === 0, () =>
+            onFilterChange({ ...filters, artifact_type: [] }),
+          )}
+          {availableFilterOptions.artifact_type.map((t) => {
+            const val = String(t);
+            return typeBtn(val, selectedTypes.includes(val), () => toggleType(val));
+          })}
+        </div>
       </div>
 
-      {/* General filters */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <FacetPopover
-          label="Node Type"
-          values={availableFilterOptions.artifact_type.map((t) => String(t))}
-          selected={(filters.artifact_type ?? []).map((value) => String(value))}
-          onValueChange={(values) =>
-            onFilterChange({ ...filters, artifact_type: values })
-          }
-        />
-        <FacetPopover
+      {/* Author */}
+      <div className="space-y-1.5">
+        <SectionLabel>Author</SectionLabel>
+        <FacetCombobox
           label="Author"
           values={availableFilterOptions.author}
           selected={filters.author ?? []}
-          onValueChange={(values) =>
-            onFilterChange({ ...filters, author: values })
-          }
+          onValueChange={(v) => onFilterChange({ ...filters, author: v })}
         />
-        <FacetPopover
+      </div>
+
+      {/* Keywords */}
+      <div className="space-y-1.5">
+        <SectionLabel>Keywords</SectionLabel>
+        <FacetCombobox
           label="Keywords"
           values={availableFilterOptions.keywords ?? []}
           selected={filters.keywords ?? []}
-          onValueChange={(values) =>
-            onFilterChange({ ...filters, keywords: values })
-          }
+          onValueChange={(v) => onFilterChange({ ...filters, keywords: v })}
         />
       </div>
 
-      {/* Annotation filters — port direction scopes all three */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Annotations
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Direction
-            </p>
-            <div className="flex overflow-hidden rounded border text-xs h-[34px]">
-              {PORT_OPTIONS.map(({ value, Icon, label }, i) => {
-                const active = (filters.port_type ?? null) === value;
-                return (
-                  <button
-                    key={label}
-                    type="button"
-                    title={label}
-                    onClick={() =>
-                      onFilterChange({ ...filters, port_type: value })
-                    }
-                    className={[
-                      "flex flex-1 items-center justify-center gap-1 px-2 py-1 transition-colors",
-                      i > 0 ? "border-l" : "",
-                      active
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted",
-                    ].join(" ")}
-                  >
-                    <Icon className="size-3" />
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
+      {/* Annotations */}
+      <div className="space-y-3">
+        <SectionLabel>Annotations</SectionLabel>
+
+        <div className="space-y-1.5">
+          <SectionLabel>Direction</SectionLabel>
+          <div className="flex overflow-hidden rounded-md border text-xs">
+            {PORT_OPTIONS.map(({ value, label }, i) => {
+              const active = (filters.port_type ?? null) === value;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => onFilterChange({ ...filters, port_type: value })}
+                  className={[
+                    "flex flex-1 items-center justify-center py-1.5 transition-colors",
+                    i > 0 ? "border-l" : "",
+                    active
+                      ? "bg-primary text-primary-foreground font-medium"
+                      : "text-muted-foreground hover:bg-muted",
+                  ].join(" ")}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
-          <FacetPopover
+        </div>
+
+        <div className="space-y-1.5">
+          <SectionLabel>Datatype</SectionLabel>
+          <FacetCombobox
             label="Datatype"
             values={availableFilterOptions.datatypes ?? []}
             selected={filters.datatypes ?? []}
-            onValueChange={(values) =>
-              onFilterChange({ ...filters, datatypes: values })
-            }
+            onValueChange={(v) => onFilterChange({ ...filters, datatypes: v })}
           />
-          <FacetPopover
+        </div>
+
+        <div className="space-y-1.5">
+          <SectionLabel>Unit</SectionLabel>
+          <FacetCombobox
             label="Unit"
             values={availableFilterOptions.units ?? []}
             selected={filters.units ?? []}
-            onValueChange={(values) =>
-              onFilterChange({ ...filters, units: values })
-            }
+            onValueChange={(v) => onFilterChange({ ...filters, units: v })}
           />
-          <FacetPopover
+        </div>
+
+        <div className="space-y-1.5">
+          <SectionLabel>Quantity</SectionLabel>
+          <FacetCombobox
             label="Quantity"
             values={availableFilterOptions.quantities ?? []}
             selected={filters.quantities ?? []}
-            onValueChange={(values) =>
-              onFilterChange({ ...filters, quantities: values })
-            }
+            onValueChange={(v) => onFilterChange({ ...filters, quantities: v })}
           />
         </div>
       </div>
-    </CardContent>
-  );
-};
 
-interface FacetPopoverProps {
-  label: string;
-  values: string[];
-  selected: string[];
-  onValueChange: (values: string[]) => void;
-}
-
-function FacetPopover({
-  label,
-  values,
-  selected,
-  onValueChange,
-}: FacetPopoverProps) {
-  const anchor = useComboboxAnchor();
-
-  return (
-    <div className="space-y-1">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <Combobox
-        multiple
-        autoHighlight
-        items={values}
-        value={selected}
-        onValueChange={onValueChange}
+      {/* Clear all */}
+      <button
+        type="button"
+        onClick={() =>
+          onFilterChange({
+            ...filters,
+            artifact_type: [],
+            author: [],
+            keywords: [],
+            datatypes: [],
+            units: [],
+            quantities: [],
+            port_type: null,
+          })
+        }
+        className="w-full text-left text-sm underline underline-offset-2 text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ComboboxChips ref={anchor} className="w-full">
-          <ComboboxValue>
-            {(selectedValues: string[]) => (
-              <React.Fragment>
-                {selectedValues.map((value: string) => (
-                  <ComboboxChip key={value}>{value}</ComboboxChip>
-                ))}
-                <ComboboxChipsInput
-                  placeholder={`Search ${label.toLowerCase()}...`}
-                />
-              </React.Fragment>
-            )}
-          </ComboboxValue>
-        </ComboboxChips>
-        <ComboboxContent anchor={anchor}>
-          <ComboboxEmpty>No options</ComboboxEmpty>
-          <ComboboxList>
-            {(item: string) => (
-              <ComboboxItem key={item} value={item}>
-                {item}
-              </ComboboxItem>
-            )}
-          </ComboboxList>
-        </ComboboxContent>
-      </Combobox>
+        Clear all
+      </button>
     </div>
   );
-}
+};

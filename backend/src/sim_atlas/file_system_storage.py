@@ -16,6 +16,7 @@ from sim_atlas.embedding import create_embedding
 from sim_atlas.models import (
     Annotation,
     ArtifactType,
+    ExecutionResultMetadata,
     Filter,
     FilterOptions,
     FunctionMetadata,
@@ -32,6 +33,8 @@ from sim_atlas.settings import load_settings
 from sim_atlas.storage_interface import (
     ArtifactAlreadyExistsError,
     ArtifactDuplicateError,
+    ExecutionResultAlreadyExistsError,
+    ExecutionResultDuplicateError,
     StorageInterface,
 )
 from sim_atlas.type_utils import collect_datatypes, datatype_matches
@@ -130,6 +133,7 @@ class FileSystemStorage(StorageInterface):
 
     def __init__(self, filename: str | None = "filesystem.json") -> None:
         self._storage: dict[str, StoredArtifact] = {}
+        self._execution_results: dict[str, ExecutionResultMetadata] = {}
         self._filename = filename
         self._connected = False
 
@@ -143,8 +147,25 @@ class FileSystemStorage(StorageInterface):
             except Exception:
                 pass  # If loading fails, start with empty storage
 
+        er_filename = self._execution_results_filename()
+        if er_filename is not None and os.path.exists(er_filename):
+            try:
+                with open(er_filename) as f:
+                    data = json.load(f)
+                    self._execution_results = {
+                        k: ExecutionResultMetadata.model_validate(v)
+                        for k, v in data.items()
+                    }
+            except Exception:
+                pass
+
         print(f"FileSystemStorage initialized with {len(self._storage)} items.")
         self._connected = True
+
+    def _execution_results_filename(self) -> str | None:
+        if self._filename is None:
+            return None
+        return os.path.join(os.path.dirname(self._filename), "execution_results.json")
 
     def _save_to_disk(self) -> None:
         """Save the current storage state to disk"""
@@ -153,6 +174,17 @@ class FileSystemStorage(StorageInterface):
             with open(self._filename, "w") as f:
                 json.dump(
                     {k: v.model_dump() for k, v in self._storage.items()},
+                    f,
+                    indent=2,
+                    default=str,
+                )
+
+    def _save_execution_results_to_disk(self) -> None:
+        er_filename = self._execution_results_filename()
+        if er_filename is not None:
+            with open(er_filename, "w") as f:
+                json.dump(
+                    {k: v.model_dump() for k, v in self._execution_results.items()},
                     f,
                     indent=2,
                     default=str,
@@ -474,6 +506,47 @@ class FileSystemStorage(StorageInterface):
         if not port_lines:
             return description
         return description + "\n" + "\n".join(port_lines)
+
+    def create_execution_result(
+        self, value: ExecutionResultMetadata, check_hash: bool = True
+    ) -> str:
+        id = value.id
+        if id in self._execution_results:
+            raise ExecutionResultAlreadyExistsError(id)
+        if check_hash and value.hash:
+            for result in self._execution_results.values():
+                if result.hash == value.hash:
+                    raise ExecutionResultDuplicateError(result.id)
+        self._execution_results[id] = value
+        self._save_execution_results_to_disk()
+        return id
+
+    def read_execution_result(self, id: str) -> ExecutionResultMetadata:
+        if id not in self._execution_results:
+            raise KeyError(id)
+        return self._execution_results[id]
+
+    def update_execution_result(
+        self, id: str, value: ExecutionResultMetadata
+    ) -> ExecutionResultMetadata:
+        if id not in self._execution_results:
+            raise KeyError(id)
+        self._execution_results[id] = value
+        self._save_execution_results_to_disk()
+        return value
+
+    def delete_execution_result(self, id: str) -> None:
+        if id not in self._execution_results:
+            raise KeyError(id)
+        del self._execution_results[id]
+        self._save_execution_results_to_disk()
+
+    def read_execution_results_by_artifact(
+        self, artifact_id: str
+    ) -> list[ExecutionResultMetadata]:
+        return [
+            r for r in self._execution_results.values() if r.artifact_id == artifact_id
+        ]
 
     async def enrich(self, only_ids: list[str] | None = None) -> None:
         sem = asyncio.Semaphore(load_settings().llm_concurrency)

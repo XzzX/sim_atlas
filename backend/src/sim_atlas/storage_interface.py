@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from sim_atlas.models import (
+    ExecutionResultMetadata,
     Filter,
     FilterOptions,
     ScoredSearchResponse,
@@ -23,6 +24,22 @@ class ArtifactDuplicateError(Exception):
 
     def __init__(self, id: str) -> None:
         super().__init__(f"Artifact with id '{id}' already exists.")
+        self.id = id
+
+
+class ExecutionResultAlreadyExistsError(Exception):
+    """Raised when an execution result with the same id already exists in storage."""
+
+    def __init__(self, id: str) -> None:
+        super().__init__(f"Execution result with id '{id}' already exists.")
+        self.id = id
+
+
+class ExecutionResultDuplicateError(Exception):
+    """Raised when an execution result with the same hash already exists in storage."""
+
+    def __init__(self, id: str) -> None:
+        super().__init__(f"Execution result with id '{id}' already exists.")
         self.id = id
 
 
@@ -100,6 +117,52 @@ class StorageInterface(ABC):
 
     @abstractmethod
     async def enrich(self, only_ids: list[str] | None = None) -> None:
+        pass
+
+    @abstractmethod
+    def create_execution_result(
+        self, value: ExecutionResultMetadata, check_hash: bool = True
+    ) -> str:
+        """Store a new execution result.
+
+        Returns
+        -------
+        str
+            The execution result id.
+
+        Raises
+        ------
+        ExecutionResultAlreadyExistsError
+            Raised if an execution result with the same id already exists.
+
+        ExecutionResultDuplicateError
+            Raised if ``check_hash`` is True and a result with the same
+            non-empty ``hash`` already exists.
+        """
+        pass
+
+    @abstractmethod
+    def read_execution_result(self, id: str) -> ExecutionResultMetadata:
+        """Return the execution result for *id*. Raises KeyError if not found."""
+        pass
+
+    @abstractmethod
+    def update_execution_result(
+        self, id: str, value: ExecutionResultMetadata
+    ) -> ExecutionResultMetadata:
+        """Replace an existing execution result. Raises KeyError if not found."""
+        pass
+
+    @abstractmethod
+    def delete_execution_result(self, id: str) -> None:
+        """Remove the execution result for *id*. Raises KeyError if not found."""
+        pass
+
+    @abstractmethod
+    def read_execution_results_by_artifact(
+        self, artifact_id: str
+    ) -> list[ExecutionResultMetadata]:
+        """Return all execution results for the given artifact_id."""
         pass
 
 

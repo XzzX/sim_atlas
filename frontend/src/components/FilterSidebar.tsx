@@ -15,7 +15,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
   availableFilterOptions,
   onFilterChange,
 }) => {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   if (!open) {
     return (

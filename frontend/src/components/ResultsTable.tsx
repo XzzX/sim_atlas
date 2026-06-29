@@ -30,7 +30,7 @@ function PortList({ ports, dotClass }: { ports: Annotation[]; dotClass: string }
   );
 }
 
-const Legend: React.FC = () => (
+export const Legend: React.FC = () => (
   <div className="flex gap-4">
     {Object.entries(TYPE_LABEL).map(([key, label]) => (
       <span key={key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -45,49 +45,63 @@ interface ResultsTableProps {
   loading: boolean;
   items: ScoredSearchItem[];
   embedded?: boolean;
+  error?: string | null;
+  onDismissError?: () => void;
 }
 
-export const ResultsTable: React.FC<ResultsTableProps> = ({ loading, items, embedded }) => {
-  const legendCls = embedded
-    ? "flex gap-4 border-t px-4 py-2"
-    : "flex gap-4";
+export const ResultsTable: React.FC<ResultsTableProps> = ({
+  loading,
+  items,
+  embedded,
+  error,
+  onDismissError,
+}) => {
+  const wrapCls = embedded ? "" : "rounded-xl border bg-card";
 
   if (loading) {
     return (
-      <>
-        <div className={legendCls}><Legend /></div>
-        <div className={embedded
-          ? "flex min-h-56 flex-col items-center justify-center gap-3 p-4"
-          : "flex min-h-56 flex-col items-center justify-center gap-3 rounded-xl border bg-card p-4"
-        }>
-          <div className="size-8 animate-spin rounded-full border-2 border-muted border-t-foreground" />
-          <p className="text-sm text-muted-foreground">Loading nodes...</p>
-        </div>
-      </>
+      <div className={`flex min-h-56 flex-col items-center justify-center gap-3 p-4 ${wrapCls}`}>
+        <div className="size-8 animate-spin rounded-full border-2 border-muted border-t-foreground" />
+        <p className="text-sm text-muted-foreground">Loading nodes...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={`min-h-[400px] p-3 sm:p-4 ${wrapCls}`}>
+        <Alert
+          variant="destructive"
+          className="flex items-center justify-between gap-2"
+        >
+          <span>{error}</span>
+          {onDismissError && (
+            <button
+              type="button"
+              className="text-sm underline underline-offset-2"
+              onClick={onDismissError}
+            >
+              Dismiss
+            </button>
+          )}
+        </Alert>
+      </div>
     );
   }
 
   if (items.length === 0) {
     return (
-      <>
-        <div className={legendCls}><Legend /></div>
-        <div className={embedded
-          ? "min-h-[400px] p-3 sm:p-4"
-          : "min-h-[400px] rounded-xl border bg-card p-3 sm:p-4"
-        }>
-          <Alert variant="info">
-            No nodes found. Try adjusting your search query or filters.
-          </Alert>
-        </div>
-      </>
+      <div className={`min-h-[400px] p-3 sm:p-4 ${wrapCls}`}>
+        <Alert variant="info">
+          No nodes found. Try adjusting your search query or filters.
+        </Alert>
+      </div>
     );
   }
 
   return (
-    <>
-      <div className={legendCls}><Legend /></div>
-      <div className={embedded ? "min-h-[400px]" : "min-h-[400px] rounded-xl border bg-card"}>
-        <div className="overflow-x-auto">
+    <div className={embedded ? "min-h-[400px]" : "min-h-[400px] rounded-xl border bg-card"}>
+      <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -100,7 +114,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ loading, items, embe
               {items.map(({ node }) => {
                 const barColor = TYPE_COLOR[node.artifact_type] ?? "bg-muted";
                 const desc = ("brief_description" in node ? node.brief_description : null)
-                  ?? node.brief_description
+                  ?? node.description
                   ?? null;
                 return (
                   <tr key={node.id} className="border-b last:border-b-0 hover:bg-muted/30">
@@ -141,8 +155,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ loading, items, embe
               })}
             </tbody>
           </table>
-        </div>
       </div>
-    </>
+    </div>
   );
 };

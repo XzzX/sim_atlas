@@ -166,7 +166,7 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
 
           <SearchBar query={query} onQueryChange={updateQuery} items={suggestions} />
 
-          <CardContent className="flex items-center justify-between gap-4 border-t bg-muted/40">
+          <CardContent className="flex items-center justify-between gap-4 border-t border-b bg-muted/40">
             <div className="flex items-center gap-4">
               <p className="text-sm text-muted-foreground">
                 {totalItems} result{totalItems === 1 ? "" : "s"}

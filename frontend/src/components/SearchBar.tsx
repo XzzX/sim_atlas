@@ -18,7 +18,7 @@ interface SearchBarProps {
 
 export default function SearchBar({ query, onQueryChange, items }: SearchBarProps) {
   return (
-    <CardContent className="border-b pb-4">
+    <CardContent className="pb-4">
       <div className="mb-2">
         <Label>Query</Label>
       </div>

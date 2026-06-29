@@ -44,14 +44,22 @@ const Legend: React.FC = () => (
 interface ResultsTableProps {
   loading: boolean;
   items: ScoredSearchItem[];
+  embedded?: boolean;
 }
 
-export const ResultsTable: React.FC<ResultsTableProps> = ({ loading, items }) => {
+export const ResultsTable: React.FC<ResultsTableProps> = ({ loading, items, embedded }) => {
+  const legendCls = embedded
+    ? "flex gap-4 border-t px-4 py-2"
+    : "flex gap-4";
+
   if (loading) {
     return (
       <>
-        <Legend />
-        <div className="flex min-h-56 flex-col items-center justify-center gap-3 rounded-xl border bg-card p-4">
+        <div className={legendCls}><Legend /></div>
+        <div className={embedded
+          ? "flex min-h-56 flex-col items-center justify-center gap-3 p-4"
+          : "flex min-h-56 flex-col items-center justify-center gap-3 rounded-xl border bg-card p-4"
+        }>
           <div className="size-8 animate-spin rounded-full border-2 border-muted border-t-foreground" />
           <p className="text-sm text-muted-foreground">Loading nodes...</p>
         </div>
@@ -62,8 +70,11 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ loading, items }) =>
   if (items.length === 0) {
     return (
       <>
-        <Legend />
-        <div className="min-h-[400px] rounded-xl border bg-card p-3 sm:p-4">
+        <div className={legendCls}><Legend /></div>
+        <div className={embedded
+          ? "min-h-[400px] p-3 sm:p-4"
+          : "min-h-[400px] rounded-xl border bg-card p-3 sm:p-4"
+        }>
           <Alert variant="info">
             No nodes found. Try adjusting your search query or filters.
           </Alert>
@@ -74,8 +85,8 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ loading, items }) =>
 
   return (
     <>
-      <Legend />
-      <div className="min-h-[400px] rounded-xl border bg-card">
+      <div className={legendCls}><Legend /></div>
+      <div className={embedded ? "min-h-[400px]" : "min-h-[400px] rounded-xl border bg-card"}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

@@ -144,140 +144,136 @@ export const SearchCard: React.FC<SearchCardProps> = ({
 
   return (
     <React.Fragment>
-      <Card>
-        <CardHeader className="border-b">
-          <CardTitle>Simulation Atlas</CardTitle>
-          <CardDescription>
-            Search and discover nodes and workflows across your projects.
-          </CardDescription>
-          <CardAction>
-            <div className="flex items-center gap-0.5 rounded-lg border p-0.5 text-xs">
-              {(["simple", "advanced"] as UIMode[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => handleModeChange(m)}
-                  className={`rounded-md px-2 py-1 capitalize transition-colors ${
-                    uiMode === m
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-          </CardAction>
-        </CardHeader>
-        <SearchBar
-          query={query}
-          onQueryChange={(v) => {
-            setQuery(v);
-            setSearchParams(filtersToParams({ q: v, c: category, mode: uiMode }, filters));
-            onSearchChange(v, effectiveCategory, effectiveFilters);
-          }}
-          items={suggestions}
-          searchMode={searchMode}
-          onSearchModeChange={onSearchModeChange}
-          showModeToggle={uiMode === "advanced"}
-        />
-        {uiMode === "advanced" && (
-          <>
-            <CategoryFilter
-              category={category}
-              categoryOptions={availableFilterOptions.category}
-              onCategoryChange={(v) => {
-                setCategory(v);
-                setSearchParams(filtersToParams({ q: query, c: v, mode: uiMode }, filters));
-                onSearchChange(query, v, filters);
-              }}
-            />
-            <FacetedSearch
-              filters={filters}
-              availableFilterOptions={availableFilterOptions}
-              onFilterChange={(v) => {
-                setFilters(v);
-                setSearchParams(filtersToParams({ q: query, c: category, mode: uiMode }, v));
-                onSearchChange(query, category, v);
-              }}
-            />
-          </>
-        )}
-      </Card>
-      <Card>
-        <CardContent className="flex items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            {totalItems} result{totalItems === 1 ? "" : "s"} total
-          </p>
-          <Pagination className="mx-0 w-auto justify-end">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationLink
-                  href="#"
-                  size="default"
-                  aria-label="Go to first page"
-                  aria-disabled={page <= 1}
-                  tabIndex={page <= 1 ? -1 : undefined}
-                  className={`pl-1.5! ${page <= 1 ? "pointer-events-none opacity-50" : ""}`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    onSearchChange(query, category, filters, 1);
-                  }}
-                >
-                  <ChevronsLeftIcon data-icon="inline-start" />
-                  <span className="hidden sm:block">First</span>
-                </PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  aria-disabled={page <= 1}
-                  tabIndex={page <= 1 ? -1 : undefined}
-                  className={page <= 1 ? "pointer-events-none opacity-50" : ""}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    onSearchChange(query, category, filters, page - 1);
-                  }}
-                />
-              </PaginationItem>
-              <PaginationItem>
-                {page} / {Math.max(totalPages, 1)}
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  aria-disabled={page >= totalPages}
-                  tabIndex={page >= totalPages ? -1 : undefined}
-                  className={
-                    page >= totalPages ? "pointer-events-none opacity-50" : ""
-                  }
-                  onClick={(event) => {
-                    event.preventDefault();
-                    onSearchChange(query, category, filters, page + 1);
-                  }}
-                />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationLink
-                  href="#"
-                  size="default"
-                  aria-label="Go to last page"
-                  aria-disabled={page >= totalPages}
-                  tabIndex={page >= totalPages ? -1 : undefined}
-                  className={`pr-1.5! ${page >= totalPages ? "pointer-events-none opacity-50" : ""}`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    onSearchChange(query, category, filters, totalPages);
-                  }}
-                >
-                  <span className="hidden sm:block">Last</span>
-                  <ChevronsRightIcon data-icon="inline-end" />
-                </PaginationLink>
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </CardContent>
-      </Card>
+      <CardHeader className="border-b">
+        <CardTitle>Simulation Atlas</CardTitle>
+        <CardDescription>
+          Search and discover nodes and workflows across your projects.
+        </CardDescription>
+        <CardAction>
+          <div className="flex items-center gap-0.5 rounded-lg border p-0.5 text-xs">
+            {(["simple", "advanced"] as UIMode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => handleModeChange(m)}
+                className={`rounded-md px-2 py-1 capitalize transition-colors ${
+                  uiMode === m
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </CardAction>
+      </CardHeader>
+      <SearchBar
+        query={query}
+        onQueryChange={(v) => {
+          setQuery(v);
+          setSearchParams(filtersToParams({ q: v, c: category, mode: uiMode }, filters));
+          onSearchChange(v, effectiveCategory, effectiveFilters);
+        }}
+        items={suggestions}
+        searchMode={searchMode}
+        onSearchModeChange={onSearchModeChange}
+        showModeToggle={uiMode === "advanced"}
+      />
+      {uiMode === "advanced" && (
+        <>
+          <CategoryFilter
+            category={category}
+            categoryOptions={availableFilterOptions.category}
+            onCategoryChange={(v) => {
+              setCategory(v);
+              setSearchParams(filtersToParams({ q: query, c: v, mode: uiMode }, filters));
+              onSearchChange(query, v, filters);
+            }}
+          />
+          <FacetedSearch
+            filters={filters}
+            availableFilterOptions={availableFilterOptions}
+            onFilterChange={(v) => {
+              setFilters(v);
+              setSearchParams(filtersToParams({ q: query, c: category, mode: uiMode }, v));
+              onSearchChange(query, category, v);
+            }}
+          />
+        </>
+      )}
+      <CardContent className="flex items-center justify-between gap-4 border-t">
+        <p className="text-sm text-muted-foreground">
+          {totalItems} result{totalItems === 1 ? "" : "s"} total
+        </p>
+        <Pagination className="mx-0 w-auto justify-end">
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationLink
+                href="#"
+                size="default"
+                aria-label="Go to first page"
+                aria-disabled={page <= 1}
+                tabIndex={page <= 1 ? -1 : undefined}
+                className={`pl-1.5! ${page <= 1 ? "pointer-events-none opacity-50" : ""}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onSearchChange(query, category, filters, 1);
+                }}
+              >
+                <ChevronsLeftIcon data-icon="inline-start" />
+                <span className="hidden sm:block">First</span>
+              </PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationPrevious
+                href="#"
+                aria-disabled={page <= 1}
+                tabIndex={page <= 1 ? -1 : undefined}
+                className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onSearchChange(query, category, filters, page - 1);
+                }}
+              />
+            </PaginationItem>
+            <PaginationItem>
+              {page} / {Math.max(totalPages, 1)}
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationNext
+                href="#"
+                aria-disabled={page >= totalPages}
+                tabIndex={page >= totalPages ? -1 : undefined}
+                className={
+                  page >= totalPages ? "pointer-events-none opacity-50" : ""
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  onSearchChange(query, category, filters, page + 1);
+                }}
+              />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink
+                href="#"
+                size="default"
+                aria-label="Go to last page"
+                aria-disabled={page >= totalPages}
+                tabIndex={page >= totalPages ? -1 : undefined}
+                className={`pr-1.5! ${page >= totalPages ? "pointer-events-none opacity-50" : ""}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onSearchChange(query, category, filters, totalPages);
+                }}
+              >
+                <span className="hidden sm:block">Last</span>
+                <ChevronsRightIcon data-icon="inline-end" />
+              </PaginationLink>
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </CardContent>
     </React.Fragment>
   );
 };
@@ -351,40 +347,41 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
   }, []);
 
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
-      <SearchCard
-        onSearchChange={(query, category, filters, page = 1) => {
-          void debouncedSearch(query, category, filters, searchMode, page);
-        }}
-        suggestions={searchResponse.results.data
-          .flatMap((result) =>
-            result.node.name
-          )}
-        availableFilterOptions={availableFilterOptions}
-        page={searchResponse.results.page}
-        totalPages={searchResponse.results.total_pages}
-        totalItems={searchResponse.results.total_items}
-        searchMode={searchMode}
-        onSearchModeChange={(mode) => {
-          setSearchMode(mode);
-        }}
-      />
-      {error && (
-        <Alert
-          variant="destructive"
-          className="flex items-center justify-between gap-2"
-        >
-          <span>{error}</span>
-          <button
-            className="text-sm underline underline-offset-2"
-            type="button"
-            onClick={() => setError(null)}
-          >
-            Dismiss
-          </button>
-        </Alert>
-      )}
-      <ResultsTable loading={loading} items={searchResponse.results.data} />
+    <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <Card className="overflow-hidden">
+        <SearchCard
+          onSearchChange={(query, category, filters, page = 1) => {
+            void debouncedSearch(query, category, filters, searchMode, page);
+          }}
+          suggestions={searchResponse.results.data.flatMap((result) => result.node.name)}
+          availableFilterOptions={availableFilterOptions}
+          page={searchResponse.results.page}
+          totalPages={searchResponse.results.total_pages}
+          totalItems={searchResponse.results.total_items}
+          searchMode={searchMode}
+          onSearchModeChange={(mode) => {
+            setSearchMode(mode);
+          }}
+        />
+        {error && (
+          <CardContent className="border-t pt-3">
+            <Alert
+              variant="destructive"
+              className="flex items-center justify-between gap-2"
+            >
+              <span>{error}</span>
+              <button
+                className="text-sm underline underline-offset-2"
+                type="button"
+                onClick={() => setError(null)}
+              >
+                Dismiss
+              </button>
+            </Alert>
+          </CardContent>
+        )}
+        <ResultsTable loading={loading} items={searchResponse.results.data} embedded />
+      </Card>
       <Toaster />
     </main>
   );

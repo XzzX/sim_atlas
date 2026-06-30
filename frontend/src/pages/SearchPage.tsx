@@ -5,6 +5,7 @@ import { simAtlasAPI } from "../services/api";
 import type { Filter, FilterOptions, ScoredSearchResponse } from "../types/index";
 import { ResultsTable, Legend } from "../components/ResultsTable";
 import { FilterSidebar } from "../components/FilterSidebar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   Card,
   CardHeader,
@@ -158,10 +159,15 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
 
         <Card className="min-w-0 flex-1 overflow-hidden">
           <CardHeader className="border-b">
-            <CardTitle>Simulation Atlas</CardTitle>
-            <CardDescription>
-              Search and discover nodes and workflows across your projects.
-            </CardDescription>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>Simulation Atlas</CardTitle>
+                <CardDescription>
+                  Search and discover nodes and workflows across your projects.
+                </CardDescription>
+              </div>
+              <ThemeToggle />
+            </div>
           </CardHeader>
 
           <SearchBar query={query} onQueryChange={updateQuery} items={suggestions} />

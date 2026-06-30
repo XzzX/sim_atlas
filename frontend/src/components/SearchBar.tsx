@@ -1,3 +1,4 @@
+import { SearchIcon } from "lucide-react";
 import {
   Autocomplete,
   AutocompleteEmpty,
@@ -19,7 +20,13 @@ export default function SearchBar({ query, onQueryChange, items }: SearchBarProp
   return (
     <CardContent className="pb-4">
       <Autocomplete value={query} onValueChange={onQueryChange} items={items} autoHighlight>
-        <AutocompleteInput placeholder="Search nodes and workflows…" />
+        <div className="relative">
+          <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <AutocompleteInput
+            placeholder="Search nodes and workflows…"
+            className="h-11 rounded-[9px] border-[1.5px] pl-10 font-mono text-sm"
+          />
+        </div>
         <AutocompletePositioner sideOffset={6}>
           <AutocompletePopup>
             <AutocompleteEmpty>No Items found.</AutocompleteEmpty>

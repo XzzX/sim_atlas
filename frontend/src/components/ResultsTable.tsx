@@ -59,11 +59,11 @@ function TypeChip({ datatype }: { datatype: string }) {
 
 function PortList({
   ports,
-  dotClass,
+  dotColor,
   cap,
 }: {
   ports: Annotation[];
-  dotClass: string;
+  dotColor: string;
   cap?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -76,7 +76,7 @@ function PortList({
     <div className="flex flex-col gap-[5px] pt-0.5">
       {visible.map((p, i) => (
         <div key={i} className="flex items-center gap-[5px]">
-          <span className={`size-[6px] shrink-0 rounded-full ${dotClass}`} />
+          <span className="size-[6px] shrink-0 rounded-full" style={{ background: dotColor }} />
           {p.label && (
             <span
               className="font-mono text-[11.5px] leading-none"
@@ -128,12 +128,7 @@ function splitName(name: string): { label: string; modulePath: string } {
   return { label: parts[parts.length - 1], modulePath: parts.slice(0, -1).join(".") };
 }
 
-const ACCENT: Record<string, string> = {
-  function: "#2563eb",
-  workflow: "#7c3aed",
-};
-
-const GRID_COLS = "1fr 220px 170px";
+const GRID_COLS = "2fr 1fr 1fr";
 const INPUTS_CAP = 3;
 
 // ── Legend ─────────────────────────────────────────────────────────────────────
@@ -141,8 +136,8 @@ const INPUTS_CAP = 3;
 export const Legend: React.FC = () => (
   <div className="flex gap-4">
     {[
-      { key: "function", label: "Function", color: "#2563eb" },
-      { key: "workflow", label: "Workflow", color: "#7c3aed" },
+      { key: "function", label: "Function", color: "var(--node-accent-function)" },
+      { key: "workflow", label: "Workflow", color: "var(--node-accent-workflow)" },
     ].map(({ key, label, color }) => (
       <span key={key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <span className="inline-block h-3.5 w-1 rounded-full" style={{ background: color }} />
@@ -228,8 +223,8 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
 
       {/* Data rows */}
       {items.map(({ node }) => {
-        const accent = ACCENT[node.artifact_type] ?? "#2563eb";
         const isWorkflow = node.artifact_type === "workflow";
+        const accent = isWorkflow ? "var(--node-accent-workflow)" : "var(--node-accent-function)";
         const desc =
           ("brief_description" in node ? node.brief_description : null) ??
           node.description ??
@@ -240,7 +235,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
           <div
             key={node.id}
             onClick={() => { void navigate(`/node/${node.id}`); }}
-            className="grid cursor-pointer items-start border-b border-l-[3px] py-[13px] pr-6 pl-[25px] transition-colors duration-[120ms] last:border-b-0 hover:bg-[var(--node-hover)]"
+            className="grid cursor-pointer items-start border-b border-l-[6px] py-[13px] pr-6 pl-[25px] transition-colors duration-[120ms] last:border-b-0 hover:bg-[var(--node-hover)]"
             style={{ gridTemplateColumns: GRID_COLS, borderLeftColor: accent }}
           >
             {/* Node cell */}
@@ -255,18 +250,6 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                 >
                   {label}
                 </Link>
-                {isWorkflow && (
-                  <span
-                    className="shrink-0 rounded-[8px] border px-[7px] py-px text-[9.5px] font-medium"
-                    style={{
-                      background: "var(--chip-union-bg)",
-                      color: "var(--chip-union-fg)",
-                      borderColor: "var(--chip-union-bd)",
-                    }}
-                  >
-                    Workflow
-                  </span>
-                )}
               </div>
               {modulePath && (
                 <div
@@ -284,10 +267,10 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
             </div>
 
             {/* Inputs cell */}
-            <PortList ports={node.inputs} dotClass="bg-blue-500" cap={INPUTS_CAP} />
+            <PortList ports={node.inputs} dotColor="var(--node-dot-input)" cap={INPUTS_CAP} />
 
             {/* Outputs cell */}
-            <PortList ports={node.outputs} dotClass="bg-green-600" />
+            <PortList ports={node.outputs} dotColor="var(--node-dot-output)" />
           </div>
         );
       })}

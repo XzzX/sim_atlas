@@ -18,6 +18,10 @@
   --node-more-bg: #f3f4f6;
   --node-more-bd: #e5e7eb;
   --node-more-fg: #6b7280;
+  --node-accent-function: #2563eb;
+  --node-accent-workflow: #7c3aed;
+  --node-dot-input: #3b82f6;
+  --node-dot-output: #16a34a;
   /* type chip categories */
   --chip-domain-bg: #eff6ff; --chip-domain-fg: #2563eb; --chip-domain-bd: #bfdbfe;
   --chip-prim-bg: #f8fafc;   --chip-prim-fg: #64748b;   --chip-prim-bd: #e2e8f0;
@@ -71,6 +75,10 @@
   --node-more-bg: #1d2535;
   --node-more-bd: #2a3347;
   --node-more-fg: #6b7280;
+  --node-accent-function: #60a5fa;
+  --node-accent-workflow: #a78bfa;
+  --node-dot-input: #60a5fa;
+  --node-dot-output: #34d399;
   /* type chip categories */
   --chip-domain-bg: #1e3a5f;  --chip-domain-fg: #60a5fa;  --chip-domain-bd: rgba(37, 99, 235, 0.4);
   --chip-prim-bg: #1d2535;    --chip-prim-fg: #94a3b8;    --chip-prim-bd: #2a3347;

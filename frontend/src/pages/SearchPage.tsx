@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardContent,
 } from "@/components/ui/card";
 import { ChevronsLeftIcon, ChevronsRightIcon } from "lucide-react";
 import {
@@ -150,99 +149,102 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      <div className="flex items-start gap-4">
-        <FilterSidebar
-          filters={filters}
-          availableFilterOptions={availableFilterOptions}
-          onFilterChange={updateFilters}
-        />
-
-        <Card className="min-w-0 flex-1 overflow-hidden">
-          <CardHeader className="border-b">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <CardTitle>Simulation Atlas</CardTitle>
-                <CardDescription>
-                  Search and discover nodes and workflows across your projects.
-                </CardDescription>
-              </div>
-              <ThemeToggle />
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>Simulation Atlas</CardTitle>
+              <CardDescription>
+                Search and discover nodes and workflows across your projects.
+              </CardDescription>
             </div>
-          </CardHeader>
+            <ThemeToggle />
+          </div>
+        </CardHeader>
 
-          <SearchBar query={query} onQueryChange={updateQuery} items={suggestions} />
+        <SearchBar query={query} onQueryChange={updateQuery} items={suggestions} />
 
-          <CardContent className="flex items-center justify-between gap-4 border-t border-b bg-muted/40">
-            <div className="flex items-center gap-4">
-              <p className="text-sm text-muted-foreground">
-                {totalItems} result{totalItems === 1 ? "" : "s"}
-              </p>
-              <Legend />
-            </div>
-            <Pagination className="mx-0 w-auto justify-end">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationLink
-                    href="#"
-                    size="default"
-                    aria-label="Go to first page"
-                    aria-disabled={page <= 1}
-                    tabIndex={page <= 1 ? -1 : undefined}
-                    className={`pl-1.5! ${page <= 1 ? "pointer-events-none opacity-50" : ""}`}
-                    onClick={(e) => { e.preventDefault(); goToPage(1); }}
-                  >
-                    <ChevronsLeftIcon data-icon="inline-start" />
-                    <span className="hidden sm:block">First</span>
-                  </PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    aria-disabled={page <= 1}
-                    tabIndex={page <= 1 ? -1 : undefined}
-                    className={page <= 1 ? "pointer-events-none opacity-50" : ""}
-                    onClick={(e) => { e.preventDefault(); goToPage(page - 1); }}
-                  />
-                </PaginationItem>
-                <PaginationItem>
-                  {page} / {Math.max(totalPages, 1)}
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    aria-disabled={page >= totalPages}
-                    tabIndex={page >= totalPages ? -1 : undefined}
-                    className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
-                    onClick={(e) => { e.preventDefault(); goToPage(page + 1); }}
-                  />
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink
-                    href="#"
-                    size="default"
-                    aria-label="Go to last page"
-                    aria-disabled={page >= totalPages}
-                    tabIndex={page >= totalPages ? -1 : undefined}
-                    className={`pr-1.5! ${page >= totalPages ? "pointer-events-none opacity-50" : ""}`}
-                    onClick={(e) => { e.preventDefault(); goToPage(totalPages); }}
-                  >
-                    <span className="hidden sm:block">Last</span>
-                    <ChevronsRightIcon data-icon="inline-end" />
-                  </PaginationLink>
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </CardContent>
-
-          <ResultsTable
-            loading={loading}
-            items={searchResponse.results.data}
-            embedded
-            error={error}
-            onDismissError={() => setError(null)}
+        <div className="flex border-t">
+          <FilterSidebar
+            filters={filters}
+            availableFilterOptions={availableFilterOptions}
+            onFilterChange={updateFilters}
           />
-        </Card>
-      </div>
+
+          <div className="flex min-w-0 flex-1 flex-col">
+            {/* toolbar: result count + legend + pagination */}
+            <div className="flex items-center justify-between gap-4 border-b bg-muted/30 px-4 py-2">
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-muted-foreground">
+                  {totalItems} result{totalItems === 1 ? "" : "s"}
+                </p>
+                <Legend />
+              </div>
+              <Pagination className="mx-0 w-auto justify-end">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationLink
+                      href="#"
+                      size="default"
+                      aria-label="Go to first page"
+                      aria-disabled={page <= 1}
+                      tabIndex={page <= 1 ? -1 : undefined}
+                      className={`pl-1.5! ${page <= 1 ? "pointer-events-none opacity-50" : ""}`}
+                      onClick={(e) => { e.preventDefault(); goToPage(1); }}
+                    >
+                      <ChevronsLeftIcon data-icon="inline-start" />
+                      <span className="hidden sm:block">First</span>
+                    </PaginationLink>
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      aria-disabled={page <= 1}
+                      tabIndex={page <= 1 ? -1 : undefined}
+                      className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+                      onClick={(e) => { e.preventDefault(); goToPage(page - 1); }}
+                    />
+                  </PaginationItem>
+                  <PaginationItem>
+                    {page} / {Math.max(totalPages, 1)}
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      aria-disabled={page >= totalPages}
+                      tabIndex={page >= totalPages ? -1 : undefined}
+                      className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
+                      onClick={(e) => { e.preventDefault(); goToPage(page + 1); }}
+                    />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationLink
+                      href="#"
+                      size="default"
+                      aria-label="Go to last page"
+                      aria-disabled={page >= totalPages}
+                      tabIndex={page >= totalPages ? -1 : undefined}
+                      className={`pr-1.5! ${page >= totalPages ? "pointer-events-none opacity-50" : ""}`}
+                      onClick={(e) => { e.preventDefault(); goToPage(totalPages); }}
+                    >
+                      <span className="hidden sm:block">Last</span>
+                      <ChevronsRightIcon data-icon="inline-end" />
+                    </PaginationLink>
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+
+            <ResultsTable
+              loading={loading}
+              items={searchResponse.results.data}
+              embedded
+              error={error}
+              onDismissError={() => setError(null)}
+            />
+          </div>
+        </div>
+      </Card>
       <Toaster />
     </main>
   );

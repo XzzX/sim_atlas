@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Alert } from "@/components/ui/alert";
 import type { ScoredSearchItem, Annotation } from "../types/index";
 
@@ -241,15 +241,13 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
             {/* Node cell */}
             <div className="min-w-0 pr-4">
               <div className="mb-0.5 flex items-center gap-[7px]">
-                <Link
-                  to={`/node/${node.id}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="font-mono text-[13.5px] font-semibold leading-none tracking-[-0.3px] hover:underline"
+                <span
+                  className="font-mono text-[13.5px] font-semibold leading-none tracking-[-0.3px]"
                   style={{ color: "var(--node-name)" }}
                   title={node.name}
                 >
                   {label}
-                </Link>
+                </span>
               </div>
               {modulePath && (
                 <div

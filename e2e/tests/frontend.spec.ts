@@ -6,7 +6,7 @@ test("frontend shows all uploaded functions", async ({ page }) => {
   // Wait for the search results to load — expects all uploaded nodes
   await expect(page.getByText("5 results")).toBeVisible();
 
-  // Verify both uploaded functions appear as links in the results table
-  await expect(page.getByRole("link", { name: "dummy_module.functions.add" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "dummy_module.functions.mul" })).toBeVisible();
+  // Verify both uploaded functions appear in the results table
+  await expect(page.getByTitle("dummy_module.functions.add")).toBeVisible();
+  await expect(page.getByTitle("dummy_module.functions.mul")).toBeVisible();
 });

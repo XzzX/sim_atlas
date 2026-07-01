@@ -143,20 +143,18 @@ sequenceDiagram
     participant V as VoyageAI
 
     U->>F: enter query + set facet filters
-    alt keyword search
-        F->>B: POST /api/v1/search {query, filters, page, limit}
-        B->>S: apply NodeFilter → score candidates
-        Note right of S: score 1.0 if query in python_import<br/>score 0.5 if query in docstring
-        S-->>B: sorted, paginated SearchResults
-        B-->>F: SearchResults (ScoredSearchItem[])
-    else semantic search
-        F->>B: POST /api/v1/semantic_search {query, filters, page, limit}
+    F->>B: POST /api/v1/search {query, filter, semantic, page, limit}
+    alt embeddings configured and semantic != false
         B->>V: embed(query, input_type="query")
         V-->>B: query vector
-        B->>S: apply NodeFilter → cosine similarity vs stored embeddings
+        B->>S: apply NodeFilter → RRF merge of cosine similarity + keyword rank
         S-->>B: sorted, paginated SearchResults
-        B-->>F: SearchResults (ScoredSearchItem[])
+    else no embeddings, or semantic == false (keyword fallback)
+        B->>S: apply NodeFilter → keyword score candidates
+        Note right of S: score 1.0 if query in python_import<br/>score 0.5 if query in docstring
+        S-->>B: sorted, paginated SearchResults
     end
+    B-->>F: SearchResults (ScoredSearchItem[])
     F->>U: render NodeCard components
 ```
 

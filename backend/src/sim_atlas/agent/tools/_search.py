@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 from sim_atlas.agent.tools._errors import ToolError
 from sim_atlas.models import ArtifactType, Filter, FunctionMetadata
+from sim_atlas.settings import load_settings
 from sim_atlas.storage_interface import StorageInterface
 
 _SEARCH_NODES_DESCRIPTION_PARTS = (
@@ -195,10 +196,10 @@ async def execute_find_compatible_nodes(
         quantities=[args.quantity] if args.quantity else None,
         port_type=args.port_type,
     )
-    if args.query:
+    if args.query and load_settings().embeddings_enabled:
         response = await storage.search_semantic(args.query, f, limit=10)
     else:
-        response = storage.search(query=None, filter=f, limit=10)
+        response = storage.search(query=args.query, filter=f, limit=10)
     items = response.results.data
     if not items:
         return "Retrieved functions:\n\n(no results found)"

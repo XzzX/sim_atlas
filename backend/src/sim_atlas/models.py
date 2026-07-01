@@ -9,6 +9,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Discriminator,
+    Field,
     PlainSerializer,
     Tag,
 )
@@ -294,6 +295,14 @@ class SearchResults(BaseModel):
 class ScoredSearchResponse(BaseModel):
     results: SearchResults
     aggregations: dict[str, dict[str, int]] | None = None
+
+
+class SearchRequest(BaseModel):
+    query: str | None = None
+    filter: Filter | None = None
+    semantic: bool | None = None
+    page: int = Field(default=1, ge=1)
+    limit: int = Field(default=10, ge=1, le=100)
 
 
 # --- Agent models ---

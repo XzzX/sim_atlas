@@ -290,14 +290,14 @@ def test_filter_options_populated_after_creating_artifact(client: ApiClient) -> 
 
 
 def test_search_with_no_query_returns_200(client: ApiClient) -> None:
-    response = client.post("/api/v1/search")
+    response = client.post("/api/v1/search", json={})
     assert response.status_code == status.HTTP_200_OK
     assert "results" in response.json()
 
 
 def test_search_with_query_finds_matching_artifact(client: ApiClient) -> None:
     client.post("/api/v1/artifacts", json=make_function_request_body(name="special_fn"))
-    response = client.post("/api/v1/search", params={"query": "special_fn"})
+    response = client.post("/api/v1/search", json={"query": "special_fn"})
     assert response.status_code == status.HTTP_200_OK
     names = [item["node"]["name"] for item in response.json()["results"]["data"]]
     assert "special_fn" in names
@@ -308,7 +308,9 @@ def test_search_with_filter_returns_filtered_results(client: ApiClient) -> None:
         "/api/v1/artifacts",
         json=make_function_request_body(category="unique-cat"),
     )
-    response = client.post("/api/v1/search", json={"category": "unique-cat"})
+    response = client.post(
+        "/api/v1/search", json={"filter": {"category": "unique-cat"}}
+    )
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["results"]["total_items"] >= 1
 
@@ -324,7 +326,7 @@ def test_search_pagination_fields_are_correct(client: ApiClient) -> None:
                 source_code=f"def fn_{i}(): pass",
             ),
         )
-    response = client.post("/api/v1/search", params={"page": 1, "limit": page_size})
+    response = client.post("/api/v1/search", json={"page": 1, "limit": page_size})
     assert response.status_code == status.HTTP_200_OK
     results = response.json()["results"]
     assert results["page"] == 1
@@ -334,8 +336,13 @@ def test_search_pagination_fields_are_correct(client: ApiClient) -> None:
     assert len(results["data"]) == page_size
 
 
+def test_search_limit_above_cap_returns_422(client: ApiClient) -> None:
+    response = client.post("/api/v1/search", json={"limit": 9999})
+    assert response.status_code == 422  # noqa: PLR2004
+
+
 # ---------------------------------------------------------------------------
-# Async search (storage.search_hybrid monkeypatched)
+# Hybrid vs. forced-keyword routing (storage.search_hybrid monkeypatched)
 # ---------------------------------------------------------------------------
 
 
@@ -345,30 +352,34 @@ def _empty_search_response() -> ScoredSearchResponse:
     )
 
 
-def test_semantic_search_returns_200(
+def test_search_with_query_uses_hybrid(
     client: ApiClient,
     storage: FileSystemStorage,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    called = False
+
     async def mock_search_hybrid(*args: Any, **kwargs: Any) -> ScoredSearchResponse:
+        nonlocal called
+        called = True
         return _empty_search_response()
 
     monkeypatch.setattr(storage, "search_hybrid", mock_search_hybrid)
-    response = client.post("/api/v1/semantic_search", params={"query": "test"})
+    response = client.post("/api/v1/search", json={"query": "test"})
     assert response.status_code == status.HTTP_200_OK
-    assert "results" in response.json()
+    assert called
 
 
-def test_hybrid_search_returns_200(
+def test_search_semantic_false_forces_keyword(
     client: ApiClient,
     storage: FileSystemStorage,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def mock_search_hybrid(*args: Any, **kwargs: Any) -> ScoredSearchResponse:
-        return _empty_search_response()
+    async def boom(*args: Any, **kwargs: Any) -> ScoredSearchResponse:
+        raise AssertionError("search_hybrid must not run when semantic=false")
 
-    monkeypatch.setattr(storage, "search_hybrid", mock_search_hybrid)
-    response = client.post("/api/v1/hybrid_search", params={"query": "test"})
+    monkeypatch.setattr(storage, "search_hybrid", boom)
+    response = client.post("/api/v1/search", json={"query": "test", "semantic": False})
     assert response.status_code == status.HTTP_200_OK
     assert "results" in response.json()
 

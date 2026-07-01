@@ -8,13 +8,16 @@ from flowrep.api.schemas import (
     InputSource,
     WorkflowRecipe,
 )
+from flowrep.retrospective.datastructures import DagData
 from requests import Response
 
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactRequest,
     ArtifactType,
+    ExecutionResultRequest,
     FunctionRequest,
+    IOValue,
     Reference,
     WfDefinition,
     WfEdge,
@@ -31,6 +34,14 @@ from sim_atlas_toolkit.parsers.metadata import (
     parse_signature,
 )
 from sim_atlas_toolkit.upload import upload
+
+
+def extract_id(response: Response) -> str | None:
+    if response.ok:
+        return response.json()["id"]
+    if response.status_code == HTTPStatus.CONFLICT:
+        return response.json()["detail"]["id"]
+    return None
 
 
 def flowrep_to_wf_definition(
@@ -243,13 +254,6 @@ def parse_workflow_recipe(
         if child is not None
     ]
 
-    def extract_id(response: Response) -> str | None:
-        if response.ok:
-            return response.json()["id"]
-        if response.status_code == HTTPStatus.CONFLICT:
-            return response.json()["detail"]["id"]
-        return None
-
     children = [
         Reference(label=label, id=atlas_id)
         for label, response in children_upload
@@ -269,7 +273,45 @@ def parse_workflow_recipe(
     return metadata
 
 
+def parse_workflow_instance(
+    obj: DagData, recipe: WorkflowRecipe, ns: NodeStoreAPI
+) -> WorkflowRequest:
+    metadata = parse_workflow_recipe(obj, recipe, ns)
+    wf_response = upload(ns, metadata)
+    wf_id = extract_id(wf_response)
+    if wf_id is None:
+        return []
+
+    def is_valid_type(obj: Any) -> bool:
+        return isinstance(obj, (bool, int, float, str))
+
+    inputs = [
+        IOValue(label=k, value=v.value)
+        for k, v in obj.input_ports.items()
+        if is_valid_type(v.value)
+    ]
+    outputs = [
+        IOValue(label=k, value=v.value)
+        for k, v in obj.output_ports.items()
+        if is_valid_type(v.value)
+    ]
+
+    execution_metadata = ExecutionResultRequest(
+        artifact_id=wf_id,
+        author_name="Unknown",
+        author_email="unknown@example.com",
+        inputs=inputs,
+        outputs=outputs,
+    )
+    ns.upload_execution_result(execution_metadata)
+
+    return metadata
+
+
 def parse(obj: Any, ns: NodeStoreAPI) -> list[ArtifactRequest]:
+    if isinstance(obj, DagData):
+        return [parse_workflow_instance(obj, obj.recipe, ns)]
+
     if not hasattr(obj, "flowrep_recipe"):
         return []
 

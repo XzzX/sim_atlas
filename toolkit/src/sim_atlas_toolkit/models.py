@@ -206,3 +206,32 @@ ArtifactResponse = Annotated[
 artifact_response_adapter: TypeAdapter[FunctionResponse | WorkflowResponse] = (
     TypeAdapter(ArtifactResponse)
 )
+
+
+class IOValue(BaseModel):
+    label: str
+    value: str | int | float | bool
+
+
+class ExecutionResultRequest(BaseModel):
+    author_name: str
+    author_email: str
+
+    artifact_id: str
+    inputs: list[IOValue]
+    outputs: str
+
+
+class ExecutionResultResponse(BaseModel):
+    id: str
+
+    author_name: str
+    author_email: str
+
+    creator_name: str
+    creator_email: str
+    creation_timestamp: str
+
+    artifact_id: str
+    inputs: list[IOValue]
+    outputs: str

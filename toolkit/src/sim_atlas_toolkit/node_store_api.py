@@ -4,6 +4,7 @@ import requests
 
 from sim_atlas_toolkit.models import (
     ArtifactRequest,
+    ExecutionResultRequest,
     artifact_request_adapter,
 )
 
@@ -34,3 +35,16 @@ class NodeStoreAPI:
                 )
             )
         return responses
+
+    def upload_execution_result(
+        self, execution_result: ExecutionResultRequest
+    ) -> requests.Response:
+        headers: dict[str, str] = {}
+        if self.api_key:
+            headers["x-api-key"] = self.api_key
+
+        return requests.post(
+            f"{self.api_url}/execution_results",
+            json=execution_result.model_dump(),
+            headers=headers,
+        )

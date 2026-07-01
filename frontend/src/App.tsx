@@ -3,10 +3,17 @@ import { SearchPage } from "./pages/SearchPage";
 import { NodePage } from "./pages/NodePage";
 import { useState } from "react";
 
+// Function to find the base subpath dynamically from the URL bar
+const getDynamicBasename = () => {
+  const segments = window.location.pathname.split('/');
+  return segments[1] ? `/${segments[1]}` : '/';
+};
+
 function App() {
   const [searchQuery, setSearchQuery] = useState("");
+  
   return (
-    <Router>
+    <Router basename={getDynamicBasename()}>
       <Routes>
         <Route
           path="/"

@@ -30,7 +30,7 @@ def parse_args():
         help="Root path for the application (default: '')",
     )
     parser.add_argument(
-        "--forward-allow-ips",
+        "--forwarded-allow-ips",
         type=str,
         default="127.0.0.1",
         help="Comma-separated list of IPs to allow for forwarding (default: '127.0.0.1')",
@@ -47,5 +47,5 @@ def main():
         reload=args.reload,
         workers=args.workers,
         root_path=args.root_path,
-        forward_allow_ips=args.forward_allow_ips,
+        forwarded_allow_ips=args.forwarded_allow_ips,
     )

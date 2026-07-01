@@ -95,11 +95,11 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
 
   const debouncedSearch = useDebouncedCallback(
     // eslint-disable-next-line @typescript-eslint/no-inferrable-types
-    async (q: string, cat: string, f: Filter, page: number = 1) => {
+    async (q: string, f: Filter, page: number = 1) => {
       try {
         setLoading(true);
         setError(null);
-        const results = await simAtlasAPI.search(q, cat, f, page);
+        const results = await simAtlasAPI.search(q, f, page);
         setSearchResponse(results);
       } catch (err) {
         setError("Search failed. Please try again.");
@@ -112,7 +112,7 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
   );
 
   useEffect(() => {
-    void debouncedSearch(query, "", filters, 1);
+    void debouncedSearch(query, filters, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -131,17 +131,17 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
   const updateQuery = (v: string) => {
     setQuery(v);
     setSearchParams(filtersToParams({ q: v }, filters));
-    void debouncedSearch(v, "", filters);
+    void debouncedSearch(v, filters);
   };
 
   const updateFilters = (v: Filter) => {
     setFilters(v);
     setSearchParams(filtersToParams({ q: query }, v));
-    void debouncedSearch(query, "", v);
+    void debouncedSearch(query, v);
   };
 
   const goToPage = (page: number) => {
-    void debouncedSearch(query, "", filters, page);
+    void debouncedSearch(query, filters, page);
   };
 
   const { page, total_pages: totalPages, total_items: totalItems } = searchResponse.results;

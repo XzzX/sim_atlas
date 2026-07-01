@@ -28,11 +28,11 @@ from sim_atlas.models import (
     ExecutionResultMetadata,
     ExecutionResultRequest,
     ExecutionResultResponse,
-    Filter,
     FilterOptions,
     FunctionMetadata,
     FunctionRequest,
     ScoredSearchResponse,
+    SearchRequest,
     StoredArtifact,
     WorkflowMetadata,
     WorkflowRequest,
@@ -361,52 +361,38 @@ async def get_filter_options(
     return storage.get_filter_options()
 
 
-@api_router.post("/search", response_model=ScoredSearchResponse, tags=["search"])
+@api_router.post(
+    "/search",
+    response_model=ScoredSearchResponse,
+    tags=["search"],
+    operation_id="search_nodes",
+)
 async def search_nodes(
+    request: SearchRequest,
     storage: Annotated[StorageInterface, Depends(get_storage)],
-    query: str | None = None,
-    filter_options: Filter | None = None,
-    page: int = 1,
-    limit: int = 10,
 ):
-    return storage.search(query, filter_options, page=page, limit=limit)
+    """Search the node catalog.
 
-
-@api_router.post(
-    "/semantic_search",
-    response_model=ScoredSearchResponse,
-    tags=["search"],
-    operation_id="semantic_search",
-)
-async def semantic_search(
-    storage: Annotated[StorageInterface, Depends(get_storage)],
-    query: str,
-    filter_options: Filter | None = None,
-    page: int = 1,
-    limit: int = 10,
-):
-    return await storage.search_hybrid(query, filter_options, page=page, limit=limit)
-
-
-@api_router.post(
-    "/hybrid_search",
-    response_model=ScoredSearchResponse,
-    tags=["search"],
-    operation_id="hybrid_search",
-)
-async def hybrid_search(
-    storage: Annotated[StorageInterface, Depends(get_storage)],
-    query: str,
-    filter_options: Filter | None = None,
-    page: int = 1,
-    limit: int = 10,
-):
-    return await storage.search_hybrid(query, filter_options, page=page, limit=limit)
+    Performs hybrid (semantic + keyword) search when embeddings are configured
+    and falls back to keyword-only otherwise. Set ``semantic=false`` to force
+    keyword-only search even when AI is available.
+    """
+    if request.semantic is False:
+        return storage.search(
+            request.query, request.filter, page=request.page, limit=request.limit
+        )
+    return await storage.search_hybrid(
+        request.query, request.filter, page=request.page, limit=request.limit
+    )
 
 
 @api_router.get("/capabilities", tags=["meta"])
 async def get_capabilities() -> dict[str, bool]:
-    return {"agent_enabled": load_settings().agent_enabled}
+    settings = load_settings()
+    return {
+        "agent_enabled": settings.agent_enabled,
+        "embeddings_enabled": settings.embeddings_enabled,
+    }
 
 
 @api_router.post(
@@ -462,7 +448,7 @@ mcp = FastApiMCP(
     description="Very cool MCP server",
     describe_all_responses=True,
     describe_full_response_schema=True,
-    include_operations=["semantic_search", "hybrid_search", "agent"],
+    include_operations=["search_nodes", "agent"],
 )
 
 # Mount the MCP server directly to your app

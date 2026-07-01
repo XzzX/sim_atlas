@@ -113,7 +113,11 @@ class StorageInterface(ABC):
 
     @abstractmethod
     async def search_hybrid(
-        self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
+        self,
+        query: str | None,
+        filter: Filter | None = None,
+        page: int = 1,
+        limit: int = 10,
     ) -> ScoredSearchResponse:
         pass
 

@@ -38,35 +38,16 @@ export const simAtlasAPI = {
 
   search: async (
     query: string | null,
-    category: string,
     filterOptions: Filter,
     page = 1,
     limit = 10,
   ): Promise<ScoredSearchResponse> => {
-    const response = await api.post(
-      "/search",
-      { ...filterOptions, category },
-      {
-        params: { query, page, limit },
-      },
-    );
-    return ScoredSearchResponseSchema.parse(response.data);
-  },
-
-  semanticSearch: async (
-    query: string,
-    category: string,
-    filterOptions: Filter,
-    page = 1,
-    limit = 10,
-  ): Promise<ScoredSearchResponse> => {
-    const response = await api.post(
-      "/semantic_search",
-      { ...filterOptions, category },
-      {
-        params: { query, page, limit },
-      },
-    );
+    const response = await api.post("/search", {
+      query,
+      filter: filterOptions,
+      page,
+      limit,
+    });
     return ScoredSearchResponseSchema.parse(response.data);
   },
 };

@@ -63,8 +63,7 @@ The frontend connects to the Node Store backend API at `/api/v1`:
 
 - `GET /api/v1/nodes` - List all nodes
 - `GET /api/v1/nodes/{node_hash}` - Get node details
-- `POST /api/v1/search` - Keyword search
-- `POST /api/v1/semantic_search` - Semantic/AI-powered search
+- `POST /api/v1/search` - Hybrid search (semantic + keyword); automatically falls back to keyword-only when AI/embeddings are unavailable. Set `semantic: false` in the body to force keyword-only.
 
 ## Technologies
 

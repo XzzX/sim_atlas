@@ -23,6 +23,18 @@ def parse_args():
     parser.add_argument(
         "--workers", type=int, default=1, help="Number of worker processes (default: 1)"
     )
+    parser.add_argument(
+        "--root-path",
+        type=str,
+        default="",
+        help="Root path for the application (default: '')",
+    )
+    parser.add_argument(
+        "--forward-allow-ips",
+        type=str,
+        default="127.0.0.1",
+        help="Comma-separated list of IPs to allow for forwarding (default: '127.0.0.1')",
+    )
     return parser.parse_args()
 
 
@@ -34,4 +46,6 @@ def main():
         port=args.port,
         reload=args.reload,
         workers=args.workers,
+        root_path=args.root_path,
+        forward_allow_ips=args.forward_allow_ips,
     )

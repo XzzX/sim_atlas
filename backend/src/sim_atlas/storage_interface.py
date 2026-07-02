@@ -16,7 +16,7 @@ class ArtifactAlreadyExistsError(Exception):
 
     def __init__(self, artifact: StoredArtifact) -> None:
         super().__init__(f"Artifact with id '{artifact.id}' already exists.")
-        self.id = artifact.id
+        self.artifact = artifact
 
 
 class ArtifactDuplicateError(Exception):
@@ -24,7 +24,7 @@ class ArtifactDuplicateError(Exception):
 
     def __init__(self, artifact: StoredArtifact) -> None:
         super().__init__(f"Artifact with id '{artifact.id}' already exists.")
-        self.id = artifact.id
+        self.artifact = artifact
 
 
 class ExecutionResultAlreadyExistsError(Exception):
@@ -34,7 +34,7 @@ class ExecutionResultAlreadyExistsError(Exception):
         super().__init__(
             f"Execution result with id '{execution_result.id}' already exists."
         )
-        self.id = execution_result.id
+        self.execution_result = execution_result
 
 
 class ExecutionResultDuplicateError(Exception):
@@ -44,7 +44,7 @@ class ExecutionResultDuplicateError(Exception):
         super().__init__(
             f"Execution result with id '{execution_result.id}' already exists."
         )
-        self.id = execution_result.id
+        self.execution_result = execution_result
 
 
 class StorageInterface(ABC):

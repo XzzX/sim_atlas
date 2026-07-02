@@ -172,18 +172,11 @@ async def create_artifact(
         response.status_code = status.HTTP_201_CREATED
         return storage.create_artifact(artifact)
     except ArtifactAlreadyExistsError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"id": e.id, "message": "Artifact with the same id already exists."},
-        ) from e
+        response.status_code = status.HTTP_409_CONFLICT
+        return e.artifact
     except ArtifactDuplicateError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "id": e.id,
-                "message": "Artifact with the same hash already exists.",
-            },
-        ) from e
+        response.status_code = status.HTTP_409_CONFLICT
+        return e.artifact
 
 
 @api_router.get("/artifacts/{artifact_id}", tags=["artifacts"])
@@ -274,21 +267,11 @@ async def create_execution_result(
         response.status_code = status.HTTP_201_CREATED
         return storage.create_execution_result(result)
     except ExecutionResultAlreadyExistsError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "id": e.id,
-                "message": "Execution result with the same id already exists.",
-            },
-        ) from e
+        response.status_code = status.HTTP_409_CONFLICT
+        return e.execution_result
     except ExecutionResultDuplicateError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "id": e.id,
-                "message": "Execution result with the same hash already exists.",
-            },
-        ) from e
+        response.status_code = status.HTTP_409_CONFLICT
+        return e.execution_result
 
 
 @api_router.get(

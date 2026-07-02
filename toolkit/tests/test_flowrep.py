@@ -1,6 +1,6 @@
 import flowrep as fr
 
-from sim_atlas_toolkit.models import ArtifactType
+from sim_atlas_toolkit.models import ArtifactType, WorkflowRequest
 from sim_atlas_toolkit.parsers.flowrep_parser import parse
 
 from .mock_api import NodeStoreAPI
@@ -46,9 +46,11 @@ def linear(x: float, slope: float, intercept: float) -> float:
 
 
 def test_flowrep_atomic() -> None:
-    metadata_list = parse(kinetic_energy, NodeStoreAPI())  # pyright: ignore[reportArgumentType]
-    assert len(metadata_list) == 1
-    metadata = metadata_list[0]
+    ns = NodeStoreAPI()
+    responses = parse(kinetic_energy, ns)  # pyright: ignore[reportArgumentType]
+    assert len(responses) == 1
+    assert len(ns.uploaded) == 1
+    metadata = ns.uploaded[-1]
     assert metadata.artifact_type == ArtifactType.FUNCTION
     assert [a.label for a in metadata.inputs] == ["mass", "velocity"]
     assert metadata.inputs[0].datatype == "float"
@@ -72,9 +74,12 @@ def test_flowrep_atomic() -> None:
 
 
 def test_flowrep_workflow() -> None:
-    metadata_list = parse(linear, NodeStoreAPI())  # pyright: ignore[reportArgumentType]
-    assert len(metadata_list) == 1
-    metadata = metadata_list[0]
+    ns = NodeStoreAPI()
+    responses = parse(linear, ns)  # pyright: ignore[reportArgumentType]
+    assert len(responses) == 1
+    assert len(ns.uploaded) == 3  # noqa: PLR2004
+    metadata = ns.uploaded[-1]
+    assert isinstance(metadata, WorkflowRequest)
     assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [a.label for a in metadata.inputs] == ["x", "slope", "intercept"]
     assert all(a.datatype == "float" for a in metadata.inputs)

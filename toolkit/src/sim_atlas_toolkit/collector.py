@@ -7,7 +7,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Literal
 
-from sim_atlas_toolkit.models import ArtifactRequest
+import requests
+
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.upload import upload
 
@@ -18,7 +19,7 @@ def upload_module(  # noqa: PLR0912, PLR0913
     ns: NodeStoreAPI,
     module: str | ModuleType,
     update_existing: bool = False,
-    parsers: list[Callable[..., list[ArtifactRequest]]] | None = None,
+    parsers: list[Callable[..., list[requests.Response]]] | None = None,
     recursive: Literal["no", "import", "filesystem"] = "no",
     module_allowlist: list[str] | None = None,
     **kwargs: dict[str, Any],

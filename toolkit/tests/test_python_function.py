@@ -24,9 +24,11 @@ def simple(x: int, y: float) -> str:
 
 def test_parse_simple_function():
     # Parse the function
-    artifacts = parse(simple, NodeStoreAPI())  # pyright: ignore[reportArgumentType]
-    assert len(artifacts) == 1
-    artifact = artifacts[0]
+    ns = NodeStoreAPI()
+    responses = parse(simple, ns)  # pyright: ignore[reportArgumentType]
+    assert len(responses) == 1
+    assert len(ns.uploaded) == 1
+    artifact = ns.uploaded[0]
 
     assert isinstance(artifact, FunctionRequest)
 

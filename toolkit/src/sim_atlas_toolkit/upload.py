@@ -6,7 +6,6 @@ from typing import Any
 import requests
 
 from sim_atlas_toolkit.models import (
-    ArtifactRequest,
     FunctionRequest,
     WorkflowRequest,
 )
@@ -19,7 +18,7 @@ def upload(
     ns: NodeStoreAPI,
     obj: Any,
     update_existing: bool = False,
-    parsers: list[Callable[[Any], list[ArtifactRequest]]] | None = None,
+    parsers: list[Callable[[Any], list[requests.Response]]] | None = None,
     **kwargs: dict[str, Any],
 ) -> list[requests.Response]:
     if isinstance(obj, (FunctionRequest, WorkflowRequest)):

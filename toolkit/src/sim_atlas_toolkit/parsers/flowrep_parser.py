@@ -1,7 +1,7 @@
 import importlib
 import inspect
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 
 import requests
 from flowrep.api.schemas import (
@@ -36,7 +36,9 @@ from sim_atlas_toolkit.parsers.metadata import (
 from sim_atlas_toolkit.upload import upload
 
 
-def try_import(module: str, qualname: str) -> Any | None:
+def try_import(module: str, qualname: str | None) -> Any | None:
+    if qualname is None:
+        return None
     try:
         mod = importlib.import_module(module)
         obj = mod
@@ -279,10 +281,12 @@ def parse_workflow_recipe(
 def parse_workflow_instance(
     wf_instance: DagData, ns: NodeStoreAPI
 ) -> list[requests.Response]:
-    wf_obj = try_import(
-        wf_instance.recipe.reference.info.module,
-        wf_instance.recipe.reference.info.qualname,
-    )
+    # DagData's generic base (flowrep) doesn't parameterize NodeData[RecipeType],
+    # so `.recipe` is unresolved to pyright; cast it back to its real type.
+    recipe = cast(WorkflowRecipe, cast(Any, wf_instance).recipe)
+    if recipe.reference is None:
+        return []
+    wf_obj = try_import(recipe.reference.info.module, recipe.reference.info.qualname)
     if wf_obj is None:
         return []
     wf_responses = upload(ns, wf_obj)

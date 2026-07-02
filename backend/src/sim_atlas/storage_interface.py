@@ -14,40 +14,44 @@ from sim_atlas.models import (
 class ArtifactAlreadyExistsError(Exception):
     """Raised when an artifact with the same id already exists in storage."""
 
-    def __init__(self, id: str) -> None:
-        super().__init__(f"Artifact with id '{id}' already exists.")
-        self.id = id
+    def __init__(self, artifact: StoredArtifact) -> None:
+        super().__init__(f"Artifact with id '{artifact.id}' already exists.")
+        self.id = artifact.id
 
 
 class ArtifactDuplicateError(Exception):
     """Raised when an artifact with the same hash already exists in storage."""
 
-    def __init__(self, id: str) -> None:
-        super().__init__(f"Artifact with id '{id}' already exists.")
-        self.id = id
+    def __init__(self, artifact: StoredArtifact) -> None:
+        super().__init__(f"Artifact with id '{artifact.id}' already exists.")
+        self.id = artifact.id
 
 
 class ExecutionResultAlreadyExistsError(Exception):
     """Raised when an execution result with the same id already exists in storage."""
 
-    def __init__(self, id: str) -> None:
-        super().__init__(f"Execution result with id '{id}' already exists.")
-        self.id = id
+    def __init__(self, execution_result: ExecutionResultMetadata) -> None:
+        super().__init__(
+            f"Execution result with id '{execution_result.id}' already exists."
+        )
+        self.id = execution_result.id
 
 
 class ExecutionResultDuplicateError(Exception):
     """Raised when an execution result with the same hash already exists in storage."""
 
-    def __init__(self, id: str) -> None:
-        super().__init__(f"Execution result with id '{id}' already exists.")
-        self.id = id
+    def __init__(self, execution_result: ExecutionResultMetadata) -> None:
+        super().__init__(
+            f"Execution result with id '{execution_result.id}' already exists."
+        )
+        self.id = execution_result.id
 
 
 class StorageInterface(ABC):
     @abstractmethod
     def create_artifact(
         self, value: StoredArtifact, check_source_hash: bool = True
-    ) -> str:
+    ) -> StoredArtifact:
         """Store a new artifact.
 
         Returns
@@ -128,7 +132,7 @@ class StorageInterface(ABC):
     @abstractmethod
     def create_execution_result(
         self, value: ExecutionResultMetadata, check_hash: bool = True
-    ) -> str:
+    ) -> ExecutionResultMetadata:
         """Store a new execution result.
 
         Returns

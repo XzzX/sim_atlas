@@ -162,13 +162,15 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
 @api_router.post("/artifacts", tags=["artifacts"], status_code=status.HTTP_201_CREATED)
 async def create_artifact(
     request: ArtifactRequest,
+    response: Response,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
-) -> dict[str, str]:
+) -> ArtifactResponse:
     artifact = compose_artifact(request, creator)
 
     try:
-        return {"id": storage.create_artifact(artifact)}
+        response.status_code = status.HTTP_201_CREATED
+        return storage.create_artifact(artifact)
     except ArtifactAlreadyExistsError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

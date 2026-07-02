@@ -3,9 +3,10 @@ import inspect
 import textwrap
 from typing import Any, get_type_hints
 
+import requests
+
 from sim_atlas_toolkit.models import (
     Annotation,
-    ArtifactRequest,
     ArtifactType,
     FunctionRequest,
 )
@@ -44,7 +45,7 @@ def _field_annotations(cls: type) -> list[Annotation]:
     return result
 
 
-def parse(obj: Any, _: NodeStoreAPI) -> list[ArtifactRequest]:
+def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
     if not (dataclasses.is_dataclass(obj) and isinstance(obj, type)):
         return []
 
@@ -102,4 +103,4 @@ def parse(obj: Any, _: NodeStoreAPI) -> list[ArtifactRequest]:
         outputs=pack_metadata.inputs,
     )
 
-    return [pack_metadata, unpack_metadata]
+    return ns.upload([pack_metadata, unpack_metadata])

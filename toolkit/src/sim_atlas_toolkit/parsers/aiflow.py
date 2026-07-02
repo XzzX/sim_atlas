@@ -6,12 +6,12 @@ import textwrap
 from http import HTTPStatus
 from typing import Any
 
+import requests
 from requests import Response
 
 from sim_atlas_toolkit import upload
 from sim_atlas_toolkit.models import (
     Annotation,
-    ArtifactRequest,
     ArtifactType,
     FunctionRequest,
     Reference,
@@ -25,20 +25,20 @@ from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import enrich_from_docstring, type_to_str
 
 
-def parse_function_node(obj: Any) -> FunctionRequest | None:
+def parse_function_node(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
     try:
         from core.node import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
             Node,
         )
 
     except ImportError:
-        return None
+        return []
 
     if type(obj) is type and issubclass(obj, Node):
         obj = obj()
 
     if not isinstance(obj, Node):
-        return None
+        return []
 
     metadata = FunctionRequest.model_construct()
     metadata.python_import = obj._module_path
@@ -73,10 +73,10 @@ def parse_function_node(obj: Any) -> FunctionRequest | None:
 
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return metadata
+    return ns.upload([metadata])
 
 
-def parse_group_node(obj: Any) -> FunctionRequest | None:
+def parse_group_node(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
     try:
         from core.graph_to_workflow import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
             graph_to_workflow_code,
@@ -89,13 +89,13 @@ def parse_group_node(obj: Any) -> FunctionRequest | None:
         )
 
     except ImportError:
-        return None
+        return []
 
     if isinstance(obj, WorkflowGroupFactory):
         obj = obj()
 
     if not isinstance(obj, GroupNode):
-        return None
+        return []
 
     group_node: GroupNode = obj
 
@@ -127,25 +127,28 @@ def parse_group_node(obj: Any) -> FunctionRequest | None:
     metadata.outputs = outputs
     metadata.docstring = ""
 
-    return metadata
+    return ns.upload([metadata])
 
 
-def to_wf_definition(graph: Any, references: list[Reference]) -> WfDefinition:
+def to_wf_definition(
+    graph: Any, references: list[Reference], ns: NodeStoreAPI
+) -> WfDefinition:
     reference_dict = {ref.label: ref.id for ref in references}
 
     nodes: list[WfNode] = []
     for node_id, node in graph.nodes.items():
-        node_metadata = parse(node, NodeStoreAPI(""))
+        node_metadata = parse(node, ns)
         if not node_metadata:
             continue
-        nodes.append(
-            WfFunctionNode(
-                node_id=node_id,
-                inputs=node_metadata[0].inputs if node_metadata else [],
-                outputs=node_metadata[0].outputs if node_metadata else [],
-                atlas_id=reference_dict.get(node_id),
+        if node_metadata[0].status_code in (HTTPStatus.CREATED, HTTPStatus.CONFLICT):
+            nodes.append(
+                WfFunctionNode(
+                    node_id=node_id,
+                    inputs=node_metadata[0].json().get("inputs", []),
+                    outputs=node_metadata[0].json().get("outputs", []),
+                    atlas_id=reference_dict.get(node_id),
+                )
             )
-        )
 
     edges: list[WfEdge] = []
 
@@ -162,7 +165,7 @@ def to_wf_definition(graph: Any, references: list[Reference]) -> WfDefinition:
     return WfDefinition(nodes=nodes, edges=edges)
 
 
-def parse_workflow(obj: Any, ns: NodeStoreAPI) -> WorkflowRequest | None:
+def parse_workflow(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
     try:
         from core import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
             Workflow,  # pyright: ignore[reportMissingImports]
@@ -171,10 +174,10 @@ def parse_workflow(obj: Any, ns: NodeStoreAPI) -> WorkflowRequest | None:
             graph_to_workflow_code,
         )
     except ImportError:
-        return None
+        return []
 
     if not isinstance(obj, Workflow):
-        return None
+        return []
 
     wf: Workflow = obj
 
@@ -212,19 +215,19 @@ def parse_workflow(obj: Any, ns: NodeStoreAPI) -> WorkflowRequest | None:
         if (atlas_id := extract_id(response)) is not None
     ]
 
-    metadata.wf_definition = to_wf_definition(wf._graph, metadata.children)
+    metadata.wf_definition = to_wf_definition(wf._graph, metadata.children, ns)
 
-    return metadata
+    return ns.upload([metadata])
 
 
-def parse(obj: Any, ns: NodeStoreAPI) -> list[ArtifactRequest]:
+def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
     if metadata := parse_workflow(obj, ns):
-        return [metadata]
+        return metadata
 
-    if metadata := parse_group_node(obj):
-        return [metadata]
+    if metadata := parse_group_node(obj, ns):
+        return metadata
 
-    if metadata := parse_function_node(obj):
-        return [metadata]
+    if metadata := parse_function_node(obj, ns):
+        return metadata
 
     return []

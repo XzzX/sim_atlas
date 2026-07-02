@@ -1,3 +1,6 @@
+import contextlib
+import importlib
+import importlib.metadata
 import inspect
 import types
 from typing import Annotated, Any, Union, get_args, get_origin
@@ -155,3 +158,35 @@ def parse_return_annotation(sig: inspect.Signature) -> list[Annotation]:
     if not ann.label:
         ann.label = "return"
     return [ann]
+
+
+def extract_module_metadata(
+    module: types.ModuleType, metadata: ArtifactRequest
+) -> ArtifactRequest:
+    package_name = module.__name__.partition(".")[0]
+
+    with contextlib.suppress(Exception):
+        if dependencies := importlib.metadata.requires(package_name):
+            metadata.dependencies = dependencies
+
+    with contextlib.suppress(Exception):
+        package_metadata = importlib.metadata.metadata(package_name).json
+
+        if author := package_metadata.get("author"):
+            metadata.author_name = author if isinstance(author, str) else author[0]
+        if email := package_metadata.get("author_email"):
+            metadata.author_email = email if isinstance(email, str) else email[0]
+        if project_url := package_metadata.get("project_url"):
+            for item in project_url:
+                key, url = item.split(", ")
+                match key.lower():
+                    case "homepage":
+                        metadata.homepage_url = url
+                    case "documentation":
+                        metadata.documentation_url = url
+                    case "source" | "code" | "repository" | "github":
+                        metadata.source_url = url
+                    case _:
+                        pass
+
+    return metadata

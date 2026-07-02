@@ -3,8 +3,9 @@
 import inspect
 from typing import Any
 
+import requests
+
 from sim_atlas_toolkit.models import (
-    ArtifactRequest,
     ArtifactType,
     FunctionRequest,
 )
@@ -15,7 +16,7 @@ from sim_atlas_toolkit.parsers.metadata import (
 )
 
 
-def parse(node: Any, _: NodeStoreAPI) -> list[ArtifactRequest]:
+def parse(node: Any, ns: NodeStoreAPI) -> list[requests.Response]:
     if not isinstance(node, type):
         return []
 
@@ -55,4 +56,4 @@ def parse(node: Any, _: NodeStoreAPI) -> list[ArtifactRequest]:
 
     enrich_from_docstring(node.node_function.__doc__ or "", metadata)
 
-    return [metadata]
+    return ns.upload([metadata])

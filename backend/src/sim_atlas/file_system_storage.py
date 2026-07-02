@@ -191,17 +191,17 @@ class FileSystemStorage(StorageInterface):
 
     def create_artifact(
         self, value: StoredArtifact, check_source_hash: bool = True
-    ) -> str:
+    ) -> ExecutionResultMetadata:
         id = value.id
         if id in self._artifacts:
-            raise ArtifactAlreadyExistsError(id)
+            raise ArtifactAlreadyExistsError(value)
         if check_source_hash and value.hash:
             for node in self._artifacts.values():
                 if node.hash == value.hash:
-                    raise ArtifactDuplicateError(node.id)
+                    raise ArtifactDuplicateError(value)
         self._artifacts[id] = value
         self._save_artifacts_to_disk()
-        return id
+        return value
 
     def read_artifact(self, id: str) -> StoredArtifact:
         if id not in self._artifacts:
@@ -525,17 +525,17 @@ class FileSystemStorage(StorageInterface):
 
     def create_execution_result(
         self, value: ExecutionResultMetadata, check_hash: bool = True
-    ) -> str:
+    ) -> ExecutionResultMetadata:
         id = value.id
         if id in self._execution_results:
-            raise ExecutionResultAlreadyExistsError(id)
+            raise ExecutionResultAlreadyExistsError(value)
         if check_hash and value.hash:
             for result in self._execution_results.values():
                 if result.hash == value.hash:
-                    raise ExecutionResultDuplicateError(result.id)
+                    raise ExecutionResultDuplicateError(value)
         self._execution_results[id] = value
         self._save_execution_results_to_disk()
-        return id
+        return value
 
     def read_execution_result(self, id: str) -> ExecutionResultMetadata:
         if id not in self._execution_results:

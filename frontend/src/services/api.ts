@@ -9,14 +9,7 @@ import {
   FilterOptionsSchema,
 } from "../types/index";
 
-// 1. Dynamically get the subpath prefix (e.g., "/app1" or "/app2")
-const getDynamicPrefix = () => {
-  const segments = window.location.pathname.split('/');
-  return segments[1] ? `/${segments[1]}` : '';
-};
-
-// 2. Combine the prefix with your absolute API route
-const API_BASE_URL = `${getDynamicPrefix()}/api/v1`;
+const API_BASE_URL = "/api/v1";
 
 const api = axios.create({
   baseURL: API_BASE_URL,

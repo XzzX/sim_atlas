@@ -10,7 +10,7 @@ import pytest
 
 import sim_atlas.file_system_storage as fss
 from sim_atlas.file_system_storage import FileSystemStorage
-from sim_atlas.models import Filter, Reference
+from sim_atlas.models import Filter, FunctionResponse, Reference
 
 from .test_storage_interface import StorageContractTests, make_node, make_workflow
 
@@ -77,7 +77,11 @@ def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     storage.create_artifact(wf)
 
     keyword = storage.search("child_fn")
-    kw_fn = next(i.node for i in keyword.results.data if i.node.name == "child_fn")
+    kw_fn = next(
+        i.node
+        for i in keyword.results.data
+        if isinstance(i.node, FunctionResponse) and i.node.name == "child_fn"
+    )
     assert kw_fn.used_by is not None
     assert any(ref.id == wf.id for ref in kw_fn.used_by)
 
@@ -91,6 +95,10 @@ def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(fss, "create_embedding", _fake_embed)
 
     hybrid = asyncio.run(storage.search_hybrid("child_fn"))
-    hy_fn = next(i.node for i in hybrid.results.data if i.node.name == "child_fn")
+    hy_fn = next(
+        i.node
+        for i in hybrid.results.data
+        if isinstance(i.node, FunctionResponse) and i.node.name == "child_fn"
+    )
     assert hy_fn.used_by is not None
     assert any(ref.id == wf.id for ref in hy_fn.used_by)

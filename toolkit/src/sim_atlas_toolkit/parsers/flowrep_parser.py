@@ -36,6 +36,17 @@ from sim_atlas_toolkit.parsers.metadata import (
 from sim_atlas_toolkit.upload import upload
 
 
+def try_import(module: str, qualname: str) -> Any | None:
+    try:
+        mod = importlib.import_module(module)
+        obj = mod
+        for attr in qualname.split("."):
+            obj = getattr(obj, attr)
+        return obj
+    except Exception:
+        return None
+
+
 def extract_id(response: Response) -> str | None:
     if response.ok:
         return response.json()["id"]
@@ -232,16 +243,6 @@ def parse_workflow_recipe(
         for sig_ann, fr_out in zip(sig_outputs, fr_outputs, strict=True)
     ]
 
-    def try_import(module: str, qualname: str) -> Any | None:
-        try:
-            mod = importlib.import_module(module)
-            obj = mod
-            for attr in qualname.split("."):
-                obj = getattr(obj, attr)
-            return obj
-        except Exception:
-            return None
-
     children_import = [
         (label, try_import(node.reference.info.module, node.reference.info.qualname))
         for label, node in recipe.nodes.items()
@@ -273,12 +274,17 @@ def parse_workflow_recipe(
     return metadata
 
 
-def parse_workflow_instance(
-    obj: DagData, recipe: WorkflowRecipe, ns: NodeStoreAPI
-) -> WorkflowRequest:
-    metadata = parse_workflow_recipe(obj, recipe, ns)
-    wf_response = upload(ns, metadata)
-    wf_id = extract_id(wf_response)
+def parse_workflow_instance(wf_instance: DagData, ns: NodeStoreAPI) -> None:
+    wf_obj = try_import(
+        wf_instance.recipe.reference.info.module,
+        wf_instance.recipe.reference.info.qualname,
+    )
+    if wf_obj is None:
+        return []
+    wf_responses = upload(ns, wf_obj)
+    if len(wf_responses) == 0:
+        return []
+    wf_id = extract_id(wf_responses[0])
     if wf_id is None:
         return []
 
@@ -287,12 +293,7 @@ def parse_workflow_instance(
 
     inputs = [
         IOValue(label=k, value=v.value)
-        for k, v in obj.input_ports.items()
-        if is_valid_type(v.value)
-    ]
-    outputs = [
-        IOValue(label=k, value=v.value)
-        for k, v in obj.output_ports.items()
+        for k, v in wf_instance.input_ports.items()
         if is_valid_type(v.value)
     ]
 
@@ -301,16 +302,15 @@ def parse_workflow_instance(
         author_name="Unknown",
         author_email="unknown@example.com",
         inputs=inputs,
-        outputs=outputs,
+        outputs="",
     )
     ns.upload_execution_result(execution_metadata)
-
-    return metadata
 
 
 def parse(obj: Any, ns: NodeStoreAPI) -> list[ArtifactRequest]:
     if isinstance(obj, DagData):
-        return [parse_workflow_instance(obj, obj.recipe, ns)]
+        parse_workflow_instance(obj, ns)
+        return []
 
     if not hasattr(obj, "flowrep_recipe"):
         return []

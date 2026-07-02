@@ -191,7 +191,7 @@ class FileSystemStorage(StorageInterface):
 
     def create_artifact(
         self, value: StoredArtifact, check_source_hash: bool = True
-    ) -> ExecutionResultMetadata:
+    ) -> StoredArtifact:
         id = value.id
         if id in self._artifacts:
             raise ArtifactAlreadyExistsError(value)

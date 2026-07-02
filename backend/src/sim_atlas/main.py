@@ -265,12 +265,14 @@ def compose_execution_result(
 )
 async def create_execution_result(
     request: ExecutionResultRequest,
+    response: Response,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
-) -> dict[str, str]:
+) -> ExecutionResultResponse:
     result = compose_execution_result(request, creator)
     try:
-        return {"id": storage.create_execution_result(result)}
+        response.status_code = status.HTTP_201_CREATED
+        return storage.create_execution_result(result)
     except ExecutionResultAlreadyExistsError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

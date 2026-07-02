@@ -68,11 +68,10 @@ def test_search_hybrid_none_query_returns_filtered() -> None:
 def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     """`used_by` is populated identically by the keyword and hybrid paths."""
     storage = FileSystemStorage(path=None)
-    fn_id = storage.create_artifact(
-        make_node(name="child_fn", source_code="def child_fn(): pass")
-    )
+    fn = make_node(name="child_fn", source_code="def child_fn(): pass")
+    storage.create_artifact(fn)
     wf = make_workflow(
-        name="parent_wf", children=[Reference(label="child_fn", id=fn_id)]
+        name="parent_wf", children=[Reference(label="child_fn", id=fn.id)]
     )
     storage.create_artifact(wf)
 

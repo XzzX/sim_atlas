@@ -75,9 +75,9 @@ jobs:
 
       - name: Verify flowrep artifacts
         run: |
-          curl -sf -X POST "http://127.0.0.1:8000/api/v1/search?limit=10" \
+          curl -sf -X POST "http://127.0.0.1:8000/api/v1/search" \
             -H "Content-Type: application/json" \
-            -d '{"keywords": ["flowrep"]}' | \
+            -d '{"filter": {"keywords": ["flowrep"]}, "limit": 10}' | \
             python3 -c "
           import sys, json
           d = json.load(sys.stdin)
@@ -94,7 +94,9 @@ jobs:
 
       - name: Verify artifacts were uploaded
         run: |
-          curl -sf -X POST "http://127.0.0.1:8000/api/v1/search?limit=10" | \
+          curl -sf -X POST "http://127.0.0.1:8000/api/v1/search" \
+            -H "Content-Type: application/json" \
+            -d '{"limit": 10}' | \
             python3 -c "
           import sys, json
           d = json.load(sys.stdin)

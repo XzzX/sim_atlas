@@ -158,6 +158,16 @@ class Settings(BaseSettings):
     def agent_enabled(self) -> bool:
         return bool(self.llm_api_key and self.llm_base_url and self.llm_chat_model)
 
+    @property
+    def embeddings_enabled(self) -> bool:
+        match self.embedding_provider:
+            case "fastembed":
+                return True
+            case "openai" | "voyageai":
+                return bool(self.embedding_api_key and self.embedding_model)
+            case _:
+                return False
+
 
 @lru_cache(maxsize=1)
 def load_settings() -> Settings:

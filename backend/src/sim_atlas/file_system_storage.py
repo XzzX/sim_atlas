@@ -377,23 +377,20 @@ class FileSystemStorage(StorageInterface):
 
         paginated_items = self._paginate(sorted_items, page=page, limit=limit)
 
-        def used_by(artifact: StoredArtifact) -> list[Reference] | None:
-            match artifact:
-                case FunctionMetadata():
-                    return [
-                        Reference(label=n.name, id=n.id)
-                        for n in self._artifacts.values()
-                        if isinstance(n, WorkflowMetadata)
-                        and any(c.id == artifact.id for c in n.children)
-                    ] or None
-                case WorkflowMetadata():
-                    return None
-
         for item in paginated_items.results.data:
             if isinstance(item.node, FunctionMetadata):
-                item.node.used_by = used_by(item.node)
+                item.node.used_by = self._used_by(item.node.id)
 
         return paginated_items
+
+    def _used_by(self, artifact_id: str) -> list[Reference] | None:
+        """Workflows whose children reference the given function artifact."""
+        return [
+            Reference(label=n.name, id=n.id)
+            for n in self._artifacts.values()
+            if isinstance(n, WorkflowMetadata)
+            and any(c.id == artifact_id for c in n.children)
+        ] or None
 
     async def search_semantic(
         self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
@@ -434,15 +431,25 @@ class FileSystemStorage(StorageInterface):
         return self._paginate(similarities, page=page, limit=limit)
 
     async def search_hybrid(
-        self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
+        self,
+        query: str | None,
+        filter: Filter | None = None,
+        page: int = 1,
+        limit: int = 10,
     ) -> ScoredSearchResponse:
         """Hybrid search combining semantic (cosine) and keyword ranking via RRF.
 
+        Falls back to keyword-only search when there is no query to embed or no
+        embedding provider is configured, so search always works even without AI.
+
         Tokens shorter than 3 characters are dropped from keyword matching so that
-        short-but-meaningful domain tokens like "fcc", "bcc", or "Al" are preserved
-        while noise words like "of" or "is" are filtered out.  Unenriched nodes that
+        short-but-meaningful domain tokens like "fcc" or "bcc" are preserved while
+        noise words like "of" or "is" are filtered out. Unenriched nodes that
         have no embedding can still surface through the keyword rank.
         """
+        if not query or not query.strip() or not load_settings().embeddings_enabled:
+            return self.search(query, filter, page=page, limit=limit)
+
         min_token_len = 3
         tokens = [t for t in query.lower().split() if len(t) >= min_token_len]
         if not tokens:
@@ -496,7 +503,13 @@ class FileSystemStorage(StorageInterface):
         ]
         scored.sort(key=lambda x: x.score, reverse=True)
 
-        return self._paginate(scored, page=page, limit=limit)
+        paginated_items = self._paginate(scored, page=page, limit=limit)
+
+        for item in paginated_items.results.data:
+            if isinstance(item.node, FunctionResponse):
+                item.node.used_by = self._used_by(item.node.id)
+
+        return paginated_items
 
     @staticmethod
     def _embedding_text(node: StoredArtifact) -> str:

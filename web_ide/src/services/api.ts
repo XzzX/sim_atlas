@@ -14,14 +14,7 @@ import {
   type CapabilitiesResponse,
 } from "../interfaces/BackendSchema";
 
-// 1. Dynamically get the subpath prefix (e.g., "/app1" or "/app2")
-const getDynamicPrefix = () => {
-  const segments = window.location.pathname.split('/');
-  return segments[1] ? `/${segments[1]}` : '';
-};
-
-// 2. Combine the prefix with your absolute API route
-const API_BASE_URL = `${getDynamicPrefix()}/api/v1`;
+const API_BASE_URL = "/api/v1";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -45,31 +38,16 @@ export const simAtlasAPI = {
     query: string | null,
     filterOptions: Filter | null,
     page = 1,
+    semantic: boolean | null = null,
     limit = 20,
   ): Promise<ScoredSearchResponse> => {
-    const response = await api.post(
-      "/search",
-      { ...filterOptions },
-      {
-        params: { query, page, limit },
-      },
-    );
-    return ScoredSearchResponseSchema.parse(response.data);
-  },
-
-  semanticSearch: async (
-    query: string,
-    filterOptions: Filter | null,
-    page = 1,
-    limit = 20,
-  ): Promise<ScoredSearchResponse> => {
-    const response = await api.post(
-      "/semantic_search",
-      { ...filterOptions },
-      {
-        params: { query, page, limit },
-      },
-    );
+    const response = await api.post("/search", {
+      query,
+      filter: filterOptions,
+      semantic,
+      page,
+      limit,
+    });
     return ScoredSearchResponseSchema.parse(response.data);
   },
 

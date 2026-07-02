@@ -5,8 +5,11 @@ test("web IDE loads linear workflow and add-node dialog shows 4 function nodes",
 }) => {
   // Fetch the linear workflow's UUID from the backend search API
   const resp = await page.request.post("/api/v1/search", {
-    data: { artifact_type: ["workflow"] },
-    params: { query: "linear", limit: 20 },
+    data: {
+      query: "linear",
+      filter: { artifact_type: ["workflow"] },
+      limit: 20,
+    },
   });
   const json = (await resp.json()) as {
     results: { data: Array<{ node: { id: string; name: string } }> };

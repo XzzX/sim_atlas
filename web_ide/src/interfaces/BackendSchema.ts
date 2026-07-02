@@ -320,6 +320,7 @@ export const AgentSSEEventSchema = z.discriminatedUnion("type", [
 
 export const CapabilitiesResponseSchema = z.object({
   agent_enabled: z.boolean(),
+  embeddings_enabled: z.boolean(),
 });
 export type CapabilitiesResponse = z.infer<typeof CapabilitiesResponseSchema>;
 export type AgentSSEEvent = z.infer<typeof AgentSSEEventSchema>;

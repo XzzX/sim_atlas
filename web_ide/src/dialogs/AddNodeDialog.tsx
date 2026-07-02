@@ -74,10 +74,12 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
     async (term: string, f: Filter, p: number, mode: SearchMode) => {
       setLoading(true);
       try {
-        const resp =
-          mode === "semantic" && term.trim()
-            ? await simAtlasAPI.semanticSearch(term, f, p)
-            : await simAtlasAPI.search(term || null, f, p);
+        const resp = await simAtlasAPI.search(
+          term || null,
+          f,
+          p,
+          mode === "semantic",
+        );
         setResults(resp.results.data.map((item) => item.node));
         setTotalPages(resp.results.total_pages);
       } catch (e) {

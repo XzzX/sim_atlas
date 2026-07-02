@@ -42,7 +42,7 @@ A decision that affects multiple components lists all values, e.g. `scope: [back
 | [0005](0005-sha256-node-identity.md) | SHA-256 source hash as node identity | accepted | backend, toolkit |
 | [0006](0006-on-demand-ai-enrichment.md) | On-demand AI enrichment | accepted | backend |
 | [0007](0007-openai-compatible-llm-api.md) | OpenAI-compatible LLM API | accepted | backend |
-| [0008](0008-mcp-semantic-search.md) | Expose semantic search as an MCP tool | accepted | backend |
+| [0008](0008-mcp-semantic-search.md) | Expose semantic search as an MCP tool | superseded by 0018 | backend |
 | [0009](0009-static-file-serving.md) | FastAPI serves frontend assets as static files | accepted | backend |
 | [0010](0010-react-flow-web-ide.md) | React Flow for the visual workflow editor | accepted | web-ide |
 | [0011](0011-metadata-only-storage.md) | Store node metadata with links to external source repositories | accepted | cross-cutting |
@@ -52,3 +52,4 @@ A decision that affects multiple components lists all values, e.g. `scope: [back
 | [0015](0015-agent-filter-options-in-system-prompt.md) | Inject catalog filter options into the agent system prompt | accepted | backend |
 | [0016](0016-multi-turn-agent-conversation-history.md) | Multi-turn agent conversation via client-carried history | accepted | backend, web-ide |
 | [0017](0017-layered-settings-loading.md) | Layered settings loading with XDG-inspired priority order | accepted | backend |
+| [0018](0018-single-hybrid-search-endpoint.md) | Single auto-hybrid search endpoint with keyword fallback | accepted | backend |

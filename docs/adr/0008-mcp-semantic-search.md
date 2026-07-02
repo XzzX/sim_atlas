@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by [ADR-0018](0018-single-hybrid-search-endpoint.md)
 date: 2026-03-26
 deciders: Sebastian Eibl
 scope: backend

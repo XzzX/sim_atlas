@@ -443,8 +443,8 @@ class FileSystemStorage(StorageInterface):
         embedding provider is configured, so search always works even without AI.
 
         Tokens shorter than 3 characters are dropped from keyword matching so that
-        short-but-meaningful domain tokens like "fcc", "bcc", or "Al" are preserved
-        while noise words like "of" or "is" are filtered out.  Unenriched nodes that
+        short-but-meaningful domain tokens like "fcc" or "bcc" are preserved while
+        noise words like "of" or "is" are filtered out. Unenriched nodes that
         have no embedding can still surface through the keyword rank.
         """
         if not query or not query.strip() or not load_settings().embeddings_enabled:

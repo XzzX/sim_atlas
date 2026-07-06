@@ -159,18 +159,19 @@ class StorageContractTests:
 
     def test_create_and_read_roundtrip(self, storage: StorageInterface) -> None:
         node = make_node()
-        key = storage.create_artifact(node)
-        assert key == node.id
-        assert storage.read_artifact(key) == node
+        created = storage.create_artifact(node)
+        assert created == node
+        assert storage.read_artifact(node.id) == node
 
     def test_read_missing_key_raises_key_error(self, storage: StorageInterface) -> None:
         with pytest.raises(KeyError):
             storage.read_artifact("nonexistent")
 
     def test_delete_removes_entry(self, storage: StorageInterface) -> None:
-        key = storage.create_artifact(make_node())
-        storage.delete_artifact(key)
-        assert not storage.exists(key)
+        node = make_node()
+        storage.create_artifact(node)
+        storage.delete_artifact(node.id)
+        assert not storage.exists(node.id)
 
     def test_delete_missing_key_raises_key_error(
         self, storage: StorageInterface
@@ -186,15 +187,17 @@ class StorageContractTests:
         assert storage.count() == 2  # noqa: PLR2004
 
     def test_count_decreases_on_delete(self, storage: StorageInterface) -> None:
-        key = storage.create_artifact(make_node(name="a"))
-        storage.delete_artifact(key)
+        node = make_node(name="a")
+        storage.create_artifact(node)
+        storage.delete_artifact(node.id)
         assert storage.count() == 0
 
     def test_exists_returns_true_for_existing_key(
         self, storage: StorageInterface
     ) -> None:
-        key = storage.create_artifact(make_node())
-        assert storage.exists(key)
+        node = make_node()
+        storage.create_artifact(node)
+        assert storage.exists(node.id)
 
     def test_exists_returns_false_for_missing_key(
         self, storage: StorageInterface
@@ -203,10 +206,10 @@ class StorageContractTests:
 
     def test_update_replaces_node(self, storage: StorageInterface) -> None:
         node1 = make_node(name="first")
-        key = storage.create_artifact(node1)
+        storage.create_artifact(node1)
         node2 = make_node(name="second")
-        storage.update_artifact(key, node2)
-        assert storage.read_artifact(key) == node2
+        storage.update_artifact(node1.id, node2)
+        assert storage.read_artifact(node1.id) == node2
         assert storage.count() == 1
 
     def test_update_missing_key_raises_key_error(
@@ -632,9 +635,9 @@ class StorageContractTests:
         self, storage: StorageInterface
     ) -> None:
         wf = make_workflow()
-        key = storage.create_artifact(wf)
-        assert key == wf.id
-        result = storage.read_artifact(key)
+        created = storage.create_artifact(wf)
+        assert created == wf
+        result = storage.read_artifact(wf.id)
         assert result == wf
 
     def test_search_workflow_by_name(self, storage: StorageInterface) -> None:

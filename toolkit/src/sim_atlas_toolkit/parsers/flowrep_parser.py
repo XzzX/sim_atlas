@@ -1,20 +1,23 @@
 import importlib
 import inspect
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 
+import requests
 from flowrep.api.schemas import (
     AtomicRecipe,
     InputSource,
     WorkflowRecipe,
 )
+from flowrep.retrospective.datastructures import DagData
 from requests import Response
 
 from sim_atlas_toolkit.models import (
     Annotation,
-    ArtifactRequest,
     ArtifactType,
+    ExecutionResultRequest,
     FunctionRequest,
+    IOValue,
     Reference,
     WfDefinition,
     WfEdge,
@@ -31,6 +34,27 @@ from sim_atlas_toolkit.parsers.metadata import (
     parse_signature,
 )
 from sim_atlas_toolkit.upload import upload
+
+
+def try_import(module: str, qualname: str | None) -> Any | None:
+    if qualname is None:
+        return None
+    try:
+        mod = importlib.import_module(module)
+        obj = mod
+        for attr in qualname.split("."):
+            obj = getattr(obj, attr)
+        return obj
+    except Exception:
+        return None
+
+
+def extract_id(response: Response) -> str | None:
+    if response.ok:
+        return response.json()["id"]
+    if response.status_code == HTTPStatus.CONFLICT:
+        return response.json()["detail"]["id"]
+    return None
 
 
 def flowrep_to_wf_definition(
@@ -130,7 +154,9 @@ def flowrep_to_wf_definition(
     return WfDefinition(nodes=nodes, edges=edges)
 
 
-def parse_atomic_recipe(obj: Any, recipe: AtomicRecipe) -> FunctionRequest:
+def parse_atomic_recipe(
+    obj: Any, recipe: AtomicRecipe, ns: NodeStoreAPI
+) -> list[requests.Response]:
     metadata = FunctionRequest.model_construct()
 
     metadata.source_code = inspect.getsource(obj) or ""
@@ -178,12 +204,12 @@ def parse_atomic_recipe(obj: Any, recipe: AtomicRecipe) -> FunctionRequest:
     metadata.keywords = ["flowrep"]
 
     enrich_from_docstring(metadata.docstring, metadata)
-    return metadata
+    return ns.upload([metadata])
 
 
 def parse_workflow_recipe(
     obj: Any, recipe: WorkflowRecipe, ns: NodeStoreAPI
-) -> WorkflowRequest:
+) -> list[requests.Response]:
     metadata = WorkflowRequest.model_construct()
 
     metadata.source_code = recipe.model_dump_json(indent=2)
@@ -221,16 +247,6 @@ def parse_workflow_recipe(
         for sig_ann, fr_out in zip(sig_outputs, fr_outputs, strict=True)
     ]
 
-    def try_import(module: str, qualname: str) -> Any | None:
-        try:
-            mod = importlib.import_module(module)
-            obj = mod
-            for attr in qualname.split("."):
-                obj = getattr(obj, attr)
-            return obj
-        except Exception:
-            return None
-
     children_import = [
         (label, try_import(node.reference.info.module, node.reference.info.qualname))
         for label, node in recipe.nodes.items()
@@ -242,13 +258,6 @@ def parse_workflow_recipe(
         for label, child in children_import
         if child is not None
     ]
-
-    def extract_id(response: Response) -> str | None:
-        if response.ok:
-            return response.json()["id"]
-        if response.status_code == HTTPStatus.CONFLICT:
-            return response.json()["detail"]["id"]
-        return None
 
     children = [
         Reference(label=label, id=atlas_id)
@@ -266,19 +275,56 @@ def parse_workflow_recipe(
 
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return metadata
+    return ns.upload([metadata])
 
 
-def parse(obj: Any, ns: NodeStoreAPI) -> list[ArtifactRequest]:
+def parse_workflow_instance(
+    wf_instance: DagData, ns: NodeStoreAPI
+) -> list[requests.Response]:
+    # DagData's generic base (flowrep) doesn't parameterize NodeData[RecipeType],
+    # so `.recipe` is unresolved to pyright; cast it back to its real type.
+    recipe = cast(WorkflowRecipe, cast(Any, wf_instance).recipe)
+    if recipe.reference is None:
+        return []
+    wf_obj = try_import(recipe.reference.info.module, recipe.reference.info.qualname)
+    if wf_obj is None:
+        return []
+    wf_responses = upload(ns, wf_obj)
+    if len(wf_responses) == 0:
+        return []
+    wf_id = extract_id(wf_responses[0])
+    if wf_id is None:
+        return []
+
+    inputs = [
+        IOValue(label=k, value=v.value)
+        for k, v in wf_instance.input_ports.items()
+        if isinstance(v.value, (bool, int, float, str))
+    ]
+
+    execution_metadata = ExecutionResultRequest(
+        artifact_id=wf_id,
+        author_name="Unknown",
+        author_email="unknown@example.com",
+        inputs=inputs,
+        outputs="",
+    )
+    return [ns.upload_execution_result(execution_metadata)]
+
+
+def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+    if isinstance(obj, DagData):
+        return parse_workflow_instance(obj, ns)
+
     if not hasattr(obj, "flowrep_recipe"):
         return []
 
     match obj.flowrep_recipe:
         case AtomicRecipe() as recipe:
-            return [parse_atomic_recipe(obj, recipe)]
+            return parse_atomic_recipe(obj, recipe, ns)
 
         case WorkflowRecipe() as recipe:
-            return [parse_workflow_recipe(obj, recipe, ns)]
+            return parse_workflow_recipe(obj, recipe, ns)
 
         case _:
             return []

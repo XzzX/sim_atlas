@@ -27,10 +27,12 @@ class Point:
 
 
 def test_dataclass_parser() -> None:
-    metadata_list = parse(Point, NodeStoreAPI())  # pyright: ignore[reportArgumentType]
-    assert len(metadata_list) == 2  # noqa: PLR2004
+    ns = NodeStoreAPI()
+    responses = parse(Point, ns)  # pyright: ignore[reportArgumentType]
+    assert len(responses) == 2  # noqa: PLR2004
+    assert len(ns.uploaded) == 2  # noqa: PLR2004
 
-    pack_metadata = metadata_list[0]
+    pack_metadata = ns.uploaded[0]
     assert pack_metadata.artifact_type == ArtifactType.FUNCTION
     assert len(pack_metadata.inputs) == 2  # noqa: PLR2004
     assert [a.label for a in pack_metadata.inputs] == ["x", "y"]
@@ -48,7 +50,7 @@ def test_dataclass_parser() -> None:
     assert pack_metadata.outputs[0].label == "point"
     assert pack_metadata.outputs[0].datatype == "tests.test_dataclass_node.Point"
 
-    unpack_metadata = metadata_list[1]
+    unpack_metadata = ns.uploaded[1]
     assert unpack_metadata.artifact_type == ArtifactType.FUNCTION
     assert len(unpack_metadata.inputs) == 1
     assert unpack_metadata.inputs[0].label == "point"

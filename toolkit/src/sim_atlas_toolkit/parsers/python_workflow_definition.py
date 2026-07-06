@@ -2,15 +2,16 @@
 
 from typing import Any
 
+import requests
+
 from sim_atlas_toolkit.models import (
     Annotation,
-    ArtifactRequest,
     FunctionRequest,
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 
 
-def parse(obj: Any, _: NodeStoreAPI) -> list[ArtifactRequest]:
+def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
     try:
         from python_workflow_definition.models import (  # noqa: PLC0415
             PythonWorkflowDefinitionInputNode,
@@ -43,4 +44,4 @@ def parse(obj: Any, _: NodeStoreAPI) -> list[ArtifactRequest]:
     metadata.docstring = ""
     metadata.keywords = ["python_workflow_definition"]
 
-    return [metadata]
+    return ns.upload([metadata])

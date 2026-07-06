@@ -74,11 +74,15 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
                 </div>
                 <div className="mt-2 space-y-2">
                   {execution.inputs.map((input) => (
-                    <div key={input.label} className="flex items-center gap-2 text-[13px]">
-                      <span className="size-[6px] shrink-0 rounded-full" style={{ background: "var(--node-dot-input)" }} />
-                      <span className="font-mono text-foreground">{input.label}</span>
-                      <span className="font-mono text-muted-foreground">{String(input.value)}</span>
-                      {datatypeFor(input.label) && <DatatypeBadge datatype={datatypeFor(input.label)!} />}
+                    <div key={input.label} className="flex items-center justify-between gap-2 text-[13px]">
+                      <span className="flex items-center gap-2">
+                        <span className="size-[6px] shrink-0 rounded-full" style={{ background: "var(--node-dot-input)" }} />
+                        <span className="font-mono text-foreground">{input.label}</span>
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span className="font-mono text-muted-foreground">{String(input.value)}</span>
+                        {datatypeFor(input.label) && <DatatypeBadge datatype={datatypeFor(input.label)!} />}
+                      </span>
                     </div>
                   ))}
                 </div>

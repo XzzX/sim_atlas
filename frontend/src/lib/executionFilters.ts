@@ -27,9 +27,20 @@ export function deriveFilterSchema(
   inputs: Annotation[],
   executions: ExecutionResultMetadata[],
 ): FilterField[] {
-  const valuesFor = (label: string) =>
-    executions.flatMap((e) => e.inputs.filter((v) => v.label === label).map((v) => v.value));
+  const valuesByLabel = new Map<
+    string,
+    Array<ExecutionResultMetadata["inputs"][number]["value"]>
+  >();
 
+  for (const execution of executions) {
+    for (const input of execution.inputs) {
+      const existing = valuesByLabel.get(input.label);
+      if (existing) existing.push(input.value);
+      else valuesByLabel.set(input.label, [input.value]);
+    }
+  }
+
+  const valuesFor = (label: string) => valuesByLabel.get(label) ?? [];
   const fields: FilterField[] = [];
   for (const input of inputs) {
     if (!input.label || !input.datatype) continue;

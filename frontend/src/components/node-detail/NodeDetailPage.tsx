@@ -128,17 +128,17 @@ export const NodeDetailPage: React.FC<NodeDetailPageProps> = ({ node }) => {
 
             <div className="flex flex-shrink-0 flex-wrap justify-end gap-2">
               {node.homepage_url && (
-                <Button variant="outline" size="sm" className="rounded-md" onClick={() => window.open(node.homepage_url!, "_blank")}>
+                <Button variant="outline" size="sm" className="rounded-md" onClick={() => window.open(node.homepage_url!, "_blank", "noopener,noreferrer")}>
                   <HouseIcon /> Homepage
                 </Button>
               )}
               {node.documentation_url && (
-                <Button variant="outline" size="sm" className="rounded-md" onClick={() => window.open(node.documentation_url!, "_blank")}>
+                <Button variant="outline" size="sm" className="rounded-md" onClick={() => window.open(node.documentation_url!, "_blank", "noopener,noreferrer")}>
                   <BookIcon /> Documentation
                 </Button>
               )}
               {node.source_url && (
-                <Button variant="outline" size="sm" className="rounded-md" onClick={() => window.open(node.source_url!, "_blank")}>
+                <Button variant="outline" size="sm" className="rounded-md" onClick={() => window.open(node.source_url!, "_blank", "noopener,noreferrer")}>
                   <CodeIcon /> Source code
                 </Button>
               )}

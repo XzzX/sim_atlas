@@ -29,9 +29,15 @@ export function formatTimestamp(iso: string): string {
 export function downloadTextFile(filename: string, content: string) {
   const blob = new Blob([content], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
+
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
+  a.style.display = "none";
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+
+  // Revoke on the next tick to avoid cancelling the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

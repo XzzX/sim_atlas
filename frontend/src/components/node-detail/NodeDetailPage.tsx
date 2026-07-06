@@ -1,15 +1,14 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeftIcon, ClipboardCopyIcon, HouseIcon, BookIcon, Code as CodeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { splitName } from "@/lib/utils";
+import { simAtlasAPI } from "@/services/api";
 import { TypeChip } from "./TypeChip";
-import type { ArtifactResponse } from "../../types/index";
-
-// TODO(step 5/6): replace with the real count once the executions endpoint exists.
-const EXECUTIONS_COUNT_PLACEHOLDER = 0;
+import { ExecutionsTab } from "./ExecutionsTab";
+import type { ArtifactResponse, ExecutionResultMetadata } from "../../types/index";
 
 type TabValue = "overview" | "executions";
 
@@ -24,6 +23,32 @@ interface NodeDetailPageProps {
 export const NodeDetailPage: React.FC<NodeDetailPageProps> = ({ node }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [cardEl, setCardEl] = useState<HTMLDivElement | null>(null);
+
+  const [executions, setExecutions] = useState<ExecutionResultMetadata[]>([]);
+  const [executionsLoading, setExecutionsLoading] = useState(true);
+  const [executionsError, setExecutionsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setExecutionsLoading(true);
+        setExecutionsError(null);
+        const result = await simAtlasAPI.getExecutionResults(node.id);
+        if (!cancelled) setExecutions(result);
+      } catch (err) {
+        if (!cancelled) setExecutionsError("Failed to load executions. Please try again.");
+        console.error(err);
+      } finally {
+        if (!cancelled) setExecutionsLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [node.id]);
 
   const tab: TabValue = isTabValue(searchParams.get("tab")) ? (searchParams.get("tab") as TabValue) : "overview";
 
@@ -61,7 +86,11 @@ export const NodeDetailPage: React.FC<NodeDetailPageProps> = ({ node }) => {
           backgroundSize: "24px 24px",
         }}
       >
-        <div className="relative overflow-hidden rounded-2xl bg-card" style={{ boxShadow: "var(--node-detail-shadow-card)" }}>
+        <div
+          ref={setCardEl}
+          className="relative overflow-hidden rounded-2xl bg-card"
+          style={{ boxShadow: "var(--node-detail-shadow-card)" }}
+        >
           {/* back link */}
           <div className="px-8 pt-[18px]">
             <button
@@ -136,7 +165,7 @@ export const NodeDetailPage: React.FC<NodeDetailPageProps> = ({ node }) => {
                   className="inline-flex h-[18px] items-center justify-center rounded-full px-[7px] font-mono text-[11px] font-semibold"
                   style={{ background: "var(--node-more-bg)", color: "var(--node-more-fg)" }}
                 >
-                  {EXECUTIONS_COUNT_PLACEHOLDER}
+                  {executionsLoading ? "…" : executions.length}
                 </span>
               </TabsTrigger>
             </TabsList>
@@ -144,8 +173,14 @@ export const NodeDetailPage: React.FC<NodeDetailPageProps> = ({ node }) => {
             <TabsContent value="overview" className="px-8 py-9 text-sm text-muted-foreground">
               Overview content lands in the next step.
             </TabsContent>
-            <TabsContent value="executions" className="px-8 py-9 text-sm text-muted-foreground">
-              Executions content lands in a later step.
+            <TabsContent value="executions">
+              <ExecutionsTab
+                inputs={node.inputs}
+                executions={executions}
+                loading={executionsLoading}
+                error={executionsError}
+                drawerContainer={cardEl}
+              />
             </TabsContent>
           </Tabs>
         </div>

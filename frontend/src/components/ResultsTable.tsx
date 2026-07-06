@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Alert } from "@/components/ui/alert";
+import { splitName } from "@/lib/utils";
 import type { ScoredSearchItem, Annotation } from "../types/index";
 
 // ── Type chip logic ────────────────────────────────────────────────────────────
@@ -121,12 +122,6 @@ function PortList({
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-function splitName(name: string): { label: string; modulePath: string } {
-  const parts = name.split(".");
-  if (parts.length <= 1) return { label: name, modulePath: "" };
-  return { label: parts[parts.length - 1], modulePath: parts.slice(0, -1).join(".") };
-}
 
 const GRID_COLS = "2fr 1fr 1fr";
 const INPUTS_CAP = 3;

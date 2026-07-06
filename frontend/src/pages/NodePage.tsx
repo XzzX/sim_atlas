@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeftIcon } from "lucide-react";
+import { useParams } from "react-router-dom";
 import { simAtlasAPI } from "../services/api";
 import type { ArtifactResponse } from "../types/index";
-import { NodeCard } from "../components/NodeCard";
+import { NodeDetailPage } from "../components/node-detail";
 import { Alert } from "@/components/ui/alert";
 import { Toaster } from "@/components/ui/sonner";
 
 export const NodePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [node, setNode] = useState<ArtifactResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,33 +34,42 @@ export const NodePage: React.FC = () => {
     };
   }, [id]);
 
-  return (
-    <main className="mx-auto w-full max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
-      <button
-        type="button"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground underline-offset-2 hover:underline"
-        onClick={() => void navigate(-1)}
+  if (loading) {
+    return (
+      <div
+        className="flex min-h-screen w-full flex-col items-center justify-center gap-3"
+        style={{ background: "var(--node-detail-backdrop)" }}
       >
-        <ArrowLeftIcon className="size-4" />
-        Back to search
-      </button>
+        <div className="size-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+        <p className="text-sm text-white/70">Loading node...</p>
+      </div>
+    );
+  }
 
-      {loading ? (
-        <div className="flex min-h-56 flex-col items-center justify-center gap-3">
-          <div className="size-8 animate-spin rounded-full border-2 border-muted border-t-foreground" />
-          <p className="text-sm text-muted-foreground">Loading node...</p>
+  return (
+    <>
+      {error ? (
+        <div
+          className="flex min-h-screen w-full items-start justify-center px-4 py-10"
+          style={{ background: "var(--node-detail-backdrop)" }}
+        >
+          <Alert variant="destructive" className="mt-10 w-full max-w-2xl">
+            {error}
+          </Alert>
         </div>
-      ) : error ? (
-        <Alert variant="destructive">{error}</Alert>
       ) : node ? (
-        <NodeCard
-          node={node}
-          onReferenceClick={(refId) => void navigate(`/node/${refId}`)}
-        />
+        <NodeDetailPage node={node} />
       ) : (
-        <Alert variant="info">Node not found.</Alert>
+        <div
+          className="flex min-h-screen w-full items-start justify-center px-4 py-10"
+          style={{ background: "var(--node-detail-backdrop)" }}
+        >
+          <Alert variant="info" className="mt-10 w-full max-w-2xl">
+            Node not found.
+          </Alert>
+        </div>
       )}
       <Toaster />
-    </main>
+    </>
   );
 };

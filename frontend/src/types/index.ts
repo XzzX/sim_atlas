@@ -218,3 +218,25 @@ export const FilterOptionsSchema = z.object({
   quantities: z.array(z.string()),
 });
 export type FilterOptions = z.infer<typeof FilterOptionsSchema>;
+
+export const IOValueSchema = z.object({
+  label: z.string(),
+  value: z.union([z.string(), z.number(), z.boolean()]),
+});
+export type IOValue = z.infer<typeof IOValueSchema>;
+
+export const ExecutionResultMetadataSchema = z.object({
+  id: z.string(),
+  author_name: z.string(),
+  author_email: z.string(),
+  creator_name: z.string(),
+  creator_email: z.string(),
+  creation_timestamp: z.string(),
+  artifact_id: z.string(),
+  inputs: z.array(IOValueSchema),
+  outputs: z.string(),
+  hash: z.string(),
+});
+export type ExecutionResultMetadata = z.infer<typeof ExecutionResultMetadataSchema>;
+
+export const ExecutionResultListSchema = z.array(ExecutionResultMetadataSchema);

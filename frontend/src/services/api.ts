@@ -7,6 +7,8 @@ import {
   type Filter,
   type FilterOptions,
   FilterOptionsSchema,
+  type ExecutionResultMetadata,
+  ExecutionResultListSchema,
 } from "../types/index";
 
 const API_BASE_URL = "/api/v1";
@@ -27,6 +29,11 @@ export const simAtlasAPI = {
   getFilterOptions: async (): Promise<FilterOptions> => {
     const response = await api.get("/filter_options");
     return FilterOptionsSchema.parse(response.data);
+  },
+
+  getExecutionResults: async (artifactId: string): Promise<ExecutionResultMetadata[]> => {
+    const response = await api.get(`/artifacts/${artifactId}/execution_results`);
+    return ExecutionResultListSchema.parse(response.data);
   },
 
   search: async (

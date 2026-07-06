@@ -1,6 +1,5 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { ThemeProvider } from "next-themes";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -10,8 +9,6 @@ if (!root) {
 }
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="sim-atlas-theme">
-      <App />
-    </ThemeProvider>
+    <App />
   </React.StrictMode>,
 );

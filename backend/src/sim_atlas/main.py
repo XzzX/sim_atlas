@@ -125,6 +125,7 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 hash=hashlib.sha256(request.source_code.encode()).hexdigest(),
                 inputs=request.inputs,
                 outputs=request.outputs,
+                see_also=request.see_also,
             )
         case WorkflowRequest():
             return WorkflowMetadata(

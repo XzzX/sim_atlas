@@ -8,6 +8,7 @@ import { splitName } from "@/lib/utils";
 import { simAtlasAPI } from "@/services/api";
 import { TypeChip } from "./TypeChip";
 import { ExecutionsTab } from "./ExecutionsTab";
+import { OverviewTab } from "./OverviewTab";
 import type { ArtifactResponse, ExecutionResultMetadata } from "../../types/index";
 
 type TabValue = "overview" | "executions";
@@ -170,8 +171,12 @@ export const NodeDetailPage: React.FC<NodeDetailPageProps> = ({ node }) => {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="px-8 py-9 text-sm text-muted-foreground">
-              Overview content lands in the next step.
+            <TabsContent value="overview">
+              <OverviewTab
+                node={node}
+                executionsCount={executions.length}
+                onNavigateToExecutions={() => setTab("executions")}
+              />
             </TabsContent>
             <TabsContent value="executions">
               <ExecutionsTab

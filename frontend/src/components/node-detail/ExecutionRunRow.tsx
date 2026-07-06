@@ -1,30 +1,10 @@
 import React from "react";
 import { DownloadIcon } from "lucide-react";
+import { formatBytes, formatTimestamp, downloadTextFile } from "@/lib/utils";
 import type { ExecutionResultMetadata } from "@/types/index";
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  return `${(bytes / 1024).toFixed(1)} KB`;
-}
-
-function formatTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function downloadOutput(execution: ExecutionResultMetadata) {
-  const blob = new Blob([execution.outputs], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${execution.id}-output.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadTextFile(`${execution.id}-output.txt`, execution.outputs);
 }
 
 interface ExecutionRunRowProps {

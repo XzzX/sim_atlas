@@ -217,6 +217,7 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
 
       <RunDetailDrawer
         execution={selectedExecution}
+        inputs={inputs}
         onClose={() => setSelectedExecution(null)}
         portalContainer={drawerContainer}
       />

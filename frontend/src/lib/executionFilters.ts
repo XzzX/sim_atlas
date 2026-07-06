@@ -29,7 +29,7 @@ export function deriveFilterSchema(
 ): FilterField[] {
   const valuesByLabel = new Map<
     string,
-    Array<ExecutionResultMetadata["inputs"][number]["value"]>
+    ExecutionResultMetadata["inputs"][number]["value"][]
   >();
 
   for (const execution of executions) {

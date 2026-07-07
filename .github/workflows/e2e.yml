@@ -35,10 +35,6 @@ jobs:
         run: uv sync
         working-directory: ./backend
 
-      - name: Install toolkit
-        run: uv sync
-        working-directory: ./toolkit
-
       - name: Start backend server
         run: |
           uv run sim-atlas --host 127.0.0.1 --port 8000 &
@@ -63,15 +59,22 @@ jobs:
           echo "SIM_ATLAS_API_TOKEN=$TOKEN" >> "$GITHUB_ENV"
         working-directory: ./backend
 
+      - name: Init upload venv
+        run: uv venv --python=3.12
+        working-directory: ./e2e
+
+      - name: Install dummy-module and upload script into venv
+        run: uv pip install dummy_module/. ../toolkit/.
+        working-directory: ./e2e
+
       - name: Upload dummy module
         run: |
           uv run sim-atlas-upload dummy_module \
             --api-url http://127.0.0.1:8000/api/v1 \
             --api-token "$SIM_ATLAS_API_TOKEN" \
+            --module-allow flowrep \
             --verbose
-        working-directory: ./toolkit
-        env:
-          PYTHONPATH: ${{ github.workspace }}/e2e
+        working-directory: ./e2e
 
       - name: Verify flowrep artifacts
         run: |

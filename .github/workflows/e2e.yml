@@ -73,7 +73,7 @@ jobs:
             --api-url http://127.0.0.1:8000/api/v1 \
             --api-token "$SIM_ATLAS_API_TOKEN" \
             --module-allow flowrep \
-            --log-level DEBUG
+            --log-level debug
         working-directory: ./e2e
 
       - name: Verify flowrep artifacts

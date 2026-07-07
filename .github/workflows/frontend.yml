@@ -41,6 +41,11 @@ jobs:
         run: npm run type-check
         working-directory: ./frontend
 
+      # Run unit/component tests (Vitest)
+      - name: Run tests
+        run: npm test
+        working-directory: ./frontend
+
   build:
     name: Build Application
     runs-on: ubuntu-latest

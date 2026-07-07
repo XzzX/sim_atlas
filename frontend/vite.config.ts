@@ -1,4 +1,4 @@
-import type { UserConfig } from "vite";
+import type { ViteUserConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -22,4 +22,9 @@ export default {
       },
     },
   },
-} satisfies UserConfig;
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+  },
+} satisfies ViteUserConfig;

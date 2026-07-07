@@ -1,0 +1,17 @@
+[project]
+name = "dummy-module"
+version = "0.1.0"
+description = "Nodes, workflows and execution results for e2e tests."
+readme = "README.md"
+authors = [
+    { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "flowrep>=0.5.2",
+    "packaging>=26.2",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.21,<0.12.0"]
+build-backend = "uv_build"

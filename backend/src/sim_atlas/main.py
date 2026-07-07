@@ -14,10 +14,12 @@ from fastapi import (
     Response,
     status,
 )
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from sim_atlas.agent import run_agent_stream
 from sim_atlas.exceptions import AINotConfiguredError
@@ -428,6 +430,22 @@ async def redirect_to_ide(request: Request) -> RedirectResponse:
 
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/ide", StaticFiles(directory=STATIC_DIR / "ide", html=True), name="ide")
+
+
+@app.exception_handler(StarletteHTTPException)
+async def spa_fallback(
+    request: Request, exc: StarletteHTTPException
+) -> Response | FileResponse:
+    is_frontend_route = (
+        exc.status_code == status.HTTP_404_NOT_FOUND
+        and request.method == "GET"
+        and not request.url.path.startswith("/api/")
+        and not request.url.path.startswith("/ide")
+    )
+    if is_frontend_route:
+        return FileResponse(STATIC_DIR / "frontend" / "index.html")
+    return await http_exception_handler(request, exc)
+
 
 # Create an MCP server based on this app
 mcp = FastApiMCP(

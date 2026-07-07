@@ -76,15 +76,17 @@ def upload_module(  # noqa: PLR0912, PLR0913
                 )
             continue
 
+        if k.startswith("_"):
+            continue
+
         if not hasattr(v, "__module__"):
             continue
+
+        logger.debug(f"Checking {k} (module: {v.__module__})")
 
         if not v.__module__.startswith(module.__name__) and not any(
             v.__module__.startswith(prefix) for prefix in (module_allowlist or [])
         ):
-            continue
-
-        if k.startswith("_"):
             continue
 
         try:

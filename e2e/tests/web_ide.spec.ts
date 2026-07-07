@@ -44,8 +44,8 @@ test("web IDE loads linear workflow and add-node dialog shows 4 function nodes",
   await expect(page.locator('[data-id="ex.-mul_0.a"]')).toBeVisible();
   await expect(page.locator('[data-id="eslope.-mul_0.b"]')).toBeVisible();
   await expect(page.locator('[data-id="eintercept.-add_0.b"]')).toBeVisible();
-  await expect(page.locator('[data-id="emul_0.output_0-add_0.a"]')).toBeVisible();
-  await expect(page.locator('[data-id="eadd_0.output_0-result."]')).toBeVisible();
+  await expect(page.locator('[data-id="emul_0.product-add_0.a"]')).toBeVisible();
+  await expect(page.locator('[data-id="eadd_0.sum-result."]')).toBeVisible();
 
   // Right-click on a corner of the pane (avoids nodes which are placed in the centre)
   await page.locator(".react-flow__pane").click({ button: "right", position: { x: 10, y: 10 } });

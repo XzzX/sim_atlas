@@ -69,7 +69,7 @@ jobs:
 
       - name: Upload dummy module
         run: |
-          uv run sim-atlas-upload dummy_module \
+          uv run sim-atlas-upload dummy_module dummy_module.flowrep \
             --api-url http://127.0.0.1:8000/api/v1 \
             --api-token "$SIM_ATLAS_API_TOKEN" \
             --module-allow flowrep \
@@ -158,6 +158,44 @@ jobs:
           assert isinstance(wf['wf_definition']['nodes'], list), f'wf_definition.nodes is not a list'
           assert isinstance(wf['wf_definition']['edges'], list), f'wf_definition.edges is not a list'
           print(f'OK — workflow artifact {wf[\"name\"]!r} verified')
+          "
+
+      - name: Verify execution results
+        run: |
+          WF_ID=$(curl -sf -X POST "http://127.0.0.1:8000/api/v1/search" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "linear", "filter": {"artifact_type": ["workflow"]}, "limit": 5}' | \
+            python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          matches = [i['node']['id'] for i in d['results']['data'] if i['node']['name'] == 'dummy_module.flowrep.linear']
+          assert len(matches) == 1, f'Expected exactly one linear workflow, got {matches}'
+          print(matches[0])
+          ")
+
+          curl -sf "http://127.0.0.1:8000/api/v1/artifacts/$WF_ID/execution_results" | \
+            python3 -c "
+          import sys, json
+          results = json.load(sys.stdin)
+          assert len(results) == 3, f'Expected 3 execution results, got {len(results)}: {results}'
+
+          expected = [
+              {'x': -1.3, 'slope': -5, 'intercept': 2.1},
+              {'x': 3.1, 'slope': 2, 'intercept': 0},
+              {'x': 81.0, 'slope': 9, 'intercept': -1.1},
+          ]
+
+          def inputs_by_label(result):
+              return {io['label']: io['value'] for io in result['inputs']}
+
+          for exp in expected:
+              match = [r for r in results if inputs_by_label(r).get('x') == exp['x']]
+              assert len(match) == 1, f'Expected exactly one run with x={exp[\"x\"]}, got {len(match)}'
+              ins = inputs_by_label(match[0])
+              outputs = json.loads(match[0]['outputs'])
+              expected_result = exp['slope'] * exp['x'] + exp['intercept']
+              assert abs(outputs['result'] - expected_result) < 1e-6, f'x={exp[\"x\"]}: expected result {expected_result}, got {outputs}'
+              print(f'OK — run x={ins[\"x\"]}, slope={ins[\"slope\"]}, intercept={ins[\"intercept\"]} -> {outputs}')
           "
 
       - name: Install Playwright dependencies

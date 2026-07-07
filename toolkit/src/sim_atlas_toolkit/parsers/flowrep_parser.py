@@ -1,5 +1,6 @@
 import importlib
 import inspect
+import json
 import logging
 from http import HTTPStatus
 from typing import Any, cast
@@ -310,12 +311,20 @@ def parse_workflow_instance(
         if isinstance(v.value, (bool, int, float, str))
     ]
 
+    outputs = json.dumps(
+        {
+            k: v.value
+            for k, v in wf_instance.output_ports.items()
+            if isinstance(v.value, (bool, int, float, str))
+        }
+    )
+
     execution_metadata = ExecutionResultRequest(
         artifact_id=wf_id,
         author_name="Unknown",
         author_email="unknown@example.com",
         inputs=inputs,
-        outputs="",
+        outputs=outputs,
     )
     return [ns.upload_execution_result(execution_metadata)]
 

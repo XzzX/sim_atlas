@@ -1,3 +1,5 @@
+import json
+
 import flowrep as fr
 
 from sim_atlas_toolkit.models import ArtifactType, WorkflowRequest
@@ -94,3 +96,21 @@ def test_flowrep_workflow() -> None:
     assert len(metadata.children) == 2  # noqa: PLR2004
     assert metadata.children[0].label == "mul_0"
     assert metadata.children[1].label == "add_0"
+
+
+def test_flowrep_execution_result() -> None:
+    ns = NodeStoreAPI()
+    dag = fr.tools.run_recipe(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        linear.flowrep_recipe,  # pyright: ignore[reportFunctionMemberAccess]
+        x=2.0,
+        slope=3.0,
+        intercept=1.0,
+    )
+    responses = parse(dag, ns)  # pyright: ignore[reportArgumentType]
+    assert len(responses) == 1
+    assert len(ns.uploaded_execution_results) == 1
+    execution_result = ns.uploaded_execution_results[-1]
+    assert execution_result.artifact_id
+    inputs = {io.label: io.value for io in execution_result.inputs}
+    assert inputs == {"x": 2.0, "slope": 3.0, "intercept": 1.0}
+    assert json.loads(execution_result.outputs) == {"result": 7.0}

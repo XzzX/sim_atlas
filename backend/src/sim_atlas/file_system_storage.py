@@ -194,11 +194,11 @@ class FileSystemStorage(StorageInterface):
     ) -> StoredArtifact:
         id = value.id
         if id in self._artifacts:
-            raise ArtifactAlreadyExistsError(value)
+            raise ArtifactAlreadyExistsError(self._artifacts[id])
         if check_source_hash and value.hash:
             for node in self._artifacts.values():
                 if node.hash == value.hash:
-                    raise ArtifactDuplicateError(value)
+                    raise ArtifactDuplicateError(node)
         self._artifacts[id] = value
         self._save_artifacts_to_disk()
         return value

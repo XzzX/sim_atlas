@@ -1,5 +1,6 @@
 import importlib
 import inspect
+import logging
 from http import HTTPStatus
 from typing import Any, cast
 
@@ -35,6 +36,8 @@ from sim_atlas_toolkit.parsers.metadata import (
 )
 from sim_atlas_toolkit.upload import upload
 
+logger = logging.getLogger(__name__)
+
 
 def try_import(module: str, qualname: str | None) -> Any | None:
     if qualname is None:
@@ -53,7 +56,7 @@ def extract_id(response: Response) -> str | None:
     if response.ok:
         return response.json()["id"]
     if response.status_code == HTTPStatus.CONFLICT:
-        return response.json()["detail"]["id"]
+        return response.json()["id"]
     return None
 
 
@@ -281,6 +284,8 @@ def parse_workflow_recipe(
 def parse_workflow_instance(
     wf_instance: DagData, ns: NodeStoreAPI
 ) -> list[requests.Response]:
+    logger.debug("parsing workflow instance")
+
     # DagData's generic base (flowrep) doesn't parameterize NodeData[RecipeType],
     # so `.recipe` is unresolved to pyright; cast it back to its real type.
     recipe = cast(WorkflowRecipe, cast(Any, wf_instance).recipe)
@@ -295,6 +300,9 @@ def parse_workflow_instance(
     wf_id = extract_id(wf_responses[0])
     if wf_id is None:
         return []
+    logger.debug(
+        f"workflow recipe: status_code {wf_responses[0].status_code}, id {wf_id}"
+    )
 
     inputs = [
         IOValue(label=k, value=v.value)

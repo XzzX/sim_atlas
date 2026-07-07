@@ -206,7 +206,7 @@ def parse_workflow(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
         if response.ok:
             return response.json()["id"]
         if response.status_code == HTTPStatus.CONFLICT:
-            return response.json()["detail"]["id"]
+            return response.json()["id"]
         return None
 
     metadata.children = [

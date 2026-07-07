@@ -11,7 +11,7 @@ from sim_atlas_toolkit.models import (
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 
-logger = logging.getLogger("SimAtlas")
+logger = logging.getLogger(__name__)
 
 
 def upload(

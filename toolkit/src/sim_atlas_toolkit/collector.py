@@ -12,7 +12,7 @@ import requests
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.upload import upload
 
-logger = logging.getLogger("SimAtlas")
+logger = logging.getLogger(__name__)
 
 
 def upload_module(  # noqa: PLR0912, PLR0913

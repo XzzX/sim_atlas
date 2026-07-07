@@ -5,12 +5,10 @@ import importlib
 import logging
 import os
 
-from sim_atlas_toolkit import NodeStoreAPI, upload_module
-
 DEFAULT_API_URL_ENV = "SIM_ATLAS_API_URL"
 DEFAULT_API_TOKEN_ENV = "SIM_ATLAS_API_TOKEN"
 
-logger = logging.getLogger("SimAtlas")
+logger = logging.getLogger(__name__)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -61,9 +59,10 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable verbose logging.",
+        "--log-level",
+        choices=["debug", "info", "warning", "error", "critical"],
+        default="info",
+        help="Logging level.",
     )
     return parser
 
@@ -72,7 +71,9 @@ def main() -> int:
     parser = _build_parser()
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
+    logging.basicConfig(level=args.log_level.upper())
+
+    from sim_atlas_toolkit import NodeStoreAPI, upload_module  # noqa: PLC0415
 
     if not args.api_url:
         parser.error(

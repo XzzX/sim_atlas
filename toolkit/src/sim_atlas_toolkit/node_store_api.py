@@ -8,7 +8,7 @@ from sim_atlas_toolkit.models import (
     artifact_request_adapter,
 )
 
-logger = logging.getLogger("SimAtlasAPI")
+logger = logging.getLogger(__name__)
 
 
 class NodeStoreAPI:

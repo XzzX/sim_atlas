@@ -12,7 +12,7 @@ import type { ArtifactResponse, Reference } from "@/types/index";
 const REFERENCE_KIND_STYLE: Record<string, React.CSSProperties> = {
   "See also": { background: "var(--chip-union-bg)", color: "var(--chip-union-fg)" },
   "Used by": { background: "var(--chip-domain-bg)", color: "var(--chip-domain-fg)" },
-  Child: { background: "var(--chip-coll-bg)", color: "var(--chip-coll-fg)" },
+  Uses: { background: "var(--chip-coll-bg)", color: "var(--chip-coll-fg)" },
 };
 
 interface SectionHeadingProps {
@@ -47,7 +47,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
   const docstring = "docstring" in node ? (node.docstring ?? undefined) : undefined;
   const dependencies = "dependencies" in node ? node.dependencies : undefined;
   const usedBy = "used_by" in node ? node.used_by : undefined;
-  const children = "children" in node ? node.children : undefined;
+  const uses = "uses" in node ? node.uses : undefined;
 
   const [docTab, setDocTab] = useState<"docstring" | "description">(
     node.description && !docstring ? "description" : "docstring",
@@ -57,10 +57,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
     const items: { kind: string; ref: Reference }[] = [
       ...(node.see_also ?? []).map((ref) => ({ kind: "See also", ref })),
       ...(usedBy ?? []).map((ref) => ({ kind: "Used by", ref })),
-      ...(children ?? []).map((ref) => ({ kind: "Child", ref })),
+      ...(uses ?? []).map((ref) => ({ kind: "Uses", ref })),
     ];
     return items;
-  }, [node.see_also, usedBy, children]);
+  }, [node.see_also, usedBy, uses]);
 
   const hasDependencies = dependencies != null;
   const hasReferences = references.length > 0;

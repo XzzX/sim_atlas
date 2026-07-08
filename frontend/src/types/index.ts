@@ -156,7 +156,7 @@ export const WorkflowResponseSchema = z.object({
   outputs: z.array(AnnotationSchema),
 
   see_also: z.array(ReferenceSchema).optional().default([]),
-  children: z.array(ReferenceSchema).optional().default([]),
+  uses: z.array(ReferenceSchema).optional().default([]),
 
   wf_definition: WorkflowDefinitionSchema,
 });

@@ -93,9 +93,9 @@ def test_flowrep_workflow() -> None:
     assert metadata.outputs[0].description is None
     assert metadata.brief_description == "y = slope * x + intercept"
     assert metadata.description == "y = slope * x + intercept"
-    assert len(metadata.children) == 2  # noqa: PLR2004
-    assert metadata.children[0].label == "mul_0"
-    assert metadata.children[1].label == "add_0"
+    assert len(metadata.uses) == 2  # noqa: PLR2004
+    assert metadata.uses[0].label == "mul_0"
+    assert metadata.uses[1].label == "add_0"
 
 
 def test_flowrep_execution_result() -> None:

@@ -384,12 +384,12 @@ class FileSystemStorage(StorageInterface):
         return paginated_items
 
     def _used_by(self, artifact_id: str) -> list[Reference] | None:
-        """Workflows whose children reference the given function artifact."""
+        """Workflows whose uses reference the given function artifact."""
         return [
             Reference(label=n.name, id=n.id)
             for n in self._artifacts.values()
             if isinstance(n, WorkflowMetadata)
-            and any(c.id == artifact_id for c in n.children)
+            and any(c.id == artifact_id for c in n.uses)
         ] or None
 
     async def search_semantic(

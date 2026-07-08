@@ -12,7 +12,7 @@ interface ArtifactDetailsProps {
   source_code?: string;
   definition?: Record<string, unknown>;
   see_also?: Reference[];
-  child_nodes?: Reference[];
+  uses?: Reference[];
   used_by?: Reference[] | null;
   onReferenceClick?: (id: string) => void;
 }
@@ -24,12 +24,12 @@ export const ArtifactDetails: React.FC<ArtifactDetailsProps> = ({
   source_code,
   definition,
   see_also,
-  child_nodes,
+  uses,
   used_by,
   onReferenceClick,
 }) => {
   const hasSeeAlso = see_also && see_also.length > 0;
-  const hasChildren = child_nodes && child_nodes.length > 0;
+  const hasUses = uses && uses.length > 0;
   const hasUsedBy = used_by && used_by.length > 0;
 
   return (
@@ -73,10 +73,10 @@ export const ArtifactDetails: React.FC<ArtifactDetailsProps> = ({
                 See Also ({see_also.length})
               </TabsTrigger>
             )}
-            {hasChildren && (
-              <TabsTrigger value="children">
+            {hasUses && (
+              <TabsTrigger value="uses">
                 <GitFork size={14} className="mr-2" />
-                Children ({child_nodes.length})
+                Uses ({uses.length})
               </TabsTrigger>
             )}
             {hasUsedBy && (
@@ -233,10 +233,10 @@ export const ArtifactDetails: React.FC<ArtifactDetailsProps> = ({
                 </TabsContent>
               )}
 
-              {hasChildren && (
-                <TabsContent value="children">
+              {hasUses && (
+                <TabsContent value="uses">
                   <div className="flex flex-wrap gap-1">
-                    {child_nodes.map((ref) => (
+                    {uses.map((ref) => (
                       <Badge
                         key={ref.id}
                         variant="outline"

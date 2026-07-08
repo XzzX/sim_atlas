@@ -42,7 +42,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         dependencies={"dependencies" in node ? node.dependencies ?? undefined : undefined}
         source_code={"source_code" in node ? node.source_code : undefined}
         see_also={node.see_also ?? []}
-        child_nodes={"children" in node ? (node.children ?? []) : undefined}
+        uses={"uses" in node ? (node.uses ?? []) : undefined}
         used_by={"used_by" in node ? (node.used_by ?? undefined) : undefined}
         onReferenceClick={onReferenceClick}
       />

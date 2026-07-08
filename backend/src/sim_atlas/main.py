@@ -25,6 +25,7 @@ from sim_atlas.agent import run_agent_stream
 from sim_atlas.exceptions import AINotConfiguredError
 from sim_atlas.models import (
     AgentRequest,
+    AnnotationResponse,
     ArtifactRequest,
     ArtifactResponse,
     ExecutionResultMetadata,
@@ -125,8 +126,8 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 brief_description=request.brief_description or "",
                 description=request.description or "",
                 hash=hashlib.sha256(request.source_code.encode()).hexdigest(),
-                inputs=request.inputs,
-                outputs=request.outputs,
+                inputs=[AnnotationResponse(**a.model_dump()) for a in request.inputs],
+                outputs=[AnnotationResponse(**a.model_dump()) for a in request.outputs],
                 see_also=request.see_also,
             )
         case WorkflowRequest():
@@ -148,8 +149,8 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 docstring=request.docstring,
                 brief_description=request.brief_description or "",
                 description=request.description or "",
-                inputs=request.inputs,
-                outputs=request.outputs,
+                inputs=[AnnotationResponse(**a.model_dump()) for a in request.inputs],
+                outputs=[AnnotationResponse(**a.model_dump()) for a in request.outputs],
                 see_also=request.see_also,
                 uses=request.uses,
                 wf_definition=request.wf_definition,

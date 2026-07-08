@@ -21,6 +21,7 @@ class Annotation(BaseModel):
 class Reference(BaseModel):
     label: str
     id: str
+    count: int
 
 
 class FunctionRequest(BaseModel):

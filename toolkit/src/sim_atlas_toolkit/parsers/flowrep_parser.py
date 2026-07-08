@@ -264,7 +264,7 @@ def parse_workflow_recipe(
     ]
 
     uses = [
-        Reference(label=label, id=atlas_id)
+        Reference(label=label, id=atlas_id, count=1)
         for label, response in uses_upload
         if (atlas_id := extract_id(response)) is not None
     ]

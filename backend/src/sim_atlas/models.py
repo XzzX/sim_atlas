@@ -43,7 +43,13 @@ class ArtifactType(StrEnum):
     WORKFLOW = "workflow"
 
 
-class Annotation(BaseModel):
+class Reference(BaseModel):
+    label: str
+    id: str
+    count: int
+
+
+class AnnotationRequest(BaseModel):
     has_default_value: bool = False
     label: str | None = None
     datatype: str | None = None
@@ -52,9 +58,14 @@ class Annotation(BaseModel):
     description: str | None = None
 
 
-class Reference(BaseModel):
-    label: str
-    id: str
+class AnnotationResponse(BaseModel):
+    has_default_value: bool = False
+    label: str | None = None
+    datatype: str | None = None
+    unit: str | None = None
+    quantity: str | None = None
+    description: str | None = None
+    connections: list[Reference] | None = None
 
 
 class FunctionRequest(BaseModel):
@@ -79,8 +90,8 @@ class FunctionRequest(BaseModel):
     docstring: str
     brief_description: str | None = None
     description: str | None = None
-    inputs: list[Annotation]
-    outputs: list[Annotation]
+    inputs: list[AnnotationRequest]
+    outputs: list[AnnotationRequest]
 
     see_also: list[Reference] = []
 
@@ -112,8 +123,8 @@ class FunctionResponse(BaseModel):
     docstring: str
     brief_description: str | None = None
     description: str | None = None
-    inputs: list[Annotation]
-    outputs: list[Annotation]
+    inputs: list[AnnotationResponse]
+    outputs: list[AnnotationResponse]
 
     see_also: list[Reference] = []
     used_by: list[Reference] | None = None
@@ -132,20 +143,20 @@ class FunctionMetadata(FunctionResponse):
 class WfInputNode(BaseModel):
     type: Literal["input"] = "input"
     node_id: str
-    outputs: list[Annotation]
+    outputs: list[AnnotationRequest]
 
 
 class WfOutputNode(BaseModel):
     type: Literal["output"] = "output"
     node_id: str
-    inputs: list[Annotation]
+    inputs: list[AnnotationRequest]
 
 
 class WfFunctionNode(BaseModel):
     type: Literal["function"] = "function"
     node_id: str
-    inputs: list[Annotation]
-    outputs: list[Annotation]
+    inputs: list[AnnotationRequest]
+    outputs: list[AnnotationRequest]
     atlas_id: str | None
 
 
@@ -188,8 +199,8 @@ class WorkflowRequest(BaseModel):
     brief_description: str | None = None
     description: str | None = None
 
-    inputs: list[Annotation]
-    outputs: list[Annotation]
+    inputs: list[AnnotationRequest]
+    outputs: list[AnnotationRequest]
 
     see_also: list[Reference] = []
     uses: list[Reference] = []
@@ -223,8 +234,8 @@ class WorkflowResponse(BaseModel):
 
     brief_description: str | None = None
     description: str | None = None
-    inputs: list[Annotation]
-    outputs: list[Annotation]
+    inputs: list[AnnotationResponse]
+    outputs: list[AnnotationResponse]
 
     see_also: list[Reference] = []
     uses: list[Reference] = []
@@ -316,8 +327,8 @@ class GraphNodeContext(BaseModel):
     atlas_node_id: str | None = None  # None for InputNode / OutputNode
     name: str
     short_description: str | None = None
-    inputs: list[Annotation]
-    outputs: list[Annotation]
+    inputs: list[AnnotationResponse]
+    outputs: list[AnnotationResponse]
 
 
 class GraphEdgeContext(BaseModel):

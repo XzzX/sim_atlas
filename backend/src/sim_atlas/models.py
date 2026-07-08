@@ -47,6 +47,7 @@ class Reference(BaseModel):
     label: str
     id: str
     count: int
+    artifact_type: ArtifactType | None = None
 
 
 class AnnotationRequest(BaseModel):

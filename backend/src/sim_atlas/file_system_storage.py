@@ -207,7 +207,11 @@ class FileSystemStorage(StorageInterface):
     def read_artifact(self, id: str) -> StoredArtifact:
         if id not in self._artifacts:
             raise KeyError(id)
-        return self._artifacts[id]
+        artifact = self._artifacts[id]
+        if isinstance(artifact, FunctionMetadata):
+            artifact.used_by = self._used_by(artifact.id)
+        self._fill_connections(artifact)
+        return artifact
 
     def update_artifact(self, id: str, value: StoredArtifact) -> StoredArtifact:
         if id not in self._artifacts:
@@ -392,6 +396,7 @@ class FileSystemStorage(StorageInterface):
                 label=n.name,
                 id=n.id,
                 count=sum(c.count for c in n.uses if c.id == artifact_id),
+                artifact_type=n.artifact_type,
             )
             for n in self._artifacts.values()
             if isinstance(n, WorkflowMetadata)
@@ -436,12 +441,17 @@ class FileSystemStorage(StorageInterface):
                     counts[other.atlas_id] = counts.get(other.atlas_id, 0) + 1
 
         references = [
-            Reference(label=self._artifacts[other_id].name, id=other_id, count=count)
+            Reference(
+                label=self._artifacts[other_id].name,
+                id=other_id,
+                count=count,
+                artifact_type=self._artifacts[other_id].artifact_type,
+            )
             for other_id, count in counts.items()
         ]
         return sorted(references, key=lambda r: (-r.count, r.label, r.id)) or None
 
-    def _fill_connections(self, node: FunctionResponse) -> None:
+    def _fill_connections(self, node: FunctionResponse | WorkflowResponse) -> None:
         for annotation in node.inputs:
             if annotation.label:
                 annotation.connections = self._connections(

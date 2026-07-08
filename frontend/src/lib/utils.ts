@@ -16,6 +16,10 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
+export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     year: "numeric",

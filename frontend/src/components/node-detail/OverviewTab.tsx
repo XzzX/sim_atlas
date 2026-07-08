@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRightIcon, ClipboardCopyIcon } from "lucide-react";
 import { toast } from "sonner";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DatatypeBadge } from "@/components/DatatypeBadge";
 import { TypeChip } from "./TypeChip";
 import { CollapsibleSection } from "./CollapsibleSection";
@@ -44,14 +43,9 @@ interface OverviewTabProps {
 export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount, onNavigateToExecutions }) => {
   const navigate = useNavigate();
 
-  const docstring = "docstring" in node ? (node.docstring ?? undefined) : undefined;
   const dependencies = "dependencies" in node ? node.dependencies : undefined;
   const usedBy = "used_by" in node ? node.used_by : undefined;
   const uses = "uses" in node ? node.uses : undefined;
-
-  const [docTab, setDocTab] = useState<"docstring" | "description">(
-    node.description && !docstring ? "description" : "docstring",
-  );
 
   const references = useMemo(() => {
     const items: { kind: string; ref: Reference }[] = [
@@ -110,33 +104,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
       <div className="min-w-0 flex-1 space-y-8 px-[34px] py-7">
         {/* Documentation */}
         <div>
-          <div className="flex items-center justify-between gap-4">
-            <SectionHeading id="documentation" label="Documentation" />
-            <ToggleGroup
-              value={[docTab]}
-              onValueChange={(next) => {
-                if (next[0]) setDocTab(next[0] as "docstring" | "description");
-              }}
-              className="bg-muted"
-            >
-              <ToggleGroupItem value="docstring" size="sm">
-                Docstring
-              </ToggleGroupItem>
-              <ToggleGroupItem value="description" size="sm">
-                Description
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-          {docTab === "docstring" ? (
-            <p className="mt-3 text-[14px] leading-[1.7] whitespace-pre-wrap text-foreground/80">
-              {docstring ?? "No docstring available."}
-            </p>
-          ) : (
-            <p className="mt-3 text-[14px] leading-[1.7] whitespace-pre-wrap text-foreground/80">
-              {node.description ??
-                "No long-form description has been provided for this node yet. Descriptions are curated notes that complement the auto-extracted docstring — add usage examples, caveats, or links to related workflows here."}
-            </p>
-          )}
+          <SectionHeading id="documentation" label="Documentation" />
+          <p className="mt-3 text-[14px] leading-[1.7] whitespace-pre-wrap text-foreground/80">
+            {node.description ??
+              "No description has been provided for this node yet."}
+          </p>
         </div>
 
         {/* Inputs */}

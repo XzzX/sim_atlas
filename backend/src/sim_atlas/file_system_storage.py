@@ -391,7 +391,7 @@ class FileSystemStorage(StorageInterface):
             Reference(
                 label=n.name,
                 id=n.id,
-                count=sum(1 for c in n.uses if c.id == artifact_id),
+                count=sum(c.count for c in n.uses if c.id == artifact_id),
             )
             for n in self._artifacts.values()
             if isinstance(n, WorkflowMetadata)
@@ -439,7 +439,7 @@ class FileSystemStorage(StorageInterface):
             Reference(label=self._artifacts[other_id].name, id=other_id, count=count)
             for other_id, count in counts.items()
         ]
-        return sorted(references, key=lambda r: r.count, reverse=True) or None
+        return sorted(references, key=lambda r: (-r.count, r.label, r.id)) or None
 
     def _fill_connections(self, node: FunctionResponse) -> None:
         for annotation in node.inputs:

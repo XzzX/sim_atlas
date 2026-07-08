@@ -10,7 +10,16 @@ import pytest
 
 import sim_atlas.file_system_storage as fss
 from sim_atlas.file_system_storage import FileSystemStorage
-from sim_atlas.models import Filter, FunctionResponse, Reference
+from sim_atlas.models import (
+    AnnotationRequest,
+    AnnotationResponse,
+    Filter,
+    FunctionResponse,
+    Reference,
+    WfDefinition,
+    WfEdge,
+    WfFunctionNode,
+)
 
 from .test_storage_interface import StorageContractTests, make_node, make_workflow
 
@@ -70,7 +79,9 @@ def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     storage = FileSystemStorage(path=None)
     fn = make_node(name="child_fn", source_code="def child_fn(): pass")
     storage.create_artifact(fn)
-    wf = make_workflow(name="parent_wf", uses=[Reference(label="child_fn", id=fn.id)])
+    wf = make_workflow(
+        name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
+    )
     storage.create_artifact(wf)
 
     keyword = storage.search("child_fn")
@@ -99,3 +110,117 @@ def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     assert hy_fn.used_by is not None
     assert any(ref.id == wf.id for ref in hy_fn.used_by)
+
+
+def test_used_by_count_reflects_usages_within_workflow() -> None:
+    """`count` is how many times the function appears in that workflow's `uses`."""
+    storage = FileSystemStorage(path=None)
+    fn = make_node(name="child_fn", source_code="def child_fn(): pass")
+    storage.create_artifact(fn)
+    wf = make_workflow(
+        name="parent_wf",
+        uses=[
+            Reference(label="child_fn", id=fn.id, count=1),
+            Reference(label="child_fn", id=fn.id, count=1),
+        ],
+    )
+    storage.create_artifact(wf)
+
+    result = storage.search("child_fn")
+    node = next(
+        i.node
+        for i in result.results.data
+        if isinstance(i.node, FunctionResponse) and i.node.name == "child_fn"
+    )
+    assert node.used_by is not None
+    ref = next(r for r in node.used_by if r.id == wf.id)
+    assert ref.count == 2  # noqa: PLR2004
+
+
+def test_connections_lists_other_artifacts_sorted_by_count() -> None:
+    """`connections` lists the other artifacts wired to a port, sorted by count."""
+    storage = FileSystemStorage(path=None)
+    fn_a = make_node(
+        name="fn_a",
+        source_code="def fn_a(): pass",
+        outputs=[AnnotationResponse(label="out")],
+    )
+    fn_b = make_node(
+        name="fn_b",
+        source_code="def fn_b(): pass",
+        inputs=[AnnotationResponse(label="in")],
+    )
+    fn_c = make_node(
+        name="fn_c",
+        source_code="def fn_c(): pass",
+        inputs=[AnnotationResponse(label="in")],
+    )
+    storage.create_artifact(fn_a)
+    storage.create_artifact(fn_b)
+    storage.create_artifact(fn_c)
+
+    def a_node(node_id: str) -> WfFunctionNode:
+        return WfFunctionNode(
+            node_id=node_id,
+            atlas_id=fn_a.id,
+            inputs=[],
+            outputs=[AnnotationRequest(label="out")],
+        )
+
+    def sink_node(node_id: str, atlas_id: str) -> WfFunctionNode:
+        return WfFunctionNode(
+            node_id=node_id,
+            atlas_id=atlas_id,
+            inputs=[AnnotationRequest(label="in")],
+            outputs=[],
+        )
+
+    wf1 = make_workflow(
+        name="wf1",
+        wf_definition=WfDefinition(
+            nodes=[a_node("a1"), sink_node("b1", fn_b.id)],
+            edges=[
+                WfEdge(
+                    source_node="a1",
+                    source_port="out",
+                    target_node="b1",
+                    target_port="in",
+                )
+            ],
+        ),
+    )
+    wf2 = make_workflow(
+        name="wf2",
+        wf_definition=WfDefinition(
+            nodes=[a_node("a2"), sink_node("b2", fn_b.id), sink_node("c2", fn_c.id)],
+            edges=[
+                WfEdge(
+                    source_node="a2",
+                    source_port="out",
+                    target_node="b2",
+                    target_port="in",
+                ),
+                WfEdge(
+                    source_node="a2",
+                    source_port="out",
+                    target_node="c2",
+                    target_port="in",
+                ),
+            ],
+        ),
+    )
+    storage.create_artifact(wf1)
+    storage.create_artifact(wf2)
+
+    result = storage.search("fn_a")
+    node = next(
+        i.node
+        for i in result.results.data
+        if isinstance(i.node, FunctionResponse) and i.node.name == "fn_a"
+    )
+    connections = node.outputs[0].connections
+    assert connections is not None
+    assert [(c.id, c.count) for c in connections] == [
+        (fn_b.id, 2),
+        (fn_c.id, 1),
+    ]

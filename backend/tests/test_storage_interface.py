@@ -33,7 +33,8 @@ from typing import Any
 import pytest
 
 from sim_atlas.models import (
-    Annotation,
+    AnnotationRequest,
+    AnnotationResponse,
     ArtifactType,
     Filter,
     FilterOptions,
@@ -109,14 +110,14 @@ def make_workflow(**kwargs: Any) -> WorkflowMetadata:
         "docstring": "A test workflow",
         "brief_description": "",
         "description": "",
-        "inputs": [Annotation(label="x")],
-        "outputs": [Annotation(label="y")],
+        "inputs": [AnnotationResponse(label="x")],
+        "outputs": [AnnotationResponse(label="y")],
         "embedding": None,
         "hash": "",
         "wf_definition": WfDefinition(
             nodes=[
-                WfInputNode(node_id="i1", outputs=[Annotation(label="i1")]),
-                WfOutputNode(node_id="o1", inputs=[Annotation(label="o1")]),
+                WfInputNode(node_id="i1", outputs=[AnnotationRequest(label="i1")]),
+                WfOutputNode(node_id="o1", inputs=[AnnotationRequest(label="o1")]),
             ],
             edges=[WfEdge(source_node="i1", target_node="o1")],
         ),
@@ -274,26 +275,30 @@ class StorageContractTests:
     def test_get_filter_options_includes_input_datatypes(
         self, storage: StorageInterface
     ) -> None:
-        storage.create_artifact(make_node(inputs=[Annotation(datatype="float")]))
+        storage.create_artifact(
+            make_node(inputs=[AnnotationResponse(datatype="float")])
+        )
         options = storage.get_filter_options()
         assert "float" in options.datatypes
 
     def test_get_filter_options_includes_output_datatypes(
         self, storage: StorageInterface
     ) -> None:
-        storage.create_artifact(make_node(outputs=[Annotation(datatype="int")]))
+        storage.create_artifact(make_node(outputs=[AnnotationResponse(datatype="int")]))
         options = storage.get_filter_options()
         assert "int" in options.datatypes
 
     def test_get_filter_options_includes_units(self, storage: StorageInterface) -> None:
-        storage.create_artifact(make_node(inputs=[Annotation(unit="m/s")]))
+        storage.create_artifact(make_node(inputs=[AnnotationResponse(unit="m/s")]))
         options = storage.get_filter_options()
         assert "m/s" in options.units
 
     def test_get_filter_options_includes_quantities(
         self, storage: StorageInterface
     ) -> None:
-        storage.create_artifact(make_node(inputs=[Annotation(quantity="velocity")]))
+        storage.create_artifact(
+            make_node(inputs=[AnnotationResponse(quantity="velocity")])
+        )
         options = storage.get_filter_options()
         assert "velocity" in options.quantities
 
@@ -456,16 +461,16 @@ class StorageContractTests:
         storage.create_artifact(
             make_node(
                 name="input_float",
-                inputs=[Annotation(datatype="float")],
-                outputs=[Annotation(datatype="int")],
+                inputs=[AnnotationResponse(datatype="float")],
+                outputs=[AnnotationResponse(datatype="int")],
                 source_code="def a(): pass",
             )
         )
         storage.create_artifact(
             make_node(
                 name="output_float",
-                inputs=[Annotation(datatype="int")],
-                outputs=[Annotation(datatype="float")],
+                inputs=[AnnotationResponse(datatype="int")],
+                outputs=[AnnotationResponse(datatype="float")],
                 source_code="def b(): pass",
             )
         )
@@ -479,16 +484,16 @@ class StorageContractTests:
         storage.create_artifact(
             make_node(
                 name="input_float",
-                inputs=[Annotation(datatype="float")],
-                outputs=[Annotation(datatype="int")],
+                inputs=[AnnotationResponse(datatype="float")],
+                outputs=[AnnotationResponse(datatype="int")],
                 source_code="def a(): pass",
             )
         )
         storage.create_artifact(
             make_node(
                 name="output_float",
-                inputs=[Annotation(datatype="int")],
-                outputs=[Annotation(datatype="float")],
+                inputs=[AnnotationResponse(datatype="int")],
+                outputs=[AnnotationResponse(datatype="float")],
                 source_code="def b(): pass",
             )
         )
@@ -502,16 +507,16 @@ class StorageContractTests:
         storage.create_artifact(
             make_node(
                 name="input_float",
-                inputs=[Annotation(datatype="float")],
-                outputs=[Annotation(datatype="int")],
+                inputs=[AnnotationResponse(datatype="float")],
+                outputs=[AnnotationResponse(datatype="int")],
                 source_code="def a(): pass",
             )
         )
         storage.create_artifact(
             make_node(
                 name="output_float",
-                inputs=[Annotation(datatype="int")],
-                outputs=[Annotation(datatype="float")],
+                inputs=[AnnotationResponse(datatype="int")],
+                outputs=[AnnotationResponse(datatype="float")],
                 source_code="def b(): pass",
             )
         )
@@ -525,7 +530,7 @@ class StorageContractTests:
     ) -> None:
         storage.create_artifact(
             make_node(
-                inputs=[Annotation(datatype="int | float")],
+                inputs=[AnnotationResponse(datatype="int | float")],
                 source_code="def a(): pass",
             )
         )
@@ -539,7 +544,7 @@ class StorageContractTests:
     ) -> None:
         storage.create_artifact(
             make_node(
-                inputs=[Annotation(datatype="list[int]")],
+                inputs=[AnnotationResponse(datatype="list[int]")],
                 source_code="def a(): pass",
             )
         )
@@ -554,7 +559,7 @@ class StorageContractTests:
         storage.create_artifact(
             make_node(
                 name="union_node",
-                inputs=[Annotation(datatype="int | float")],
+                inputs=[AnnotationResponse(datatype="int | float")],
                 source_code="def a(): pass",
             )
         )
@@ -568,7 +573,7 @@ class StorageContractTests:
         storage.create_artifact(
             make_node(
                 name="list_node",
-                inputs=[Annotation(datatype="list[int]")],
+                inputs=[AnnotationResponse(datatype="list[int]")],
                 source_code="def a(): pass",
             )
         )
@@ -581,7 +586,7 @@ class StorageContractTests:
     ) -> None:
         storage.create_artifact(
             make_node(
-                inputs=[Annotation(datatype="list[float]")],
+                inputs=[AnnotationResponse(datatype="list[float]")],
                 source_code="def a(): pass",
             )
         )
@@ -594,7 +599,7 @@ class StorageContractTests:
         storage.create_artifact(
             make_node(
                 name="float_node",
-                inputs=[Annotation(datatype="float")],
+                inputs=[AnnotationResponse(datatype="float")],
                 source_code="def a(): pass",
             )
         )

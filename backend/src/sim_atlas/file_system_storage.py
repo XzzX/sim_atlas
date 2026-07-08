@@ -15,7 +15,7 @@ from tqdm.asyncio import tqdm as atqdm
 from sim_atlas.ai import enrich_artifact_metadata
 from sim_atlas.embedding import create_embedding
 from sim_atlas.models import (
-    Annotation,
+    AnnotationResponse,
     ArtifactType,
     ExecutionResultMetadata,
     Filter,
@@ -27,6 +27,7 @@ from sim_atlas.models import (
     ScoredSearchResponse,
     SearchResults,
     StoredArtifact,
+    WfFunctionNode,
     WorkflowMetadata,
     WorkflowResponse,
 )
@@ -89,7 +90,7 @@ class NodeFilter:
         )
         self.port_type = filter_options.port_type or "both"
 
-    def _annotations(self, node: StoredArtifact) -> list[Annotation]:
+    def _annotations(self, node: StoredArtifact) -> list[AnnotationResponse]:
         if self.port_type == "inputs":
             return node.inputs
         if self.port_type == "outputs":
@@ -380,17 +381,77 @@ class FileSystemStorage(StorageInterface):
         for item in paginated_items.results.data:
             if isinstance(item.node, FunctionMetadata):
                 item.node.used_by = self._used_by(item.node.id)
+                self._fill_connections(item.node)
 
         return paginated_items
 
     def _used_by(self, artifact_id: str) -> list[Reference] | None:
         """Workflows whose uses reference the given function artifact."""
         return [
-            Reference(label=n.name, id=n.id)
+            Reference(
+                label=n.name,
+                id=n.id,
+                count=sum(1 for c in n.uses if c.id == artifact_id),
+            )
             for n in self._artifacts.values()
             if isinstance(n, WorkflowMetadata)
             and any(c.id == artifact_id for c in n.uses)
         ] or None
+
+    def _connections(
+        self, atlas_id: str, port_label: str, is_output: bool
+    ) -> list[Reference] | None:
+        """Other artifacts whose port is directly wired to this port."""
+        counts: dict[str, int] = {}
+        for wf in self._artifacts.values():
+            if not isinstance(wf, WorkflowMetadata):
+                continue
+            nodes_by_id = {n.node_id: n for n in wf.wf_definition.nodes}
+            own_node_ids = {
+                node_id
+                for node_id, n in nodes_by_id.items()
+                if isinstance(n, WfFunctionNode) and n.atlas_id == atlas_id
+            }
+            if not own_node_ids:
+                continue
+            for edge in wf.wf_definition.edges:
+                if is_output:
+                    if (
+                        edge.source_node not in own_node_ids
+                        or edge.source_port != port_label
+                    ):
+                        continue
+                    other = nodes_by_id.get(edge.target_node)
+                else:
+                    if (
+                        edge.target_node not in own_node_ids
+                        or edge.target_port != port_label
+                    ):
+                        continue
+                    other = nodes_by_id.get(edge.source_node)
+                if (
+                    isinstance(other, WfFunctionNode)
+                    and other.atlas_id in self._artifacts
+                ):
+                    counts[other.atlas_id] = counts.get(other.atlas_id, 0) + 1
+
+        references = [
+            Reference(label=self._artifacts[other_id].name, id=other_id, count=count)
+            for other_id, count in counts.items()
+        ]
+        return sorted(references, key=lambda r: r.count, reverse=True) or None
+
+    def _fill_connections(self, node: FunctionResponse) -> None:
+        for annotation in node.inputs:
+            if annotation.label:
+                annotation.connections = self._connections(
+                    node.id, annotation.label, is_output=False
+                )
+        for annotation in node.outputs:
+            if annotation.label:
+                annotation.connections = self._connections(
+                    node.id, annotation.label, is_output=True
+                )
 
     async def search_semantic(
         self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
@@ -508,6 +569,7 @@ class FileSystemStorage(StorageInterface):
         for item in paginated_items.results.data:
             if isinstance(item.node, FunctionResponse):
                 item.node.used_by = self._used_by(item.node.id)
+                self._fill_connections(item.node)
 
         return paginated_items
 

@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from sim_atlas.file_system_storage import FileSystemStorage
 from sim_atlas.main import app, compose_artifact, get_storage
 from sim_atlas.models import (
-    Annotation,
+    AnnotationRequest,
     ArtifactType,
     FunctionRequest,
     ScoredSearchResponse,
@@ -417,8 +417,8 @@ def test_compose_artifact_function_sets_expected_fields() -> None:
 def test_compose_artifact_workflow_sets_expected_fields() -> None:
     wf_definition = WfDefinition(
         nodes=[
-            WfInputNode(node_id="i1", outputs=[Annotation(label="i1")]),
-            WfOutputNode(node_id="o1", inputs=[Annotation(label="o1")]),
+            WfInputNode(node_id="i1", outputs=[AnnotationRequest(label="i1")]),
+            WfOutputNode(node_id="o1", inputs=[AnnotationRequest(label="o1")]),
         ],
         edges=[WfEdge(source_node="i1", target_node="o1")],
     )
@@ -428,8 +428,8 @@ def test_compose_artifact_workflow_sets_expected_fields() -> None:
         keywords=["wf"],
         source_code=wf_definition.model_dump_json(),
         docstring="A workflow.",
-        inputs=[Annotation(label="i1")],
-        outputs=[Annotation(label="o1")],
+        inputs=[AnnotationRequest(label="i1")],
+        outputs=[AnnotationRequest(label="o1")],
         wf_definition=wf_definition,
     )
     creator = Creator(name="Dev", email="dev@example.com")

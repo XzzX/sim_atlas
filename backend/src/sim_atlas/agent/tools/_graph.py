@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from sim_atlas.agent.tools._errors import ToolError
 from sim_atlas.agent.tools._search import PortMetadata, format_port
 from sim_atlas.models import (
-    Annotation,
+    AnnotationResponse,
     FunctionMetadata,
     GraphEdgeContext,
     GraphNodeContext,
@@ -183,7 +183,7 @@ async def execute_add_input_node(
         atlas_node_id=None,
         name=args.label,
         inputs=[],
-        outputs=[Annotation(label="output")],
+        outputs=[AnnotationResponse(label="output")],
     )
     return f"Added node.\ngraph_id: {graph_id}"
 
@@ -199,7 +199,7 @@ async def execute_add_output_node(
         node_kind="output",
         atlas_node_id=None,
         name=args.label,
-        inputs=[Annotation(label="input")],
+        inputs=[AnnotationResponse(label="input")],
         outputs=[],
     )
     return f"Added node.\ngraph_id: {graph_id}"

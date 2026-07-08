@@ -185,20 +185,40 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
         {/* Outputs */}
         <div>
           <SectionHeading id="outputs" label="Outputs" count={node.outputs.length} />
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 overflow-hidden rounded-xl border">
+            <div
+              className="grid gap-3 bg-muted/50 px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[.06em] text-muted-foreground"
+              style={{ gridTemplateColumns: "1.2fr 1.2fr 0.6fr 0.8fr 1.8fr" }}
+            >
+              <span>Label</span>
+              <span>Data type</span>
+              <span>Unit</span>
+              <span>Quantity</span>
+              <span>Description</span>
+            </div>
             {node.outputs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No outputs</p>
+              <p className="px-4 py-3 text-sm text-muted-foreground">No outputs</p>
             ) : (
               node.outputs.map((output, idx) => (
-                <div key={idx} className="flex items-center gap-2 rounded-xl border px-4 py-2.5">
-                  <span className="size-[7px] shrink-0 rounded-full" style={{ background: "var(--node-dot-output)" }} />
-                  <span className="font-mono text-[13px] text-foreground">{output.label ?? "return"}</span>
-                  {output.datatype && <DatatypeBadge datatype={output.datatype} />}
-                  {output.description && (
-                    <span className="ml-auto truncate pl-4 text-[12.5px] text-muted-foreground">
-                      {output.description}
-                    </span>
-                  )}
+                <div
+                  key={idx}
+                  className="grid items-center gap-3 border-t px-4 py-2.5"
+                  style={{ gridTemplateColumns: "1.2fr 1.2fr 0.6fr 0.8fr 1.8fr" }}
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="size-[7px] shrink-0 rounded-full" style={{ background: "var(--node-dot-output)" }} />
+                    <span className="truncate font-mono text-[13px] text-foreground">{output.label ?? "return"}</span>
+                  </span>
+                  <span>
+                    {output.datatype ? (
+                      <DatatypeBadge datatype={output.datatype} />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </span>
+                  <span className="font-mono text-[13px] text-muted-foreground">{output.unit ?? "—"}</span>
+                  <span className="font-mono text-[13px] text-muted-foreground">{output.quantity ?? "—"}</span>
+                  <span className="truncate text-[12.5px] text-muted-foreground">{output.description ?? "—"}</span>
                 </div>
               ))
             )}

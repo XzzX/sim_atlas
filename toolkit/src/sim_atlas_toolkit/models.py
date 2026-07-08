@@ -147,7 +147,7 @@ class WorkflowRequest(BaseModel):
     outputs: list[Annotation]
 
     see_also: list[Reference] = []
-    children: list[Reference] = []
+    uses: list[Reference] = []
 
     wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 
@@ -182,7 +182,7 @@ class WorkflowResponse(BaseModel):
     outputs: list[Annotation]
 
     see_also: list[Reference] = []
-    children: list[Reference] = []
+    uses: list[Reference] = []
 
     wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 

@@ -251,21 +251,21 @@ def parse_workflow_recipe(
         for sig_ann, fr_out in zip(sig_outputs, fr_outputs, strict=True)
     ]
 
-    children_import = [
+    uses_import = [
         (label, try_import(node.reference.info.module, node.reference.info.qualname))
         for label, node in recipe.nodes.items()
         if isinstance(node, AtomicRecipe) and node.reference.info.qualname is not None
     ]
 
-    children_upload = [
+    uses_upload = [
         (label, upload(ns, child)[0])
-        for label, child in children_import
+        for label, child in uses_import
         if child is not None
     ]
 
-    children = [
+    uses = [
         Reference(label=label, id=atlas_id)
-        for label, response in children_upload
+        for label, response in uses_upload
         if (atlas_id := extract_id(response)) is not None
     ]
 
@@ -274,8 +274,8 @@ def parse_workflow_recipe(
     metadata.python_import = f"{obj.__module__}.{obj.__qualname__}"
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]
-    metadata.children = children
-    metadata.wf_definition = flowrep_to_wf_definition(recipe, children)
+    metadata.uses = uses
+    metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
 
     enrich_from_docstring(metadata.docstring, metadata)
 

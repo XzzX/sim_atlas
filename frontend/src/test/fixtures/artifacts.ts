@@ -30,7 +30,7 @@ export function makeLinearWorkflow(overrides: Partial<WorkflowResponse> = {}): W
     inputs: [floatPort("x"), floatPort("slope"), floatPort("intercept")],
     outputs: [floatPort("result")],
     see_also: [],
-    children: [],
+    uses: [],
     wf_definition: {
       nodes: [
         { type: "input", node_id: "x", outputs: [floatPort("x")] },

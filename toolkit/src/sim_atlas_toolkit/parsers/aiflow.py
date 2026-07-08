@@ -194,11 +194,11 @@ def parse_workflow(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
     metadata.inputs = []
     metadata.outputs = []
 
-    children_import = [(label, node) for label, node in wf._graph.nodes.items()]
+    uses_import = [(label, node) for label, node in wf._graph.nodes.items()]
 
-    children_upload = [
+    uses_upload = [
         (label, upload(ns, child)[0])
-        for label, child in children_import
+        for label, child in uses_import
         if child is not None
     ]
 
@@ -209,13 +209,13 @@ def parse_workflow(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
             return response.json()["id"]
         return None
 
-    metadata.children = [
+    metadata.uses = [
         Reference(label=label, id=atlas_id)
-        for label, response in children_upload
+        for label, response in uses_upload
         if (atlas_id := extract_id(response)) is not None
     ]
 
-    metadata.wf_definition = to_wf_definition(wf._graph, metadata.children, ns)
+    metadata.wf_definition = to_wf_definition(wf._graph, metadata.uses, ns)
 
     return ns.upload([metadata])
 

@@ -154,7 +154,7 @@ export const WorkflowRequestSchema = z.object({
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),
   see_also: z.array(ReferenceSchema).optional(),
-  children: z.array(ReferenceSchema).optional(),
+  uses: z.array(ReferenceSchema).optional(),
   wf_definition: WfDefinitionSchema.optional(),
 });
 export type WorkflowRequest = z.infer<typeof WorkflowRequestSchema>;
@@ -182,7 +182,7 @@ export const WorkflowResponseSchema = z.object({
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),
   see_also: z.array(ReferenceSchema).optional(),
-  children: z.array(ReferenceSchema).optional(),
+  uses: z.array(ReferenceSchema).optional(),
   wf_definition: WfDefinitionSchema.optional(),
 });
 export type WorkflowResponse = z.infer<typeof WorkflowResponseSchema>;

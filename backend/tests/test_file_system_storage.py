@@ -70,9 +70,7 @@ def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     storage = FileSystemStorage(path=None)
     fn = make_node(name="child_fn", source_code="def child_fn(): pass")
     storage.create_artifact(fn)
-    wf = make_workflow(
-        name="parent_wf", children=[Reference(label="child_fn", id=fn.id)]
-    )
+    wf = make_workflow(name="parent_wf", uses=[Reference(label="child_fn", id=fn.id)])
     storage.create_artifact(wf)
 
     keyword = storage.search("child_fn")

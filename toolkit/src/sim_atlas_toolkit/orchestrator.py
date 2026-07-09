@@ -9,14 +9,14 @@ from tqdm import tqdm
 
 from sim_atlas_toolkit.collector import collect_objects
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
+from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
 logger = logging.getLogger(__name__)
 
 
 async def _upload_modules_async(  # noqa: PLR0913
-    api_url: str,
-    api_token: str,
+    settings: ToolkitSettings,
     modules: list[str],
     recursive: Literal["no", "import", "filesystem"] = "no",
     update_existing: bool = False,
@@ -24,7 +24,7 @@ async def _upload_modules_async(  # noqa: PLR0913
     module_allowlist: list[str] | None = None,
     **kwargs: dict[str, Any],
 ) -> None:
-    store = NodeStoreAPI(api_url=api_url, api_key=api_token)
+    store = NodeStoreAPI(api_url=settings.api_url, api_key=settings.api_token)
     semaphore = asyncio.Semaphore(10)
 
     for module_name in modules:
@@ -43,7 +43,12 @@ async def _upload_modules_async(  # noqa: PLR0913
             async with semaphore:
                 try:
                     responses = await asyncio.to_thread(
-                        upload, store, obj, update_existing=update_existing
+                        upload,
+                        store,
+                        obj,
+                        settings,
+                        update_existing=update_existing,
+                        parsers=parsers,
                     )
                 except Exception:
                     logger.exception("Failed to upload object %s", obj)
@@ -84,8 +89,7 @@ async def _upload_modules_async(  # noqa: PLR0913
 
 
 def upload_modules(  # noqa: PLR0913
-    api_url: str,
-    api_token: str,
+    settings: ToolkitSettings,
     modules: list[str],
     recursive: Literal["no", "import", "filesystem"] = "no",
     update_existing: bool = False,
@@ -95,8 +99,7 @@ def upload_modules(  # noqa: PLR0913
 ) -> None:
     asyncio.run(
         _upload_modules_async(
-            api_url=api_url,
-            api_token=api_token,
+            settings=settings,
             modules=modules,
             recursive=recursive,
             update_existing=update_existing,

@@ -9,9 +9,13 @@ from sim_atlas_toolkit.models import (
     FunctionRequest,
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+def parse(
+    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings
+) -> list[requests.Response]:
+    del settings
     try:
         from python_workflow_definition.models import (  # noqa: PLC0415
             PythonWorkflowDefinitionInputNode,

@@ -3,6 +3,7 @@ from typing import Annotated
 
 from sim_atlas_toolkit.models import ArtifactType
 from sim_atlas_toolkit.parsers.dataclass_node import parse
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 from .mock_api import NodeStoreAPI
 
@@ -28,7 +29,8 @@ class Point:
 
 def test_dataclass_parser() -> None:
     ns = NodeStoreAPI()
-    responses = parse(Point, ns)  # pyright: ignore[reportArgumentType]
+    settings = ToolkitSettings(api_url="https://example.invalid", api_token="token")
+    responses = parse(Point, ns, settings)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 2  # noqa: PLR2004
     assert len(ns.uploaded) == 2  # noqa: PLR2004
 

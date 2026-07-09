@@ -36,6 +36,11 @@ dependencies = [
 [project.scripts]
 sim-atlas-upload = "sim_atlas_toolkit.cli:main"
 
+[project.optional-dependencies]
+ai = [
+    "openai>=2.44.0",
+]
+
 [dependency-groups]
 dev = [
     "pyiron-workflow>=0.15.6",

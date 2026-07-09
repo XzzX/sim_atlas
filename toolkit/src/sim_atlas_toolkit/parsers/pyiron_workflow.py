@@ -14,9 +14,13 @@ from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
     parse_annotation,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-def parse(node: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+def parse(
+    node: Any, ns: NodeStoreAPI, settings: ToolkitSettings
+) -> list[requests.Response]:
+    del settings
     if not isinstance(node, type):
         return []
 

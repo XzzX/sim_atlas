@@ -5,6 +5,7 @@ from typing import Any
 import requests
 
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("SimAtlas")
@@ -21,9 +22,10 @@ def get_metadata(
     obj: Any,
     parsers: list[Callable[..., list[requests.Response]]] | None,
     ns: NodeStoreAPI,
+    settings: ToolkitSettings,
 ) -> list[requests.Response]:
     for parser in parsers or _registered_parsers:
-        if metadata := parser(obj, ns):
+        if metadata := parser(obj, ns, settings):
             return metadata
 
     raise ValueError(f"No parser available for the given object: {type(obj)}")

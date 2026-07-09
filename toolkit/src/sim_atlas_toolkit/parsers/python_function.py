@@ -11,9 +11,13 @@ from sim_atlas_toolkit.parsers.metadata import (
     parse_return_annotation,
     parse_signature,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+def parse(
+    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings
+) -> list[requests.Response]:
+    del settings
     if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
         return []
 

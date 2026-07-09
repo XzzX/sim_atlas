@@ -15,6 +15,7 @@ from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
     parse_annotation,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 
 def _field_annotations(cls: type) -> list[Annotation]:
@@ -45,7 +46,10 @@ def _field_annotations(cls: type) -> list[Annotation]:
     return result
 
 
-def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+def parse(
+    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings
+) -> list[requests.Response]:
+    del settings
     if not (dataclasses.is_dataclass(obj) and isinstance(obj, type)):
         return []
 

@@ -10,6 +10,7 @@ from sim_atlas_toolkit.models import (
     WorkflowRequest,
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +18,9 @@ logger = logging.getLogger(__name__)
 def upload(
     ns: NodeStoreAPI,
     obj: Any,
+    settings: ToolkitSettings,
     update_existing: bool = False,
-    parsers: list[Callable[[Any], list[requests.Response]]] | None = None,
+    parsers: list[Callable[..., list[requests.Response]]] | None = None,
     **kwargs: dict[str, Any],
 ) -> list[requests.Response]:
     if isinstance(obj, (FunctionRequest, WorkflowRequest)):
@@ -33,4 +35,4 @@ def upload(
         get_metadata,  # avoid circular import
     )
 
-    return get_metadata(obj, parsers, ns)
+    return get_metadata(obj, parsers, ns, settings)

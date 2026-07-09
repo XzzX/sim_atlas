@@ -5,9 +5,13 @@ import logging
 import os
 
 from sim_atlas_toolkit import upload_modules
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 DEFAULT_API_URL_ENV = "SIM_ATLAS_API_URL"
 DEFAULT_API_TOKEN_ENV = "SIM_ATLAS_API_TOKEN"
+DEFAULT_LLM_URL_ENV = "SIM_ATLAS_LLM_URL"
+DEFAULT_LLM_KEY_ENV = "SIM_ATLAS_LLM_KEY"
+DEFAULT_LLM_MODEL_ENV = "SIM_ATLAS_LLM_MODEL"
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +41,21 @@ def _build_parser() -> argparse.ArgumentParser:
             f"API token sent as x-api-key. Defaults to ${DEFAULT_API_TOKEN_ENV} "
             "if omitted."
         ),
+    )
+    parser.add_argument(
+        "--llm-url",
+        default=os.getenv(DEFAULT_LLM_URL_ENV),
+        help=(f"LLM API base URL. Defaults to ${DEFAULT_LLM_URL_ENV} if omitted."),
+    )
+    parser.add_argument(
+        "--llm-key",
+        default=os.getenv(DEFAULT_LLM_KEY_ENV),
+        help=(f"LLM API key. Defaults to ${DEFAULT_LLM_KEY_ENV} if omitted."),
+    )
+    parser.add_argument(
+        "--llm-model",
+        default=os.getenv(DEFAULT_LLM_MODEL_ENV),
+        help=(f"LLM model name. Defaults to ${DEFAULT_LLM_MODEL_ENV} if omitted."),
     )
     parser.add_argument(
         "--recursive",
@@ -86,9 +105,23 @@ def main() -> int:
         )
         return 1
 
-    upload_modules(
+    settings = ToolkitSettings(
         api_url=args.api_url,
         api_token=args.api_token,
+        llm_url=args.llm_url,
+        llm_key=args.llm_key,
+        llm_model=args.llm_model,
+    )
+
+    has_any_llm_option = bool(settings.llm_url or settings.llm_key or settings.llm_model)
+    if has_any_llm_option and not settings.enrichment_enabled:
+        logger.warning(
+            "Incomplete LLM configuration provided. AI enrichment is disabled until "
+            "all of --llm-url, --llm-key, and --llm-model are set."
+        )
+
+    upload_modules(
+        settings=settings,
         modules=args.modules,
         recursive=args.recursive,
         update_existing=args.update_existing,

@@ -35,6 +35,7 @@ from sim_atlas_toolkit.parsers.metadata import (
     parse_return_annotation,
     parse_signature,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
 logger = logging.getLogger(__name__)
@@ -159,8 +160,12 @@ def flowrep_to_wf_definition(
 
 
 def parse_atomic_recipe(
-    obj: Any, recipe: AtomicRecipe, ns: NodeStoreAPI
+    obj: Any,
+    recipe: AtomicRecipe,
+    ns: NodeStoreAPI,
+    settings: ToolkitSettings,
 ) -> list[requests.Response]:
+    del settings
     metadata = FunctionRequest.model_construct()
 
     metadata.source_code = inspect.getsource(obj) or ""
@@ -212,7 +217,10 @@ def parse_atomic_recipe(
 
 
 def parse_workflow_recipe(
-    obj: Any, recipe: WorkflowRecipe, ns: NodeStoreAPI
+    obj: Any,
+    recipe: WorkflowRecipe,
+    ns: NodeStoreAPI,
+    settings: ToolkitSettings,
 ) -> list[requests.Response]:
     metadata = WorkflowRequest.model_construct()
 
@@ -258,7 +266,7 @@ def parse_workflow_recipe(
     ]
 
     uses_upload = [
-        (label, upload(ns, child)[0])
+        (label, upload(ns, child, settings=settings)[0])
         for label, child in uses_import
         if child is not None
     ]
@@ -283,7 +291,9 @@ def parse_workflow_recipe(
 
 
 def parse_workflow_instance(
-    wf_instance: DagData, ns: NodeStoreAPI
+    wf_instance: DagData,
+    ns: NodeStoreAPI,
+    settings: ToolkitSettings,
 ) -> list[requests.Response]:
     logger.debug("parsing workflow instance")
 
@@ -295,7 +305,7 @@ def parse_workflow_instance(
     wf_obj = try_import(recipe.reference.info.module, recipe.reference.info.qualname)
     if wf_obj is None:
         return []
-    wf_responses = upload(ns, wf_obj)
+    wf_responses = upload(ns, wf_obj, settings=settings)
     if len(wf_responses) == 0:
         return []
     wf_id = extract_id(wf_responses[0])
@@ -329,19 +339,21 @@ def parse_workflow_instance(
     return [ns.upload_execution_result(execution_metadata)]
 
 
-def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+def parse(
+    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings
+) -> list[requests.Response]:
     if isinstance(obj, DagData):
-        return parse_workflow_instance(obj, ns)
+        return parse_workflow_instance(obj, ns, settings)
 
     if not hasattr(obj, "flowrep_recipe"):
         return []
 
     match obj.flowrep_recipe:
         case AtomicRecipe() as recipe:
-            return parse_atomic_recipe(obj, recipe, ns)
+            return parse_atomic_recipe(obj, recipe, ns, settings)
 
         case WorkflowRecipe() as recipe:
-            return parse_workflow_recipe(obj, recipe, ns)
+            return parse_workflow_recipe(obj, recipe, ns, settings)
 
         case _:
             return []

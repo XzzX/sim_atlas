@@ -1,5 +1,6 @@
 from sim_atlas_toolkit.models import FunctionRequest
 from sim_atlas_toolkit.parsers.python_function import parse
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 from .mock_api import NodeStoreAPI
 
@@ -25,7 +26,8 @@ def simple(x: int, y: float) -> str:
 def test_parse_simple_function():
     # Parse the function
     ns = NodeStoreAPI()
-    responses = parse(simple, ns)  # pyright: ignore[reportArgumentType]
+    settings = ToolkitSettings(api_url="https://example.invalid", api_token="token")
+    responses = parse(simple, ns, settings)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 1
     assert len(ns.uploaded) == 1
     artifact = ns.uploaded[0]

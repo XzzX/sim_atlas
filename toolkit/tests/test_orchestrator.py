@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 
 from sim_atlas_toolkit import orchestrator
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 
 class _Response:
@@ -45,8 +46,9 @@ def test_upload_modules_limits_concurrency(monkeypatch: pytest.MonkeyPatch) -> N
     worker = threading.Thread(
         target=orchestrator.upload_modules,
         kwargs={
-            "api_url": "https://example.invalid",
-            "api_token": "token",
+            "settings": ToolkitSettings(
+                api_url="https://example.invalid", api_token="token"
+            ),
             "modules": ["example.module"],
         },
     )

@@ -4,6 +4,7 @@ import flowrep as fr
 
 from sim_atlas_toolkit.models import ArtifactType, WorkflowRequest
 from sim_atlas_toolkit.parsers.flowrep_parser import parse
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 from .mock_api import NodeStoreAPI
 
@@ -49,7 +50,8 @@ def linear(x: float, slope: float, intercept: float) -> float:
 
 def test_flowrep_atomic() -> None:
     ns = NodeStoreAPI()
-    responses = parse(kinetic_energy, ns)  # pyright: ignore[reportArgumentType]
+    settings = ToolkitSettings(api_url="https://example.invalid", api_token="token")
+    responses = parse(kinetic_energy, ns, settings)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 1
     assert len(ns.uploaded) == 1
     metadata = ns.uploaded[-1]
@@ -77,7 +79,8 @@ def test_flowrep_atomic() -> None:
 
 def test_flowrep_workflow() -> None:
     ns = NodeStoreAPI()
-    responses = parse(linear, ns)  # pyright: ignore[reportArgumentType]
+    settings = ToolkitSettings(api_url="https://example.invalid", api_token="token")
+    responses = parse(linear, ns, settings)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 1
     assert len(ns.uploaded) == 3  # noqa: PLR2004
     metadata = ns.uploaded[-1]
@@ -100,13 +103,14 @@ def test_flowrep_workflow() -> None:
 
 def test_flowrep_execution_result() -> None:
     ns = NodeStoreAPI()
+    settings = ToolkitSettings(api_url="https://example.invalid", api_token="token")
     dag = fr.tools.run_recipe(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         linear.flowrep_recipe,  # pyright: ignore[reportFunctionMemberAccess]
         x=2.0,
         slope=3.0,
         intercept=1.0,
     )
-    responses = parse(dag, ns)  # pyright: ignore[reportArgumentType]
+    responses = parse(dag, ns, settings)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 1
     assert len(ns.uploaded_execution_results) == 1
     execution_result = ns.uploaded_execution_results[-1]

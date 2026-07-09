@@ -30,6 +30,7 @@ dependencies = [
     "griffe>=2",
     "pydantic>=2",
     "requests>=2",
+    "tqdm>=4.68.4",
 ]
 
 [project.scripts]

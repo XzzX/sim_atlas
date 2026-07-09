@@ -3,13 +3,8 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-from http import HTTPStatus
 
-from toolkit.src.sim_atlas_toolkit import upload
-from toolkit.src.sim_atlas_toolkit.collector import collect_objects
-from tqdm import tqdm
-
-from sim_atlas_toolkit import NodeStoreAPI
+from sim_atlas_toolkit import upload_modules
 
 DEFAULT_API_URL_ENV = "SIM_ATLAS_API_URL"
 DEFAULT_API_TOKEN_ENV = "SIM_ATLAS_API_TOKEN"
@@ -73,42 +68,11 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def upload_modules(modules: list[str], api_url: str, api_token: str) -> None:
-    store = NodeStoreAPI(api_url=api_url, api_key=api_token)
-
-    for module_name in modules:
-        collected_objects = collect_objects(
-            module_name,
-            recursive=args.recursive,
-            module_allowlist=args.module_allowlist,
-        )
-        logger.info(f"Collected {len(collected_objects)} objects from {module_name}")
-
-        created = 0
-        conflicts = 0
-        errors = 0
-        for obj in tqdm(collected_objects, desc="Uploading objects", unit="object"):
-            responses = upload(store, obj, update_existing=args.update_existing)
-            if not responses:
-                logger.warning(f"No responses received for object {obj}")
-                errors += 1
-                continue
-            for response in responses:
-                if response.status_code == HTTPStatus.CREATED:
-                    created += 1
-                elif response.status_code == HTTPStatus.CONFLICT:
-                    conflicts += 1
-                else:
-                    errors += 1
-
-    logger.info(
-        f"Upload summary for {module_name}: {created} created, {conflicts} conflicts, {errors} errors"
-    )
-
-
 if __name__ == "__main__":
     parser = _build_parser()
     args = parser.parse_args()
+
+    logging.basicConfig(level=args.log_level.upper())
 
     if not args.api_url:
         parser.error(
@@ -116,8 +80,17 @@ if __name__ == "__main__":
         )
         raise SystemExit(1)
 
+    if not args.api_token:
+        parser.error(
+            f"Missing API token. Provide --api-token or set {DEFAULT_API_TOKEN_ENV}."
+        )
+        raise SystemExit(1)
+
     upload_modules(
-        modules=args.modules,
         api_url=args.api_url,
         api_token=args.api_token,
+        modules=args.modules,
+        recursive=args.recursive,
+        update_existing=args.update_existing,
+        module_allowlist=args.module_allowlist,
     )

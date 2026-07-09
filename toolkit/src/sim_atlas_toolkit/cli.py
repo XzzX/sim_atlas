@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import argparse
-import importlib
 import logging
 import os
+from http import HTTPStatus
+
+from toolkit.src.sim_atlas_toolkit import upload
+from toolkit.src.sim_atlas_toolkit.collector import collect_objects
+from tqdm import tqdm
+
+from sim_atlas_toolkit import NodeStoreAPI
 
 DEFAULT_API_URL_ENV = "SIM_ATLAS_API_URL"
 DEFAULT_API_TOKEN_ENV = "SIM_ATLAS_API_TOKEN"
@@ -67,46 +73,51 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> int:
+def upload_modules(modules: list[str], api_url: str, api_token: str) -> None:
+    store = NodeStoreAPI(api_url=api_url, api_key=api_token)
+
+    for module_name in modules:
+        collected_objects = collect_objects(
+            module_name,
+            recursive=args.recursive,
+            module_allowlist=args.module_allowlist,
+        )
+        logger.info(f"Collected {len(collected_objects)} objects from {module_name}")
+
+        created = 0
+        conflicts = 0
+        errors = 0
+        for obj in tqdm(collected_objects, desc="Uploading objects", unit="object"):
+            responses = upload(store, obj, update_existing=args.update_existing)
+            if not responses:
+                logger.warning(f"No responses received for object {obj}")
+                errors += 1
+                continue
+            for response in responses:
+                if response.status_code == HTTPStatus.CREATED:
+                    created += 1
+                elif response.status_code == HTTPStatus.CONFLICT:
+                    conflicts += 1
+                else:
+                    errors += 1
+
+    logger.info(
+        f"Upload summary for {module_name}: {created} created, {conflicts} conflicts, {errors} errors"
+    )
+
+
+if __name__ == "__main__":
     parser = _build_parser()
     args = parser.parse_args()
-
-    logging.basicConfig(level=args.log_level.upper())
-
-    from sim_atlas_toolkit import NodeStoreAPI, upload_module  # noqa: PLC0415
 
     if not args.api_url:
         parser.error(
             f"Missing API URL. Provide --api-url or set {DEFAULT_API_URL_ENV}."
         )
+        raise SystemExit(1)
 
-    # Fail fast on import errors so CLI can return a non-zero exit code.
-    missing_modules: list[str] = []
-    for module_name in args.modules:
-        try:
-            importlib.import_module(module_name)
-        except Exception as exc:  # noqa: BLE001
-            missing_modules.append(module_name)
-            logger.error("Failed to import module %s: %s", module_name, exc)
-
-    if missing_modules:
-        logger.error(
-            "Aborting upload because one or more modules could not be imported."
-        )
-        return 1
-
-    store = NodeStoreAPI(api_url=args.api_url, api_key=args.api_token)
-    for module_name in args.modules:
-        upload_module(
-            store,
-            module_name,
-            update_existing=args.update_existing,
-            recursive=args.recursive,
-            module_allowlist=args.module_allowlist,
-        )
-
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    upload_modules(
+        modules=args.modules,
+        api_url=args.api_url,
+        api_token=args.api_token,
+    )

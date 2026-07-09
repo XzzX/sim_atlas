@@ -14,7 +14,7 @@ _registered_parsers: list[Callable[..., list[requests.Response]]] = []
 
 def register_parser(fn: Callable[..., list[requests.Response]]) -> None:
     _registered_parsers.append(fn)
-    logger.info(f"Registered parser: {fn.__module__}.{fn.__qualname__}")
+    logger.debug(f"Registered parser: {fn.__module__}.{fn.__qualname__}")
 
 
 def get_metadata(

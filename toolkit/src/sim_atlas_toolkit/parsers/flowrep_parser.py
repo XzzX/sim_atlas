@@ -35,7 +35,7 @@ from sim_atlas_toolkit.parsers.metadata import (
     parse_return_annotation,
     parse_signature,
 )
-from sim_atlas_toolkit.upload import upload
+from sim_atlas_toolkit.uploader import upload
 
 logger = logging.getLogger(__name__)
 

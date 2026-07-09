@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import argparse
-import importlib
 import logging
 import os
+
+from sim_atlas_toolkit import upload_modules
 
 DEFAULT_API_URL_ENV = "SIM_ATLAS_API_URL"
 DEFAULT_API_TOKEN_ENV = "SIM_ATLAS_API_TOKEN"
@@ -73,38 +74,26 @@ def main() -> int:
 
     logging.basicConfig(level=args.log_level.upper())
 
-    from sim_atlas_toolkit import NodeStoreAPI, upload_module  # noqa: PLC0415
-
     if not args.api_url:
         parser.error(
             f"Missing API URL. Provide --api-url or set {DEFAULT_API_URL_ENV}."
         )
+        return 1
 
-    # Fail fast on import errors so CLI can return a non-zero exit code.
-    missing_modules: list[str] = []
-    for module_name in args.modules:
-        try:
-            importlib.import_module(module_name)
-        except Exception as exc:  # noqa: BLE001
-            missing_modules.append(module_name)
-            logger.error("Failed to import module %s: %s", module_name, exc)
-
-    if missing_modules:
-        logger.error(
-            "Aborting upload because one or more modules could not be imported."
+    if not args.api_token:
+        parser.error(
+            f"Missing API token. Provide --api-token or set {DEFAULT_API_TOKEN_ENV}."
         )
         return 1
 
-    store = NodeStoreAPI(api_url=args.api_url, api_key=args.api_token)
-    for module_name in args.modules:
-        upload_module(
-            store,
-            module_name,
-            update_existing=args.update_existing,
-            recursive=args.recursive,
-            module_allowlist=args.module_allowlist,
-        )
-
+    upload_modules(
+        api_url=args.api_url,
+        api_token=args.api_token,
+        modules=args.modules,
+        recursive=args.recursive,
+        update_existing=args.update_existing,
+        module_allowlist=args.module_allowlist,
+    )
     return 0
 
 

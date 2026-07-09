@@ -44,5 +44,5 @@ jobs:
 
       - name: Run pytest
         run: uv run pytest
-        working-directory: ./backend
+        working-directory: ./toolkit
         

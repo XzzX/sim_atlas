@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeftIcon, ClipboardCopyIcon, HouseIcon, BookIcon, Code as CodeIcon } from "lucide-react";
+import { ArrowLeftIcon, ClipboardCopyIcon, HouseIcon, BookIcon, Code as CodeIcon, SquareTerminalIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -140,6 +140,16 @@ export const NodeDetailPage: React.FC<NodeDetailPageProps> = ({ node }) => {
               {node.source_url && (
                 <Button variant="outline" size="sm" className="rounded-md" onClick={() => window.open(node.source_url!, "_blank", "noopener,noreferrer")}>
                   <CodeIcon /> Source code
+                </Button>
+              )}
+              {node.artifact_type === "workflow" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-md"
+                  onClick={() => window.open(`/ide/?wf_id=${encodeURIComponent(node.id)}`, "_blank", "noopener,noreferrer")}
+                >
+                  <SquareTerminalIcon /> Web IDE
                 </Button>
               )}
               {pythonImport && (

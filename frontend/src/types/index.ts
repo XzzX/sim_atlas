@@ -4,6 +4,14 @@ export const ArtifactTypeSchema = z.enum(["function", "workflow"]);
 export type ArtifactType = z.infer<typeof ArtifactTypeSchema>;
 export const ArtifactType = ArtifactTypeSchema.enum;
 
+export const ReferenceSchema = z.object({
+  label: z.string(),
+  id: z.string(),
+  count: z.number(),
+  artifact_type: ArtifactTypeSchema.nullish(),
+});
+export type Reference = z.infer<typeof ReferenceSchema>;
+
 export const AnnotationSchema = z.object({
   has_default_value: z.boolean().optional(), // default False in Pydantic
   label: z.string().nullish(),
@@ -11,14 +19,9 @@ export const AnnotationSchema = z.object({
   unit: z.string().nullish(),
   quantity: z.string().nullish(),
   description: z.string().nullish(),
+  connections: z.array(ReferenceSchema).nullish(),
 });
 export type Annotation = z.infer<typeof AnnotationSchema>;
-
-export const ReferenceSchema = z.object({
-  label: z.string(),
-  id: z.string(),
-});
-export type Reference = z.infer<typeof ReferenceSchema>;
 
 export const FunctionRequestSchema = z.object({
   author_name: z.string(),

@@ -4,6 +4,7 @@ import { ArrowRightIcon, ClipboardCopyIcon } from "lucide-react";
 import { toast } from "sonner";
 import { DatatypeBadge } from "@/components/DatatypeBadge";
 import { TypeChip } from "./TypeChip";
+import { ConnectionsPanel, ConnectionsPill } from "./ConnectionsPill";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { cn, formatTimestamp } from "@/lib/utils";
 import type { ArtifactResponse, Reference } from "@/types/index";
@@ -42,6 +43,8 @@ interface OverviewTabProps {
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount, onNavigateToExecutions }) => {
   const navigate = useNavigate();
+  const [expandedInputIndex, setExpandedInputIndex] = useState<number | null>(null);
+  const [expandedOutputIndex, setExpandedOutputIndex] = useState<number | null>(null);
 
   const dependencies = "dependencies" in node ? node.dependencies : undefined;
   const usedBy = "used_by" in node ? node.used_by : undefined;
@@ -115,44 +118,58 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
         <div>
           <SectionHeading id="inputs" label="Inputs" count={node.inputs.length} />
           <div className="mt-3 overflow-hidden rounded-xl border">
-            <div
-              className="grid gap-3 bg-muted/50 px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[.06em] text-muted-foreground"
-              style={{ gridTemplateColumns: "1.2fr 1.2fr 0.6fr 0.8fr 0.6fr" }}
-            >
-              <span>Label</span>
-              <span>Data type</span>
-              <span>Unit</span>
-              <span>Quantity</span>
-              <span>Default</span>
+            <div className="flex items-center gap-3 bg-muted/50 px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[.06em] text-muted-foreground">
+              <div className="grid flex-1 items-center gap-3" style={{ gridTemplateColumns: "1.2fr 1.2fr 0.6fr 0.8fr 0.6fr" }}>
+                <span>Label</span>
+                <span>Data type</span>
+                <span>Unit</span>
+                <span>Quantity</span>
+                <span>Default</span>
+              </div>
+              <div className="w-[88px] shrink-0" />
             </div>
             {node.inputs.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">No inputs</p>
             ) : (
               node.inputs.map((input, idx) => (
                 <div key={idx} className="border-t px-4 py-2.5">
-                  <div
-                    className="grid items-center gap-3"
-                    style={{ gridTemplateColumns: "1.2fr 1.2fr 0.6fr 0.8fr 0.6fr" }}
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="size-[7px] shrink-0 rounded-full" style={{ background: "var(--node-dot-input)" }} />
-                      <span className="truncate font-mono text-[13px] text-foreground">{input.label ?? "—"}</span>
-                    </span>
-                    <span>
-                      {input.datatype ? (
-                        <DatatypeBadge datatype={input.datatype} />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </span>
-                    <span className="font-mono text-[13px] text-muted-foreground">{input.unit ?? "—"}</span>
-                    <span className="font-mono text-[13px] text-muted-foreground">{input.quantity ?? "—"}</span>
-                    <span className="font-mono text-[13px] text-muted-foreground">
-                      {input.has_default_value ? "Yes" : "—"}
-                    </span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div
+                      className="grid flex-1 items-center gap-3"
+                      style={{ gridTemplateColumns: "1.2fr 1.2fr 0.6fr 0.8fr 0.6fr" }}
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="size-[7px] shrink-0 rounded-full" style={{ background: "var(--node-dot-input)" }} />
+                        <span className="truncate font-mono text-[13px] text-foreground">{input.label ?? "—"}</span>
+                      </span>
+                      <span>
+                        {input.datatype ? (
+                          <DatatypeBadge datatype={input.datatype} />
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </span>
+                      <span className="font-mono text-[13px] text-muted-foreground">{input.unit ?? "—"}</span>
+                      <span className="font-mono text-[13px] text-muted-foreground">{input.quantity ?? "—"}</span>
+                      <span className="font-mono text-[13px] text-muted-foreground">
+                        {input.has_default_value ? "Yes" : "—"}
+                      </span>
+                    </div>
+                    <div className="flex w-[88px] shrink-0 justify-end">
+                      <ConnectionsPill
+                        variant="input"
+                        connections={input.connections}
+                        isExpanded={expandedInputIndex === idx}
+                        onToggle={() => setExpandedInputIndex(expandedInputIndex === idx ? null : idx)}
+                        panelId={`input-connections-${idx}`}
+                      />
+                    </div>
                   </div>
                   {input.description && (
                     <p className="mt-2 text-[12.5px] text-muted-foreground">{input.description}</p>
+                  )}
+                  {expandedInputIndex === idx && (
+                    <ConnectionsPanel variant="input" connections={input.connections} panelId={`input-connections-${idx}`} />
                   )}
                 </div>
               ))
@@ -164,40 +181,54 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
         <div>
           <SectionHeading id="outputs" label="Outputs" count={node.outputs.length} />
           <div className="mt-3 overflow-hidden rounded-xl border">
-            <div
-              className="grid gap-3 bg-muted/50 px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[.06em] text-muted-foreground"
-              style={{ gridTemplateColumns: "1.5fr 1.6fr 0.7fr 0.7fr" }}
-            >
-              <span>Label</span>
-              <span>Data type</span>
-              <span>Unit</span>
-              <span>Quantity</span>
+            <div className="flex items-center gap-3 bg-muted/50 px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[.06em] text-muted-foreground">
+              <div className="grid flex-1 items-center gap-3" style={{ gridTemplateColumns: "1.5fr 1.6fr 0.7fr 0.7fr" }}>
+                <span>Label</span>
+                <span>Data type</span>
+                <span>Unit</span>
+                <span>Quantity</span>
+              </div>
+              <div className="w-[88px] shrink-0" />
             </div>
             {node.outputs.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">No outputs</p>
             ) : (
               node.outputs.map((output, idx) => (
                 <div key={idx} className="border-t px-4 py-2.5">
-                  <div
-                    className="grid items-center gap-3"
-                    style={{ gridTemplateColumns: "1.5fr 1.6fr 0.7fr 0.7fr" }}
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="size-[7px] shrink-0 rounded-full" style={{ background: "var(--node-dot-output)" }} />
-                      <span className="truncate font-mono text-[13px] text-foreground">{output.label ?? "return"}</span>
-                    </span>
-                    <span>
-                      {output.datatype ? (
-                        <DatatypeBadge datatype={output.datatype} />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </span>
-                    <span className="font-mono text-[13px] text-muted-foreground">{output.unit ?? "—"}</span>
-                    <span className="font-mono text-[13px] text-muted-foreground">{output.quantity ?? "—"}</span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div
+                      className="grid flex-1 items-center gap-3"
+                      style={{ gridTemplateColumns: "1.5fr 1.6fr 0.7fr 0.7fr" }}
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="size-[7px] shrink-0 rounded-full" style={{ background: "var(--node-dot-output)" }} />
+                        <span className="truncate font-mono text-[13px] text-foreground">{output.label ?? "return"}</span>
+                      </span>
+                      <span>
+                        {output.datatype ? (
+                          <DatatypeBadge datatype={output.datatype} />
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </span>
+                      <span className="font-mono text-[13px] text-muted-foreground">{output.unit ?? "—"}</span>
+                      <span className="font-mono text-[13px] text-muted-foreground">{output.quantity ?? "—"}</span>
+                    </div>
+                    <div className="flex w-[88px] shrink-0 justify-end">
+                      <ConnectionsPill
+                        variant="output"
+                        connections={output.connections}
+                        isExpanded={expandedOutputIndex === idx}
+                        onToggle={() => setExpandedOutputIndex(expandedOutputIndex === idx ? null : idx)}
+                        panelId={`output-connections-${idx}`}
+                      />
+                    </div>
                   </div>
                   {output.description && (
                     <p className="mt-2 text-[12.5px] text-muted-foreground">{output.description}</p>
+                  )}
+                  {expandedOutputIndex === idx && (
+                    <ConnectionsPanel variant="output" connections={output.connections} panelId={`output-connections-${idx}`} />
                   )}
                 </div>
               ))

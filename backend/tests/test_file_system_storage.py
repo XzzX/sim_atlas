@@ -13,12 +13,14 @@ from sim_atlas.file_system_storage import FileSystemStorage
 from sim_atlas.models import (
     AnnotationRequest,
     AnnotationResponse,
+    ArtifactType,
     Filter,
     FunctionResponse,
     Reference,
     WfDefinition,
     WfEdge,
     WfFunctionNode,
+    WorkflowResponse,
 )
 
 from .test_storage_interface import StorageContractTests, make_node, make_workflow
@@ -92,6 +94,9 @@ def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     assert kw_fn.used_by is not None
     assert any(ref.id == wf.id for ref in kw_fn.used_by)
+    assert next(ref for ref in kw_fn.used_by if ref.id == wf.id).artifact_type == (
+        ArtifactType.WORKFLOW
+    )
 
     monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=True))
 
@@ -135,6 +140,7 @@ def test_used_by_count_reflects_usages_within_workflow() -> None:
     assert node.used_by is not None
     ref = next(r for r in node.used_by if r.id == wf.id)
     assert ref.count == 2  # noqa: PLR2004
+    assert ref.artifact_type == ArtifactType.WORKFLOW
 
 
 def test_connections_lists_other_artifacts_sorted_by_count() -> None:
@@ -224,3 +230,109 @@ def test_connections_lists_other_artifacts_sorted_by_count() -> None:
         (fn_b.id, 2),
         (fn_c.id, 1),
     ]
+    assert all(c.artifact_type == ArtifactType.FUNCTION for c in connections)
+
+
+def test_read_artifact_populates_connections_and_used_by() -> None:
+    """`read_artifact` (not just `search`) fills in `connections` and `used_by`."""
+    storage = FileSystemStorage(path=None)
+    fn_a = make_node(
+        name="fn_a",
+        source_code="def fn_a(): pass",
+        outputs=[AnnotationResponse(label="out")],
+    )
+    fn_b = make_node(
+        name="fn_b",
+        source_code="def fn_b(): pass",
+        inputs=[AnnotationResponse(label="in")],
+    )
+    storage.create_artifact(fn_a)
+    storage.create_artifact(fn_b)
+
+    wf = make_workflow(
+        name="wf",
+        uses=[Reference(label="fn_a", id=fn_a.id, count=1)],
+        wf_definition=WfDefinition(
+            nodes=[
+                WfFunctionNode(
+                    node_id="a1",
+                    atlas_id=fn_a.id,
+                    inputs=[],
+                    outputs=[AnnotationRequest(label="out")],
+                ),
+                WfFunctionNode(
+                    node_id="b1",
+                    atlas_id=fn_b.id,
+                    inputs=[AnnotationRequest(label="in")],
+                    outputs=[],
+                ),
+            ],
+            edges=[
+                WfEdge(
+                    source_node="a1",
+                    source_port="out",
+                    target_node="b1",
+                    target_port="in",
+                )
+            ],
+        ),
+    )
+    storage.create_artifact(wf)
+
+    node = storage.read_artifact(fn_a.id)
+    assert isinstance(node, FunctionResponse)
+    assert node.used_by is not None
+    assert any(ref.id == wf.id for ref in node.used_by)
+
+    connections = node.outputs[0].connections
+    assert connections is not None
+    assert [c.id for c in connections] == [fn_b.id]
+
+
+def test_fill_connections_populates_workflow_ports() -> None:
+    """A workflow's own ports get `connections` filled too, not just functions."""
+    storage = FileSystemStorage(path=None)
+    fn_sink = make_node(
+        name="fn_sink",
+        source_code="def fn_sink(): pass",
+        inputs=[AnnotationResponse(label="in")],
+    )
+    storage.create_artifact(fn_sink)
+
+    inner_wf = make_workflow(name="inner_wf", outputs=[AnnotationResponse(label="y")])
+    storage.create_artifact(inner_wf)
+
+    outer_wf = make_workflow(
+        name="outer_wf",
+        wf_definition=WfDefinition(
+            nodes=[
+                WfFunctionNode(
+                    node_id="w1",
+                    atlas_id=inner_wf.id,
+                    inputs=[],
+                    outputs=[AnnotationRequest(label="y")],
+                ),
+                WfFunctionNode(
+                    node_id="s1",
+                    atlas_id=fn_sink.id,
+                    inputs=[AnnotationRequest(label="in")],
+                    outputs=[],
+                ),
+            ],
+            edges=[
+                WfEdge(
+                    source_node="w1",
+                    source_port="y",
+                    target_node="s1",
+                    target_port="in",
+                )
+            ],
+        ),
+    )
+    storage.create_artifact(outer_wf)
+
+    node = storage.read_artifact(inner_wf.id)
+    assert isinstance(node, WorkflowResponse)
+    connections = node.outputs[0].connections
+    assert connections is not None
+    assert [c.id for c in connections] == [fn_sink.id]

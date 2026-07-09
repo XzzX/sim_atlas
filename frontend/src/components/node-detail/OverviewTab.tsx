@@ -118,15 +118,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
         <div>
           <SectionHeading id="inputs" label="Inputs" count={node.inputs.length} />
           <div className="mt-3 overflow-hidden rounded-xl border">
-            <div
-              className="grid gap-3 bg-muted/50 px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[.06em] text-muted-foreground"
-              style={{ gridTemplateColumns: "1.2fr 1.2fr 0.6fr 0.8fr 0.6fr" }}
-            >
-              <span>Label</span>
-              <span>Data type</span>
-              <span>Unit</span>
-              <span>Quantity</span>
-              <span>Default</span>
+            <div className="flex items-center gap-3 bg-muted/50 px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[.06em] text-muted-foreground">
+              <div className="grid flex-1 items-center gap-3" style={{ gridTemplateColumns: "1.2fr 1.2fr 0.6fr 0.8fr 0.6fr" }}>
+                <span>Label</span>
+                <span>Data type</span>
+                <span>Unit</span>
+                <span>Quantity</span>
+                <span>Default</span>
+              </div>
+              <div className="w-[88px] shrink-0" />
             </div>
             {node.inputs.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">No inputs</p>
@@ -181,14 +181,14 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
         <div>
           <SectionHeading id="outputs" label="Outputs" count={node.outputs.length} />
           <div className="mt-3 overflow-hidden rounded-xl border">
-            <div
-              className="grid gap-3 bg-muted/50 px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[.06em] text-muted-foreground"
-              style={{ gridTemplateColumns: "1.5fr 1.6fr 0.7fr 0.7fr" }}
-            >
-              <span>Label</span>
-              <span>Data type</span>
-              <span>Unit</span>
-              <span>Quantity</span>
+            <div className="flex items-center gap-3 bg-muted/50 px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[.06em] text-muted-foreground">
+              <div className="grid flex-1 items-center gap-3" style={{ gridTemplateColumns: "1.5fr 1.6fr 0.7fr 0.7fr" }}>
+                <span>Label</span>
+                <span>Data type</span>
+                <span>Unit</span>
+                <span>Quantity</span>
+              </div>
+              <div className="w-[88px] shrink-0" />
             </div>
             {node.outputs.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">No outputs</p>

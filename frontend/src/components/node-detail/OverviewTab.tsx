@@ -236,6 +236,31 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
           </div>
         </div>
 
+        {/* References & related */}
+        {hasReferences && (
+          <CollapsibleSection id="references" label="References & related" count={references.length}>
+            <div className="space-y-1.5">
+              {references.map(({ kind, ref }) => (
+                <button
+                  key={`${kind}-${ref.id}`}
+                  type="button"
+                  onClick={() => void navigate(`/node/${ref.id}`)}
+                  className="flex w-full items-center gap-2 rounded-[10px] border px-3 py-2 text-left transition-colors hover:border-[var(--node-detail-hover-bd)]"
+                >
+                  <span
+                    className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                    style={REFERENCE_KIND_STYLE[kind]}
+                  >
+                    {kind}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">{ref.label}</span>
+                  <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          </CollapsibleSection>
+        )}
+
         {/* Source code */}
         <CollapsibleSection id="source" label="Source code">
           <div className="overflow-hidden rounded-xl border" style={{ borderColor: "#232840" }}>
@@ -280,31 +305,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
                 ))}
               </div>
             )}
-          </CollapsibleSection>
-        )}
-
-        {/* References & related */}
-        {hasReferences && (
-          <CollapsibleSection id="references" label="References & related" count={references.length}>
-            <div className="space-y-1.5">
-              {references.map(({ kind, ref }) => (
-                <button
-                  key={`${kind}-${ref.id}`}
-                  type="button"
-                  onClick={() => void navigate(`/node/${ref.id}`)}
-                  className="flex w-full items-center gap-2 rounded-[10px] border px-3 py-2 text-left transition-colors hover:border-[var(--node-detail-hover-bd)]"
-                >
-                  <span
-                    className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
-                    style={REFERENCE_KIND_STYLE[kind]}
-                  >
-                    {kind}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">{ref.label}</span>
-                  <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                </button>
-              ))}
-            </div>
           </CollapsibleSection>
         )}
       </div>
@@ -371,10 +371,18 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
         )}
 
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[.09em] text-muted-foreground">Maintainer</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[.09em] text-muted-foreground">Author</div>
           <div className="mt-2">
             <p className="text-[13.5px] font-semibold text-foreground">{node.author_name}</p>
             <p className="font-mono text-[11.5px] text-muted-foreground">{node.author_email}</p>
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[.09em] text-muted-foreground">Uploader</div>
+          <div className="mt-2">
+            <p className="text-[13.5px] font-semibold text-foreground">{node.creator_name}</p>
+            <p className="font-mono text-[11.5px] text-muted-foreground">{node.creator_email}</p>
           </div>
         </div>
       </div>

@@ -106,7 +106,9 @@ export const ConnectionsPanel: React.FC<ConnectionsPanelProps> = ({ variant, con
       </div>
       <div className="mt-2 max-h-[180px] space-y-1.5 overflow-y-auto">
         {connections.map((ref) => {
-          const accent = ACCENT_VAR[ref.artifact_type];
+          const accent = ref.artifact_type
+            ? ACCENT_VAR[ref.artifact_type]
+            : "var(--muted-foreground)";
           return (
             <button
               key={ref.id}
@@ -125,7 +127,7 @@ export const ConnectionsPanel: React.FC<ConnectionsPanelProps> = ({ variant, con
                 className={cn("flex size-[18px] shrink-0 items-center justify-center rounded-[5px] font-mono text-[11px] font-semibold")}
                 style={{ background: `color-mix(in oklab, ${accent} 14%, white)`, color: accent }}
               >
-                {KIND_GLYPH[ref.artifact_type]}
+                {ref.artifact_type ? KIND_GLYPH[ref.artifact_type] : "•"}
               </span>
               <span className="min-w-0 flex-1 truncate font-mono text-[12.5px] text-[#2a3042]">{ref.label}</span>
               <span

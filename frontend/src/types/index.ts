@@ -8,7 +8,7 @@ export const ReferenceSchema = z.object({
   label: z.string(),
   id: z.string(),
   count: z.number(),
-  artifact_type: ArtifactTypeSchema,
+  artifact_type: ArtifactTypeSchema.nullish(),
 });
 export type Reference = z.infer<typeof ReferenceSchema>;
 

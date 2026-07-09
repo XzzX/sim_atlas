@@ -68,7 +68,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-if __name__ == "__main__":
+def main() -> int:
     parser = _build_parser()
     args = parser.parse_args()
 
@@ -78,13 +78,13 @@ if __name__ == "__main__":
         parser.error(
             f"Missing API URL. Provide --api-url or set {DEFAULT_API_URL_ENV}."
         )
-        raise SystemExit(1)
+        return 1
 
     if not args.api_token:
         parser.error(
             f"Missing API token. Provide --api-token or set {DEFAULT_API_TOKEN_ENV}."
         )
-        raise SystemExit(1)
+        return 1
 
     upload_modules(
         api_url=args.api_url,
@@ -94,3 +94,8 @@ if __name__ == "__main__":
         update_existing=args.update_existing,
         module_allowlist=args.module_allowlist,
     )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

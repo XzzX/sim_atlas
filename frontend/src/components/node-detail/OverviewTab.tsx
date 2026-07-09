@@ -155,13 +155,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
                         {input.has_default_value ? "Yes" : "—"}
                       </span>
                     </div>
-                    <ConnectionsPill
-                      variant="input"
-                      connections={input.connections}
-                      isExpanded={expandedInputIndex === idx}
-                      onToggle={() => setExpandedInputIndex(expandedInputIndex === idx ? null : idx)}
-                      panelId={`input-connections-${idx}`}
-                    />
+                    <div className="flex w-[88px] shrink-0 justify-end">
+                      <ConnectionsPill
+                        variant="input"
+                        connections={input.connections}
+                        isExpanded={expandedInputIndex === idx}
+                        onToggle={() => setExpandedInputIndex(expandedInputIndex === idx ? null : idx)}
+                        panelId={`input-connections-${idx}`}
+                      />
+                    </div>
                   </div>
                   {input.description && (
                     <p className="mt-2 text-[12.5px] text-muted-foreground">{input.description}</p>
@@ -212,13 +214,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
                       <span className="font-mono text-[13px] text-muted-foreground">{output.unit ?? "—"}</span>
                       <span className="font-mono text-[13px] text-muted-foreground">{output.quantity ?? "—"}</span>
                     </div>
-                    <ConnectionsPill
-                      variant="output"
-                      connections={output.connections}
-                      isExpanded={expandedOutputIndex === idx}
-                      onToggle={() => setExpandedOutputIndex(expandedOutputIndex === idx ? null : idx)}
-                      panelId={`output-connections-${idx}`}
-                    />
+                    <div className="flex w-[88px] shrink-0 justify-end">
+                      <ConnectionsPill
+                        variant="output"
+                        connections={output.connections}
+                        isExpanded={expandedOutputIndex === idx}
+                        onToggle={() => setExpandedOutputIndex(expandedOutputIndex === idx ? null : idx)}
+                        panelId={`output-connections-${idx}`}
+                      />
+                    </div>
                   </div>
                   {output.description && (
                     <p className="mt-2 text-[12.5px] text-muted-foreground">{output.description}</p>

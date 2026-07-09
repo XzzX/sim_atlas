@@ -9,12 +9,12 @@ from tqdm import tqdm
 
 from sim_atlas_toolkit.collector import collect_objects
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
-from sim_atlas_toolkit.upload import upload
+from sim_atlas_toolkit.uploader import upload
 
 logger = logging.getLogger(__name__)
 
 
-async def _upload_modules_async(
+async def _upload_modules_async(  # noqa: PLR0913
     api_url: str,
     api_token: str,
     modules: list[str],
@@ -83,7 +83,7 @@ async def _upload_modules_async(
         )
 
 
-def upload_modules(
+def upload_modules(  # noqa: PLR0913
     api_url: str,
     api_token: str,
     modules: list[str],

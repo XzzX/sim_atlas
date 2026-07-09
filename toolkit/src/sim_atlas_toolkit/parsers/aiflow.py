@@ -9,7 +9,6 @@ from typing import Any
 import requests
 from requests import Response
 
-from sim_atlas_toolkit import upload
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactType,
@@ -23,6 +22,7 @@ from sim_atlas_toolkit.models import (
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import enrich_from_docstring, type_to_str
+from sim_atlas_toolkit.uploader import upload
 
 
 def parse_function_node(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:

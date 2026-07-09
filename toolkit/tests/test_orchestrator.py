@@ -1,4 +1,7 @@
 import threading
+from typing import Any
+
+import pytest
 
 from sim_atlas_toolkit import orchestrator
 
@@ -8,7 +11,7 @@ class _Response:
         self.status_code = status_code
 
 
-def test_upload_modules_limits_concurrency(monkeypatch) -> None:
+def test_upload_modules_limits_concurrency(monkeypatch: pytest.MonkeyPatch) -> None:
     collected_objects = list(range(20))
     start_lock = threading.Lock()
     release_uploads = threading.Event()
@@ -16,10 +19,10 @@ def test_upload_modules_limits_concurrency(monkeypatch) -> None:
     active_uploads = 0
     max_active_uploads = 0
 
-    def fake_collect_objects(*args, **kwargs):
+    def fake_collect_objects(*args: Any, **kwargs: Any) -> list[int]:
         return collected_objects
 
-    def fake_upload(*args, **kwargs):
+    def fake_upload(*args: Any, **kwargs: Any) -> list[_Response]:
         nonlocal active_uploads, max_active_uploads
 
         with start_lock:

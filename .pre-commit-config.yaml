@@ -8,3 +8,33 @@ repos:
       args: [ --fix ]
     # Run the formatter.
     - id: ruff-format
+- repo: local
+  hooks:
+    - id: backend-pyright
+      name: backend pyright
+      entry: bash -c 'cd backend && uv run pyright'
+      language: system
+      files: ^backend/
+      pass_filenames: false
+      stages: [pre-push]
+    - id: backend-pytest
+      name: backend pytest
+      entry: bash -c 'cd backend && uv run pytest'
+      language: system
+      files: ^backend/
+      pass_filenames: false
+      stages: [pre-push]
+    - id: toolkit-pyright
+      name: toolkit pyright
+      entry: bash -c 'cd toolkit && uv run pyright'
+      language: system
+      files: ^toolkit/
+      pass_filenames: false
+      stages: [pre-push]
+    - id: toolkit-pytest
+      name: toolkit pytest
+      entry: bash -c 'cd toolkit && uv run pytest'
+      language: system
+      files: ^toolkit/
+      pass_filenames: false
+      stages: [pre-push]

@@ -33,7 +33,10 @@ function CategoryRow({
       title={label}
       onClick={onSelect}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onSelect();
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
       }}
       style={{ paddingLeft: `${8 + depth * 14}px` }}
       className={`flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-sm transition-colors cursor-pointer ${
@@ -49,6 +52,7 @@ function CategoryRow({
           <button
             type="button"
             aria-label={expanded ? `Collapse ${label}` : `Expand ${label}`}
+            aria-expanded={expanded}
             onClick={(e) => {
               e.stopPropagation();
               onToggle?.();
@@ -75,15 +79,34 @@ export const CategoryTree: React.FC<CategoryTreeProps> = ({
 }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  React.useEffect(() => {
+    if (!category) return;
+    setExpanded((prev) => {
+      const next = { ...prev };
+      const parts = category.split(">");
+      for (let i = 1; i <= parts.length; i += 1) {
+        next[parts.slice(0, i).join(">")] = true;
+      }
+      return next;
+    });
+  }, [category]);
+
   const toggle = (path: string) => {
     setExpanded((prev) => ({ ...prev, [path]: !prev[path] }));
   };
 
   const selectPath = (path: string) => {
     onSelect(path);
-    if (path) setExpanded((prev) => ({ ...prev, [path]: true }));
+    if (!path) return;
+    setExpanded((prev) => {
+      const next = { ...prev };
+      const parts = path.split(">");
+      for (let i = 1; i <= parts.length; i += 1) {
+        next[parts.slice(0, i).join(">")] = true;
+      }
+      return next;
+    });
   };
-
   const renderChildren = (parentPath: string, depth: number): React.ReactNode =>
     (categoryOptions[parentPath] ?? []).map((segment) => {
       const fullPath = parentPath ? `${parentPath}>${segment}` : segment;

@@ -14,9 +14,12 @@ from sim_atlas_toolkit.parsers.metadata import (
     enrich_metadata,
     parse_annotation,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-async def parse(node: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+async def parse(
+    node: Any, ns: NodeStoreAPI, settings: ToolkitSettings | None = None
+) -> list[httpx.Response]:
     if not isinstance(node, type):
         return []
 
@@ -54,6 +57,6 @@ async def parse(node: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     metadata.docstring = node.node_function.__doc__ or ""
     metadata.keywords = ["pyiron_workflow_function"]
 
-    await enrich_metadata(metadata, ns.enrichment_settings)
+    await enrich_metadata(metadata, settings.enrichment if settings else None)
 
     return await ns.upload([metadata])

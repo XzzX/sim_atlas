@@ -15,6 +15,7 @@ from sim_atlas_toolkit.parsers.metadata import (
     enrich_metadata,
     parse_annotation,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 
 def _field_annotations(cls: type) -> list[Annotation]:
@@ -45,7 +46,9 @@ def _field_annotations(cls: type) -> list[Annotation]:
     return result
 
 
-async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+async def parse(
+    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings | None = None
+) -> list[httpx.Response]:
     if not (dataclasses.is_dataclass(obj) and isinstance(obj, type)):
         return []
 
@@ -89,7 +92,7 @@ async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
         outputs=[dataclass_annotation],
     )
 
-    await enrich_metadata(pack_metadata, ns.enrichment_settings)
+    await enrich_metadata(pack_metadata, settings.enrichment if settings else None)
     pack_metadata.docstring = f"[PACK] {qualname}: {pack_metadata.docstring}"
 
     unpack_metadata = FunctionRequest.model_construct(

@@ -5,7 +5,7 @@ import logging
 import os
 
 from sim_atlas_toolkit import upload_modules
-from sim_atlas_toolkit.settings import EnrichmentSettings
+from sim_atlas_toolkit.settings import EnrichmentSettings, ToolkitSettings
 
 DEFAULT_API_URL_ENV = "SIM_ATLAS_API_URL"
 DEFAULT_API_TOKEN_ENV = "SIM_ATLAS_API_TOKEN"
@@ -137,10 +137,10 @@ def main() -> int:
         }.items()
         if v is not None
     }
-    enrichment_settings = EnrichmentSettings(**overrides)
+    settings = ToolkitSettings(enrichment=EnrichmentSettings(**overrides))
 
-    if enrichment_settings.enabled and not (
-        enrichment_settings.url and enrichment_settings.model
+    if settings.enrichment.enabled and not (
+        settings.enrichment.url and settings.enrichment.model
     ):
         parser.error(
             "Docstring enrichment is enabled but the LLM URL or model is missing. "
@@ -156,7 +156,7 @@ def main() -> int:
         update_existing=args.update_existing,
         module_allowlist=args.module_allowlist,
         concurrency=args.concurrency,
-        enrichment_settings=enrichment_settings,
+        settings=settings,
     )
     return 0
 

@@ -11,9 +11,12 @@ from sim_atlas_toolkit.parsers.metadata import (
     parse_return_annotation,
     parse_signature,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+async def parse(
+    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings | None = None
+) -> list[httpx.Response]:
     if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
         return []
 
@@ -36,6 +39,6 @@ async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     metadata.inputs = parse_signature(sig)
     metadata.outputs = parse_return_annotation(sig)
 
-    await enrich_metadata(metadata, ns.enrichment_settings)
+    await enrich_metadata(metadata, settings.enrichment if settings else None)
 
     return await ns.upload([metadata])

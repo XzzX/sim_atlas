@@ -60,6 +60,12 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=10,
+        help="Maximum number of concurrent uploads.",
+    )
+    parser.add_argument(
         "--log-level",
         choices=["debug", "info", "warning", "error", "critical"],
         default="info",
@@ -93,6 +99,7 @@ def main() -> int:
         recursive=args.recursive,
         update_existing=args.update_existing,
         module_allowlist=args.module_allowlist,
+        concurrency=args.concurrency,
     )
     return 0
 

@@ -3,7 +3,7 @@ import inspect
 import textwrap
 from typing import Any, get_type_hints
 
-import requests
+import httpx
 
 from sim_atlas_toolkit.models import (
     Annotation,
@@ -45,7 +45,7 @@ def _field_annotations(cls: type) -> list[Annotation]:
     return result
 
 
-def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     if not (dataclasses.is_dataclass(obj) and isinstance(obj, type)):
         return []
 
@@ -103,4 +103,4 @@ def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
         outputs=pack_metadata.inputs,
     )
 
-    return ns.upload([pack_metadata, unpack_metadata])
+    return await ns.upload([pack_metadata, unpack_metadata])

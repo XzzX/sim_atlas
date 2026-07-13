@@ -22,10 +22,10 @@ def simple(x: int, y: float) -> str:
     return str(x + y)
 
 
-def test_parse_simple_function():
+async def test_parse_simple_function():
     # Parse the function
     ns = NodeStoreAPI()
-    responses = parse(simple, ns)  # pyright: ignore[reportArgumentType]
+    responses = await parse(simple, ns)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 1
     assert len(ns.uploaded) == 1
     artifact = ns.uploaded[0]

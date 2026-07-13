@@ -1,29 +1,29 @@
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
-import requests
+import httpx
 
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("SimAtlas")
 
-_registered_parsers: list[Callable[..., list[requests.Response]]] = []
+_registered_parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] = []
 
 
-def register_parser(fn: Callable[..., list[requests.Response]]) -> None:
+def register_parser(fn: Callable[..., Awaitable[list[httpx.Response]]]) -> None:
     _registered_parsers.append(fn)
     logger.debug(f"Registered parser: {fn.__module__}.{fn.__qualname__}")
 
 
-def get_metadata(
+async def get_metadata(
     obj: Any,
-    parsers: list[Callable[..., list[requests.Response]]] | None,
+    parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] | None,
     ns: NodeStoreAPI,
-) -> list[requests.Response]:
+) -> list[httpx.Response]:
     for parser in parsers or _registered_parsers:
-        if metadata := parser(obj, ns):
+        if metadata := await parser(obj, ns):
             return metadata
 
     raise ValueError(f"No parser available for the given object: {type(obj)}")

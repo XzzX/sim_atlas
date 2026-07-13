@@ -47,9 +47,9 @@ def linear(x: float, slope: float, intercept: float) -> float:
     return result  # type: ignore
 
 
-def test_flowrep_atomic() -> None:
+async def test_flowrep_atomic() -> None:
     ns = NodeStoreAPI()
-    responses = parse(kinetic_energy, ns)  # pyright: ignore[reportArgumentType]
+    responses = await parse(kinetic_energy, ns)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 1
     assert len(ns.uploaded) == 1
     metadata = ns.uploaded[-1]
@@ -75,9 +75,9 @@ def test_flowrep_atomic() -> None:
     )
 
 
-def test_flowrep_workflow() -> None:
+async def test_flowrep_workflow() -> None:
     ns = NodeStoreAPI()
-    responses = parse(linear, ns)  # pyright: ignore[reportArgumentType]
+    responses = await parse(linear, ns)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 1
     assert len(ns.uploaded) == 3  # noqa: PLR2004
     metadata = ns.uploaded[-1]
@@ -98,7 +98,7 @@ def test_flowrep_workflow() -> None:
     assert metadata.uses[1].label == "add_0"
 
 
-def test_flowrep_execution_result() -> None:
+async def test_flowrep_execution_result() -> None:
     ns = NodeStoreAPI()
     dag = fr.tools.run_recipe(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         linear.flowrep_recipe,  # pyright: ignore[reportFunctionMemberAccess]
@@ -106,7 +106,7 @@ def test_flowrep_execution_result() -> None:
         slope=3.0,
         intercept=1.0,
     )
-    responses = parse(dag, ns)  # pyright: ignore[reportArgumentType]
+    responses = await parse(dag, ns)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 1
     assert len(ns.uploaded_execution_results) == 1
     execution_result = ns.uploaded_execution_results[-1]

@@ -14,22 +14,16 @@ interface SearchBarProps {
   query: string;
   onQueryChange: (query: string) => void;
   items: string[];
-  placeholder?: string;
 }
 
-export default function SearchBar({
-  query,
-  onQueryChange,
-  items,
-  placeholder = "Search nodes and workflows…",
-}: SearchBarProps) {
+export default function SearchBar({ query, onQueryChange, items }: SearchBarProps) {
   return (
     <CardContent className="pb-4">
       <Autocomplete value={query} onValueChange={onQueryChange} items={items} autoHighlight>
         <div className="relative">
           <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <AutocompleteInput
-            placeholder={placeholder}
+            placeholder="Search nodes and workflows…"
             className="h-11 rounded-[9px] border-[1.5px] pl-10 font-mono text-sm"
           />
         </div>

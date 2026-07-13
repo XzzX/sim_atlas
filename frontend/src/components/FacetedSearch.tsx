@@ -1,5 +1,7 @@
 import React from "react";
 import type { FilterOptions, Filter } from "../types/index";
+import { CategoryTree } from "./CategoryTree";
+import { Separator } from "@/components/ui/separator";
 import {
   Combobox,
   ComboboxChips,
@@ -103,6 +105,18 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
 
   return (
     <div className="space-y-5 px-4 py-3">
+      {/* Category */}
+      <div className="space-y-1.5">
+        <SectionLabel>Category</SectionLabel>
+        <CategoryTree
+          category={filters.category ?? ""}
+          categoryOptions={availableFilterOptions.category}
+          onSelect={(category) => onFilterChange({ ...filters, category })}
+        />
+      </div>
+
+      <Separator />
+
       {/* Node Type */}
       <div className="space-y-1.5">
         <SectionLabel>Node Type</SectionLabel>
@@ -205,6 +219,7 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
         onClick={() =>
           onFilterChange({
             ...filters,
+            category: "",
             artifact_type: [],
             author: [],
             keywords: [],

@@ -34,8 +34,6 @@ auto-generates one plus writes a TOML config file in the working directory on fi
 none exists. No manual setup is needed to start the server or use the public read/search
 endpoints.
 
-**Optional, feature-gated**: an LLM API key (OpenAI-compatible) enables docstring enrichment
-and the agent; an embedding provider key (VoyageAI or other) enables semantic search. Without
-them the backend runs fine with keyword-only search.
+**Optional, feature-gated**: an LLM API key (OpenAI-compatible) enables docstring enrichment and the agent; configuring an embedding provider enables semantic search (for cloud providers like VoyageAI/OpenAI this also requires an API key). Without an embedding provider configured, the backend runs fine with keyword-only search.
 
 Write access (uploading nodes) requires a JWT token: `sim-atlas-access-token`.

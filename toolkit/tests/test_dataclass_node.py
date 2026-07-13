@@ -26,9 +26,9 @@ class Point:
     y: Annotated[float, {"unit": "m", "quantity": "length"}] = 3.0
 
 
-def test_dataclass_parser() -> None:
+async def test_dataclass_parser() -> None:
     ns = NodeStoreAPI()
-    responses = parse(Point, ns)  # pyright: ignore[reportArgumentType]
+    responses = await parse(Point, ns)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 2  # noqa: PLR2004
     assert len(ns.uploaded) == 2  # noqa: PLR2004
 

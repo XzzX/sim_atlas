@@ -5,14 +5,13 @@ import logging
 from http import HTTPStatus
 from typing import Any, cast
 
-import requests
+import httpx
 from flowrep.api.schemas import (
     AtomicRecipe,
     InputSource,
     WorkflowRecipe,
 )
 from flowrep.retrospective.datastructures import DagData
-from requests import Response
 
 from sim_atlas_toolkit.models import (
     Annotation,
@@ -53,8 +52,8 @@ def try_import(module: str, qualname: str | None) -> Any | None:
         return None
 
 
-def extract_id(response: Response) -> str | None:
-    if response.ok:
+def extract_id(response: httpx.Response) -> str | None:
+    if response.is_success:
         return response.json()["id"]
     if response.status_code == HTTPStatus.CONFLICT:
         return response.json()["id"]
@@ -158,9 +157,9 @@ def flowrep_to_wf_definition(
     return WfDefinition(nodes=nodes, edges=edges)
 
 
-def parse_atomic_recipe(
+async def parse_atomic_recipe(
     obj: Any, recipe: AtomicRecipe, ns: NodeStoreAPI
-) -> list[requests.Response]:
+) -> list[httpx.Response]:
     metadata = FunctionRequest.model_construct()
 
     metadata.source_code = inspect.getsource(obj) or ""
@@ -208,12 +207,12 @@ def parse_atomic_recipe(
     metadata.keywords = ["flowrep"]
 
     enrich_from_docstring(metadata.docstring, metadata)
-    return ns.upload([metadata])
+    return await ns.upload([metadata])
 
 
-def parse_workflow_recipe(
+async def parse_workflow_recipe(
     obj: Any, recipe: WorkflowRecipe, ns: NodeStoreAPI
-) -> list[requests.Response]:
+) -> list[httpx.Response]:
     metadata = WorkflowRequest.model_construct()
 
     metadata.source_code = recipe.model_dump_json(indent=2)
@@ -258,7 +257,7 @@ def parse_workflow_recipe(
     ]
 
     uses_upload = [
-        (label, upload(ns, child)[0])
+        (label, (await upload(ns, child))[0])
         for label, child in uses_import
         if child is not None
     ]
@@ -279,12 +278,12 @@ def parse_workflow_recipe(
 
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return ns.upload([metadata])
+    return await ns.upload([metadata])
 
 
-def parse_workflow_instance(
+async def parse_workflow_instance(
     wf_instance: DagData, ns: NodeStoreAPI
-) -> list[requests.Response]:
+) -> list[httpx.Response]:
     logger.debug("parsing workflow instance")
 
     # DagData's generic base (flowrep) doesn't parameterize NodeData[RecipeType],
@@ -295,7 +294,7 @@ def parse_workflow_instance(
     wf_obj = try_import(recipe.reference.info.module, recipe.reference.info.qualname)
     if wf_obj is None:
         return []
-    wf_responses = upload(ns, wf_obj)
+    wf_responses = await upload(ns, wf_obj)
     if len(wf_responses) == 0:
         return []
     wf_id = extract_id(wf_responses[0])
@@ -326,22 +325,22 @@ def parse_workflow_instance(
         inputs=inputs,
         outputs=outputs,
     )
-    return [ns.upload_execution_result(execution_metadata)]
+    return [await ns.upload_execution_result(execution_metadata)]
 
 
-def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     if isinstance(obj, DagData):
-        return parse_workflow_instance(obj, ns)
+        return await parse_workflow_instance(obj, ns)
 
     if not hasattr(obj, "flowrep_recipe"):
         return []
 
     match obj.flowrep_recipe:
         case AtomicRecipe() as recipe:
-            return parse_atomic_recipe(obj, recipe, ns)
+            return await parse_atomic_recipe(obj, recipe, ns)
 
         case WorkflowRecipe() as recipe:
-            return parse_workflow_recipe(obj, recipe, ns)
+            return await parse_workflow_recipe(obj, recipe, ns)
 
         case _:
             return []

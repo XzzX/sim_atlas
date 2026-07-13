@@ -1,9 +1,9 @@
 import inspect
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
-import requests
+import httpx
 
 from sim_atlas_toolkit.models import (
     FunctionRequest,
@@ -14,15 +14,15 @@ from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 logger = logging.getLogger(__name__)
 
 
-def upload(
+async def upload(
     ns: NodeStoreAPI,
     obj: Any,
     update_existing: bool = False,
-    parsers: list[Callable[[Any], list[requests.Response]]] | None = None,
+    parsers: list[Callable[[Any], Awaitable[list[httpx.Response]]]] | None = None,
     **kwargs: dict[str, Any],
-) -> list[requests.Response]:
+) -> list[httpx.Response]:
     if isinstance(obj, (FunctionRequest, WorkflowRequest)):
-        return ns.upload([obj])
+        return await ns.upload([obj])
 
     if inspect.ismodule(obj):
         raise ValueError(
@@ -33,4 +33,4 @@ def upload(
         get_metadata,  # avoid circular import
     )
 
-    return get_metadata(obj, parsers, ns)
+    return await get_metadata(obj, parsers, ns)

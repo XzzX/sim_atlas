@@ -2,7 +2,7 @@ import inspect
 import textwrap
 from typing import Any
 
-import requests
+import httpx
 
 from sim_atlas_toolkit.models import FunctionRequest
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
@@ -13,7 +13,7 @@ from sim_atlas_toolkit.parsers.metadata import (
 )
 
 
-def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
         return []
 
@@ -38,4 +38,4 @@ def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
 
     enrich_from_docstring(inspect.getdoc(obj) or "", metadata)
 
-    return ns.upload([metadata])
+    return await ns.upload([metadata])

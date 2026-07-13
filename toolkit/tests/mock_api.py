@@ -1,19 +1,12 @@
 import uuid
-from typing import Any
 
-import requests
+import httpx
 
 from sim_atlas_toolkit.models import ArtifactRequest, ExecutionResultRequest
 
 
-class _MockResponse(requests.Response):
-    def __init__(self, artifact_id: str) -> None:
-        super().__init__()
-        self.status_code = 201
-        self._json_data = {"id": artifact_id}
-
-    def json(self, **kwargs: Any) -> Any:
-        return self._json_data
+def _mock_response() -> httpx.Response:
+    return httpx.Response(201, json={"id": str(uuid.uuid4())})
 
 
 class NodeStoreAPI:
@@ -21,12 +14,12 @@ class NodeStoreAPI:
         self.uploaded: list[ArtifactRequest] = []
         self.uploaded_execution_results: list[ExecutionResultRequest] = []
 
-    def upload(self, artifacts: list[ArtifactRequest]) -> list[requests.Response]:
+    async def upload(self, artifacts: list[ArtifactRequest]) -> list[httpx.Response]:
         self.uploaded.extend(artifacts)
-        return [_MockResponse(str(uuid.uuid4())) for _ in artifacts]
+        return [_mock_response() for _ in artifacts]
 
-    def upload_execution_result(
+    async def upload_execution_result(
         self, execution_result: ExecutionResultRequest
-    ) -> requests.Response:
+    ) -> httpx.Response:
         self.uploaded_execution_results.append(execution_result)
-        return _MockResponse(str(uuid.uuid4()))
+        return _mock_response()

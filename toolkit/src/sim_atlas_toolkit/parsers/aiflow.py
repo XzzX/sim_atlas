@@ -6,8 +6,7 @@ import textwrap
 from http import HTTPStatus
 from typing import Any
 
-import requests
-from requests import Response
+import httpx
 
 from sim_atlas_toolkit.models import (
     Annotation,
@@ -25,7 +24,7 @@ from sim_atlas_toolkit.parsers.metadata import enrich_from_docstring, type_to_st
 from sim_atlas_toolkit.uploader import upload
 
 
-def parse_function_node(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+async def parse_function_node(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     try:
         from core.node import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
             Node,
@@ -73,10 +72,10 @@ def parse_function_node(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
 
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return ns.upload([metadata])
+    return await ns.upload([metadata])
 
 
-def parse_group_node(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+async def parse_group_node(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     try:
         from core.graph_to_workflow import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
             graph_to_workflow_code,
@@ -127,17 +126,17 @@ def parse_group_node(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
     metadata.outputs = outputs
     metadata.docstring = ""
 
-    return ns.upload([metadata])
+    return await ns.upload([metadata])
 
 
-def to_wf_definition(
+async def to_wf_definition(
     graph: Any, references: list[Reference], ns: NodeStoreAPI
 ) -> WfDefinition:
     reference_dict = {ref.label: ref.id for ref in references}
 
     nodes: list[WfNode] = []
     for node_id, node in graph.nodes.items():
-        node_metadata = parse(node, ns)
+        node_metadata = await parse(node, ns)
         if not node_metadata:
             continue
         if node_metadata[0].status_code in (HTTPStatus.CREATED, HTTPStatus.CONFLICT):
@@ -165,7 +164,7 @@ def to_wf_definition(
     return WfDefinition(nodes=nodes, edges=edges)
 
 
-def parse_workflow(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+async def parse_workflow(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     try:
         from core import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
             Workflow,  # pyright: ignore[reportMissingImports]
@@ -197,13 +196,13 @@ def parse_workflow(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
     uses_import = [(label, node) for label, node in wf._graph.nodes.items()]
 
     uses_upload = [
-        (label, upload(ns, child)[0])
+        (label, (await upload(ns, child))[0])
         for label, child in uses_import
         if child is not None
     ]
 
-    def extract_id(response: Response) -> str | None:
-        if response.ok:
+    def extract_id(response: httpx.Response) -> str | None:
+        if response.is_success:
             return response.json()["id"]
         if response.status_code == HTTPStatus.CONFLICT:
             return response.json()["id"]
@@ -215,19 +214,19 @@ def parse_workflow(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
         if (atlas_id := extract_id(response)) is not None
     ]
 
-    metadata.wf_definition = to_wf_definition(wf._graph, metadata.uses, ns)
+    metadata.wf_definition = await to_wf_definition(wf._graph, metadata.uses, ns)
 
-    return ns.upload([metadata])
+    return await ns.upload([metadata])
 
 
-def parse(obj: Any, ns: NodeStoreAPI) -> list[requests.Response]:
-    if metadata := parse_workflow(obj, ns):
+async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+    if metadata := await parse_workflow(obj, ns):
         return metadata
 
-    if metadata := parse_group_node(obj, ns):
+    if metadata := await parse_group_node(obj, ns):
         return metadata
 
-    if metadata := parse_function_node(obj, ns):
+    if metadata := await parse_function_node(obj, ns):
         return metadata
 
     return []

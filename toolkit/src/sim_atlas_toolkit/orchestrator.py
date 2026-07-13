@@ -1,11 +1,11 @@
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from http import HTTPStatus
 from typing import Any, Literal
 
-import requests
-from tqdm import tqdm
+import httpx
+from tqdm.asyncio import tqdm as atqdm
 
 from sim_atlas_toolkit.collector import collect_objects
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
@@ -20,67 +20,65 @@ async def _upload_modules_async(  # noqa: PLR0913
     modules: list[str],
     recursive: Literal["no", "import", "filesystem"] = "no",
     update_existing: bool = False,
-    parsers: list[Callable[..., list[requests.Response]]] | None = None,
+    parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] | None = None,
     module_allowlist: list[str] | None = None,
+    concurrency: int = 10,
     **kwargs: dict[str, Any],
 ) -> None:
-    store = NodeStoreAPI(api_url=api_url, api_key=api_token)
-    semaphore = asyncio.Semaphore(10)
+    semaphore = asyncio.Semaphore(concurrency)
 
-    for module_name in modules:
-        collected_objects = collect_objects(
-            module_name,
-            recursive=recursive,
-            module_allowlist=module_allowlist,
-        )
-        logger.info(f"Collected {len(collected_objects)} objects from {module_name}")
+    async def upload_object(store: NodeStoreAPI, obj: Any) -> tuple[int, int, int]:
+        async with semaphore:
+            try:
+                responses = await upload(store, obj, update_existing=update_existing)
+            except Exception:
+                logger.exception("Failed to upload object %s", obj)
+                return 0, 0, 1
 
-        created = 0
-        conflicts = 0
-        errors = 0
+            if not responses:
+                logger.warning(f"No responses received for object {obj}")
+                return 0, 0, 1
 
-        async def upload_object(obj: Any) -> tuple[int, int, int]:
-            async with semaphore:
-                try:
-                    responses = await asyncio.to_thread(
-                        upload, store, obj, update_existing=update_existing
-                    )
-                except Exception:
-                    logger.exception("Failed to upload object %s", obj)
-                    return 0, 0, 1
+            object_created = 0
+            object_conflicts = 0
+            object_errors = 0
+            for response in responses:
+                if response.status_code == HTTPStatus.CREATED:
+                    object_created += 1
+                elif response.status_code == HTTPStatus.CONFLICT:
+                    object_conflicts += 1
+                else:
+                    object_errors += 1
 
-                if not responses:
-                    logger.warning(f"No responses received for object {obj}")
-                    return 0, 0, 1
+            return object_created, object_conflicts, object_errors
 
-                object_created = 0
-                object_conflicts = 0
-                object_errors = 0
-                for response in responses:
-                    if response.status_code == HTTPStatus.CREATED:
-                        object_created += 1
-                    elif response.status_code == HTTPStatus.CONFLICT:
-                        object_conflicts += 1
-                    else:
-                        object_errors += 1
+    async with httpx.AsyncClient() as client:
+        store = NodeStoreAPI(api_url=api_url, client=client, api_key=api_token)
 
-                return object_created, object_conflicts, object_errors
+        for module_name in modules:
+            collected_objects = collect_objects(
+                module_name,
+                recursive=recursive,
+                module_allowlist=module_allowlist,
+            )
+            logger.info(
+                f"Collected {len(collected_objects)} objects from {module_name}"
+            )
 
-        tasks = [asyncio.create_task(upload_object(obj)) for obj in collected_objects]
-        for task in tqdm(
-            asyncio.as_completed(tasks),
-            total=len(tasks),
-            desc="Uploading objects",
-            unit="object",
-        ):
-            object_created, object_conflicts, object_errors = await task
-            created += object_created
-            conflicts += object_conflicts
-            errors += object_errors
+            results: list[tuple[int, int, int]] = await atqdm.gather(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                *[upload_object(store, obj) for obj in collected_objects],
+                desc="Uploading objects",
+                unit="object",
+                total=len(collected_objects),
+            )
 
-        logger.info(
-            f"Upload summary for {module_name}: {created} created, {conflicts} conflicts, {errors} errors"
-        )
+            created = sum(r[0] for r in results)
+            conflicts = sum(r[1] for r in results)
+            errors = sum(r[2] for r in results)
+
+            logger.info(
+                f"Upload summary for {module_name}: {created} created, {conflicts} conflicts, {errors} errors"
+            )
 
 
 def upload_modules(  # noqa: PLR0913
@@ -89,8 +87,9 @@ def upload_modules(  # noqa: PLR0913
     modules: list[str],
     recursive: Literal["no", "import", "filesystem"] = "no",
     update_existing: bool = False,
-    parsers: list[Callable[..., list[requests.Response]]] | None = None,
+    parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] | None = None,
     module_allowlist: list[str] | None = None,
+    concurrency: int = 10,
     **kwargs: dict[str, Any],
 ) -> None:
     asyncio.run(
@@ -102,6 +101,7 @@ def upload_modules(  # noqa: PLR0913
             update_existing=update_existing,
             parsers=parsers,
             module_allowlist=module_allowlist,
+            concurrency=concurrency,
             **kwargs,
         )
     )

@@ -1,6 +1,6 @@
 import logging
 
-import requests
+import httpx
 
 from sim_atlas_toolkit.models import (
     ArtifactRequest,
@@ -12,23 +12,26 @@ logger = logging.getLogger(__name__)
 
 
 class NodeStoreAPI:
-    def __init__(self, api_url: str, api_key: str | None = None) -> None:
+    def __init__(
+        self, api_url: str, client: httpx.AsyncClient, api_key: str | None = None
+    ) -> None:
         self.api_url = api_url
         self.api_key = api_key
+        self._client = client
 
-    def upload(self, artifacts: list[ArtifactRequest]) -> list[requests.Response]:
+    async def upload(self, artifacts: list[ArtifactRequest]) -> list[httpx.Response]:
         headers: dict[str, str] = {}
         if self.api_key:
             headers["x-api-key"] = self.api_key
 
-        responses: list[requests.Response] = []
+        responses: list[httpx.Response] = []
         for artifact in artifacts:
             request_data = artifact_request_adapter.validate_python(
                 artifact.model_dump()
             )
 
             responses.append(
-                requests.post(
+                await self._client.post(
                     f"{self.api_url}/artifacts",
                     json=artifact_request_adapter.dump_python(request_data),
                     headers=headers,
@@ -36,14 +39,14 @@ class NodeStoreAPI:
             )
         return responses
 
-    def upload_execution_result(
+    async def upload_execution_result(
         self, execution_result: ExecutionResultRequest
-    ) -> requests.Response:
+    ) -> httpx.Response:
         headers: dict[str, str] = {}
         if self.api_key:
             headers["x-api-key"] = self.api_key
 
-        return requests.post(
+        return await self._client.post(
             f"{self.api_url}/execution_results",
             json=execution_result.model_dump(),
             headers=headers,

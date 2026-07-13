@@ -3,7 +3,7 @@
 import inspect
 from typing import Any
 
-import requests
+import httpx
 
 from sim_atlas_toolkit.models import (
     ArtifactType,
@@ -16,7 +16,7 @@ from sim_atlas_toolkit.parsers.metadata import (
 )
 
 
-def parse(node: Any, ns: NodeStoreAPI) -> list[requests.Response]:
+async def parse(node: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     if not isinstance(node, type):
         return []
 
@@ -56,4 +56,4 @@ def parse(node: Any, ns: NodeStoreAPI) -> list[requests.Response]:
 
     enrich_from_docstring(node.node_function.__doc__ or "", metadata)
 
-    return ns.upload([metadata])
+    return await ns.upload([metadata])

@@ -25,12 +25,20 @@ async def _upload_modules_async(  # noqa: PLR0913
     concurrency: int = 10,
     **kwargs: dict[str, Any],
 ) -> None:
+    if concurrency < 1:
+        raise ValueError("concurrency must be >= 1")
     semaphore = asyncio.Semaphore(concurrency)
 
     async def upload_object(store: NodeStoreAPI, obj: Any) -> tuple[int, int, int]:
         async with semaphore:
             try:
-                responses = await upload(store, obj, update_existing=update_existing)
+                responses = await upload(
+                    store,
+                    obj,
+                    update_existing=update_existing,
+                    parsers=parsers,
+                    **kwargs,
+                )
             except Exception:
                 logger.exception("Failed to upload object %s", obj)
                 return 0, 0, 1

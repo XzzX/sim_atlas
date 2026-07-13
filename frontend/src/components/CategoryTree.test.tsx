@@ -71,9 +71,11 @@ describe("CategoryTree", () => {
       />,
     );
 
-    const selectedRow = screen.getByText("pyiron_workflow").closest('[role="button"]');
+    const selectedRow = screen.getByText("pyiron_workflow");
+    expect(selectedRow.tagName).toBe("BUTTON");
     expect(selectedRow).toHaveClass("text-primary");
-    const allNodesRow = screen.getByText("All nodes").closest('[role="button"]');
+    const allNodesRow = screen.getByText("All nodes");
+    expect(allNodesRow.tagName).toBe("BUTTON");
     expect(allNodesRow).not.toHaveClass("text-primary");
   });
 });

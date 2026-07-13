@@ -7,6 +7,19 @@ interface CategoryTreeProps {
   onSelect: (category: string) => void;
 }
 
+function expandAncestors(
+  path: string,
+  prev: Record<string, boolean>,
+): Record<string, boolean> {
+  if (!path) return prev;
+  const next = { ...prev };
+  const parts = path.split(">");
+  for (let i = 1; i <= parts.length; i += 1) {
+    next[parts.slice(0, i).join(">")] = true;
+  }
+  return next;
+}
+
 interface CategoryRowProps {
   label: string;
   depth: number;
@@ -28,23 +41,9 @@ function CategoryRow({
 }: CategoryRowProps) {
   return (
     <div
-      role="button"
-      tabIndex={0}
-      title={label}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
       style={{ paddingLeft: `${8 + depth * 14}px` }}
-      className={`flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-sm transition-colors cursor-pointer ${
-        selected
-          ? "bg-primary/10 font-medium text-primary shadow-[inset_3px_0_0_var(--primary)]"
-          : hasChildren
-            ? "font-medium text-foreground hover:bg-muted"
-            : "text-muted-foreground hover:bg-muted"
+      className={`flex w-full items-center gap-1.5 rounded-md pr-2 text-sm transition-colors ${
+        selected ? "bg-primary/10 shadow-[inset_3px_0_0_var(--primary)]" : ""
       }`}
     >
       <span className="flex size-3 shrink-0 items-center justify-center">
@@ -53,10 +52,7 @@ function CategoryRow({
             type="button"
             aria-label={expanded ? `Collapse ${label}` : `Expand ${label}`}
             aria-expanded={expanded}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggle?.();
-            }}
+            onClick={onToggle}
             className="flex size-3 items-center justify-center text-muted-foreground hover:text-foreground"
           >
             {expanded ? (
@@ -67,7 +63,20 @@ function CategoryRow({
           </button>
         )}
       </span>
-      <span className="truncate">{label}</span>
+      <button
+        type="button"
+        title={label}
+        onClick={onSelect}
+        className={`flex-1 truncate rounded-md py-1.5 text-left transition-colors ${
+          selected
+            ? "font-medium text-primary"
+            : hasChildren
+              ? "font-medium text-foreground hover:bg-muted"
+              : "text-muted-foreground hover:bg-muted"
+        }`}
+      >
+        {label}
+      </button>
     </div>
   );
 }
@@ -77,19 +86,15 @@ export const CategoryTree: React.FC<CategoryTreeProps> = ({
   categoryOptions,
   onSelect,
 }) => {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
+    expandAncestors(category, {}),
+  );
+  const [prevCategory, setPrevCategory] = useState(category);
 
-  React.useEffect(() => {
-    if (!category) return;
-    setExpanded((prev) => {
-      const next = { ...prev };
-      const parts = category.split(">");
-      for (let i = 1; i <= parts.length; i += 1) {
-        next[parts.slice(0, i).join(">")] = true;
-      }
-      return next;
-    });
-  }, [category]);
+  if (category !== prevCategory) {
+    setPrevCategory(category);
+    setExpanded((prev) => expandAncestors(category, prev));
+  }
 
   const toggle = (path: string) => {
     setExpanded((prev) => ({ ...prev, [path]: !prev[path] }));
@@ -97,15 +102,7 @@ export const CategoryTree: React.FC<CategoryTreeProps> = ({
 
   const selectPath = (path: string) => {
     onSelect(path);
-    if (!path) return;
-    setExpanded((prev) => {
-      const next = { ...prev };
-      const parts = path.split(">");
-      for (let i = 1; i <= parts.length; i += 1) {
-        next[parts.slice(0, i).join(">")] = true;
-      }
-      return next;
-    });
+    setExpanded((prev) => expandAncestors(path, prev));
   };
   const renderChildren = (parentPath: string, depth: number): React.ReactNode =>
     (categoryOptions[parentPath] ?? []).map((segment) => {

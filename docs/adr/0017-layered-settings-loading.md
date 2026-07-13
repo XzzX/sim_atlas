@@ -22,21 +22,21 @@ sources while keeping a predictable, documented priority order?
 
 * Keep `.env`-only loading
 * XDG Base Directory Specification with TOML files
-* Explicit directory-based layering (`/etc/sim_atlas/`, `~/.sim_atlas/`, `.sim_atlas/`) with TOML files
+* Explicit TOML file layering (`/etc/sim_atlas_config.toml`, `~/.sim_atlas_config.toml`, `.sim_atlas_config.toml`)
 * Python `dynaconf` or similar third-party configuration library
 
 ## Decision Outcome
 
-Chosen option: **explicit directory-based layering with TOML files**, implemented via
+Chosen option: **explicit TOML file layering**, implemented via
 `pydantic-settings`' built-in `TomlConfigSettingsSource` and `settings_customise_sources()`.
 
 The loading order from lowest to highest priority is:
 
 | Priority | Source | Path |
 |---|---|---|
-| 5 (lowest) | System config | `/etc/sim_atlas/config.toml` |
-| 4 | User config | `~/.sim_atlas/config.toml` |
-| 3 | Working-directory config | `.sim_atlas/config.toml` |
+| 5 (lowest) | System config | `/etc/sim_atlas_config.toml` |
+| 4 | User config | `~/.sim_atlas_config.toml` |
+| 3 | Working-directory config | `.sim_atlas_config.toml` |
 | 2 | `.env` file | `.env` in working directory |
 | 1 (highest) | Environment variables | OS environment |
 
@@ -47,7 +47,7 @@ are silently skipped.
 
 * Good, because system operators can set site-wide defaults without touching user files.
 * Good, because users can override site-wide defaults without write access to `/etc`.
-* Good, because project-local overrides (`.sim_atlas/config.toml`) work for per-repository
+* Good, because project-local overrides (`.sim_atlas_config.toml`) work for per-repository
   setups, consistent with other developer-tooling conventions.
 * Good, because the `.env` fallback preserves full backward compatibility for existing
   deployments.

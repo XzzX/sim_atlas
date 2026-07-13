@@ -20,7 +20,7 @@ uv run pyright                          # type-check (strict mode)
 - **Auth**: JWT tokens carried in `x-api-key` header; `get_current_user` dependency enforces auth on write routes; read routes are public
 - **MCP**: only `search_nodes` and `agent_stream` are exposed as MCP tools (see `include_operations` in `main.py`); keep those route signatures clean — they double as tool signatures
 - **AI**: docstring enrichment via OpenAI-compatible API (`ai.py`); embeddings via VoyageAI (`voyage_ai.py`); agent in `agent/` — SSE streaming (`_sse.py`), agentic loop (`_runner.py`), system prompt (`_prompt.py`), observability (`_observability.py`), tools in `agent/tools/`; all AI features raise `AINotConfiguredError` (from `exceptions.py`) when the required settings are absent
-- **Config**: all settings via `settings.py` (`pydantic-settings`); loaded from TOML files at `/etc/sim_atlas/config.toml`, `~/.sim_atlas/config.toml`, or `.sim_atlas/config.toml`; never hardcode secrets or URLs
+- **Config**: all settings via `settings.py` (`pydantic-settings`); loaded from TOML files at `/etc/sim_atlas_config.toml`, `~/.sim_atlas_config.toml`, or `.sim_atlas_config.toml`; never hardcode secrets or URLs
 - **CLI**: entry points live in `cli/` (`server.py` starts the server, `token.py` issues JWT tokens)
 
 ## Libraries

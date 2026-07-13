@@ -26,9 +26,14 @@ See [docs/adr/](docs/adr/) for all architectural decision records.
 
 ## Environment Configuration
 
-Backend reads config from a `.env` file via `pydantic-settings`. Required variables:
-- JWT secret key (for write access)
-- LLM API key (OpenAI-compatible endpoint)
-- VoyageAI API key (embeddings)
+Backend reads config via `pydantic-settings`, from a `.env` file or TOML config files
+(`/etc/sim_atlas_config.toml`, `~/.sim_atlas_config.toml`, `.sim_atlas_config.toml`).
 
-Generate an access token with: `sim-atlas-access-token`
+**Zero-config to start**: only a JWT secret is schema-required, and `uv run sim-atlas`
+auto-generates one plus writes a TOML config file in the working directory on first run if
+none exists. No manual setup is needed to start the server or use the public read/search
+endpoints.
+
+**Optional, feature-gated**: an LLM API key (OpenAI-compatible) enables docstring enrichment and the agent; configuring an embedding provider enables semantic search (for cloud providers like VoyageAI/OpenAI this also requires an API key). Without an embedding provider configured, the backend runs fine with keyword-only search.
+
+Write access (uploading nodes) requires a JWT token: `sim-atlas-access-token`.

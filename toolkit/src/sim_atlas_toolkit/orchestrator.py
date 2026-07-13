@@ -9,6 +9,7 @@ from tqdm.asyncio import tqdm as atqdm
 
 from sim_atlas_toolkit.collector import collect_objects
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
+from sim_atlas_toolkit.settings import EnrichmentSettings
 from sim_atlas_toolkit.uploader import upload
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ async def _upload_modules_async(  # noqa: PLR0913
     parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] | None = None,
     module_allowlist: list[str] | None = None,
     concurrency: int = 10,
+    enrichment_settings: EnrichmentSettings | None = None,
     **kwargs: dict[str, Any],
 ) -> None:
     if concurrency < 1:
@@ -61,7 +63,12 @@ async def _upload_modules_async(  # noqa: PLR0913
             return object_created, object_conflicts, object_errors
 
     async with httpx.AsyncClient() as client:
-        store = NodeStoreAPI(api_url=api_url, client=client, api_key=api_token)
+        store = NodeStoreAPI(
+            api_url=api_url,
+            client=client,
+            api_key=api_token,
+            enrichment_settings=enrichment_settings,
+        )
 
         for module_name in modules:
             collected_objects = collect_objects(
@@ -98,6 +105,7 @@ def upload_modules(  # noqa: PLR0913
     parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] | None = None,
     module_allowlist: list[str] | None = None,
     concurrency: int = 10,
+    enrichment_settings: EnrichmentSettings | None = None,
     **kwargs: dict[str, Any],
 ) -> None:
     asyncio.run(
@@ -110,6 +118,7 @@ def upload_modules(  # noqa: PLR0913
             parsers=parsers,
             module_allowlist=module_allowlist,
             concurrency=concurrency,
+            enrichment_settings=enrichment_settings,
             **kwargs,
         )
     )

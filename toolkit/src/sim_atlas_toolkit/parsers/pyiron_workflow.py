@@ -11,7 +11,7 @@ from sim_atlas_toolkit.models import (
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
-    enrich_from_docstring,
+    enrich_metadata,
     parse_annotation,
 )
 
@@ -54,6 +54,6 @@ async def parse(node: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     metadata.docstring = node.node_function.__doc__ or ""
     metadata.keywords = ["pyiron_workflow_function"]
 
-    enrich_from_docstring(node.node_function.__doc__ or "", metadata)
+    await enrich_metadata(metadata, ns.enrichment_settings)
 
     return await ns.upload([metadata])

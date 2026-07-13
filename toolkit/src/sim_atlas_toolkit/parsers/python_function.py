@@ -7,7 +7,7 @@ import httpx
 from sim_atlas_toolkit.models import FunctionRequest
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
-    enrich_from_docstring,
+    enrich_metadata,
     parse_return_annotation,
     parse_signature,
 )
@@ -36,6 +36,6 @@ async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     metadata.inputs = parse_signature(sig)
     metadata.outputs = parse_return_annotation(sig)
 
-    enrich_from_docstring(inspect.getdoc(obj) or "", metadata)
+    await enrich_metadata(metadata, ns.enrichment_settings)
 
     return await ns.upload([metadata])

@@ -12,7 +12,7 @@ from sim_atlas_toolkit.models import (
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
-    enrich_from_docstring,
+    enrich_metadata,
     parse_annotation,
 )
 
@@ -83,13 +83,14 @@ async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
         python_import=python_import,
         category=category,
         source_code=pack_source,
-        docstring=f"[PACK] {qualname}: {raw_doc}",
+        docstring=raw_doc,
         keywords=["pack", "dataclass"],
         inputs=field_annotations,
         outputs=[dataclass_annotation],
     )
 
-    enrich_from_docstring(raw_doc, pack_metadata)
+    await enrich_metadata(pack_metadata, ns.enrichment_settings)
+    pack_metadata.docstring = f"[PACK] {qualname}: {pack_metadata.docstring}"
 
     unpack_metadata = FunctionRequest.model_construct(
         name=f"[UNPACK] {python_import}",

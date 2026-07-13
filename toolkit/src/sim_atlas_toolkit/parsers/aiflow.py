@@ -20,7 +20,7 @@ from sim_atlas_toolkit.models import (
     WorkflowRequest,
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
-from sim_atlas_toolkit.parsers.metadata import enrich_from_docstring, type_to_str
+from sim_atlas_toolkit.parsers.metadata import enrich_metadata, type_to_str
 from sim_atlas_toolkit.uploader import upload
 
 
@@ -70,7 +70,7 @@ async def parse_function_node(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response
         case _:
             pass
 
-    enrich_from_docstring(metadata.docstring, metadata)
+    await enrich_metadata(metadata, ns.enrichment_settings)
 
     return await ns.upload([metadata])
 

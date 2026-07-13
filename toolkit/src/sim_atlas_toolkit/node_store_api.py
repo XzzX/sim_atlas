@@ -7,16 +7,22 @@ from sim_atlas_toolkit.models import (
     ExecutionResultRequest,
     artifact_request_adapter,
 )
+from sim_atlas_toolkit.settings import EnrichmentSettings
 
 logger = logging.getLogger(__name__)
 
 
 class NodeStoreAPI:
     def __init__(
-        self, api_url: str, client: httpx.AsyncClient, api_key: str | None = None
+        self,
+        api_url: str,
+        client: httpx.AsyncClient,
+        api_key: str | None = None,
+        enrichment_settings: EnrichmentSettings | None = None,
     ) -> None:
         self.api_url = api_url
         self.api_key = api_key
+        self.enrichment_settings = enrichment_settings
         self._client = client
 
     async def upload(self, artifacts: list[ArtifactRequest]) -> list[httpx.Response]:

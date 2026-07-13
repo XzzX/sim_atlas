@@ -30,7 +30,7 @@ from sim_atlas_toolkit.models import (
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
-    enrich_from_docstring,
+    enrich_metadata,
     parse_return_annotation,
     parse_signature,
 )
@@ -206,7 +206,7 @@ async def parse_atomic_recipe(
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]
 
-    enrich_from_docstring(metadata.docstring, metadata)
+    await enrich_metadata(metadata, ns.enrichment_settings)
     return await ns.upload([metadata])
 
 
@@ -276,7 +276,7 @@ async def parse_workflow_recipe(
     metadata.uses = uses
     metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
 
-    enrich_from_docstring(metadata.docstring, metadata)
+    await enrich_metadata(metadata, ns.enrichment_settings)
 
     return await ns.upload([metadata])
 

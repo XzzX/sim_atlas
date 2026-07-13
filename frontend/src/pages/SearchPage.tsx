@@ -145,6 +145,9 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
 
   const { page, total_pages: totalPages, total_items: totalItems } = searchResponse.results;
   const suggestions = searchResponse.results.data.map((r) => r.node.name);
+  const searchPlaceholder = filters.category
+    ? `Search within ${filters.category.split(">").join(" › ")}…`
+    : undefined;
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -156,7 +159,12 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
           </CardDescription>
         </CardHeader>
 
-        <SearchBar query={query} onQueryChange={updateQuery} items={suggestions} />
+        <SearchBar
+          query={query}
+          onQueryChange={updateQuery}
+          items={suggestions}
+          placeholder={searchPlaceholder}
+        />
 
         <div className="flex border-t">
           <FilterSidebar

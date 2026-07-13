@@ -109,7 +109,11 @@ export const linearExecutions: ExecutionResultMetadata[] = [
 ];
 
 export const filterOptions: FilterOptions = {
-  category: { dummy_module: ["flowrep"] },
+  category: {
+    "": ["dummy_module"],
+    dummy_module: ["flowrep"],
+    "dummy_module>flowrep": ["linear"],
+  },
   artifact_type: ["function", "workflow"],
   author: ["Test Author"],
   keywords: ["flowrep"],

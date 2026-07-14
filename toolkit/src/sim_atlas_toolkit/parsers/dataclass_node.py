@@ -12,6 +12,7 @@ from sim_atlas_toolkit.models import (
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
+    enrich_from_docstring,
     parse_annotation,
 )
 from sim_atlas_toolkit.settings import ToolkitSettings
@@ -89,6 +90,9 @@ async def parse(
         inputs=field_annotations,
         outputs=[dataclass_annotation],
     )
+
+    raw_doc = inspect.getdoc(obj) or ""
+    enrich_from_docstring(raw_doc, pack_metadata)
 
     unpack_metadata = FunctionRequest.model_construct(
         name=f"[UNPACK] {python_import}",

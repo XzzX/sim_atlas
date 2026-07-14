@@ -1235,37 +1235,43 @@ dependencies = [
 ai = [
     { name = "openai" },
 ]
+flowrep = [
+    { name = "flowrep" },
+]
+pwd = [
+    { name = "python-workflow-definition" },
+]
+pyiron-workflow = [
+    { name = "pyiron-workflow" },
+]
 
 [package.dev-dependencies]
 dev = [
-    { name = "flowrep" },
-    { name = "pyiron-workflow" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
-    { name = "python-workflow-definition" },
     { name = "ruff" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "flowrep", marker = "extra == 'flowrep'", specifier = ">=0.5.1" },
     { name = "griffe", specifier = ">=2" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "openai", marker = "extra == 'ai'", specifier = ">=2.45.0" },
     { name = "pydantic", specifier = ">=2" },
     { name = "pydantic-settings", specifier = ">=2" },
+    { name = "pyiron-workflow", marker = "extra == 'pyiron-workflow'", specifier = ">=0.15.6" },
+    { name = "python-workflow-definition", marker = "extra == 'pwd'", specifier = ">=0.1.0" },
     { name = "tqdm", specifier = ">=4.68.4" },
 ]
-provides-extras = ["ai"]
+provides-extras = ["ai", "pyiron-workflow", "pwd", "flowrep"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "flowrep", specifier = ">=0.5.1" },
-    { name = "pyiron-workflow", specifier = ">=0.15.6" },
     { name = "pyright", specifier = ">=1.1.407" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
-    { name = "python-workflow-definition", specifier = ">=0.1.0" },
     { name = "ruff", specifier = ">=0.14.6" },
 ]
 

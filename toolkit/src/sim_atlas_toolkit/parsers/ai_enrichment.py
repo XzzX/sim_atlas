@@ -57,23 +57,61 @@ async def generate_docstring(
     """
     client = AsyncOpenAI(api_key=llm_key, base_url=llm_url)
 
-    prompt = (
-        "Generate a concise docstring for the following Python code. "
-        "Return only the docstring text itself, without surrounding quotes, "
-        "code fences, or any explanation.\n\n"
-        f"{source_code}"
-    )
+    prompt = f"""
+You are a technical writer generating Python docstrings. You will receive
+Python source code for a single function, method, or class.
+
+Your task: write a docstring for it in NumPy style.
+
+Rules:
+
+1. If the code already contains a docstring, use it as the basis. Keep its
+   wording and intent where possible, but verify every statement against the
+   actual code. Correct anything that is wrong, outdated, or inconsistent
+   with the implementation (e.g., parameters that no longer exist, wrong
+   types, wrong default values, described behavior that differs from the code).
+2. If there is no docstring, derive one entirely from the code itself. Do
+   not invent behavior that cannot be inferred from the implementation or
+   signature. If a parameter's purpose is genuinely unclear, describe it
+   neutrally based on how it is used.
+3. The docstring must contain exactly these sections, in this order:
+   - A one-line summary (imperative mood, ends with a period, fits on one
+     line, no leading "This function ...").
+   - A blank line, then an extended description: one short paragraph
+     explaining what the code does, relevant behavior, and side effects.
+     Omit this only if the function is trivial and the summary says it all.
+   - A "Parameters" section describing every parameter in signature order.
+     Use type annotations from the signature if present. Note defaults as
+     ", optional" with the default mentioned in the description
+     (e.g., "by default 10"). Skip self and cls.
+   - A "Returns" section describing the return value(s) with type and
+     meaning. If the function returns None, omit this section. For
+     generators, use "Yields" instead.
+4. Drop everything else. Do not include Raises, Examples, Notes, See Also,
+   References, or any other sections, even if the original docstring had
+   them.
+5. Formatting: NumPy style with underlined section headers, e.g.
+
+   Parameters
+   ----------
+   x : int
+       Description of x.
+
+   Wrap lines at 79 characters. Indent continuation lines of descriptions
+   by four spaces relative to the parameter name.
+6. Output only the docstring, without the triple quotes, with no
+   surrounding code, no markdown fences, and no commentary.
+
+Source code:
+
+<code>
+{source_code}
+</code>
+"""
 
     response = await client.chat.completions.create(
         model=llm_model,
         messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a helpful assistant that writes clear, "
-                    "PEP 257-compliant docstrings for Python code."
-                ),
-            },
             {"role": "user", "content": prompt},
         ],
     )

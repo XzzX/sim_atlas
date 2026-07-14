@@ -12,7 +12,6 @@ from sim_atlas_toolkit.models import (
 )
 from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
-    enrich_metadata,
     parse_annotation,
 )
 from sim_atlas_toolkit.settings import ToolkitSettings
@@ -75,7 +74,6 @@ async def parse(
     unpack_source = unpack_note + raw_source
 
     category = module.replace(".", ">")
-    raw_doc = inspect.getdoc(obj) or ""
 
     field_annotations = _field_annotations(obj)
     dataclass_annotation = Annotation(label=qualname.lower(), datatype=python_import)
@@ -86,14 +84,11 @@ async def parse(
         python_import=python_import,
         category=category,
         source_code=pack_source,
-        docstring=raw_doc,
+        docstring=pack_source,
         keywords=["pack", "dataclass"],
         inputs=field_annotations,
         outputs=[dataclass_annotation],
     )
-
-    await enrich_metadata(pack_metadata, settings.enrichment if settings else None)
-    pack_metadata.docstring = f"[PACK] {qualname}: {pack_metadata.docstring}"
 
     unpack_metadata = FunctionRequest.model_construct(
         name=f"[UNPACK] {python_import}",
@@ -101,7 +96,7 @@ async def parse(
         python_import=python_import,
         category=category,
         source_code=unpack_source,
-        docstring=f"[UNPACK] {qualname}: {raw_doc}",
+        docstring=unpack_source,
         keywords=["unpack", "dataclass"],
         inputs=pack_metadata.outputs,
         outputs=pack_metadata.inputs,

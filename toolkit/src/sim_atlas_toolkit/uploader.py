@@ -19,7 +19,7 @@ async def upload(
     ns: NodeStoreAPI,
     obj: Any,
     update_existing: bool = False,
-    parsers: list[Callable[[Any], Awaitable[list[httpx.Response]]]] | None = None,
+    parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] | None = None,
     settings: ToolkitSettings | None = None,
     **kwargs: dict[str, Any],
 ) -> list[httpx.Response]:

@@ -13,7 +13,7 @@ from sim_atlas_toolkit.settings import ToolkitSettings
 
 
 async def parse(
-    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings | None = None
+    settings: ToolkitSettings, obj: Any, ns: NodeStoreAPI
 ) -> list[httpx.Response]:
     try:
         from python_workflow_definition.models import (  # noqa: PLC0415

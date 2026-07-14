@@ -47,7 +47,7 @@ def _field_annotations(cls: type) -> list[Annotation]:
 
 
 async def parse(
-    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings | None = None
+    settings: ToolkitSettings, obj: Any, ns: NodeStoreAPI
 ) -> list[httpx.Response]:
     if not (dataclasses.is_dataclass(obj) and isinstance(obj, type)):
         return []

@@ -7,7 +7,7 @@ import pytest
 
 from sim_atlas_toolkit.models import Annotation, FunctionRequest
 from sim_atlas_toolkit.parsers.metadata import enrich_metadata
-from sim_atlas_toolkit.settings import EnrichmentSettings
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 GENERATED = """Compute a sum.
 
@@ -53,7 +53,7 @@ async def test_no_settings_does_not_generate(monkeypatch: pytest.MonkeyPatch) ->
     calls = _install_fake_generator(monkeypatch, _fake_generate)
     metadata = _metadata()
 
-    await enrich_metadata(metadata, None)
+    await enrich_metadata(ToolkitSettings(), metadata)
 
     assert calls == []
     assert metadata.docstring == ""
@@ -63,7 +63,7 @@ async def test_disabled_does_not_generate(monkeypatch: pytest.MonkeyPatch) -> No
     calls = _install_fake_generator(monkeypatch, _fake_generate)
     metadata = _metadata()
 
-    await enrich_metadata(metadata, EnrichmentSettings(enabled=False))
+    await enrich_metadata(ToolkitSettings(llm_enabled=False), metadata)
 
     assert calls == []
 
@@ -73,9 +73,11 @@ async def test_generates_when_docstring_missing(
 ) -> None:
     calls = _install_fake_generator(monkeypatch, _fake_generate)
     metadata = _metadata()
-    settings = EnrichmentSettings(enabled=True, url="http://llm", key="k", model="m")
+    settings = ToolkitSettings(
+        llm_enabled=True, llm_url="http://llm", llm_key="k", llm_model="m"
+    )
 
-    await enrich_metadata(metadata, settings)
+    await enrich_metadata(settings, metadata)
 
     assert calls == ["def func(x):\n    return x"]
     assert metadata.docstring == GENERATED
@@ -89,11 +91,15 @@ async def test_existing_docstring_not_overwritten(
 ) -> None:
     calls = _install_fake_generator(monkeypatch, _fake_generate)
     metadata = _metadata(docstring="An existing docstring.")
-    settings = EnrichmentSettings(
-        enabled=True, url="http://llm", key="k", model="m", overwrite=False
+    settings = ToolkitSettings(
+        llm_enabled=True,
+        llm_url="http://llm",
+        llm_key="k",
+        llm_model="m",
+        llm_overwrite=False,
     )
 
-    await enrich_metadata(metadata, settings)
+    await enrich_metadata(settings, metadata)
 
     assert calls == []
     assert metadata.docstring == "An existing docstring."
@@ -102,11 +108,15 @@ async def test_existing_docstring_not_overwritten(
 async def test_overwrite_regenerates(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = _install_fake_generator(monkeypatch, _fake_generate)
     metadata = _metadata(docstring="An existing docstring.")
-    settings = EnrichmentSettings(
-        enabled=True, url="http://llm", key="k", model="m", overwrite=True
+    settings = ToolkitSettings(
+        llm_enabled=True,
+        llm_url="http://llm",
+        llm_key="k",
+        llm_model="m",
+        llm_overwrite=True,
     )
 
-    await enrich_metadata(metadata, settings)
+    await enrich_metadata(settings, metadata)
 
     assert len(calls) == 1
     assert metadata.docstring == GENERATED
@@ -120,12 +130,16 @@ async def test_generation_failure_falls_back(
 
     _install_fake_generator(monkeypatch, boom)
     metadata = _metadata(docstring="Kept docstring.")
-    settings = EnrichmentSettings(
-        enabled=True, url="http://llm", key="k", model="m", overwrite=True
+    settings = ToolkitSettings(
+        llm_enabled=True,
+        llm_url="http://llm",
+        llm_key="k",
+        llm_model="m",
+        llm_overwrite=True,
     )
 
     # Must not raise; existing docstring is preserved and still enriched.
-    await enrich_metadata(metadata, settings)
+    await enrich_metadata(settings, metadata)
 
     assert metadata.docstring == "Kept docstring."
 
@@ -136,9 +150,9 @@ def test_settings_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SIM_ATLAS_LLM_MODEL", "env-model")
     monkeypatch.setenv("SIM_ATLAS_LLM_OVERWRITE", "true")
 
-    settings = EnrichmentSettings()
+    settings = ToolkitSettings()
 
-    assert settings.enabled is True
-    assert settings.url == "http://env-llm"
-    assert settings.model == "env-model"
-    assert settings.overwrite is True
+    assert settings.llm_enabled is True
+    assert settings.llm_url == "http://env-llm"
+    assert settings.llm_model == "env-model"
+    assert settings.llm_overwrite is True

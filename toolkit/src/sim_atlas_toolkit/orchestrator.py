@@ -16,15 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 async def _upload_modules_async(  # noqa: PLR0913
-    api_url: str,
-    api_token: str,
+    settings: ToolkitSettings,
     modules: list[str],
     recursive: Literal["no", "import", "filesystem"] = "no",
     update_existing: bool = False,
     parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] | None = None,
     module_allowlist: list[str] | None = None,
     concurrency: int = 10,
-    settings: ToolkitSettings | None = None,
     **kwargs: dict[str, Any],
 ) -> None:
     if concurrency < 1:
@@ -35,11 +33,11 @@ async def _upload_modules_async(  # noqa: PLR0913
         async with semaphore:
             try:
                 responses = await upload(
+                    settings,
                     store,
                     obj,
                     update_existing=update_existing,
                     parsers=parsers,
-                    settings=settings,
                     **kwargs,
                 )
             except Exception:
@@ -64,7 +62,9 @@ async def _upload_modules_async(  # noqa: PLR0913
             return object_created, object_conflicts, object_errors
 
     async with httpx.AsyncClient() as client:
-        store = NodeStoreAPI(api_url=api_url, client=client, api_key=api_token)
+        store = NodeStoreAPI(
+            api_url=settings.api_url, client=client, api_key=settings.api_token
+        )
 
         for module_name in modules:
             collected_objects = collect_objects(
@@ -93,28 +93,24 @@ async def _upload_modules_async(  # noqa: PLR0913
 
 
 def upload_modules(  # noqa: PLR0913
-    api_url: str,
-    api_token: str,
+    settings: ToolkitSettings,
     modules: list[str],
     recursive: Literal["no", "import", "filesystem"] = "no",
     update_existing: bool = False,
     parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] | None = None,
     module_allowlist: list[str] | None = None,
     concurrency: int = 10,
-    settings: ToolkitSettings | None = None,
     **kwargs: dict[str, Any],
 ) -> None:
     asyncio.run(
         _upload_modules_async(
-            api_url=api_url,
-            api_token=api_token,
+            settings,
             modules=modules,
             recursive=recursive,
             update_existing=update_existing,
             parsers=parsers,
             module_allowlist=module_allowlist,
             concurrency=concurrency,
-            settings=settings,
             **kwargs,
         )
     )

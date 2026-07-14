@@ -23,7 +23,7 @@ from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactRequest,
 )
-from sim_atlas_toolkit.settings import EnrichmentSettings
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,7 @@ def enrich_from_docstring(
 
 
 async def enrich_metadata(
-    metadata: ArtifactRequest, settings: EnrichmentSettings | None
+    settings: ToolkitSettings, metadata: ArtifactRequest
 ) -> ArtifactRequest:
     """Optionally LLM-generate a docstring from the source, then enrich via griffe.
 
@@ -111,20 +111,21 @@ async def enrich_metadata(
     """
     docstring = metadata.docstring or ""
     should_generate = (
-        settings is not None
-        and settings.enabled
+        settings.llm_enabled
         and bool(metadata.source_code)
-        and (settings.overwrite or not docstring)
+        and (settings.llm_overwrite or not docstring)
     )
     if should_generate:
-        assert settings is not None
         try:
             from sim_atlas_toolkit.parsers.ai_enrichment import (  # noqa: PLC0415
                 generate_docstring,
             )
 
             generated = await generate_docstring(
-                settings.url, settings.key, settings.model, metadata.source_code
+                settings.llm_url,
+                settings.llm_key,
+                settings.llm_model,
+                metadata.source_code,
             )
             if generated:
                 docstring = generated

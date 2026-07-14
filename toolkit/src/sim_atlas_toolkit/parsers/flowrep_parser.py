@@ -159,10 +159,10 @@ def flowrep_to_wf_definition(
 
 
 async def parse_atomic_recipe(
+    settings: ToolkitSettings,
     obj: Any,
     recipe: AtomicRecipe,
     ns: NodeStoreAPI,
-    settings: ToolkitSettings | None = None,
 ) -> list[httpx.Response]:
     metadata = FunctionRequest.model_construct()
 
@@ -210,15 +210,15 @@ async def parse_atomic_recipe(
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]
 
-    await enrich_metadata(metadata, settings.enrichment if settings else None)
+    await enrich_metadata(settings, metadata)
     return await ns.upload([metadata])
 
 
 async def parse_workflow_recipe(
+    settings: ToolkitSettings,
     obj: Any,
     recipe: WorkflowRecipe,
     ns: NodeStoreAPI,
-    settings: ToolkitSettings | None = None,
 ) -> list[httpx.Response]:
     metadata = WorkflowRequest.model_construct()
 
@@ -264,7 +264,7 @@ async def parse_workflow_recipe(
     ]
 
     uses_upload = [
-        (label, (await upload(ns, child, settings=settings))[0])
+        (label, (await upload(settings, ns, child))[0])
         for label, child in uses_import
         if child is not None
     ]
@@ -283,13 +283,13 @@ async def parse_workflow_recipe(
     metadata.uses = uses
     metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
 
-    await enrich_metadata(metadata, settings.enrichment if settings else None)
+    await enrich_metadata(settings, metadata)
 
     return await ns.upload([metadata])
 
 
 async def parse_workflow_instance(
-    wf_instance: DagData, ns: NodeStoreAPI, settings: ToolkitSettings | None = None
+    settings: ToolkitSettings, wf_instance: DagData, ns: NodeStoreAPI
 ) -> list[httpx.Response]:
     logger.debug("parsing workflow instance")
 
@@ -301,7 +301,7 @@ async def parse_workflow_instance(
     wf_obj = try_import(recipe.reference.info.module, recipe.reference.info.qualname)
     if wf_obj is None:
         return []
-    wf_responses = await upload(ns, wf_obj, settings=settings)
+    wf_responses = await upload(settings, ns, wf_obj)
     if len(wf_responses) == 0:
         return []
     wf_id = extract_id(wf_responses[0])
@@ -336,20 +336,20 @@ async def parse_workflow_instance(
 
 
 async def parse(
-    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings | None = None
+    settings: ToolkitSettings, obj: Any, ns: NodeStoreAPI
 ) -> list[httpx.Response]:
     if isinstance(obj, DagData):
-        return await parse_workflow_instance(obj, ns, settings)
+        return await parse_workflow_instance(settings, obj, ns)
 
     if not hasattr(obj, "flowrep_recipe"):
         return []
 
     match obj.flowrep_recipe:
         case AtomicRecipe() as recipe:
-            return await parse_atomic_recipe(obj, recipe, ns, settings)
+            return await parse_atomic_recipe(settings, obj, recipe, ns)
 
         case WorkflowRecipe() as recipe:
-            return await parse_workflow_recipe(obj, recipe, ns, settings)
+            return await parse_workflow_recipe(settings, obj, recipe, ns)
 
         case _:
             return []

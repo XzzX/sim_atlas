@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 
 
 async def upload(
+    settings: ToolkitSettings,
     ns: NodeStoreAPI,
     obj: Any,
     update_existing: bool = False,
     parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] | None = None,
-    settings: ToolkitSettings | None = None,
     **kwargs: dict[str, Any],
 ) -> list[httpx.Response]:
     if isinstance(obj, (FunctionRequest, WorkflowRequest)):
@@ -35,4 +35,4 @@ async def upload(
         get_metadata,  # avoid circular import
     )
 
-    return await get_metadata(obj, parsers, ns, settings)
+    return await get_metadata(settings, obj, parsers, ns)

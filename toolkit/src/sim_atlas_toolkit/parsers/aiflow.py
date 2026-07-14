@@ -26,7 +26,7 @@ from sim_atlas_toolkit.uploader import upload
 
 
 async def parse_function_node(
-    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings | None = None
+    settings: ToolkitSettings, obj: Any, ns: NodeStoreAPI
 ) -> list[httpx.Response]:
     try:
         from core.node import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
@@ -73,12 +73,14 @@ async def parse_function_node(
         case _:
             pass
 
-    await enrich_metadata(metadata, settings.enrichment if settings else None)
+    await enrich_metadata(settings, metadata)
 
     return await ns.upload([metadata])
 
 
-async def parse_group_node(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+async def parse_group_node(
+    settings: ToolkitSettings, obj: Any, ns: NodeStoreAPI
+) -> list[httpx.Response]:
     try:
         from core.graph_to_workflow import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
             graph_to_workflow_code,
@@ -133,16 +135,16 @@ async def parse_group_node(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
 
 
 async def to_wf_definition(
+    settings: ToolkitSettings,
     graph: Any,
     references: list[Reference],
     ns: NodeStoreAPI,
-    settings: ToolkitSettings | None = None,
 ) -> WfDefinition:
     reference_dict = {ref.label: ref.id for ref in references}
 
     nodes: list[WfNode] = []
     for node_id, node in graph.nodes.items():
-        node_metadata = await parse(node, ns, settings)
+        node_metadata = await parse(settings, node, ns)
         if not node_metadata:
             continue
         if node_metadata[0].status_code in (HTTPStatus.CREATED, HTTPStatus.CONFLICT):
@@ -171,7 +173,7 @@ async def to_wf_definition(
 
 
 async def parse_workflow(
-    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings | None = None
+    settings: ToolkitSettings, obj: Any, ns: NodeStoreAPI
 ) -> list[httpx.Response]:
     try:
         from core import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
@@ -204,7 +206,7 @@ async def parse_workflow(
     uses_import = [(label, node) for label, node in wf._graph.nodes.items()]
 
     uses_upload = [
-        (label, (await upload(ns, child, settings=settings))[0])
+        (label, (await upload(settings, ns, child))[0])
         for label, child in uses_import
         if child is not None
     ]
@@ -223,22 +225,22 @@ async def parse_workflow(
     ]
 
     metadata.wf_definition = await to_wf_definition(
-        wf._graph, metadata.uses, ns, settings
+        settings, wf._graph, metadata.uses, ns
     )
 
     return await ns.upload([metadata])
 
 
 async def parse(
-    obj: Any, ns: NodeStoreAPI, settings: ToolkitSettings | None = None
+    settings: ToolkitSettings, obj: Any, ns: NodeStoreAPI
 ) -> list[httpx.Response]:
-    if metadata := await parse_workflow(obj, ns, settings):
+    if metadata := await parse_workflow(settings, obj, ns):
         return metadata
 
-    if metadata := await parse_group_node(obj, ns):
+    if metadata := await parse_group_node(settings, obj, ns):
         return metadata
 
-    if metadata := await parse_function_node(obj, ns, settings):
+    if metadata := await parse_function_node(settings, obj, ns):
         return metadata
 
     return []

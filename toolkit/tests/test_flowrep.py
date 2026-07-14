@@ -4,6 +4,7 @@ import flowrep as fr
 
 from sim_atlas_toolkit.models import ArtifactType, WorkflowRequest
 from sim_atlas_toolkit.parsers.flowrep_parser import parse
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 from .mock_api import NodeStoreAPI
 
@@ -49,7 +50,7 @@ def linear(x: float, slope: float, intercept: float) -> float:
 
 async def test_flowrep_atomic() -> None:
     ns = NodeStoreAPI()
-    responses = await parse(kinetic_energy, ns)  # pyright: ignore[reportArgumentType]
+    responses = await parse(ToolkitSettings(), kinetic_energy, ns)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 1
     assert len(ns.uploaded) == 1
     metadata = ns.uploaded[-1]
@@ -77,7 +78,7 @@ async def test_flowrep_atomic() -> None:
 
 async def test_flowrep_workflow() -> None:
     ns = NodeStoreAPI()
-    responses = await parse(linear, ns)  # pyright: ignore[reportArgumentType]
+    responses = await parse(ToolkitSettings(), linear, ns)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 1
     assert len(ns.uploaded) == 3  # noqa: PLR2004
     metadata = ns.uploaded[-1]
@@ -106,7 +107,7 @@ async def test_flowrep_execution_result() -> None:
         slope=3.0,
         intercept=1.0,
     )
-    responses = await parse(dag, ns)  # pyright: ignore[reportArgumentType]
+    responses = await parse(ToolkitSettings(), dag, ns)  # pyright: ignore[reportArgumentType]
     assert len(responses) == 1
     assert len(ns.uploaded_execution_results) == 1
     execution_result = ns.uploaded_execution_results[-1]

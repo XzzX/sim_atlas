@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 
 from sim_atlas_toolkit import upload_modules
-from sim_atlas_toolkit.settings import EnrichmentSettings, ToolkitSettings
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 DEFAULT_API_URL_ENV = "SIM_ATLAS_API_URL"
 DEFAULT_API_TOKEN_ENV = "SIM_ATLAS_API_TOKEN"
@@ -28,12 +27,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--api-url",
-        default=os.getenv(DEFAULT_API_URL_ENV),
+        default=None,
         help=(f"Backend API base URL. Defaults to ${DEFAULT_API_URL_ENV} if omitted."),
     )
     parser.add_argument(
         "--api-token",
-        default=os.getenv(DEFAULT_API_TOKEN_ENV),
+        default=None,
         help=(
             f"API token sent as x-api-key. Defaults to ${DEFAULT_API_TOKEN_ENV} "
             "if omitted."
@@ -114,34 +113,34 @@ def main() -> int:
 
     logging.basicConfig(level=args.log_level.upper())
 
-    if not args.api_url:
+    overrides = {
+        k: v
+        for k, v in {
+            "api_url": args.api_url,
+            "api_token": args.api_token,
+            "llm_enabled": args.enrich_docstrings,
+            "llm_url": args.llm_url,
+            "llm_key": args.llm_key,
+            "llm_model": args.llm_model,
+            "llm_overwrite": args.overwrite_docstrings,
+        }.items()
+        if v is not None
+    }
+    settings = ToolkitSettings(**overrides)
+
+    if not settings.api_url:
         parser.error(
             f"Missing API URL. Provide --api-url or set {DEFAULT_API_URL_ENV}."
         )
         return 1
 
-    if not args.api_token:
+    if not settings.api_token:
         parser.error(
             f"Missing API token. Provide --api-token or set {DEFAULT_API_TOKEN_ENV}."
         )
         return 1
 
-    overrides = {
-        k: v
-        for k, v in {
-            "enabled": args.enrich_docstrings,
-            "url": args.llm_url,
-            "key": args.llm_key,
-            "model": args.llm_model,
-            "overwrite": args.overwrite_docstrings,
-        }.items()
-        if v is not None
-    }
-    settings = ToolkitSettings(enrichment=EnrichmentSettings(**overrides))
-
-    if settings.enrichment.enabled and not (
-        settings.enrichment.url and settings.enrichment.model
-    ):
+    if settings.llm_enabled and not (settings.llm_url and settings.llm_model):
         parser.error(
             "Docstring enrichment is enabled but the LLM URL or model is missing. "
             "Provide --llm-url/--llm-model or set SIM_ATLAS_LLM_URL/SIM_ATLAS_LLM_MODEL."
@@ -149,14 +148,12 @@ def main() -> int:
         return 1
 
     upload_modules(
-        api_url=args.api_url,
-        api_token=args.api_token,
+        settings,
         modules=args.modules,
         recursive=args.recursive,
         update_existing=args.update_existing,
         module_allowlist=args.module_allowlist,
         concurrency=args.concurrency,
-        settings=settings,
     )
     return 0
 

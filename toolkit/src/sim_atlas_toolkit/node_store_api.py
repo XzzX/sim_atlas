@@ -11,43 +11,45 @@ from sim_atlas_toolkit.models import (
 logger = logging.getLogger(__name__)
 
 
-class NodeStoreAPI:
-    def __init__(
-        self, api_url: str, client: httpx.AsyncClient, api_key: str | None = None
-    ) -> None:
-        self.api_url = api_url
-        self.api_key = api_key
-        self._client = client
+async def create_artifact(
+    api_url: str,
+    api_key: str | None,
+    artifact: ArtifactRequest,
+) -> httpx.Response:
+    if not api_key:
+        raise ValueError("API key is required to create an artifact")
 
-    async def upload(self, artifacts: list[ArtifactRequest]) -> list[httpx.Response]:
-        headers: dict[str, str] = {}
-        if self.api_key:
-            headers["x-api-key"] = self.api_key
+    headers: dict[str, str] = {"x-api-key": api_key}
 
-        responses: list[httpx.Response] = []
-        for artifact in artifacts:
-            request_data = artifact_request_adapter.validate_python(
-                artifact.model_dump()
-            )
+    return httpx.post(
+        f"{api_url}/artifacts",
+        json=artifact_request_adapter.dump_python(
+            artifact_request_adapter.validate_python(artifact.model_dump())
+        ),
+        headers=headers,
+    )
 
-            responses.append(
-                await self._client.post(
-                    f"{self.api_url}/artifacts",
-                    json=artifact_request_adapter.dump_python(request_data),
-                    headers=headers,
-                )
-            )
-        return responses
 
-    async def upload_execution_result(
-        self, execution_result: ExecutionResultRequest
-    ) -> httpx.Response:
-        headers: dict[str, str] = {}
-        if self.api_key:
-            headers["x-api-key"] = self.api_key
+async def create_artifacts(
+    api_url: str,
+    api_key: str | None,
+    artifacts: list[ArtifactRequest],
+) -> list[httpx.Response]:
+    return [await create_artifact(api_url, api_key, artifact) for artifact in artifacts]
 
-        return await self._client.post(
-            f"{self.api_url}/execution_results",
-            json=execution_result.model_dump(),
-            headers=headers,
-        )
+
+async def create_execution_result(
+    api_url: str,
+    api_key: str | None,
+    execution_result: ExecutionResultRequest,
+) -> httpx.Response:
+    if not api_key:
+        raise ValueError("API key is required to create an execution result")
+
+    headers: dict[str, str] = {"x-api-key": api_key}
+
+    return httpx.post(
+        f"{api_url}/execution_results",
+        json=execution_result.model_dump(),
+        headers=headers,
+    )

@@ -5,18 +5,19 @@ from typing import Any
 
 import httpx
 
+from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
     ArtifactType,
     FunctionRequest,
 )
-from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
-    enrich_from_docstring,
+    enrich_metadata,
     parse_annotation,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-async def parse(node: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, node: Any) -> list[httpx.Response]:
     if not isinstance(node, type):
         return []
 
@@ -54,6 +55,8 @@ async def parse(node: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     metadata.docstring = node.node_function.__doc__ or ""
     metadata.keywords = ["pyiron_workflow_function"]
 
-    enrich_from_docstring(node.node_function.__doc__ or "", metadata)
+    await enrich_metadata(settings, metadata)
 
-    return await ns.upload([metadata])
+    return await node_store_api.create_artifacts(
+        settings.api_url, settings.api_token, [metadata]
+    )

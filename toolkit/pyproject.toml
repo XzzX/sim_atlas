@@ -30,21 +30,34 @@ dependencies = [
     "griffe>=2",
     "httpx>=0.27",
     "pydantic>=2",
+    "pydantic-settings>=2",
     "tqdm>=4.68.4",
 ]
 
 [project.scripts]
 sim-atlas-upload = "sim_atlas_toolkit.cli:main"
 
+[project.optional-dependencies]
+ai = [
+    "openai>=2.45.0",
+]
+pyiron-workflow = [
+    "pyiron-workflow>=0.15.6",
+]
+pwd = [
+    "python-workflow-definition>=0.1.0",
+]
+flowrep = [
+    "flowrep>=0.5.1",
+]
+
 [dependency-groups]
 dev = [
-    "pyiron-workflow>=0.15.6",
+
     "pytest>=8",
     "pytest-asyncio>=0.24",
     "pyright>=1.1.407",
-    "python-workflow-definition>=0.1.0",
     "ruff>=0.14.6",
-    "flowrep>=0.5.1",
 ]
 
 [build-system]

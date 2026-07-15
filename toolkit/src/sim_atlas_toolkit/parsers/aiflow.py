@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 
+from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactType,
@@ -19,12 +20,14 @@ from sim_atlas_toolkit.models import (
     WfNode,
     WorkflowRequest,
 )
-from sim_atlas_toolkit.node_store_api import NodeStoreAPI
-from sim_atlas_toolkit.parsers.metadata import enrich_from_docstring, type_to_str
+from sim_atlas_toolkit.parsers.metadata import enrich_metadata, type_to_str
+from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
 
-async def parse_function_node(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+async def parse_function_node(
+    settings: ToolkitSettings, obj: Any
+) -> list[httpx.Response]:
     try:
         from core.node import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
             Node,
@@ -70,12 +73,14 @@ async def parse_function_node(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response
         case _:
             pass
 
-    enrich_from_docstring(metadata.docstring, metadata)
+    await enrich_metadata(settings, metadata)
 
-    return await ns.upload([metadata])
+    return await node_store_api.create_artifacts(
+        settings.api_url, settings.api_token, [metadata]
+    )
 
 
-async def parse_group_node(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+async def parse_group_node(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
     try:
         from core.graph_to_workflow import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
             graph_to_workflow_code,
@@ -126,17 +131,21 @@ async def parse_group_node(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     metadata.outputs = outputs
     metadata.docstring = ""
 
-    return await ns.upload([metadata])
+    return await node_store_api.create_artifacts(
+        settings.api_url, settings.api_token, [metadata]
+    )
 
 
 async def to_wf_definition(
-    graph: Any, references: list[Reference], ns: NodeStoreAPI
+    settings: ToolkitSettings,
+    graph: Any,
+    references: list[Reference],
 ) -> WfDefinition:
     reference_dict = {ref.label: ref.id for ref in references}
 
     nodes: list[WfNode] = []
     for node_id, node in graph.nodes.items():
-        node_metadata = await parse(node, ns)
+        node_metadata = await parse(settings, node)
         if not node_metadata:
             continue
         if node_metadata[0].status_code in (HTTPStatus.CREATED, HTTPStatus.CONFLICT):
@@ -164,7 +173,7 @@ async def to_wf_definition(
     return WfDefinition(nodes=nodes, edges=edges)
 
 
-async def parse_workflow(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
     try:
         from core import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
             Workflow,  # pyright: ignore[reportMissingImports]
@@ -196,7 +205,7 @@ async def parse_workflow(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     uses_import = [(label, node) for label, node in wf._graph.nodes.items()]
 
     uses_upload = [
-        (label, (await upload(ns, child))[0])
+        (label, (await upload(settings, child))[0])
         for label, child in uses_import
         if child is not None
     ]
@@ -214,19 +223,23 @@ async def parse_workflow(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
         if (atlas_id := extract_id(response)) is not None
     ]
 
-    metadata.wf_definition = await to_wf_definition(wf._graph, metadata.uses, ns)
+    metadata.wf_definition = await to_wf_definition(settings, wf._graph, metadata.uses)
 
-    return await ns.upload([metadata])
+    return [
+        await node_store_api.create_artifact(
+            settings.api_url, settings.api_token, metadata
+        )
+    ]
 
 
-async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
-    if metadata := await parse_workflow(obj, ns):
+async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
+    if metadata := await parse_workflow(settings, obj):
         return metadata
 
-    if metadata := await parse_group_node(obj, ns):
+    if metadata := await parse_group_node(settings, obj):
         return metadata
 
-    if metadata := await parse_function_node(obj, ns):
+    if metadata := await parse_function_node(settings, obj):
         return metadata
 
     return []

@@ -5,16 +5,17 @@ from typing import Any, get_type_hints
 
 import httpx
 
+from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactType,
     FunctionRequest,
 )
-from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
     parse_annotation,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 
 def _field_annotations(cls: type) -> list[Annotation]:
@@ -45,7 +46,7 @@ def _field_annotations(cls: type) -> list[Annotation]:
     return result
 
 
-async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
     if not (dataclasses.is_dataclass(obj) and isinstance(obj, type)):
         return []
 
@@ -72,7 +73,6 @@ async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     unpack_source = unpack_note + raw_source
 
     category = module.replace(".", ">")
-    raw_doc = inspect.getdoc(obj) or ""
 
     field_annotations = _field_annotations(obj)
     dataclass_annotation = Annotation(label=qualname.lower(), datatype=python_import)
@@ -83,12 +83,13 @@ async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
         python_import=python_import,
         category=category,
         source_code=pack_source,
-        docstring=f"[PACK] {qualname}: {raw_doc}",
+        docstring=pack_source,
         keywords=["pack", "dataclass"],
         inputs=field_annotations,
         outputs=[dataclass_annotation],
     )
 
+    raw_doc = inspect.getdoc(obj) or ""
     enrich_from_docstring(raw_doc, pack_metadata)
 
     unpack_metadata = FunctionRequest.model_construct(
@@ -97,10 +98,12 @@ async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
         python_import=python_import,
         category=category,
         source_code=unpack_source,
-        docstring=f"[UNPACK] {qualname}: {raw_doc}",
+        docstring=unpack_source,
         keywords=["unpack", "dataclass"],
         inputs=pack_metadata.outputs,
         outputs=pack_metadata.inputs,
     )
 
-    return await ns.upload([pack_metadata, unpack_metadata])
+    return await node_store_api.create_artifacts(
+        settings.api_url, settings.api_token, [pack_metadata, unpack_metadata]
+    )

@@ -1,7 +1,10 @@
+import pytest
+
 from sim_atlas_toolkit.models import FunctionRequest
 from sim_atlas_toolkit.parsers.python_function import parse
+from sim_atlas_toolkit.settings import ToolkitSettings
 
-from .mock_api import NodeStoreAPI
+from .mock_api import install_mock_node_store
 
 
 def simple(x: int, y: float) -> str:
@@ -22,13 +25,13 @@ def simple(x: int, y: float) -> str:
     return str(x + y)
 
 
-async def test_parse_simple_function():
+async def test_parse_simple_function(monkeypatch: pytest.MonkeyPatch):
     # Parse the function
-    ns = NodeStoreAPI()
-    responses = await parse(simple, ns)  # pyright: ignore[reportArgumentType]
+    store = install_mock_node_store(monkeypatch)
+    responses = await parse(ToolkitSettings(), simple)
     assert len(responses) == 1
-    assert len(ns.uploaded) == 1
-    artifact = ns.uploaded[0]
+    assert len(store.uploaded) == 1
+    artifact = store.uploaded[0]
 
     assert isinstance(artifact, FunctionRequest)
 

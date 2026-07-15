@@ -4,16 +4,17 @@ from typing import Any
 
 import httpx
 
+from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import FunctionRequest
-from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
-    enrich_from_docstring,
+    enrich_metadata,
     parse_return_annotation,
     parse_signature,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
     if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
         return []
 
@@ -36,6 +37,8 @@ async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
     metadata.inputs = parse_signature(sig)
     metadata.outputs = parse_return_annotation(sig)
 
-    enrich_from_docstring(inspect.getdoc(obj) or "", metadata)
+    await enrich_metadata(settings, metadata)
 
-    return await ns.upload([metadata])
+    return await node_store_api.create_artifacts(
+        settings.api_url, settings.api_token, [metadata]
+    )

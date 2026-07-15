@@ -2,6 +2,7 @@ import contextlib
 import importlib
 import importlib.metadata
 import inspect
+import logging
 import types
 from typing import Annotated, Any, Union, get_args, get_origin
 
@@ -22,6 +23,9 @@ from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactRequest,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
+
+logger = logging.getLogger(__name__)
 
 
 def type_to_str(tp: Any) -> str:
@@ -93,6 +97,42 @@ def enrich_from_docstring(
                     metadata.description = section.value
             case _:
                 pass
+    return metadata
+
+
+async def enrich_metadata(
+    settings: ToolkitSettings, metadata: ArtifactRequest
+) -> ArtifactRequest:
+    """Optionally LLM-generate a docstring from the source, then enrich via griffe.
+
+    When ``settings`` enables enrichment, a docstring is generated from
+    ``metadata.source_code`` and stored on ``metadata.docstring`` before it is
+    parsed by griffe. Without enrichment this behaves like ``enrich_from_docstring``.
+    """
+    docstring = metadata.docstring or ""
+    should_generate = (
+        settings.llm_enabled
+        and bool(metadata.source_code)
+        and (settings.llm_overwrite or not docstring)
+    )
+    if should_generate:
+        try:
+            from sim_atlas_toolkit.parsers.ai_enrichment import (  # noqa: PLC0415
+                generate_docstring,
+            )
+
+            generated = await generate_docstring(
+                settings.llm_url,
+                settings.llm_key,
+                settings.llm_model,
+                metadata.source_code,
+            )
+            if generated:
+                docstring = generated
+                metadata.docstring = generated
+        except Exception:
+            logger.exception("LLM docstring generation failed for %s", metadata.name)
+    enrich_from_docstring(docstring, metadata)
     return metadata
 
 

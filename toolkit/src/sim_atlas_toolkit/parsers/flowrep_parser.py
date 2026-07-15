@@ -13,6 +13,7 @@ from flowrep.api.schemas import (
 )
 from flowrep.retrospective.datastructures import DagData
 
+from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactType,
@@ -28,12 +29,12 @@ from sim_atlas_toolkit.models import (
     WfOutputNode,
     WorkflowRequest,
 )
-from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
-    enrich_from_docstring,
+    enrich_metadata,
     parse_return_annotation,
     parse_signature,
 )
+from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
 logger = logging.getLogger(__name__)
@@ -158,7 +159,9 @@ def flowrep_to_wf_definition(
 
 
 async def parse_atomic_recipe(
-    obj: Any, recipe: AtomicRecipe, ns: NodeStoreAPI
+    settings: ToolkitSettings,
+    obj: Any,
+    recipe: AtomicRecipe,
 ) -> list[httpx.Response]:
     metadata = FunctionRequest.model_construct()
 
@@ -206,12 +209,16 @@ async def parse_atomic_recipe(
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]
 
-    enrich_from_docstring(metadata.docstring, metadata)
-    return await ns.upload([metadata])
+    await enrich_metadata(settings, metadata)
+    return await node_store_api.create_artifacts(
+        settings.api_url, settings.api_token, [metadata]
+    )
 
 
 async def parse_workflow_recipe(
-    obj: Any, recipe: WorkflowRecipe, ns: NodeStoreAPI
+    settings: ToolkitSettings,
+    obj: Any,
+    recipe: WorkflowRecipe,
 ) -> list[httpx.Response]:
     metadata = WorkflowRequest.model_construct()
 
@@ -257,7 +264,7 @@ async def parse_workflow_recipe(
     ]
 
     uses_upload = [
-        (label, (await upload(ns, child))[0])
+        (label, (await upload(settings, child))[0])
         for label, child in uses_import
         if child is not None
     ]
@@ -276,13 +283,16 @@ async def parse_workflow_recipe(
     metadata.uses = uses
     metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
 
-    enrich_from_docstring(metadata.docstring, metadata)
+    await enrich_metadata(settings, metadata)
 
-    return await ns.upload([metadata])
+    return await node_store_api.create_artifacts(
+        settings.api_url, settings.api_token, [metadata]
+    )
 
 
 async def parse_workflow_instance(
-    wf_instance: DagData, ns: NodeStoreAPI
+    settings: ToolkitSettings,
+    wf_instance: DagData,
 ) -> list[httpx.Response]:
     logger.debug("parsing workflow instance")
 
@@ -294,7 +304,7 @@ async def parse_workflow_instance(
     wf_obj = try_import(recipe.reference.info.module, recipe.reference.info.qualname)
     if wf_obj is None:
         return []
-    wf_responses = await upload(ns, wf_obj)
+    wf_responses = await upload(settings, wf_obj)
     if len(wf_responses) == 0:
         return []
     wf_id = extract_id(wf_responses[0])
@@ -325,22 +335,29 @@ async def parse_workflow_instance(
         inputs=inputs,
         outputs=outputs,
     )
-    return [await ns.upload_execution_result(execution_metadata)]
+    return [
+        await node_store_api.create_execution_result(
+            settings.api_url, settings.api_token, execution_metadata
+        )
+    ]
 
 
-async def parse(obj: Any, ns: NodeStoreAPI) -> list[httpx.Response]:
+async def parse(
+    settings: ToolkitSettings,
+    obj: Any,
+) -> list[httpx.Response]:
     if isinstance(obj, DagData):
-        return await parse_workflow_instance(obj, ns)
+        return await parse_workflow_instance(settings, obj)
 
     if not hasattr(obj, "flowrep_recipe"):
         return []
 
     match obj.flowrep_recipe:
         case AtomicRecipe() as recipe:
-            return await parse_atomic_recipe(obj, recipe, ns)
+            return await parse_atomic_recipe(settings, obj, recipe)
 
         case WorkflowRecipe() as recipe:
-            return await parse_workflow_recipe(obj, recipe, ns)
+            return await parse_workflow_recipe(settings, obj, recipe)
 
         case _:
             return []

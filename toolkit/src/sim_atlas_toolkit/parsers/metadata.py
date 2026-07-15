@@ -4,8 +4,10 @@ import importlib.metadata
 import inspect
 import logging
 import types
+from http import HTTPStatus
 from typing import Annotated, Any, Union, get_args, get_origin
 
+import httpx
 from griffe import (
     Docstring,
     DocstringSectionAttributes,
@@ -230,3 +232,22 @@ def extract_module_metadata(
                         pass
 
     return metadata
+
+
+def try_import(module: str, qualname: str | None) -> Any | None:
+    if qualname is None:
+        return None
+    try:
+        mod = importlib.import_module(module)
+        obj = mod
+        for attr in qualname.split("."):
+            obj = getattr(obj, attr)
+        return obj
+    except Exception:
+        return None
+
+
+def extract_id(response: httpx.Response) -> str | None:
+    if response.status_code in (HTTPStatus.OK, HTTPStatus.CREATED, HTTPStatus.CONFLICT):
+        return response.json().get("id")
+    return None

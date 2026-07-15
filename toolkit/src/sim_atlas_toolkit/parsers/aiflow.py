@@ -1,12 +1,26 @@
 # pyright: basic
 from __future__ import annotations
 
+import hashlib
 import inspect
 import textwrap
 from http import HTTPStatus
 from typing import Any
 
 import httpx
+from core import (  # pyright: ignore[reportMissingImports]
+    Workflow,  # pyright: ignore[reportMissingImports]
+)
+from core.graph_to_workflow import (  # pyright: ignore[reportMissingImports]  # pyright: ignore[reportMissingImports]
+    graph_to_workflow_code,
+)
+from core.groups import (  # pyright: ignore[reportMissingImports]
+    WorkflowGroupFactory,
+)
+from core.node import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]  # pyright: ignore[reportMissingImports]
+    GroupNode,
+    Node,
+)
 
 from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
@@ -20,7 +34,7 @@ from sim_atlas_toolkit.models import (
     WfNode,
     WorkflowRequest,
 )
-from sim_atlas_toolkit.parsers.metadata import enrich_metadata, type_to_str
+from sim_atlas_toolkit.parsers.metadata import enrich_metadata, extract_id, type_to_str
 from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
@@ -28,14 +42,6 @@ from sim_atlas_toolkit.uploader import upload
 async def parse_function_node(
     settings: ToolkitSettings, obj: Any
 ) -> list[httpx.Response]:
-    try:
-        from core.node import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
-            Node,
-        )
-
-    except ImportError:
-        return []
-
     if type(obj) is type and issubclass(obj, Node):
         obj = obj()
 
@@ -43,18 +49,6 @@ async def parse_function_node(
         return []
 
     metadata = FunctionRequest.model_construct()
-    metadata.python_import = obj._module_path
-    metadata.name = metadata.python_import
-    metadata.category = metadata.python_import.replace(".", ">")
-    metadata.inputs = [
-        Annotation(label=inp.label, datatype=type_to_str(inp.datatype))
-        for inp in obj.inputs
-    ]
-    metadata.outputs = [
-        Annotation(label=out.label, datatype=type_to_str(out.datatype))
-        for out in obj.outputs
-    ]
-
     match obj.node_type:
         case "function_node":
             metadata.source_code = textwrap.dedent(
@@ -73,6 +67,23 @@ async def parse_function_node(
         case _:
             pass
 
+    hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
+    response = await node_store_api.read_artifact(settings.api_url, hash)
+    if response.status_code == HTTPStatus.OK:
+        return [response]
+
+    metadata.python_import = obj._module_path
+    metadata.name = metadata.python_import
+    metadata.category = metadata.python_import.replace(".", ">")
+    metadata.inputs = [
+        Annotation(label=inp.label, datatype=type_to_str(inp.datatype))
+        for inp in obj.inputs
+    ]
+    metadata.outputs = [
+        Annotation(label=out.label, datatype=type_to_str(out.datatype))
+        for out in obj.outputs
+    ]
+
     await enrich_metadata(settings, metadata)
 
     return await node_store_api.create_artifacts(
@@ -81,20 +92,6 @@ async def parse_function_node(
 
 
 async def parse_group_node(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
-    try:
-        from core.graph_to_workflow import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
-            graph_to_workflow_code,
-        )
-        from core.groups import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
-            WorkflowGroupFactory,
-        )
-        from core.node import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
-            GroupNode,
-        )
-
-    except ImportError:
-        return []
-
     if isinstance(obj, WorkflowGroupFactory):
         obj = obj()
 
@@ -108,6 +105,11 @@ async def parse_group_node(settings: ToolkitSettings, obj: Any) -> list[httpx.Re
     metadata.source_code = graph_to_workflow_code(
         group_node.subgraph, group_node.label, "decorator", True
     )
+
+    hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
+    response = await node_store_api.read_artifact(settings.api_url, hash)
+    if response.status_code == HTTPStatus.OK:
+        return [response]
 
     module: str = group_node._factory_module
     qualname: str = group_node._factory_name
@@ -174,29 +176,25 @@ async def to_wf_definition(
 
 
 async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
-    try:
-        from core import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
-            Workflow,  # pyright: ignore[reportMissingImports]
-        )
-        from core.graph_to_workflow import (  # pyright: ignore[reportMissingImports] # noqa: PLC0415
-            graph_to_workflow_code,
-        )
-    except ImportError:
-        return []
-
     if not isinstance(obj, Workflow):
         return []
 
     wf: Workflow = obj
 
     metadata = WorkflowRequest.model_construct()
+    metadata.source_code = graph_to_workflow_code(
+        wf._graph, wf._graph.label, "decorator", True
+    )
+
+    hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
+    response = await node_store_api.read_artifact(settings.api_url, hash)
+    if response.status_code == HTTPStatus.OK:
+        return [response]
 
     metadata.name = wf._graph.label
     metadata.python_import = ""
     metadata.category = "workflow"
-    metadata.source_code = graph_to_workflow_code(
-        wf._graph, wf._graph.label, "decorator", True
-    )
+
     metadata.docstring = ""
     metadata.keywords = ["aiflow"]
     metadata.inputs = []
@@ -209,13 +207,6 @@ async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx.Resp
         for label, child in uses_import
         if child is not None
     ]
-
-    def extract_id(response: httpx.Response) -> str | None:
-        if response.is_success:
-            return response.json()["id"]
-        if response.status_code == HTTPStatus.CONFLICT:
-            return response.json()["id"]
-        return None
 
     metadata.uses = [
         Reference(label=label, id=atlas_id, count=1)

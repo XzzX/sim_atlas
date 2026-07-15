@@ -1,3 +1,4 @@
+import hashlib
 import importlib
 import inspect
 import json
@@ -5,6 +6,7 @@ import logging
 from http import HTTPStatus
 from typing import Any, cast
 
+import flowrep as fr
 import httpx
 from flowrep.api.schemas import (
     AtomicRecipe,
@@ -54,10 +56,8 @@ def try_import(module: str, qualname: str | None) -> Any | None:
 
 
 def extract_id(response: httpx.Response) -> str | None:
-    if response.is_success:
-        return response.json()["id"]
-    if response.status_code == HTTPStatus.CONFLICT:
-        return response.json()["id"]
+    if response.status_code in (HTTPStatus.OK, HTTPStatus.CREATED, HTTPStatus.CONFLICT):
+        return response.json().get("id")
     return None
 
 
@@ -164,9 +164,13 @@ async def parse_atomic_recipe(
     recipe: AtomicRecipe,
 ) -> list[httpx.Response]:
     metadata = FunctionRequest.model_construct()
-
     metadata.source_code = inspect.getsource(obj) or ""
     metadata.docstring = inspect.getdoc(obj) or ""
+
+    hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
+    response = await node_store_api.read_artifact(settings.api_url, hash)
+    if response.status_code == HTTPStatus.OK:
+        return [response]
 
     fr_inputs = [
         Annotation(
@@ -220,9 +224,17 @@ async def parse_workflow_recipe(
     obj: Any,
     recipe: WorkflowRecipe,
 ) -> list[httpx.Response]:
-    metadata = WorkflowRequest.model_construct()
+    unreferenced_recipe = recipe.model_copy(update={"reference": None})
+    rendered = fr.tools.flowrep2python(unreferenced_recipe)
 
-    metadata.source_code = recipe.model_dump_json(indent=2)
+    metadata = WorkflowRequest.model_construct()
+    metadata.source_code = rendered.source
+    hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
+
+    response = await node_store_api.read_artifact(settings.api_url, hash)
+    if response.status_code == HTTPStatus.OK:
+        return [response]
+
     metadata.docstring = inspect.getdoc(obj) or ""
 
     fr_inputs = [

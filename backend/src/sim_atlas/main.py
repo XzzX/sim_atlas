@@ -106,7 +106,7 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
     match request:
         case FunctionRequest():
             return FunctionMetadata(
-                id=str(uuid.uuid4()),
+                id=hashlib.sha256(request.source_code.encode()).hexdigest(),
                 author_name=request.author_name,
                 author_email=request.author_email,
                 creator_name=creator.name,
@@ -132,7 +132,7 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
             )
         case WorkflowRequest():
             return WorkflowMetadata(
-                id=str(uuid.uuid4()),
+                id=hashlib.sha256(request.source_code.encode()).hexdigest(),
                 author_name=request.author_name,
                 author_email=request.author_email,
                 creator_name=creator.name,

@@ -1,12 +1,13 @@
 import json
 
 import flowrep as fr
+import pytest
 
 from sim_atlas_toolkit.models import ArtifactType, WorkflowRequest
 from sim_atlas_toolkit.parsers.flowrep_parser import parse
 from sim_atlas_toolkit.settings import ToolkitSettings
 
-from .mock_api import NodeStoreAPI
+from .mock_api import install_mock_node_store
 
 
 @fr.atomic
@@ -48,12 +49,12 @@ def linear(x: float, slope: float, intercept: float) -> float:
     return result  # type: ignore
 
 
-async def test_flowrep_atomic() -> None:
-    ns = NodeStoreAPI()
-    responses = await parse(ToolkitSettings(), kinetic_energy, ns)  # pyright: ignore[reportArgumentType]
+async def test_flowrep_atomic(monkeypatch: pytest.MonkeyPatch) -> None:
+    store = install_mock_node_store(monkeypatch)
+    responses = await parse(ToolkitSettings(), kinetic_energy)
     assert len(responses) == 1
-    assert len(ns.uploaded) == 1
-    metadata = ns.uploaded[-1]
+    assert len(store.uploaded) == 1
+    metadata = store.uploaded[-1]
     assert metadata.artifact_type == ArtifactType.FUNCTION
     assert [a.label for a in metadata.inputs] == ["mass", "velocity"]
     assert metadata.inputs[0].datatype == "float"
@@ -76,12 +77,12 @@ async def test_flowrep_atomic() -> None:
     )
 
 
-async def test_flowrep_workflow() -> None:
-    ns = NodeStoreAPI()
-    responses = await parse(ToolkitSettings(), linear, ns)  # pyright: ignore[reportArgumentType]
+async def test_flowrep_workflow(monkeypatch: pytest.MonkeyPatch) -> None:
+    store = install_mock_node_store(monkeypatch)
+    responses = await parse(ToolkitSettings(), linear)
     assert len(responses) == 1
-    assert len(ns.uploaded) == 3  # noqa: PLR2004
-    metadata = ns.uploaded[-1]
+    assert len(store.uploaded) == 3  # noqa: PLR2004
+    metadata = store.uploaded[-1]
     assert isinstance(metadata, WorkflowRequest)
     assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [a.label for a in metadata.inputs] == ["x", "slope", "intercept"]
@@ -99,18 +100,18 @@ async def test_flowrep_workflow() -> None:
     assert metadata.uses[1].label == "add_0"
 
 
-async def test_flowrep_execution_result() -> None:
-    ns = NodeStoreAPI()
+async def test_flowrep_execution_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    store = install_mock_node_store(monkeypatch)
     dag = fr.tools.run_recipe(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         linear.flowrep_recipe,  # pyright: ignore[reportFunctionMemberAccess]
         x=2.0,
         slope=3.0,
         intercept=1.0,
     )
-    responses = await parse(ToolkitSettings(), dag, ns)  # pyright: ignore[reportArgumentType]
+    responses = await parse(ToolkitSettings(), dag)
     assert len(responses) == 1
-    assert len(ns.uploaded_execution_results) == 1
-    execution_result = ns.uploaded_execution_results[-1]
+    assert len(store.uploaded_execution_results) == 1
+    execution_result = store.uploaded_execution_results[-1]
     assert execution_result.artifact_id
     inputs = {io.label: io.value for io in execution_result.inputs}
     assert inputs == {"x": 2.0, "slope": 3.0, "intercept": 1.0}

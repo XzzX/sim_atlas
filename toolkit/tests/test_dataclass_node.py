@@ -1,11 +1,13 @@
 import dataclasses
 from typing import Annotated
 
+import pytest
+
 from sim_atlas_toolkit.models import ArtifactType
 from sim_atlas_toolkit.parsers.dataclass_node import parse
 from sim_atlas_toolkit.settings import ToolkitSettings
 
-from .mock_api import NodeStoreAPI
+from .mock_api import install_mock_node_store
 
 
 @dataclasses.dataclass
@@ -27,13 +29,13 @@ class Point:
     y: Annotated[float, {"unit": "m", "quantity": "length"}] = 3.0
 
 
-async def test_dataclass_parser() -> None:
-    ns = NodeStoreAPI()
-    responses = await parse(ToolkitSettings(), Point, ns)  # pyright: ignore[reportArgumentType]
+async def test_dataclass_parser(monkeypatch: pytest.MonkeyPatch) -> None:
+    store = install_mock_node_store(monkeypatch)
+    responses = await parse(ToolkitSettings(), Point)
     assert len(responses) == 2  # noqa: PLR2004
-    assert len(ns.uploaded) == 2  # noqa: PLR2004
+    assert len(store.uploaded) == 2  # noqa: PLR2004
 
-    pack_metadata = ns.uploaded[0]
+    pack_metadata = store.uploaded[0]
     assert pack_metadata.artifact_type == ArtifactType.FUNCTION
     assert len(pack_metadata.inputs) == 2  # noqa: PLR2004
     assert [a.label for a in pack_metadata.inputs] == ["x", "y"]
@@ -51,7 +53,7 @@ async def test_dataclass_parser() -> None:
     assert pack_metadata.outputs[0].label == "point"
     assert pack_metadata.outputs[0].datatype == "tests.test_dataclass_node.Point"
 
-    unpack_metadata = ns.uploaded[1]
+    unpack_metadata = store.uploaded[1]
     assert unpack_metadata.artifact_type == ArtifactType.FUNCTION
     assert len(unpack_metadata.inputs) == 1
     assert unpack_metadata.inputs[0].label == "point"

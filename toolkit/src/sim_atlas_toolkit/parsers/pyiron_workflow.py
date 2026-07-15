@@ -5,11 +5,11 @@ from typing import Any
 
 import httpx
 
+from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
     ArtifactType,
     FunctionRequest,
 )
-from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_metadata,
     parse_annotation,
@@ -17,9 +17,7 @@ from sim_atlas_toolkit.parsers.metadata import (
 from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-async def parse(
-    settings: ToolkitSettings, node: Any, ns: NodeStoreAPI
-) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, node: Any) -> list[httpx.Response]:
     if not isinstance(node, type):
         return []
 
@@ -59,4 +57,6 @@ async def parse(
 
     await enrich_metadata(settings, metadata)
 
-    return await ns.upload([metadata])
+    return await node_store_api.create_artifacts(
+        settings.api_url, settings.api_token, [metadata]
+    )

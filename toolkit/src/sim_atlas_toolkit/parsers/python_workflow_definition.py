@@ -4,17 +4,15 @@ from typing import Any
 
 import httpx
 
+from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
     Annotation,
     FunctionRequest,
 )
-from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-async def parse(
-    settings: ToolkitSettings, obj: Any, ns: NodeStoreAPI
-) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
     try:
         from python_workflow_definition.models import (  # noqa: PLC0415
             PythonWorkflowDefinitionInputNode,
@@ -47,4 +45,6 @@ async def parse(
     metadata.docstring = ""
     metadata.keywords = ["python_workflow_definition"]
 
-    return await ns.upload([metadata])
+    return await node_store_api.create_artifacts(
+        settings.api_url, settings.api_token, [metadata]
+    )

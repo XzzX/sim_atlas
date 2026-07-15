@@ -8,7 +8,6 @@ import httpx
 from tqdm.asyncio import tqdm as atqdm
 
 from sim_atlas_toolkit.collector import collect_objects
-from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
@@ -29,12 +28,11 @@ async def _upload_modules_async(  # noqa: PLR0913
         raise ValueError("concurrency must be >= 1")
     semaphore = asyncio.Semaphore(concurrency)
 
-    async def upload_object(store: NodeStoreAPI, obj: Any) -> tuple[int, int, int]:
+    async def upload_object(obj: Any) -> tuple[int, int, int]:
         async with semaphore:
             try:
                 responses = await upload(
                     settings,
-                    store,
                     obj,
                     update_existing=update_existing,
                     parsers=parsers,
@@ -61,35 +59,28 @@ async def _upload_modules_async(  # noqa: PLR0913
 
             return object_created, object_conflicts, object_errors
 
-    async with httpx.AsyncClient() as client:
-        store = NodeStoreAPI(
-            api_url=settings.api_url, client=client, api_key=settings.api_token
+    for module_name in modules:
+        collected_objects = collect_objects(
+            module_name,
+            recursive=recursive,
+            module_allowlist=module_allowlist,
+        )
+        logger.info(f"Collected {len(collected_objects)} objects from {module_name}")
+
+        results: list[tuple[int, int, int]] = await atqdm.gather(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            *[upload_object(obj) for obj in collected_objects],
+            desc="Uploading objects",
+            unit="object",
+            total=len(collected_objects),
         )
 
-        for module_name in modules:
-            collected_objects = collect_objects(
-                module_name,
-                recursive=recursive,
-                module_allowlist=module_allowlist,
-            )
-            logger.info(
-                f"Collected {len(collected_objects)} objects from {module_name}"
-            )
+        created = sum(r[0] for r in results)
+        conflicts = sum(r[1] for r in results)
+        errors = sum(r[2] for r in results)
 
-            results: list[tuple[int, int, int]] = await atqdm.gather(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-                *[upload_object(store, obj) for obj in collected_objects],
-                desc="Uploading objects",
-                unit="object",
-                total=len(collected_objects),
-            )
-
-            created = sum(r[0] for r in results)
-            conflicts = sum(r[1] for r in results)
-            errors = sum(r[2] for r in results)
-
-            logger.info(
-                f"Upload summary for {module_name}: {created} created, {conflicts} conflicts, {errors} errors"
-            )
+        logger.info(
+            f"Upload summary for {module_name}: {created} created, {conflicts} conflicts, {errors} errors"
+        )
 
 
 def upload_modules(  # noqa: PLR0913

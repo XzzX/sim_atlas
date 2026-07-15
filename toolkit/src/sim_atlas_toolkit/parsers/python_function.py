@@ -4,8 +4,8 @@ from typing import Any
 
 import httpx
 
+from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import FunctionRequest
-from sim_atlas_toolkit.node_store_api import NodeStoreAPI
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_metadata,
     parse_return_annotation,
@@ -14,9 +14,7 @@ from sim_atlas_toolkit.parsers.metadata import (
 from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-async def parse(
-    settings: ToolkitSettings, obj: Any, ns: NodeStoreAPI
-) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
     if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
         return []
 
@@ -41,4 +39,6 @@ async def parse(
 
     await enrich_metadata(settings, metadata)
 
-    return await ns.upload([metadata])
+    return await node_store_api.create_artifacts(
+        settings.api_url, settings.api_token, [metadata]
+    )

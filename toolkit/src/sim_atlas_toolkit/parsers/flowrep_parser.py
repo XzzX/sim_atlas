@@ -30,8 +30,12 @@ from sim_atlas_toolkit.models import (
     WfOutputNode,
     WorkflowRequest,
 )
+from sim_atlas_toolkit.parsers.ai_enrichment import (
+    generate_docstring,
+    generate_workflow_docstring,
+)
 from sim_atlas_toolkit.parsers.metadata import (
-    enrich_metadata,
+    enrich_from_docstring,
     extract_id,
     parse_return_annotation,
     parse_signature,
@@ -197,7 +201,10 @@ async def parse_atomic_recipe(
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]
 
-    await enrich_metadata(settings, metadata)
+    metadata.docstring = await generate_docstring(
+        settings, metadata.source_code, metadata.docstring
+    )
+    enrich_from_docstring(metadata.docstring, metadata)
     return await node_store_api.create_artifacts(
         settings.api_url, settings.api_token, [metadata]
     )
@@ -282,7 +289,14 @@ async def parse_workflow_recipe(
     metadata.uses = uses
     metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
 
-    await enrich_metadata(settings, metadata)
+    metadata.docstring = await generate_workflow_docstring(
+        settings,
+        metadata.name,
+        metadata.source_code,
+        metadata.docstring or "",
+        metadata.wf_definition,
+    )
+    enrich_from_docstring(metadata.docstring, metadata)
 
     return await node_store_api.create_artifacts(
         settings.api_url, settings.api_token, [metadata]

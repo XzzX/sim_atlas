@@ -401,6 +401,17 @@ async def enrich(
     await storage.enrich(only_ids=only_ids)
 
 
+@api_router.post(
+    "/embed",
+    tags=["ai"],
+)
+async def embed(
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+    _: Annotated[Creator, Depends(get_current_user)],
+) -> None:
+    await storage.embed_missing()
+
+
 if load_settings().agent_enabled:
 
     @api_router.post(

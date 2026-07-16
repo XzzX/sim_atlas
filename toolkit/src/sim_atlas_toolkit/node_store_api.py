@@ -38,6 +38,15 @@ async def create_artifacts(
     return [await create_artifact(api_url, api_key, artifact) for artifact in artifacts]
 
 
+async def read_artifact(
+    api_url: str,
+    artifact_id: str,
+) -> httpx.Response:
+    return httpx.get(
+        f"{api_url}/artifacts/{artifact_id}",
+    )
+
+
 async def create_execution_result(
     api_url: str,
     api_key: str | None,

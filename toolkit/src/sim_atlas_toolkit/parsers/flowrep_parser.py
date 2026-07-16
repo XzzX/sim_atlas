@@ -1,10 +1,11 @@
-import importlib
+import hashlib
 import inspect
 import json
 import logging
 from http import HTTPStatus
 from typing import Any, cast
 
+import flowrep as fr
 import httpx
 from flowrep.api.schemas import (
     AtomicRecipe,
@@ -31,34 +32,15 @@ from sim_atlas_toolkit.models import (
 )
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_metadata,
+    extract_id,
     parse_return_annotation,
     parse_signature,
+    try_import,
 )
 from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
 logger = logging.getLogger(__name__)
-
-
-def try_import(module: str, qualname: str | None) -> Any | None:
-    if qualname is None:
-        return None
-    try:
-        mod = importlib.import_module(module)
-        obj = mod
-        for attr in qualname.split("."):
-            obj = getattr(obj, attr)
-        return obj
-    except Exception:
-        return None
-
-
-def extract_id(response: httpx.Response) -> str | None:
-    if response.is_success:
-        return response.json()["id"]
-    if response.status_code == HTTPStatus.CONFLICT:
-        return response.json()["id"]
-    return None
 
 
 def flowrep_to_wf_definition(
@@ -164,9 +146,15 @@ async def parse_atomic_recipe(
     recipe: AtomicRecipe,
 ) -> list[httpx.Response]:
     metadata = FunctionRequest.model_construct()
-
     metadata.source_code = inspect.getsource(obj) or ""
     metadata.docstring = inspect.getdoc(obj) or ""
+
+    hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
+    response = await node_store_api.read_artifact(settings.api_url, hash)
+    if response.status_code == HTTPStatus.OK:
+        return [response]
+    metadata.hash = hash
+    metadata.id = hash
 
     fr_inputs = [
         Annotation(
@@ -220,9 +208,20 @@ async def parse_workflow_recipe(
     obj: Any,
     recipe: WorkflowRecipe,
 ) -> list[httpx.Response]:
-    metadata = WorkflowRequest.model_construct()
+    unreferenced_recipe = recipe.model_copy(update={"reference": None})
+    rendered = fr.tools.flowrep2python(unreferenced_recipe)
 
-    metadata.source_code = recipe.model_dump_json(indent=2)
+    metadata = WorkflowRequest.model_construct()
+    metadata.source_code = rendered.source
+    hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
+
+    response = await node_store_api.read_artifact(settings.api_url, hash)
+    if response.status_code == HTTPStatus.OK:
+        return [response]
+
+    metadata.hash = hash
+    metadata.id = hash
+
     metadata.docstring = inspect.getdoc(obj) or ""
 
     fr_inputs = [

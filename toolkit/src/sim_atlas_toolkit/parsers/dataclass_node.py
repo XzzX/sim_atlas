@@ -1,6 +1,8 @@
 import dataclasses
+import hashlib
 import inspect
 import textwrap
+from http import HTTPStatus
 from typing import Any, get_type_hints
 
 import httpx
@@ -72,12 +74,24 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
     pack_source = pack_note + raw_source
     unpack_source = unpack_note + raw_source
 
+    pack_hash = hashlib.sha256(pack_source.encode("utf-8")).hexdigest()
+    unpack_hash = hashlib.sha256(unpack_source.encode("utf-8")).hexdigest()
+    response_pack = await node_store_api.read_artifact(settings.api_url, pack_hash)
+    response_unpack = await node_store_api.read_artifact(settings.api_url, unpack_hash)
+    if (
+        response_pack.status_code == HTTPStatus.OK
+        and response_unpack.status_code == HTTPStatus.OK
+    ):
+        return [response_pack, response_unpack]
+
     category = module.replace(".", ">")
 
     field_annotations = _field_annotations(obj)
     dataclass_annotation = Annotation(label=qualname.lower(), datatype=python_import)
 
     pack_metadata = FunctionRequest.model_construct(
+        id=pack_hash,
+        hash=pack_hash,
         name=f"[PACK] {python_import}",
         artifact_type=ArtifactType.FUNCTION,
         python_import=python_import,
@@ -93,6 +107,8 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
     enrich_from_docstring(raw_doc, pack_metadata)
 
     unpack_metadata = FunctionRequest.model_construct(
+        id=unpack_hash,
+        hash=unpack_hash,
         name=f"[UNPACK] {python_import}",
         artifact_type=ArtifactType.FUNCTION,
         python_import=python_import,

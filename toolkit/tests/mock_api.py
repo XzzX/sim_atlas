@@ -33,6 +33,9 @@ def install_mock_node_store(monkeypatch: pytest.MonkeyPatch) -> MockNodeStore:
         store.uploaded.extend(artifacts)
         return [_mock_response() for _ in artifacts]
 
+    async def read_artifact(api_url: str, artifact_id: str) -> httpx.Response:
+        return httpx.Response(404)  # Not found
+
     async def create_execution_result(
         api_url: str, api_key: str | None, execution_result: ExecutionResultRequest
     ) -> httpx.Response:
@@ -41,6 +44,7 @@ def install_mock_node_store(monkeypatch: pytest.MonkeyPatch) -> MockNodeStore:
 
     monkeypatch.setattr(node_store_api, "create_artifact", create_artifact)
     monkeypatch.setattr(node_store_api, "create_artifacts", create_artifacts)
+    monkeypatch.setattr(node_store_api, "read_artifact", read_artifact)
     monkeypatch.setattr(
         node_store_api, "create_execution_result", create_execution_result
     )

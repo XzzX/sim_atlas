@@ -27,6 +27,8 @@ class Reference(BaseModel):
 class FunctionRequest(BaseModel):
     artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
 
+    id: str | None = None
+    hash: str | None = None
     name: str
     category: str
     keywords: list[str]
@@ -56,6 +58,7 @@ class FunctionResponse(BaseModel):
     artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
 
     id: str
+    hash: str
     name: str
     category: str
     keywords: list[str]
@@ -127,6 +130,8 @@ class WorkflowRequest(BaseModel):
     author_name: str = "unknown"
     author_email: str = "unknown"
 
+    id: str | None = None
+    hash: str | None = None
     name: str
     artifact_type: Literal[ArtifactType.WORKFLOW] = ArtifactType.WORKFLOW
     category: str
@@ -162,6 +167,7 @@ class WorkflowResponse(BaseModel):
     creation_timestamp: str
 
     id: str
+    hash: str
     name: str
     artifact_type: Literal[ArtifactType.WORKFLOW] = ArtifactType.WORKFLOW
     category: str

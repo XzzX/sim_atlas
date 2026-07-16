@@ -1,3 +1,4 @@
+import hashlib
 import inspect
 import textwrap
 from typing import Any
@@ -24,7 +25,10 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
         source_code = f"{obj.__name__}{inspect.signature(obj)}"
     else:
         source_code = inspect.getsource(obj)
-    source_code = textwrap.dedent(source_code.replace("\\r\\n", ""))
+    metadata.source_code = textwrap.dedent(source_code.replace("\\r\\n", ""))
+    hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
+    metadata.hash = hash
+    metadata.id = hash
 
     metadata.name = f"{obj.__module__}.{obj.__qualname__}"
     metadata.python_import = f"{obj.__module__}.{obj.__qualname__}"

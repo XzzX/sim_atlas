@@ -34,7 +34,12 @@ from sim_atlas_toolkit.models import (
     WfNode,
     WorkflowRequest,
 )
-from sim_atlas_toolkit.parsers.metadata import enrich_metadata, extract_id, type_to_str
+from sim_atlas_toolkit.parsers.metadata import (
+    enrich_metadata,
+    enrich_workflow_metadata,
+    extract_id,
+    type_to_str,
+)
 from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
@@ -224,6 +229,8 @@ async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx.Resp
     ]
 
     metadata.wf_definition = await to_wf_definition(settings, wf._graph, metadata.uses)
+
+    await enrich_workflow_metadata(settings, metadata)
 
     return [
         await node_store_api.create_artifact(

@@ -24,6 +24,7 @@ from griffe import (
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactRequest,
+    WorkflowRequest,
 )
 from sim_atlas_toolkit.settings import ToolkitSettings
 
@@ -134,6 +135,42 @@ async def enrich_metadata(
                 metadata.docstring = generated
         except Exception:
             logger.exception("LLM docstring generation failed for %s", metadata.name)
+    enrich_from_docstring(docstring, metadata)
+    return metadata
+
+
+async def enrich_workflow_metadata(
+    settings: ToolkitSettings, metadata: WorkflowRequest
+) -> WorkflowRequest:
+    """Optionally LLM-generate a workflow docstring from its dataflow graph.
+
+    Like ``enrich_metadata``, but the docstring is derived from
+    ``metadata.wf_definition`` (fetching per-node descriptions via the node
+    store API) and ``metadata.source_code``, rather than from source code
+    alone.
+    """
+    docstring = metadata.docstring or ""
+    should_generate = settings.llm_enabled and (settings.llm_overwrite or not docstring)
+    if should_generate:
+        try:
+            from sim_atlas_toolkit.parsers.ai_enrichment import (  # noqa: PLC0415
+                generate_workflow_docstring,
+            )
+
+            generated = await generate_workflow_docstring(
+                settings,
+                metadata.name,
+                metadata.source_code,
+                docstring,
+                metadata.wf_definition,
+            )
+            if generated:
+                docstring = generated
+                metadata.docstring = generated
+        except Exception:
+            logger.exception(
+                "LLM workflow docstring generation failed for %s", metadata.name
+            )
     enrich_from_docstring(docstring, metadata)
     return metadata
 

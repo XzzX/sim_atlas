@@ -32,6 +32,7 @@ from sim_atlas_toolkit.models import (
 )
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_metadata,
+    enrich_workflow_metadata,
     extract_id,
     parse_return_annotation,
     parse_signature,
@@ -282,7 +283,7 @@ async def parse_workflow_recipe(
     metadata.uses = uses
     metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
 
-    await enrich_metadata(settings, metadata)
+    await enrich_workflow_metadata(settings, metadata)
 
     return await node_store_api.create_artifacts(
         settings.api_url, settings.api_token, [metadata]

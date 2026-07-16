@@ -72,6 +72,9 @@ async def parse_function_node(
     if response.status_code == HTTPStatus.OK:
         return [response]
 
+    metadata.hash = hash
+    metadata.id = hash
+
     metadata.python_import = obj._module_path
     metadata.name = metadata.python_import
     metadata.category = metadata.python_import.replace(".", ">")
@@ -110,6 +113,9 @@ async def parse_group_node(settings: ToolkitSettings, obj: Any) -> list[httpx.Re
     response = await node_store_api.read_artifact(settings.api_url, hash)
     if response.status_code == HTTPStatus.OK:
         return [response]
+
+    metadata.hash = hash
+    metadata.id = hash
 
     module: str = group_node._factory_module
     qualname: str = group_node._factory_name
@@ -190,6 +196,9 @@ async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx.Resp
     response = await node_store_api.read_artifact(settings.api_url, hash)
     if response.status_code == HTTPStatus.OK:
         return [response]
+
+    metadata.hash = hash
+    metadata.id = hash
 
     metadata.name = wf._graph.label
     metadata.python_import = ""

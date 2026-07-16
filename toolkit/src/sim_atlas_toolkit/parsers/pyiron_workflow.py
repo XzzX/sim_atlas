@@ -1,5 +1,6 @@
 # pyright: basic
 
+import hashlib
 import inspect
 from typing import Any
 
@@ -33,6 +34,9 @@ async def parse(settings: ToolkitSettings, node: Any) -> list[httpx.Response]:
     metadata = FunctionRequest.model_construct()
 
     metadata.source_code = inspect.getsource(node.node_function)
+    hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
+    metadata.hash = hash
+    metadata.id = hash
 
     metadata.inputs = []
     metadata.outputs = []

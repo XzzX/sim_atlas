@@ -153,6 +153,8 @@ async def parse_atomic_recipe(
     response = await node_store_api.read_artifact(settings.api_url, hash)
     if response.status_code == HTTPStatus.OK:
         return [response]
+    metadata.hash = hash
+    metadata.id = hash
 
     fr_inputs = [
         Annotation(
@@ -216,6 +218,9 @@ async def parse_workflow_recipe(
     response = await node_store_api.read_artifact(settings.api_url, hash)
     if response.status_code == HTTPStatus.OK:
         return [response]
+
+    metadata.hash = hash
+    metadata.id = hash
 
     metadata.docstring = inspect.getdoc(obj) or ""
 

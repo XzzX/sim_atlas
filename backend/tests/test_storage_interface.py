@@ -27,6 +27,7 @@ Example::
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from typing import Any
 
@@ -89,6 +90,10 @@ def make_node(**kwargs: Any) -> FunctionMetadata:
     defaults.update(kwargs)
     if "id" not in defaults:
         defaults["id"] = str(uuid.uuid4())
+    if "hash" not in defaults:
+        defaults["hash"] = hashlib.sha256(
+            defaults["source_code"].encode("utf-8")
+        ).hexdigest()
     return FunctionMetadata(**defaults)
 
 

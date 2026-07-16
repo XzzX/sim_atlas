@@ -106,7 +106,8 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
     match request:
         case FunctionRequest():
             return FunctionMetadata(
-                id=hashlib.sha256(request.source_code.encode()).hexdigest(),
+                id=request.id
+                or hashlib.sha256(request.source_code.encode()).hexdigest(),
                 author_name=request.author_name,
                 author_email=request.author_email,
                 creator_name=creator.name,
@@ -125,14 +126,15 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 docstring=request.docstring,
                 brief_description=request.brief_description or "",
                 description=request.description or "",
-                hash=hashlib.sha256(request.source_code.encode()).hexdigest(),
+                hash=request.hash
+                or hashlib.sha256(request.source_code.encode()).hexdigest(),
                 inputs=[AnnotationResponse(**a.model_dump()) for a in request.inputs],
                 outputs=[AnnotationResponse(**a.model_dump()) for a in request.outputs],
                 see_also=request.see_also,
             )
         case WorkflowRequest():
             return WorkflowMetadata(
-                id=hashlib.sha256(request.source_code.encode()).hexdigest(),
+                id=request.id or str(uuid.uuid4()),
                 author_name=request.author_name,
                 author_email=request.author_email,
                 creator_name=creator.name,
@@ -154,7 +156,8 @@ def compose_artifact(request: ArtifactRequest, creator: Creator) -> StoredArtifa
                 see_also=request.see_also,
                 uses=request.uses,
                 wf_definition=request.wf_definition,
-                hash=hashlib.sha256(request.source_code.encode()).hexdigest(),
+                hash=request.hash
+                or hashlib.sha256(request.source_code.encode()).hexdigest(),
             )
         case _:
             raise HTTPException(

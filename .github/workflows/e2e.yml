@@ -36,7 +36,7 @@ jobs:
         working-directory: ./backend
 
       - name: Install static files
-        run: ./update_static_files
+        run: ./update_static_data
         working-directory: ./backend
 
       - name: Start backend server

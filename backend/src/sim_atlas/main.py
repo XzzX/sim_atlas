@@ -444,6 +444,13 @@ async def redirect_to_ide(request: Request) -> RedirectResponse:
 
 
 STATIC_DIR = Path(__file__).parent / "static"
+
+# The built SPAs are gitignored and only produced at build time, so these dirs
+# can be absent in a dev/CI checkout. Ensure they exist so mounting doesn't
+# raise at import; a missing asset then just 404s.
+for sub in ("frontend", "ide"):
+    (STATIC_DIR / sub).mkdir(parents=True, exist_ok=True)
+
 app.mount("/ide", StaticFiles(directory=STATIC_DIR / "ide", html=True), name="ide")
 
 

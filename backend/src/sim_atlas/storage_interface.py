@@ -130,6 +130,10 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
+    async def embed_missing(self) -> None:
+        pass
+
+    @abstractmethod
     def create_execution_result(
         self, value: ExecutionResultMetadata, check_hash: bool = True
     ) -> ExecutionResultMetadata:

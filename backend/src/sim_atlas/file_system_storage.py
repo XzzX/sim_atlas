@@ -667,3 +667,17 @@ class FileSystemStorage(StorageInterface):
             item.embedding = emb
 
         self._save_artifacts_to_disk()
+
+    async def embed_missing(self) -> None:
+        nodes_to_embed = [
+            node for node in self._artifacts.values() if node.embedding is None
+        ]
+
+        documents = [self._embedding_text(node) for node in nodes_to_embed]
+        if not documents:
+            return
+        embeddings = await create_embedding(documents, input_type="document")
+        for emb, item in zip(embeddings, nodes_to_embed, strict=True):
+            item.embedding = emb
+
+        self._save_artifacts_to_disk()

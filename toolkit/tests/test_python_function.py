@@ -36,3 +36,6 @@ async def test_parse_simple_function(monkeypatch: pytest.MonkeyPatch):
     assert isinstance(artifact, FunctionRequest)
 
     assert artifact.name == "tests.test_python_function.simple"
+    # enrich_from_docstring parsed the existing NumPy docstring.
+    assert artifact.brief_description == "A simple function."
+    assert artifact.inputs[0].description == "The first value."

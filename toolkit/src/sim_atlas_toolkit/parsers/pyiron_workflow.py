@@ -11,8 +11,9 @@ from sim_atlas_toolkit.models import (
     ArtifactType,
     FunctionRequest,
 )
+from sim_atlas_toolkit.parsers.ai_enrichment import generate_docstring
 from sim_atlas_toolkit.parsers.metadata import (
-    enrich_metadata,
+    enrich_from_docstring,
     parse_annotation,
 )
 from sim_atlas_toolkit.settings import ToolkitSettings
@@ -59,7 +60,10 @@ async def parse(settings: ToolkitSettings, node: Any) -> list[httpx.Response]:
     metadata.docstring = node.node_function.__doc__ or ""
     metadata.keywords = ["pyiron_workflow_function"]
 
-    await enrich_metadata(settings, metadata)
+    metadata.docstring = await generate_docstring(
+        settings, metadata.source_code, metadata.docstring
+    )
+    enrich_from_docstring(metadata.docstring, metadata)
 
     return await node_store_api.create_artifacts(
         settings.api_url, settings.api_token, [metadata]

@@ -7,8 +7,9 @@ import httpx
 
 from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import FunctionRequest
+from sim_atlas_toolkit.parsers.ai_enrichment import generate_docstring
 from sim_atlas_toolkit.parsers.metadata import (
-    enrich_metadata,
+    enrich_from_docstring,
     parse_return_annotation,
     parse_signature,
 )
@@ -41,7 +42,10 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
     metadata.inputs = parse_signature(sig)
     metadata.outputs = parse_return_annotation(sig)
 
-    await enrich_metadata(settings, metadata)
+    metadata.docstring = await generate_docstring(
+        settings, metadata.source_code, metadata.docstring
+    )
+    enrich_from_docstring(metadata.docstring, metadata)
 
     return await node_store_api.create_artifacts(
         settings.api_url, settings.api_token, [metadata]

@@ -2,8 +2,6 @@ import logging
 import re
 from http import HTTPStatus
 
-from openai import AsyncOpenAI
-
 from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
     Annotation,
@@ -57,22 +55,36 @@ def clean_response(content: str) -> str:
 
 
 async def generate_docstring(
-    llm_url: str, llm_key: str, llm_model: str, source_code: str
+    settings: ToolkitSettings, source_code: str, docstring: str
 ) -> str:
-    """Generate a docstring for the given source code using an LLM.
+    """Generate a docstring for the given source code using an LLM, if enabled.
 
     Args:
-        llm_url: The base URL of the OpenAI-compatible LLM service.
-        llm_key: The API key for the LLM service.
-        llm_model: The model name to use for generating the docstring.
-        source_code: The source code for which to generate the docstring.
+        settings: Toolkit settings; gates whether generation runs
+            (``llm_enabled``, ``llm_overwrite``) and provides the LLM client
+            config.
+        source_code: The source code to generate a docstring for.
+        docstring: The existing docstring, if any.
 
     Returns:
-        The generated docstring, or an empty string if the LLM returned nothing.
+        The generated docstring, or ``docstring`` unchanged if generation is
+        disabled, unnecessary (a docstring already exists and
+        ``llm_overwrite`` is not set), or the LLM call fails.
     """
-    client = AsyncOpenAI(api_key=llm_key, base_url=llm_url)
+    should_generate = (
+        settings.llm_enabled
+        and bool(source_code)
+        and (settings.llm_overwrite or not docstring)
+    )
+    if not should_generate:
+        return docstring
 
-    prompt = f"""
+    try:
+        from openai import AsyncOpenAI  # noqa: PLC0415
+
+        client = AsyncOpenAI(api_key=settings.llm_key, base_url=settings.llm_url)
+
+        prompt = f"""
 You are a technical writer generating Python docstrings. You will receive
 Python source code for a single function, method, or class.
 
@@ -124,15 +136,18 @@ Source code:
 </code>
 """
 
-    response = await client.chat.completions.create(
-        model=llm_model,
-        messages=[
-            {"role": "user", "content": prompt},
-        ],
-    )
+        response = await client.chat.completions.create(
+            model=settings.llm_model,
+            messages=[
+                {"role": "user", "content": prompt},
+            ],
+        )
 
-    content = response.choices[0].message.content
-    return clean_response(content) if content else ""
+        content = response.choices[0].message.content
+        return (clean_response(content) if content else "") or docstring
+    except Exception:
+        logger.exception("LLM docstring generation failed")
+        return docstring
 
 
 def _format_boundary_node(ann: Annotation) -> str:
@@ -218,11 +233,12 @@ async def generate_workflow_docstring(
     docstring: str,
     wf_definition: WfDefinition,
 ) -> str:
-    """Generate a docstring for a workflow from its source and dataflow graph.
+    """Generate a docstring for a workflow from its source and dataflow graph, if enabled.
 
     Args:
-        settings: Toolkit settings providing the LLM client config and the
-            backend API URL used to fetch per-node descriptions.
+        settings: Toolkit settings; gates whether generation runs
+            (``llm_enabled``, ``llm_overwrite``) and provides the LLM client
+            config and the backend API URL used to fetch per-node descriptions.
         name: The workflow's name.
         source_code: The workflow's rendered Python source code.
         docstring: The workflow's existing docstring, if any.
@@ -230,12 +246,21 @@ async def generate_workflow_docstring(
             workflow's constituent nodes and how data flows between them.
 
     Returns:
-        The generated docstring, or an empty string if the LLM returned nothing.
+        The generated docstring, or ``docstring`` unchanged if generation is
+        disabled, unnecessary (a docstring already exists and
+        ``llm_overwrite`` is not set), or the LLM call fails.
     """
-    client = AsyncOpenAI(api_key=settings.llm_key, base_url=settings.llm_url)
-    graph = await _render_wf_graph(settings.api_url, wf_definition)
+    should_generate = settings.llm_enabled and (settings.llm_overwrite or not docstring)
+    if not should_generate:
+        return docstring
 
-    prompt = f"""
+    try:
+        from openai import AsyncOpenAI  # noqa: PLC0415
+
+        client = AsyncOpenAI(api_key=settings.llm_key, base_url=settings.llm_url)
+        graph = await _render_wf_graph(settings.api_url, wf_definition)
+
+        prompt = f"""
 You are a technical writer generating Python docstrings. You will receive a
 description of a scientific simulation workflow: its name, its rendered
 Python source code, any existing docstring, and its dataflow graph -- the
@@ -299,12 +324,15 @@ Dataflow graph:
 </graph>
 """
 
-    response = await client.chat.completions.create(
-        model=settings.llm_model,
-        messages=[
-            {"role": "user", "content": prompt},
-        ],
-    )
+        response = await client.chat.completions.create(
+            model=settings.llm_model,
+            messages=[
+                {"role": "user", "content": prompt},
+            ],
+        )
 
-    content = response.choices[0].message.content
-    return clean_response(content) if content else ""
+        content = response.choices[0].message.content
+        return (clean_response(content) if content else "") or docstring
+    except Exception:
+        logger.exception("LLM workflow docstring generation failed for %s", name)
+        return docstring

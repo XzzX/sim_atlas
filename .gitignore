@@ -335,3 +335,4 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,python,node
 *.json
 *.toml
+backend/src/sim_atlas/static

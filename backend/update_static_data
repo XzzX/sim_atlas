@@ -1,14 +1,14 @@
-#! /bin/bash
+#!/bin/bash
+set -euo pipefail
+cd "$(dirname "$0")"   # run from repo root regardless of cwd
 
-rm -rv src/sim_atlas/static/frontend/*
-rm -rv src/sim_atlas/static/ide/*
+for d in frontend ide; do
+  rm -rf "src/sim_atlas/static/$d"
+  mkdir -p "src/sim_atlas/static/$d"
+done
 
-cd ../frontend
-rm -rv dist/*
-npm run build
-cp -rv dist/* ../backend/src/sim_atlas/static/frontend/.
+(cd ../frontend && rm -rf dist && npm ci && npm run build)
+cp -rv ../frontend/dist/* src/sim_atlas/static/frontend/
 
-cd ../web_ide
-rm -rv dist/*
-npm run build
-cp -rv dist/* ../backend/src/sim_atlas/static/ide/.
+(cd ../web_ide && rm -rf dist && npm ci && npm run build)
+cp -rv ../web_ide/dist/* src/sim_atlas/static/ide/

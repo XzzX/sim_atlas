@@ -14,8 +14,9 @@ from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 from fastmcp import Client
 
+from sim_atlas.api.artifacts import compose_artifact
 from sim_atlas.file_system_storage import FileSystemStorage
-from sim_atlas.main import app, compose_artifact, mcp
+from sim_atlas.main import app, mcp
 from sim_atlas.models import (
     AnnotationRequest,
     ArtifactType,

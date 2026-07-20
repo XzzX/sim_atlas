@@ -58,7 +58,7 @@ flowchart TD
 
     subgraph SRV["Server"]
         B["FastAPI Backend<br/>· JWT auth for write endpoints<br/>· CRUD for nodes<br/>· Keyword & semantic search<br/>· On-demand AI enrichment endpoint<br/>· MCP tool for semantic search<br/>· Serves frontend & web_ide SPAs"]
-        FS["FileSystemStorage<br/>· In-memory dict[sha256→NodeMetadata]<br/>· Persisted as filesystem.json<br/>· Embeddings: gzip+base64 numpy array"]
+        FS["FileSystemStorage<br/>· In-memory dict[id→StoredArtifact]<br/>· Persisted as artifacts.json<br/>· Embeddings: gzip+base64 numpy array"]
         subgraph AI["External AI Services"]
             V["VoyageAI<br/>voyage-code-3<br/>(embeddings)"]
             L["OpenAI-compatible LLM<br/>(configurable URL)<br/>(docstring refinement)"]
@@ -68,7 +68,7 @@ flowchart TD
     F["React Frontend  /<br/>· Keyword search<br/>· Semantic search<br/>· Faceted filter<br/>· NodeCard view"]
     W["Web IDE  /ide<br/>· Drag-drop canvas<br/>· ReactFlow + dagre<br/>· Import/export<br/>  PythonWorkflowDefinition JSON"]
 
-    T -->|"POST /api/v1/nodes  (JWT)"| B
+    T -->|"POST /api/v1/artifacts  (JWT)"| B
     B --> FS
     B -->|"REST API / MCP"| F
     B -->|"REST API / MCP"| W
@@ -84,52 +84,38 @@ flowchart TD
 sequenceDiagram
     actor R as Researcher
     participant T as sim-atlas-toolkit
+    participant L as LLM (optional)
     participant B as Backend (FastAPI)
     participant S as FileSystemStorage
 
-    R->>T: NodeStore.upload(obj) / upload_module(module)
-    T->>T: inspect obj → extract metadata
-    T->>T: serialise to NodeRequest JSON
-    T->>B: POST /api/v1/nodes (x-api-key: JWT)
-    B->>B: validate JWT → extract creator
-    B->>B: compute id = SHA-256(source_code)
-    alt id already exists
-        B-->>T: 409 Conflict
-    else new node
-        B->>S: create(NodeMetadata)
-        S->>S: update in-memory dict
-        S->>S: flush to filesystem.json
-        B-->>T: 201 Created (id)
+    R->>T: upload(obj) / upload_modules(modules)
+    T->>T: inspect obj → parser picks FunctionRequest<br/>or WorkflowRequest, computes<br/>hash = SHA-256(source_code)
+    T->>B: GET /api/v1/artifacts/{hash}
+    alt artifact already exists
+        B-->>T: 200 OK (existing artifact)
+        Note over T: most parsers stop here,<br/>skipping LLM + upload
+    else not found
+        B-->>T: 404 Not Found
+        opt llm_enabled
+            T->>L: generate/refine docstring from source (+ dataflow graph for workflows)
+            L-->>T: docstring
+        end
+        T->>B: POST /api/v1/artifacts (x-api-key: JWT)
+        B->>B: validate JWT → extract creator
+        B->>B: compose_artifact: id = request.id or<br/>SHA-256(source_code)
+        B->>S: create_artifact(StoredArtifact)
+        alt id already exists
+            S-->>B: raise ArtifactAlreadyExistsError
+            B-->>T: 409 Conflict (existing artifact)
+        else hash already exists (different id)
+            S-->>B: raise ArtifactDuplicateError
+            B-->>T: 409 Conflict (existing artifact)
+        else new artifact
+            S->>S: update in-memory dict
+            S->>S: flush to artifacts.json
+            B-->>T: 201 Created (ArtifactResponse)
+        end
     end
-```
-
-### AI Enrichment Flow
-
-```mermaid
-sequenceDiagram
-    actor O as Operator
-    participant B as Backend (FastAPI)
-    participant S as FileSystemStorage
-    participant L as OpenAI-compatible LLM
-    participant V as VoyageAI
-
-    O->>B: POST /api/v1/enrich (x-api-key: JWT)
-    B->>B: validate JWT
-    B->>S: iterate all nodes
-    loop for each node where ai_docstring is empty
-        B->>L: chat completion(docstring, source_code)
-        L-->>B: refined docstring
-        B->>S: update node.ai_docstring
-        S->>S: flush to filesystem.json
-    end
-    B-->>O: enrichment complete
-
-    Note over O,V: Embedding generation is a separate step
-    O->>B: (separate invocation / script)
-    B->>V: embed(source_code + docstring, input_type="document")
-    V-->>B: float32 embedding vector
-    B->>S: update node.embedding
-    S->>S: flush to filesystem.json
 ```
 
 ### Search Flow
@@ -140,21 +126,33 @@ sequenceDiagram
     participant F as React Frontend
     participant B as Backend (FastAPI)
     participant S as FileSystemStorage
-    participant V as VoyageAI
+    participant E as Embedding Provider<br/>(fastembed local, or<br/>OpenAI/VoyageAI API)
 
     U->>F: enter query + set facet filters
     F->>B: POST /api/v1/search {query, filter, semantic, page, limit}
-    alt embeddings configured and semantic != false
-        B->>V: embed(query, input_type="query")
-        V-->>B: query vector
-        B->>S: apply NodeFilter → RRF merge of cosine similarity + keyword rank
+    alt semantic == false
+        B->>S: search(): apply NodeFilter → keyword score
+        Note right of S: score 1.0 if query in name+python_import<br/>score 0.8 if query in brief_description<br/>score 0.5 if query in docstring
         S-->>B: sorted, paginated SearchResults
-    else no embeddings, or semantic == false (keyword fallback)
-        B->>S: apply NodeFilter → keyword score candidates
-        Note right of S: score 1.0 if query in python_import<br/>score 0.5 if query in docstring
-        S-->>B: sorted, paginated SearchResults
+    else semantic (default) → search_hybrid()
+        alt no query, or embeddings_enabled == false
+            B->>S: fall back to search() (keyword-only, same scoring as above)
+            S-->>B: sorted, paginated SearchResults
+        else query tokenizes to nothing ≥3 chars
+            B->>E: create_embedding(query, input_type="query")
+            E-->>B: query vector
+            B->>S: search_semantic(): apply NodeFilter → cosine similarity only
+            S-->>B: sorted, paginated SearchResults
+        else
+            B->>E: create_embedding(query, input_type="query")
+            E-->>B: query vector
+            B->>S: apply NodeFilter once, then rank two ways
+            Note right of S: semantic rank: cosine similarity<br/>(nodes with an embedding only)<br/>keyword rank: token hit-count<br/>(tokens ≥3 chars, all filtered nodes)
+            S->>S: RRF merge: score = 1/(60+sem_rank) + 1/(60+kw_rank)<br/>(0 for a side a node is absent from)
+            S-->>B: sorted, paginated SearchResults
+        end
     end
-    B-->>F: SearchResults (ScoredSearchItem[])
+    B-->>F: ScoredSearchResponse (ScoredSearchItem[])
     F->>U: render NodeCard components
 ```
 

@@ -1,6 +1,7 @@
 import hashlib
 import inspect
 import textwrap
+from http import HTTPStatus
 from typing import Any
 
 import httpx
@@ -30,6 +31,10 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
     metadata.hash = hash
     metadata.id = hash
+
+    response = await node_store_api.read_artifact(settings.api_url, hash)
+    if response.status_code == HTTPStatus.OK:
+        return [response]
 
     metadata.name = f"{obj.__module__}.{obj.__qualname__}"
     metadata.python_import = f"{obj.__module__}.{obj.__qualname__}"

@@ -18,7 +18,7 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi_mcp import FastApiMCP
+from fastmcp import FastMCP
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from sim_atlas.agent import run_agent_stream
@@ -34,6 +34,7 @@ from sim_atlas.models import (
     FilterOptions,
     FunctionMetadata,
     FunctionRequest,
+    ScoredSearchItem,
     ScoredSearchResponse,
     SearchRequest,
     StoredArtifact,
@@ -52,17 +53,36 @@ from sim_atlas.storage_interface import (
 )
 
 
+def get_storage() -> StorageInterface:
+    storage: StorageInterface | None = getattr(app.state, "storage", None)
+    assert storage is not None, "Storage has not been initialised"
+    return storage
+
+
+mcp = FastMCP("Simulation Atlas")
+
+
+@mcp.tool
+async def search(query: str) -> list[ScoredSearchItem]:
+    """Search the simulation node catalog and return the top 3 matches.
+
+    Performs hybrid (semantic + keyword) search when embeddings are configured
+    and falls back to keyword-only otherwise.
+    """
+    storage = get_storage()
+    response = await storage.search_hybrid(query, None, page=1, limit=3)
+    return response.results.data
+
+
+mcp_app = mcp.http_app(path="/")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.storage = get_storage_backend()
-    yield
+    async with mcp_app.lifespan(app):
+        yield
     app.state.storage = None
-
-
-def get_storage(request: Request) -> StorageInterface:
-    storage: StorageInterface | None = getattr(request.app.state, "storage", None)
-    assert storage is not None, "Storage has not been initialised"
-    return storage
 
 
 app = FastAPI(
@@ -463,24 +483,14 @@ async def spa_fallback(
         and request.method == "GET"
         and not request.url.path.startswith("/api/")
         and not request.url.path.startswith("/ide")
+        and not request.url.path.startswith("/mcp")
     )
     if is_frontend_route:
         return FileResponse(STATIC_DIR / "frontend" / "index.html")
     return await http_exception_handler(request, exc)
 
 
-# Create an MCP server based on this app
-mcp = FastApiMCP(
-    app,
-    name="My API MCP",
-    description="Very cool MCP server",
-    describe_all_responses=True,
-    describe_full_response_schema=True,
-    include_operations=["search_nodes", "agent"],
-)
-
-# Mount the MCP server directly to your app
-mcp.mount_http()
+app.mount("/mcp", mcp_app)
 
 app.mount(
     "/", StaticFiles(directory=STATIC_DIR / "frontend", html=True), name="frontend"

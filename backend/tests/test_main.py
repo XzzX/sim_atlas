@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from collections.abc import Generator
 from math import ceil
@@ -11,9 +12,10 @@ import httpx
 import pytest
 from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
+from fastmcp import Client
 
 from sim_atlas.file_system_storage import FileSystemStorage
-from sim_atlas.main import app, compose_artifact, get_storage
+from sim_atlas.main import app, compose_artifact, mcp
 from sim_atlas.models import (
     AnnotationRequest,
     ArtifactType,
@@ -102,8 +104,10 @@ def storage() -> FileSystemStorage:
 
 
 @pytest.fixture
-def client(storage: FileSystemStorage) -> Generator[ApiClient]:
-    app.dependency_overrides[get_storage] = lambda: storage
+def client(
+    storage: FileSystemStorage, monkeypatch: pytest.MonkeyPatch
+) -> Generator[ApiClient]:
+    monkeypatch.setattr("sim_atlas.main.get_storage_backend", lambda: storage)
     app.dependency_overrides[get_current_user] = lambda: TEST_CREATOR
     with TestClient(app) as c:
         yield cast(ApiClient, c)
@@ -111,8 +115,10 @@ def client(storage: FileSystemStorage) -> Generator[ApiClient]:
 
 
 @pytest.fixture
-def unauthed_client(storage: FileSystemStorage) -> Generator[ApiClient]:
-    app.dependency_overrides[get_storage] = lambda: storage
+def unauthed_client(
+    storage: FileSystemStorage, monkeypatch: pytest.MonkeyPatch
+) -> Generator[ApiClient]:
+    monkeypatch.setattr("sim_atlas.main.get_storage_backend", lambda: storage)
     with TestClient(app) as c:
         yield cast(ApiClient, c)
     app.dependency_overrides.clear()
@@ -382,6 +388,38 @@ def test_search_semantic_false_forces_keyword(
     response = client.post("/api/v1/search", json={"query": "test", "semantic": False})
     assert response.status_code == status.HTTP_200_OK
     assert "results" in response.json()
+
+
+# ---------------------------------------------------------------------------
+# MCP search tool
+# ---------------------------------------------------------------------------
+
+
+def test_mcp_lists_search_tool(client: ApiClient) -> None:
+    async def run() -> list[str]:
+        async with Client(mcp) as c:
+            tools = await c.list_tools()
+            return [tool.name for tool in tools]
+
+    names = asyncio.run(run())
+    assert names == ["search"]
+
+
+def test_mcp_search_returns_at_most_3(client: ApiClient) -> None:
+    for i in range(4):
+        client.post(
+            "/api/v1/artifacts",
+            json=make_function_request_body(
+                name=f"mcp_fn_{i}", source_code=f"def mcp_fn_{i}(): pass"
+            ),
+        )
+
+    async def run() -> int:
+        async with Client(mcp) as c:
+            result = await c.call_tool("search", {"query": "mcp_fn"})
+            return len(result.data)
+
+    assert asyncio.run(run()) <= 3  # noqa: PLR2004
 
 
 # ---------------------------------------------------------------------------

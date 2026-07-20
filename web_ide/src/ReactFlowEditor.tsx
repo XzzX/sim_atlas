@@ -372,6 +372,11 @@ export const ReactFlowEditor = ({
           </Button>
         </Panel>
         <AddNodeDialog
+          key={
+            pendingConnection
+              ? `${pendingConnection.nodeId}-${pendingConnection.handleId}`
+              : "context-menu"
+          }
           isOpen={isAddNodeDialogOpen}
           onClose={() => {
             setPendingConnection(null);

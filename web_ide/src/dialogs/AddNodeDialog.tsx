@@ -5,13 +5,7 @@ import type { InputDataElement } from "../nodes/InputNode";
 import type { OutputDataElement } from "../nodes/OutputNode";
 import type { NodeData } from "../nodes/FunctionNode";
 import { simAtlasAPI } from "../services/api";
-import {
-  ArrowDownToLine,
-  ArrowUpDown,
-  ArrowUpFromLine,
-  BotIcon,
-  SearchIcon,
-} from "lucide-react";
+import { ArrowDownToLine, ArrowUpDown, ArrowUpFromLine } from "lucide-react";
 
 const PORT_OPTIONS = [
   { value: null, Icon: ArrowUpDown, label: "Both" },
@@ -29,8 +23,6 @@ const EMPTY_FILTER: Filter = {
   quantities: null,
   port_type: null,
 };
-
-type SearchMode = "normal" | "semantic";
 
 interface AddNodeDialogProps {
   isOpen: boolean;
@@ -53,7 +45,6 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
   connectingHandleType,
 }) => {
   const [searchTerm, setSearchTerm] = useState(initialSearchQuery ?? "");
-  const [searchMode, setSearchMode] = useState<SearchMode>("normal");
   const [filter, setFilter] = useState<Filter>(initialFilter ?? EMPTY_FILTER);
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(
     null,
@@ -70,39 +61,31 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
     simAtlasAPI.getFilterOptions().then(setFilterOptions).catch(console.error);
   }, []);
 
-  const runSearch = useCallback(
-    async (term: string, f: Filter, p: number, mode: SearchMode) => {
-      setLoading(true);
-      try {
-        const resp = await simAtlasAPI.search(
-          term || null,
-          f,
-          p,
-          mode === "semantic",
-        );
-        setResults(resp.results.data.map((item) => item.node));
-        setTotalPages(resp.results.total_pages);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+  const runSearch = useCallback(async (term: string, f: Filter, p: number) => {
+    setLoading(true);
+    try {
+      const resp = await simAtlasAPI.search(term || null, f, p);
+      setResults(resp.results.data.map((item) => item.node));
+      setTotalPages(resp.results.total_pages);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  // Debounced re-search on term / filter / mode change
+  // Debounced re-search on term / filter change
   useEffect(() => {
     if (!isOpen) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      void runSearch(searchTerm, filter, 1, searchMode);
+      void runSearch(searchTerm, filter, 1);
       setPage(1);
     }, 250);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [searchTerm, filter, searchMode, isOpen, runSearch]);
+  }, [searchTerm, filter, isOpen, runSearch]);
 
   const handleAdd = (
     type: "InputNode" | "OutputNode" | "FunctionNode",
@@ -148,50 +131,16 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
       >
         <h2 className="text-xl font-semibold text-gray-900">Add Node</h2>
 
-        {/* Search bar + mode toggle */}
+        {/* Search bar */}
         <div className="flex gap-2 items-center">
           <input
             type="text"
-            placeholder={
-              searchMode === "semantic"
-                ? "Describe what you're looking for…"
-                : "Search nodes…"
-            }
+            placeholder="Search nodes…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => {
-              if (searchMode === "semantic" && e.key === "Enter") {
-                if (debounceRef.current) clearTimeout(debounceRef.current);
-                void runSearch(searchTerm, filter, 1, searchMode);
-              }
-            }}
             className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             autoFocus
           />
-          <div className="flex overflow-hidden rounded border text-xs h-[38px]">
-            {(
-              [
-                { mode: "normal" as const, Icon: SearchIcon, label: "Normal" },
-                { mode: "semantic" as const, Icon: BotIcon, label: "AI" },
-              ] as const
-            ).map(({ mode, Icon, label }, i) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setSearchMode(mode)}
-                className={[
-                  "flex items-center gap-1 px-2 py-1 transition-colors",
-                  i > 0 ? "border-l" : "",
-                  searchMode === mode
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-500 hover:bg-gray-100",
-                ].join(" ")}
-              >
-                <Icon className="size-3" />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Filters */}
@@ -423,7 +372,7 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
               onClick={() => {
                 const p = page - 1;
                 setPage(p);
-                void runSearch(searchTerm, filter, p, searchMode);
+                void runSearch(searchTerm, filter, p);
               }}
               className="px-2 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-100 transition-colors"
             >
@@ -437,7 +386,7 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
               onClick={() => {
                 const p = page + 1;
                 setPage(p);
-                void runSearch(searchTerm, filter, p, searchMode);
+                void runSearch(searchTerm, filter, p);
               }}
               className="px-2 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-100 transition-colors"
             >

@@ -38,13 +38,11 @@ export const simAtlasAPI = {
     query: string | null,
     filterOptions: Filter | null,
     page = 1,
-    semantic: boolean | null = null,
     limit = 20,
   ): Promise<ScoredSearchResponse> => {
     const response = await api.post("/search", {
       query,
       filter: filterOptions,
-      semantic,
       page,
       limit,
     });

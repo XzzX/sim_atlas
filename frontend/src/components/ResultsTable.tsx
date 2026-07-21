@@ -29,7 +29,7 @@ function PortList({
           <span className="size-[6px] shrink-0 rounded-full" style={{ background: dotColor }} />
           {p.label && (
             <span
-              className="min-w-0 shrink truncate font-mono text-[11.5px] leading-none"
+              className="shrink-0 font-mono text-[11.5px] leading-none"
               style={{ color: "var(--node-io)" }}
             >
               {p.label}
@@ -151,7 +151,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
     <div className={embedded ? "min-h-[400px] overflow-x-auto" : "min-h-[400px] overflow-x-auto rounded-xl border bg-card"}>
       {/* Column headers */}
       <div
-        className="grid border-b px-7 py-[9px]"
+        className="grid gap-x-6 border-b px-7 py-[9px]"
         style={{ gridTemplateColumns: GRID_COLS, background: "var(--node-th-bg)" }}
       >
         {(["Node", "Inputs", "Outputs"] as const).map((h) => (
@@ -179,11 +179,11 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
           <div
             key={node.id}
             onClick={() => { void navigate(`/node/${node.id}`); }}
-            className="grid cursor-pointer items-start border-b border-l-[6px] py-[13px] pr-6 pl-[25px] transition-colors duration-[120ms] last:border-b-0 hover:bg-[var(--node-hover)]"
+            className="grid cursor-pointer items-start gap-x-6 border-b border-l-[6px] py-[13px] pr-6 pl-[25px] transition-colors duration-[120ms] last:border-b-0 hover:bg-[var(--node-hover)]"
             style={{ gridTemplateColumns: GRID_COLS, borderLeftColor: accent }}
           >
             {/* Node cell */}
-            <div className="min-w-0 pr-4">
+            <div className="min-w-0">
               <div className="mb-0.5 flex items-center gap-[7px]">
                 <span
                   className="font-mono text-[13.5px] font-semibold leading-none tracking-[-0.3px]"

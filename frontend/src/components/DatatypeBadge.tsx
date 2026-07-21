@@ -35,13 +35,13 @@ export function DatatypeBadge({ datatype }: { datatype: string }) {
   const cat = chipCategory(full);
   return (
     <span
-      title={full !== display ? full : undefined}
+      title={full}
       style={{
         background: `var(--chip-${cat}-bg)`,
         color: `var(--chip-${cat}-fg)`,
         border: `1px solid var(--chip-${cat}-bd)`,
       }}
-      className="shrink-0 rounded-[4px] px-1.5 py-px font-mono text-[10px] leading-none"
+      className="min-w-0 max-w-full truncate rounded-[4px] px-1.5 py-px font-mono text-[10px] leading-none"
     >
       {display}
     </span>

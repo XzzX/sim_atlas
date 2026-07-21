@@ -23,13 +23,13 @@ function PortList({
   const hidden = ports.length - limit;
 
   return (
-    <div className="flex flex-col gap-[5px] pt-0.5">
+    <div className="flex min-w-0 flex-col gap-[5px] overflow-hidden pt-0.5">
       {visible.map((p, i) => (
-        <div key={i} className="flex items-center gap-[5px]">
+        <div key={i} className="flex min-w-0 items-center gap-[5px] overflow-hidden">
           <span className="size-[6px] shrink-0 rounded-full" style={{ background: dotColor }} />
           {p.label && (
             <span
-              className="font-mono text-[11.5px] leading-none"
+              className="min-w-0 shrink truncate font-mono text-[11.5px] leading-none"
               style={{ color: "var(--node-io)" }}
             >
               {p.label}

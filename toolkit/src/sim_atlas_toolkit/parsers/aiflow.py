@@ -87,11 +87,11 @@ async def parse_function_node(
     metadata.name = metadata.python_import
     metadata.category = metadata.python_import.replace(".", ">")
     metadata.inputs = [
-        Annotation(label=inp.label, datatype=type_to_str(inp.datatype))
+        Annotation(label=inp.label, datatype=type_to_str(inp.type))
         for inp in obj.inputs
     ]
     metadata.outputs = [
-        Annotation(label=out.label, datatype=type_to_str(out.datatype))
+        Annotation(label=out.label, datatype=type_to_str(out.type))
         for out in obj.outputs
     ]
 
@@ -133,11 +133,11 @@ async def parse_group_node(settings: ToolkitSettings, obj: Any) -> list[httpx.Re
     python_import = f"{module}.{qualname}"
 
     inputs = [
-        Annotation(label=inp.label, datatype=type_to_str(inp.datatype))
+        Annotation(label=inp.label, datatype=type_to_str(inp.type))
         for inp in group_node.inputs
     ]
     outputs = [
-        Annotation(label=out.label, datatype=type_to_str(out.datatype))
+        Annotation(label=out.label, datatype=type_to_str(out.type))
         for out in group_node.outputs
     ]
 
@@ -167,7 +167,11 @@ async def to_wf_definition(
         node_metadata = await parse(settings, node)
         if not node_metadata:
             continue
-        if node_metadata[0].status_code in (HTTPStatus.CREATED, HTTPStatus.CONFLICT):
+        if node_metadata[0].status_code in (
+            HTTPStatus.OK,
+            HTTPStatus.CREATED,
+            HTTPStatus.CONFLICT,
+        ):
             nodes.append(
                 WfFunctionNode(
                     node_id=node_id,

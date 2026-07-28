@@ -122,7 +122,7 @@ def parse_annotation(annotation: Any) -> Annotation:
     for arg in args[1:]:
         if isinstance(arg, dict):
             result.label = arg.get("label", result.label)  # type: ignore
-            result.unit = arg.get("unit", result.unit)  # type: ignore
+            result.unit = arg.get("unit", result.unit) or arg.get("units", result.unit)  # type: ignore
             result.quantity = arg.get("quantity", result.quantity)  # type: ignore
             result.description = arg.get("description", result.description)  # type: ignore
     return result

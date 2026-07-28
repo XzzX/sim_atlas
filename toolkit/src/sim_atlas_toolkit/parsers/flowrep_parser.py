@@ -258,10 +258,13 @@ async def parse_workflow_recipe(
         merge_annotation(sig_ann, fr_inp)
         for sig_ann, fr_inp in zip(sig_inputs, fr_inputs, strict=True)
     ]
-    metadata.outputs = [
-        merge_annotation(sig_ann, fr_out)
-        for sig_ann, fr_out in zip(sig_outputs, fr_outputs, strict=True)
-    ]
+    if len(sig_outputs) != len(fr_outputs):
+        metadata.outputs = fr_outputs
+    else:
+        metadata.outputs = [
+            merge_annotation(sig_ann, fr_out)
+            for sig_ann, fr_out in zip(sig_outputs, fr_outputs, strict=True)
+        ]
 
     uses_import = [
         (label, try_import(node.reference.info.module, node.reference.info.qualname))
@@ -362,10 +365,7 @@ async def parse(
     if isinstance(obj, DagData):
         return await parse_workflow_instance(settings, obj)
 
-    if not hasattr(obj, "flowrep_recipe"):
-        return []
-
-    match obj.flowrep_recipe:
+    match getattr(obj, "flowrep_recipe", None):
         case AtomicRecipe() as recipe:
             return await parse_atomic_recipe(settings, obj, recipe)
 
@@ -373,4 +373,13 @@ async def parse(
             return await parse_workflow_recipe(settings, obj, recipe)
 
         case _:
-            return []
+            pass
+
+    try:
+        if inspect.isfunction(obj):
+            recipe = fr.parse_atomic(obj)
+            return await parse_atomic_recipe(settings, obj, recipe)
+    except Exception:
+        return []
+
+    return []

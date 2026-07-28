@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router";
 import { SearchPage } from "./pages/SearchPage";
 import { NodePage } from "./pages/NodePage";
 import { useState } from "react";

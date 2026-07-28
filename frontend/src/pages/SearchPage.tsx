@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useDebouncedCallback } from "use-debounce";
 import { simAtlasAPI } from "../services/api";
 import type { Filter, FilterOptions, ScoredSearchResponse } from "../types/index";

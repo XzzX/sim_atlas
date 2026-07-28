@@ -87,6 +87,7 @@ select = [
 ]
 ignore = [
     "E501",  # line too long
+    "PLR0917", # Too many positional arguments
 ]
 
 [tool.pytest.ini_options]

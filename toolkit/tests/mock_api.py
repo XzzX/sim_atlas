@@ -15,6 +15,7 @@ class MockNodeStore:
     def __init__(self) -> None:
         self.uploaded: list[ArtifactRequest] = []
         self.uploaded_execution_results: list[ExecutionResultRequest] = []
+        self.embed_triggers: int = 0
 
 
 def install_mock_node_store(monkeypatch: pytest.MonkeyPatch) -> MockNodeStore:
@@ -42,11 +43,16 @@ def install_mock_node_store(monkeypatch: pytest.MonkeyPatch) -> MockNodeStore:
         store.uploaded_execution_results.append(execution_result)
         return _mock_response()
 
+    async def trigger_embed(api_url: str, api_key: str | None) -> httpx.Response:
+        store.embed_triggers += 1
+        return httpx.Response(200)
+
     monkeypatch.setattr(node_store_api, "create_artifact", create_artifact)
     monkeypatch.setattr(node_store_api, "create_artifacts", create_artifacts)
     monkeypatch.setattr(node_store_api, "read_artifact", read_artifact)
     monkeypatch.setattr(
         node_store_api, "create_execution_result", create_execution_result
     )
+    monkeypatch.setattr(node_store_api, "trigger_embed", trigger_embed)
 
     return store

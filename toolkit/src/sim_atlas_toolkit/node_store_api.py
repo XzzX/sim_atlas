@@ -47,6 +47,15 @@ async def read_artifact(
     )
 
 
+async def trigger_embed(api_url: str, api_key: str | None) -> httpx.Response:
+    if not api_key:
+        raise ValueError("API key is required to trigger embedding")
+
+    headers: dict[str, str] = {"x-api-key": api_key}
+
+    return httpx.post(f"{api_url}/embed", headers=headers)
+
+
 async def create_execution_result(
     api_url: str,
     api_key: str | None,

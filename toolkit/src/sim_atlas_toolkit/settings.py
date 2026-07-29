@@ -26,3 +26,6 @@ class ToolkitSettings(BaseSettings):
 
     llm_overwrite: bool = False
     """False → only generate when the docstring is empty; True → always (re)generate."""
+
+    embed_enabled: bool = True
+    """Master switch for triggering backend embedding after upload; on by default."""

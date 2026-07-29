@@ -15,3 +15,13 @@ def test_settings_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.llm_url == "http://env-llm"
     assert settings.llm_model == "env-model"
     assert settings.llm_overwrite is True
+
+
+def test_embed_enabled_defaults_true() -> None:
+    assert ToolkitSettings().embed_enabled is True
+
+
+def test_embed_enabled_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SIM_ATLAS_EMBED_ENABLED", "false")
+
+    assert ToolkitSettings().embed_enabled is False

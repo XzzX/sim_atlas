@@ -7,6 +7,7 @@ from typing import Any, Literal
 import httpx
 from tqdm.asyncio import tqdm as atqdm
 
+from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.collector import collect_objects
 from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
@@ -81,6 +82,24 @@ async def _upload_modules_async(  # noqa: PLR0913
         logger.info(
             f"Upload summary for {module_name}: {created} created, {conflicts} conflicts, {errors} errors"
         )
+
+    if settings.embed_enabled:
+        try:
+            response = await node_store_api.trigger_embed(
+                settings.api_url, settings.api_token
+            )
+            if response.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
+                logger.warning(
+                    "Skipped embedding: backend has no embedding provider configured"
+                )
+            elif response.is_error:
+                logger.warning(
+                    f"Embedding request failed with status {response.status_code}"
+                )
+            else:
+                logger.info("Triggered embedding of newly uploaded nodes")
+        except Exception:
+            logger.exception("Failed to trigger embedding")
 
 
 def upload_modules(  # noqa: PLR0913

@@ -99,6 +99,15 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--embed",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Trigger backend embedding of newly uploaded nodes after the upload "
+            "finishes. Defaults to $SIM_ATLAS_EMBED_ENABLED (on by default)."
+        ),
+    )
+    parser.add_argument(
         "--log-level",
         choices=["debug", "info", "warning", "error", "critical"],
         default="info",
@@ -123,6 +132,7 @@ def main() -> int:
             "llm_key": args.llm_key,
             "llm_model": args.llm_model,
             "llm_overwrite": args.overwrite_docstrings,
+            "embed_enabled": args.embed,
         }.items()
         if v is not None
     }

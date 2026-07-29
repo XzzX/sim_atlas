@@ -32,36 +32,28 @@ sim_atlas/
 
 ## Quickstart
 
-### 1. Clone the repository and install it into a venv
+### 1. Start the server via `uvx`
 
 ```bash
-cd <sim-atlas-env>
-uv venv --python=3.12
-uv pip install sim-atlas
-```
-
-### 2. Configure and start the backend
-
-```bash
-cd <sim-atlas-env>
-uv run sim-atlas
+cd <sim-atlas>
+uvx sim-atlas
 ```
 On the first start the server will create a configuration file in the current working directory if it does not find one.
 
 The API and both SPAs are now available at http://localhost:8000.
 
-### 3. Generate an API token
+### 2. Generate an API token
 
 Write access (uploading nodes) requires a JWT token:
 
 ```bash
 cd <sim-atlas-env>
-uv run sim-atlas-access-token "Your Name" "you@example.com"
+uvx --from sim-atlas sim-atlas-access-token "Your Name" "you@example.com"
 export SIM_ATLAS_API_URL=http://localhost:8000/api/v1
 export SIM_ATLAS_API_TOKEN=<token>
 ```
 
-### 4. Upload nodes from a Python package
+### 3. Upload nodes from a Python package
 
 Load the environment with the modules you want to upload. Install the sim-atlas-toolkit into this environment. And upload the module.
 For example:
@@ -70,7 +62,7 @@ uv pip install sim-atlas-toolkit
 uv run sim-atlas-upload --recursive filesystem mypackage.mymodule
 ```
 
-### 5. Explore your newely created nodes
+### 4. Explore your newely created nodes
 
 Head over to the webinterface and explore the nodes you uploaded:  
 http://localhost:8000

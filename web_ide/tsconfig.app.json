@@ -22,7 +22,6 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     /* https: //ui.shadcn.com/docs/installation/vite */
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }

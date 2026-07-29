@@ -10,6 +10,7 @@ import httpx
 from flowrep.api.schemas import (
     AtomicRecipe,
     InputSource,
+    NotData,
     WorkflowRecipe,
 )
 from flowrep.retrospective.datastructures import DagData
@@ -55,7 +56,7 @@ def flowrep_to_wf_definition(
     nodes: list[WfNode] = []
     for node_id, node in wf.nodes.items():
         match node:
-            case AtomicRecipe():
+            case AtomicRecipe() | WorkflowRecipe():
                 inputs = [
                     Annotation(
                         label=inp, has_default_value=inp in node.inputs_with_defaults
@@ -72,9 +73,6 @@ def flowrep_to_wf_definition(
                         atlas_id=reference_dict.get(node_id),
                     )
                 )
-            case WorkflowRecipe():
-                # Nested workflows are not supported in this conversion
-                continue
             case _:
                 raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -258,15 +256,20 @@ async def parse_workflow_recipe(
         merge_annotation(sig_ann, fr_inp)
         for sig_ann, fr_inp in zip(sig_inputs, fr_inputs, strict=True)
     ]
-    metadata.outputs = [
-        merge_annotation(sig_ann, fr_out)
-        for sig_ann, fr_out in zip(sig_outputs, fr_outputs, strict=True)
-    ]
+    if len(sig_outputs) != len(fr_outputs):
+        metadata.outputs = fr_outputs
+    else:
+        metadata.outputs = [
+            merge_annotation(sig_ann, fr_out)
+            for sig_ann, fr_out in zip(sig_outputs, fr_outputs, strict=True)
+        ]
 
     uses_import = [
         (label, try_import(node.reference.info.module, node.reference.info.qualname))
         for label, node in recipe.nodes.items()
-        if isinstance(node, AtomicRecipe) and node.reference.info.qualname is not None
+        if isinstance(node, (AtomicRecipe, WorkflowRecipe))
+        and node.reference is not None
+        and node.reference.info.qualname is not None
     ]
 
     uses_upload = [
@@ -337,8 +340,9 @@ async def parse_workflow_instance(
         {
             k: v.value
             for k, v in wf_instance.output_ports.items()
-            if isinstance(v.value, (bool, int, float, str))
-        }
+            if not isinstance(v.value, NotData)
+        },
+        default=str,
     )
 
     execution_metadata = ExecutionResultRequest(
@@ -362,10 +366,7 @@ async def parse(
     if isinstance(obj, DagData):
         return await parse_workflow_instance(settings, obj)
 
-    if not hasattr(obj, "flowrep_recipe"):
-        return []
-
-    match obj.flowrep_recipe:
+    match getattr(obj, "flowrep_recipe", None):
         case AtomicRecipe() as recipe:
             return await parse_atomic_recipe(settings, obj, recipe)
 
@@ -373,4 +374,13 @@ async def parse(
             return await parse_workflow_recipe(settings, obj, recipe)
 
         case _:
-            return []
+            pass
+
+    try:
+        if inspect.isfunction(obj):
+            recipe = fr.parse_atomic(obj)
+            return await parse_atomic_recipe(settings, obj, recipe)
+    except Exception:
+        return []
+
+    return []

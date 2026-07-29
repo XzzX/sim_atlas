@@ -96,13 +96,20 @@ export const ReactFlowEditor = ({
       dagreGraph.setEdge(edge.source, edge.target);
     });
 
+    // @dagrejs/dagre's own .d.ts declares `layout(graph: graphlib.Graph, ...)` with the
+    // class's generic params left unparameterized (defaulting to `any`), so passing any
+    // graphlib.Graph here trips no-unsafe-argument regardless of how we type dagreGraph.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     dagre.layout(dagreGraph);
 
     const newNodes = nodes.map((node) => {
       const bounds = rfInstance.getNodesBounds([node]);
       const width = bounds.width || 150;
       const height = bounds.height || 60;
-      const nodeWithPosition = dagreGraph.node(node.id);
+      const nodeWithPosition = dagreGraph.node(node.id) as {
+        x: number;
+        y: number;
+      };
       const newNode = {
         ...node,
         // We are shifting the dagre node position (anchor=center center) to the top left

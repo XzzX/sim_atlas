@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Alert } from "@/components/ui/alert";
 import { splitName } from "@/lib/utils";
 import { DatatypeBadge } from "@/components/DatatypeBadge";

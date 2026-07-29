@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ArrowRightIcon, ClipboardCopyIcon } from "lucide-react";
 import { toast } from "sonner";
 import { DatatypeBadge } from "@/components/DatatypeBadge";

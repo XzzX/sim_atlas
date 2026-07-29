@@ -31,7 +31,7 @@ dependencies = [
     "httpx>=0.27",
     "pydantic>=2",
     "pydantic-settings>=2",
-    "tqdm>=4.68.4",
+    "tqdm>=4",
 ]
 
 [project.scripts]
@@ -87,6 +87,7 @@ select = [
 ]
 ignore = [
     "E501",  # line too long
+    "PLR0917", # Too many positional arguments
 ]
 
 [tool.pytest.ini_options]

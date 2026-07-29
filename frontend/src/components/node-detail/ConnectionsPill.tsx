@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { cn, pluralize } from "@/lib/utils";
 import { ArtifactType, type Reference } from "@/types/index";
 

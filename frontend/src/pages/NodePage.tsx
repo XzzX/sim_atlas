@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import { simAtlasAPI } from "../services/api";
 import type { ArtifactResponse } from "../types/index";
 import { NodeDetailPage } from "../components/node-detail";

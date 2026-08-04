@@ -51,6 +51,21 @@ def _deserialize_artifact(data: dict[str, object]) -> StoredArtifact:
     return FunctionMetadata.model_validate(data)
 
 
+def _write_json_atomically(target: Path, payload: dict[str, object]) -> None:
+    """Write *payload* as JSON to *target*, replacing it atomically.
+
+    The data goes to a sibling temp file that is flushed and fsynced before being
+    renamed over the target, so an interrupted write can never truncate the
+    existing file.
+    """
+    tmp = target.with_name(target.name + ".tmp")
+    with open(tmp, "w") as f:
+        json.dump(payload, f, indent=2, default=str)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, target)
+
+
 def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
     """Compute the cosine similarity between two vectors.
 
@@ -142,53 +157,40 @@ class FileSystemStorage(StorageInterface):
         self._path = path
         self._connected = False
 
-        if self._path is not None and os.path.exists(
-            self._path / self.ARTIFACTS_FILENAME
-        ):
-            try:
-                with open(self._path / self.ARTIFACTS_FILENAME) as f:
+        if self._path is not None:
+            artifacts_file = self._path / self.ARTIFACTS_FILENAME
+            if artifacts_file.exists():
+                with open(artifacts_file) as f:
                     data = json.load(f)
-                    self._artifacts = {
-                        k: _deserialize_artifact(v) for k, v in data.items()
-                    }
-            except Exception:
-                pass  # If loading fails, start with empty storage
+                self._artifacts = {k: _deserialize_artifact(v) for k, v in data.items()}
 
-        if self._path is not None and os.path.exists(
-            self._path / self.EXECUTION_RESULTS_FILENAME
-        ):
-            try:
-                with open(self._path / self.EXECUTION_RESULTS_FILENAME) as f:
+            execution_results_file = self._path / self.EXECUTION_RESULTS_FILENAME
+            if execution_results_file.exists():
+                with open(execution_results_file) as f:
                     data = json.load(f)
-                    self._execution_results = {
-                        k: ExecutionResultMetadata.model_validate(v)
-                        for k, v in data.items()
-                    }
-            except Exception:
-                pass
+                self._execution_results = {
+                    k: ExecutionResultMetadata.model_validate(v)
+                    for k, v in data.items()
+                }
 
         print(f"FileSystemStorage initialized with {len(self._artifacts)} items.")
         self._connected = True
 
     def _save_artifacts_to_disk(self) -> None:
-        if self._path is not None:
-            with open(self._path / self.ARTIFACTS_FILENAME, "w") as f:
-                json.dump(
-                    {k: v.model_dump() for k, v in self._artifacts.items()},
-                    f,
-                    indent=2,
-                    default=str,
-                )
+        if self._path is None:
+            return
+        _write_json_atomically(
+            self._path / self.ARTIFACTS_FILENAME,
+            {k: v.model_dump() for k, v in self._artifacts.items()},
+        )
 
     def _save_execution_results_to_disk(self) -> None:
-        if self._path is not None:
-            with open(self._path / self.EXECUTION_RESULTS_FILENAME, "w") as f:
-                json.dump(
-                    {k: v.model_dump() for k, v in self._execution_results.items()},
-                    f,
-                    indent=2,
-                    default=str,
-                )
+        if self._path is None:
+            return
+        _write_json_atomically(
+            self._path / self.EXECUTION_RESULTS_FILENAME,
+            {k: v.model_dump() for k, v in self._execution_results.items()},
+        )
 
     def create_artifact(
         self, value: StoredArtifact, check_source_hash: bool = True

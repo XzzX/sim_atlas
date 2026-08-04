@@ -6,9 +6,11 @@ import asyncio
 import hashlib
 from collections.abc import Generator
 from math import ceil
+from types import SimpleNamespace
 from typing import Any, Protocol, cast
 
 import httpx
+import numpy as np
 import pytest
 from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
@@ -30,6 +32,8 @@ from sim_atlas.models import (
     WorkflowRequest,
 )
 from sim_atlas.security import Creator, get_current_user
+
+from .test_storage_interface import make_node
 
 # ---------------------------------------------------------------------------
 # Shared test data
@@ -346,6 +350,37 @@ def test_search_pagination_fields_are_correct(client: ApiClient) -> None:
 def test_search_limit_above_cap_returns_422(client: ApiClient) -> None:
     response = client.post("/api/v1/search", json={"limit": 9999})
     assert response.status_code == 422  # noqa: PLR2004
+
+
+def test_search_does_not_leak_embedding(
+    client: ApiClient, storage: FileSystemStorage, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Search items hold the stored artifacts; the response model must strip embeddings."""
+    dim = 16
+    storage.create_artifact(
+        make_node(
+            name="embedded_fn",
+            source_code="def embedded_fn(): pass",
+            embedding=np.arange(dim, dtype=np.float32),
+        )
+    )
+
+    async def _fake_embed(
+        documents: list[str], input_type: str = "document"
+    ) -> np.ndarray:
+        return np.ones((len(documents), dim), dtype=np.float32)
+
+    monkeypatch.setattr(
+        "sim_atlas.file_system_storage.load_settings",
+        lambda: SimpleNamespace(embeddings_enabled=True),
+    )
+    monkeypatch.setattr("sim_atlas.file_system_storage.create_embedding", _fake_embed)
+
+    response = client.post("/api/v1/search", json={"query": "embedded_fn"})
+
+    assert response.status_code == 200  # noqa: PLR2004
+    assert response.json()["results"]["total_items"] == 1
+    assert "embedding" not in response.text
 
 
 # ---------------------------------------------------------------------------

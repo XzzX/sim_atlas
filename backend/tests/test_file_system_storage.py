@@ -21,6 +21,7 @@ from sim_atlas.models import (
     FunctionResponse,
     IOValue,
     Reference,
+    ScoredSearchResponse,
     WfDefinition,
     WfEdge,
     WfFunctionNode,
@@ -608,3 +609,105 @@ def test_corrupt_artifacts_file_raises_instead_of_emptying_storage(
         FileSystemStorage(path=tmp_path)
 
     assert artifacts_file.read_text() == "{ not json"
+
+
+# ---------------------------------------------------------------------------
+# Search results hold the stored artifacts, so serialisation must strip embeddings
+# ---------------------------------------------------------------------------
+
+
+def _search_all_methods(
+    storage: FileSystemStorage, query: str
+) -> dict[str, ScoredSearchResponse]:
+    return {
+        "search": storage.search(query),
+        "search_semantic": asyncio.run(storage.search_semantic(query)),
+        "search_hybrid": asyncio.run(storage.search_hybrid(query)),
+    }
+
+
+@pytest.mark.parametrize("method", ["search", "search_semantic", "search_hybrid"])
+def test_search_responses_never_serialize_embeddings(
+    method: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`ScoredSearchItem.node` is typed as the Response class, so embeddings are dropped."""
+    storage = FileSystemStorage(path=None)
+    storage.create_artifact(
+        make_node(
+            name="embedded_fn",
+            source_code="def embedded_fn(): pass",
+            embedding=np.arange(16, dtype=np.float32),
+        )
+    )
+    storage.create_artifact(
+        make_workflow(name="embedded_wf", embedding=np.arange(16, dtype=np.float32))
+    )
+
+    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=True))
+    monkeypatch.setattr(fss, "create_embedding", _embed_as([1.0] * 16))
+
+    response = _search_all_methods(storage, "embedded")[method]
+
+    assert response.results.total_items > 0
+    payload = response.model_dump_json()
+    assert "embedding" not in payload
+    assert "dtype" not in payload
+
+
+def test_search_semantic_populates_used_by_and_connections(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Parity with the keyword and hybrid paths (ADR-0018)."""
+    storage = FileSystemStorage(path=None)
+    fn = make_node(
+        name="child_fn",
+        source_code="def child_fn(): pass",
+        embedding=np.array([1.0, 0.0, 0.0], dtype=np.float32),
+    )
+    storage.create_artifact(fn)
+    wf = make_workflow(
+        name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
+    )
+    storage.create_artifact(wf)
+
+    monkeypatch.setattr(fss, "create_embedding", _embed_as([1.0, 0.0, 0.0]))
+
+    response = asyncio.run(storage.search_semantic("anything"))
+    node = next(
+        i.node
+        for i in response.results.data
+        if isinstance(i.node, FunctionResponse) and i.node.name == "child_fn"
+    )
+    assert node.used_by is not None
+    assert [ref.id for ref in node.used_by] == [wf.id]
+
+
+def test_search_semantic_does_not_return_stale_used_by(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Search results alias the stored artifacts, so derived fields must be refreshed."""
+    storage = FileSystemStorage(path=None)
+    fn = make_node(
+        name="child_fn",
+        source_code="def child_fn(): pass",
+        embedding=np.array([1.0, 0.0, 0.0], dtype=np.float32),
+    )
+    storage.create_artifact(fn)
+    wf = make_workflow(
+        name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
+    )
+    storage.create_artifact(wf)
+
+    # stamps used_by onto the stored artifact
+    storage.search("child_fn")
+    storage.delete_artifact(wf.id)
+
+    monkeypatch.setattr(fss, "create_embedding", _embed_as([1.0, 0.0, 0.0]))
+
+    response = asyncio.run(storage.search_semantic("anything"))
+    node = next(
+        i.node
+        for i in response.results.data
+        if isinstance(i.node, FunctionResponse) and i.node.name == "child_fn"
+    )
+    assert node.used_by is None

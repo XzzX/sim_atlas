@@ -41,6 +41,11 @@ jobs:
         run: npm run type-check
         working-directory: ./frontend
 
+      # Check for unused stuff (knip)
+      - name: Run knip
+        run: npm run knip -- --files --dependencies --cycles
+        working-directory: ./frontend
+
       # Run unit/component tests (Vitest)
       - name: Run tests
         run: npm test

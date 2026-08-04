@@ -489,19 +489,19 @@ class FileSystemStorage(StorageInterface):
         for _node_hash, node in self._artifacts.items():
             if node.embedding is not None and item_filter(node):
                 similarity = cosine_similarity(query_embedding, node.embedding)
-                similarities.append(
-                    ScoredSearchItem(
-                        score=similarity,
-                        node=FunctionResponse(**node.model_dump())
-                        if isinstance(node, FunctionMetadata)
-                        else WorkflowResponse(**node.model_dump()),
-                    )
-                )
+                similarities.append(ScoredSearchItem(score=similarity, node=node))
 
         # Sort by similarity (descending) and limit results
         similarities.sort(key=lambda x: x.score, reverse=True)
 
-        return self._paginate(similarities, page=page, limit=limit)
+        paginated_items = self._paginate(similarities, page=page, limit=limit)
+
+        for item in paginated_items.results.data:
+            if isinstance(item.node, FunctionMetadata):
+                item.node.used_by = self._used_by(item.node.id)
+                self._fill_connections(item.node)
+
+        return paginated_items
 
     async def search_hybrid(
         self,
@@ -568,9 +568,7 @@ class FileSystemStorage(StorageInterface):
             ScoredSearchItem(
                 score=(1 / (k + sem_rank[nid]) if nid in sem_rank else 0.0)
                 + (1 / (k + kw_rank[nid]) if nid in kw_rank else 0.0),
-                node=FunctionResponse(**node_lookup[nid].model_dump())
-                if isinstance(node_lookup[nid], FunctionMetadata)
-                else WorkflowResponse(**node_lookup[nid].model_dump()),
+                node=node_lookup[nid],
             )
             for nid in candidate_ids
         ]

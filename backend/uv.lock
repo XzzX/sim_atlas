@@ -2895,7 +2895,7 @@ wheels = [
 
 [[package]]
 name = "sim-atlas"
-version = "0.0.7"
+version = "0.0.8"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi", extra = ["standard"] },

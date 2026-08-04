@@ -32,6 +32,7 @@ from sim_atlas.models import (
     WorkflowRequest,
 )
 from sim_atlas.security import Creator, get_current_user
+from sim_atlas.static_files import is_asset_path
 
 from .test_storage_interface import make_node
 
@@ -693,3 +694,33 @@ def test_list_execution_results_by_artifact_returns_empty_for_unknown(
     response = client.get("/api/v1/artifacts/unknown-artifact/execution_results")
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == []
+
+
+# ---------------------------------------------------------------------------
+# SPA fallback
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("/favicon.ico", True),
+        ("/assets/index-abc123.js", True),
+        ("/background.svg", True),
+        ("/", False),
+        ("/node/" + "a" * 64, False),
+        ("/some/client/route", False),
+    ],
+)
+def test_is_asset_path(path: str, expected: bool) -> None:
+    assert is_asset_path(path) is expected
+
+
+def test_missing_asset_404s_instead_of_serving_the_app_shell(
+    client: ApiClient,
+) -> None:
+    """A missing asset must 404 honestly; answering 200 with index.html hides
+    broken asset paths and makes browsers re-request /favicon.ico endlessly."""
+    response = client.get("/favicon.ico")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert "text/html" not in response.headers.get("content-type", "")

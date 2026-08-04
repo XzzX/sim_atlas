@@ -14,6 +14,17 @@ async def _redirect_to_ide(request: Request) -> RedirectResponse:
     return RedirectResponse(url="/ide/?" + query if query else "/ide/")
 
 
+def is_asset_path(path: str) -> bool:
+    """Whether a path looks like a static asset rather than an SPA route.
+
+    Serving the app shell for a missing asset answers 200 with HTML, which hides
+    broken asset paths and makes browsers re-request undecodable responses such
+    as ``/favicon.ico`` on every page load instead of caching the miss. Client
+    routes are ``/`` and ``/node/<sha256 hex>``, so neither carries a dot.
+    """
+    return "." in path.rsplit("/", 1)[-1]
+
+
 async def _spa_fallback(
     request: Request, exc: StarletteHTTPException
 ) -> Response | FileResponse:
@@ -23,6 +34,7 @@ async def _spa_fallback(
         and not request.url.path.startswith("/api/")
         and not request.url.path.startswith("/ide")
         and not request.url.path.startswith("/mcp")
+        and not is_asset_path(request.url.path)
     )
     if is_frontend_route:
         return FileResponse(STATIC_DIR / "frontend" / "index.html")

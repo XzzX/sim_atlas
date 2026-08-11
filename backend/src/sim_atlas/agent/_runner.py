@@ -54,10 +54,10 @@ class LLMConfig(NamedTuple):
 def resolve_llm_config(request: AgentRequest) -> LLMConfig:
     """Resolve the LLM credentials to use for `request`.
 
-    Caller-supplied credentials win over the server configuration, so a user can
-    spend their own key and pick their own model. The base URL is deliberately
-    not caller-supplied: forwarding an arbitrary URL would turn this endpoint
-    into an SSRF vector.
+    A caller-supplied API key wins over the server configuration, so a user can
+    spend their own key. The base URL and model are deliberately not
+    caller-supplied: forwarding an arbitrary URL would turn this endpoint into an
+    SSRF vector, and the model is pinned to whatever the operator provisioned.
 
     Raises:
         AINotConfiguredError: When neither the request nor the server provides a
@@ -65,12 +65,13 @@ def resolve_llm_config(request: AgentRequest) -> LLMConfig:
     """
     settings = load_settings()
     api_key = request.llm_api_key or settings.llm_api_key
-    chat_model = request.llm_chat_model or settings.llm_chat_model
+    chat_model = settings.llm_chat_model
     base_url = settings.llm_base_url
     if not (api_key and base_url and chat_model):
         raise AINotConfiguredError(
-            "No LLM credentials available: supply llm_api_key and llm_chat_model "
-            "in the request, or configure them on the server"
+            "No LLM credentials available: the server must provide llm_base_url and "
+            "llm_chat_model, and an llm_api_key must come from either the request "
+            "or the server"
         )
     return LLMConfig(api_key=api_key, base_url=base_url, chat_model=chat_model)
 

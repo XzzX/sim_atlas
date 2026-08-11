@@ -50,52 +50,57 @@ Chosen option: **B — Server-side agent, client-supplied credentials**, because
 all deployment modes without duplicating the orchestration logic and without exposing secrets
 beyond what HTTPS already protects.
 
-The `AgentRequest` model gains **two** optional fields, which must be supplied together
-or not at all:
+The `AgentRequest` model gains **one** optional field — the API key:
 
 ```python
 class AgentRequest(BaseModel):
     query: str
     nodes: list[GraphNodeContext]
     edges: list[GraphEdgeContext]
-    llm_api_key: str | None = None      # overrides settings.llm_api_key
-    llm_chat_model: str | None = None   # overrides settings.llm_chat_model
+    llm_api_key: str | None = None   # overrides settings.llm_api_key
 ```
 
-A `model_validator` rejects a half-filled pair. Accepting only one half would silently
-mix the caller's value with the server's — for instance sending the operator's API key to
-a caller-chosen model.
+**Neither the base URL nor the model is client-supplied.** Both always come from
+`settings.llm_base_url` and `settings.llm_chat_model`.
 
-**The base URL is deliberately not client-supplied.** It always comes from
-`settings.llm_base_url`. Forwarding a caller-controlled URL would let anyone use this
-unauthenticated endpoint to probe the server's internal network (SSRF), and the mitigations
-available — an HTTPS-only rule, or an operator allowlist — both add configuration surface for
-a capability nobody has asked for yet. Accepting a caller URL behind an operator allowlist
-remains open as follow-up work; until then, users who want a local model configure
-`llm_base_url` on the server (which for a single-user local deployment they own anyway).
+For the base URL this is a security decision: forwarding a caller-controlled URL would let
+anyone use this unauthenticated endpoint to probe the server's internal network (SSRF), and
+the available mitigations — an HTTPS-only rule, or an operator allowlist — both add
+configuration surface for a capability nobody has asked for yet.
+
+For the model it is a scope decision: the operator provisions one model per deployment, and
+pinning it keeps the request contract to a single field. Since the model is fixed, the
+question of a half-filled credential pair — and the `model_validator` that would have guarded
+it — disappears.
+
+Accepting a caller-supplied URL behind an operator allowlist, and a caller-supplied model,
+both remain open as follow-up work. Until then, users who want a different provider or model
+configure it on the server (which for a single-user local deployment they own anyway).
 
 Note that the field named `llm_api_url` in earlier drafts of this ADR never existed; the
 setting is `llm_base_url`.
 
 Credential resolution lives in `resolve_llm_config()` in `agent/_runner.py`, which the route
 calls **before** the `StreamingResponse` starts — once the response headers are flushed, the
-`AINotConfiguredError` handler can no longer produce a 503. Caller values win over server
-values. Keys are never logged or stored.
+`AINotConfiguredError` handler can no longer produce a 503. A caller key wins over the server
+key; a caller key cannot substitute for a missing server-side base URL or model. Keys are
+never logged or stored.
 
 The `/agent/stream` route is registered unconditionally. It used to be created only when
 `settings.agent_enabled` was true at import time, which meant a server without an operator key
 had no endpoint for a bring-your-own-key user to call at all.
 
 `GET /capabilities` reports `agent_enabled` (the server alone can run the agent) alongside
-`llm_base_url` (non-null means bring-your-own-key is possible). The Web IDE always renders the
-agent panel and uses these two values to decide between the message composer and a
-"configure your LLM" call to action.
+`llm_base_url` and `llm_chat_model` (both non-null means bring-your-own-key is possible, and
+the dialog displays them read-only so the user knows which provider their key must be for).
+The Web IDE always renders the agent panel and uses these values to decide between the message
+composer and a "configure your LLM" call to action.
 
-In **private mode** neither field needs to be sent — the server configuration is used as-is
-and the settings dialog can be left untouched.
+In **private mode** the field need not be sent — the server configuration is used as-is and
+the settings dialog can be left untouched.
 
-In **public mode** the frontend presents a settings dialog where users enter their key and
-model once; the values are stored in `localStorage` and attached to every agent request.
+In **public mode** the frontend presents a settings dialog where users enter their key once;
+it is stored in `localStorage` and attached to every agent request.
 
 Multi-turn conversation is handled by retaining the `messages` list in the frontend between
 turns and including it in subsequent `AgentRequest` payloads (see ADR-0016).
@@ -106,14 +111,14 @@ turns and including it in subsequent `AgentRequest` payloads (see ADR-0016).
   with no code branching.
 * Good, because credentials travel only over HTTPS and are discarded after each request —
   the server never becomes a credential store.
-* Good, because the MCP interface continues to work: MCP callers supply their own credentials
-  in the request body just as the browser does.
-* Good, because local-model users supply their own `llm_api_url` (e.g.
-  `http://localhost:11434/v1`) without any server reconfiguration.
+* Good, because the MCP interface continues to work: MCP callers supply their own key in the
+  request body just as the browser does.
 * Good, because direct storage access inside the tool-calling loop is preserved — no
   extra HTTP round-trips per tool call.
 * Good, because keeping the base URL server-side means the endpoint cannot be turned into an
-  SSRF vector, at the cost of users not being able to point at their own provider.
+  SSRF vector.
+* Neutral, because pinning the model server-side keeps the request contract to one field, at
+  the cost of users not being able to choose a model.
 * Neutral, because the frontend must collect and manage per-user credentials; this adds a
   small settings UI to the Web IDE.
 * Bad, because credentials appear in the HTTP request body and therefore in access logs
@@ -143,8 +148,8 @@ turns and including it in subsequent `AgentRequest` payloads (see ADR-0016).
   backend unchanged.
 * Neutral, because per-user credential handling adds a small settings UI.
 * Bad, because credentials must be sanitised from access logs in public deployments.
-* Bad, because pointing at a different provider (e.g. a local Ollama) still requires server
-  access, since the base URL is not client-supplied.
+* Bad, because choosing a different provider (e.g. a local Ollama) or a different model still
+  requires server access, since neither is client-supplied.
 
 ### C — Client-side agent
 

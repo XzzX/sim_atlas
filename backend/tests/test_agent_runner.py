@@ -5,7 +5,6 @@ import importlib
 from typing import Any, cast
 
 import pytest
-from pydantic import ValidationError
 
 from sim_atlas.agent._runner import resolve_llm_config, run_agent_stream
 from sim_atlas.exceptions import AINotConfiguredError
@@ -101,37 +100,34 @@ def test_run_agent_stream_records_tracing_without_changing_sse(
 # --- credential resolution ---
 
 
-class _NoLLMSettings(_FakeSettings):
+class _NoKeySettings(_FakeSettings):
     llm_api_key = None
-    llm_chat_model = None
 
 
 class _NoBaseUrlSettings(_FakeSettings):
     llm_base_url = None
 
 
-def test_resolve_llm_config_prefers_request_credentials(
+class _NoModelSettings(_FakeSettings):
+    llm_chat_model = None
+
+
+def test_resolve_llm_config_prefers_the_request_api_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
 
     llm = resolve_llm_config(
-        AgentRequest(
-            query="Hello",
-            nodes=[],
-            edges=[],
-            llm_api_key="user-key",
-            llm_chat_model="user-model",
-        )
+        AgentRequest(query="Hello", nodes=[], edges=[], llm_api_key="user-key")
     )
 
     assert llm.api_key == "user-key"
-    assert llm.chat_model == "user-model"
-    # The base URL is never caller-supplied.
+    # Neither the base URL nor the model is caller-supplied.
     assert llm.base_url == "http://localhost"
+    assert llm.chat_model == "test-model"
 
 
-def test_resolve_llm_config_falls_back_to_server_credentials(
+def test_resolve_llm_config_falls_back_to_the_server_api_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
@@ -141,62 +137,35 @@ def test_resolve_llm_config_falls_back_to_server_credentials(
     assert llm == ("test-key", "http://localhost", "test-model")
 
 
-def test_resolve_llm_config_uses_request_credentials_without_server_config(
+def test_resolve_llm_config_uses_the_request_key_without_a_server_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(runner_module, "load_settings", _NoLLMSettings)
+    monkeypatch.setattr(runner_module, "load_settings", _NoKeySettings)
 
     llm = resolve_llm_config(
-        AgentRequest(
-            query="Hello",
-            nodes=[],
-            edges=[],
-            llm_api_key="user-key",
-            llm_chat_model="user-model",
-        )
+        AgentRequest(query="Hello", nodes=[], edges=[], llm_api_key="user-key")
     )
 
-    assert llm == ("user-key", "http://localhost", "user-model")
+    assert llm == ("user-key", "http://localhost", "test-model")
 
 
-def test_resolve_llm_config_raises_without_any_credentials(
+def test_resolve_llm_config_raises_without_any_api_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(runner_module, "load_settings", _NoLLMSettings)
+    monkeypatch.setattr(runner_module, "load_settings", _NoKeySettings)
 
     with pytest.raises(AINotConfiguredError):
         resolve_llm_config(AgentRequest(query="Hello", nodes=[], edges=[]))
 
 
-def test_resolve_llm_config_raises_without_base_url(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("settings_cls", [_NoBaseUrlSettings, _NoModelSettings])
+def test_resolve_llm_config_raises_when_the_server_is_incomplete(
+    settings_cls: type[_FakeSettings], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(runner_module, "load_settings", _NoBaseUrlSettings)
+    """A caller-supplied key cannot substitute for a missing base URL or model."""
+    monkeypatch.setattr(runner_module, "load_settings", settings_cls)
 
     with pytest.raises(AINotConfiguredError):
         resolve_llm_config(
-            AgentRequest(
-                query="Hello",
-                nodes=[],
-                edges=[],
-                llm_api_key="user-key",
-                llm_chat_model="user-model",
-            )
-        )
-
-
-@pytest.mark.parametrize(
-    ("api_key", "chat_model"),
-    [("user-key", None), (None, "user-model")],
-)
-def test_agent_request_rejects_half_filled_credentials(
-    api_key: str | None, chat_model: str | None
-) -> None:
-    with pytest.raises(ValidationError):
-        AgentRequest(
-            query="Hello",
-            nodes=[],
-            edges=[],
-            llm_api_key=api_key,
-            llm_chat_model=chat_model,
+            AgentRequest(query="Hello", nodes=[], edges=[], llm_api_key="user-key")
         )

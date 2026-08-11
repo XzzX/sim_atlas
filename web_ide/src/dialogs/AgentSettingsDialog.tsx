@@ -12,6 +12,8 @@ interface AgentSettingsDialogProps {
   onClose: () => void;
   /** Provider URL fixed by the server; null when none is configured. */
   baseUrl: string | null;
+  /** Model fixed by the server; null when none is configured. */
+  chatModel: string | null;
   settings: AgentSettings | null;
   onSave: (settings: AgentSettings) => void;
   onClear: () => void;
@@ -23,12 +25,12 @@ const INPUT_CLASS =
 export const AgentSettingsDialog: React.FC<AgentSettingsDialogProps> = ({
   onClose,
   baseUrl,
+  chatModel,
   settings,
   onSave,
   onClear,
 }) => {
   const [apiKey, setApiKey] = useState(settings?.llm_api_key ?? "");
-  const [model, setModel] = useState(settings?.llm_chat_model ?? "");
 
   // Escape key
   useEffect(() => {
@@ -43,17 +45,18 @@ export const AgentSettingsDialog: React.FC<AgentSettingsDialogProps> = ({
   }, [onClose]);
 
   const handleSave = useCallback(() => {
-    onSave({ llm_api_key: apiKey.trim(), llm_chat_model: model.trim() });
+    onSave({ llm_api_key: apiKey.trim() });
     onClose();
-  }, [apiKey, model, onSave, onClose]);
+  }, [apiKey, onSave, onClose]);
 
   const handleClear = useCallback(() => {
     onClear();
     onClose();
   }, [onClear, onClose]);
 
-  // Both fields must travel together — the backend rejects a half-filled pair.
-  const canSave = apiKey.trim() !== "" && model.trim() !== "";
+  // The server must have a provider and model for a user key to be usable.
+  const serverReady = baseUrl != null && chatModel != null;
+  const canSave = apiKey.trim() !== "";
 
   return (
     <div
@@ -67,16 +70,17 @@ export const AgentSettingsDialog: React.FC<AgentSettingsDialogProps> = ({
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">Agent settings</h2>
           <p className="text-xs text-muted-foreground">
-            Use your own LLM credentials for this browser. They are sent with
-            each agent request and never stored on the server.
+            Use your own API key for this browser. It is sent with each agent
+            request and never stored on the server.
           </p>
         </div>
 
-        {baseUrl == null ? (
+        {!serverReady ? (
           <p className="text-sm text-muted-foreground">
             This server has no LLM provider configured, so your own key cannot
             be used. Ask the administrator to set{" "}
-            <code className="text-xs">llm_base_url</code>.
+            <code className="text-xs">llm_base_url</code> and{" "}
+            <code className="text-xs">llm_chat_model</code>.
           </p>
         ) : (
           <>
@@ -85,8 +89,13 @@ export const AgentSettingsDialog: React.FC<AgentSettingsDialogProps> = ({
                 Provider
               </span>
               <p className="text-sm break-all">{baseUrl}</p>
+              <span className="text-xs font-medium text-muted-foreground">
+                Model
+              </span>
+              <p className="text-sm break-all">{chatModel}</p>
               <p className="text-xs text-muted-foreground">
-                Set by the server — your key must be valid for this provider.
+                Both are set by the server — your key must be valid for this
+                provider.
               </p>
             </div>
 
@@ -107,24 +116,6 @@ export const AgentSettingsDialog: React.FC<AgentSettingsDialogProps> = ({
                 autoFocus
               />
             </div>
-
-            <div className="space-y-1">
-              <label
-                htmlFor="agent-model"
-                className="text-xs font-medium text-muted-foreground"
-              >
-                Model
-              </label>
-              <input
-                id="agent-model"
-                type="text"
-                autoComplete="off"
-                placeholder="e.g. qwen3.5-27b"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className={INPUT_CLASS}
-              />
-            </div>
           </>
         )}
 
@@ -137,7 +128,7 @@ export const AgentSettingsDialog: React.FC<AgentSettingsDialogProps> = ({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          {baseUrl != null && (
+          {serverReady && (
             <Button onClick={handleSave} disabled={!canSave}>
               Save
             </Button>

@@ -20,9 +20,10 @@ async def get_capabilities() -> dict[str, bool | str | None]:
     settings = load_settings()
     return {
         # True when the server alone can run the agent, i.e. the caller needs to
-        # supply nothing. A non-null llm_base_url means callers can bring their
-        # own key and model even when this is False.
+        # supply nothing. When it is False but both llm_base_url and
+        # llm_chat_model are set, callers can still bring their own API key.
         "agent_enabled": settings.agent_enabled,
         "embeddings_enabled": settings.embeddings_enabled,
         "llm_base_url": settings.llm_base_url,
+        "llm_chat_model": settings.llm_chat_model,
     }

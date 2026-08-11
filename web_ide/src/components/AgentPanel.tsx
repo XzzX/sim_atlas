@@ -406,6 +406,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
           agent_enabled: false,
           embeddings_enabled: false,
           llm_base_url: null,
+          llm_chat_model: null,
         });
       });
   }, []);
@@ -585,8 +586,11 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     }
   };
 
-  // Either the server carries its own credentials, or the user supplied theirs.
+  // Either the server carries its own key, or the user supplied one.
   const canRun = capabilities?.agent_enabled === true || settings !== null;
+  // A user key is only usable if the server pinned a provider and a model.
+  const canConfigure =
+    capabilities?.llm_base_url != null && capabilities.llm_chat_model != null;
 
   return (
     <div className="flex flex-col h-full bg-background border-l border-border">
@@ -929,11 +933,11 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
           <p className="text-xs text-muted-foreground">
             {capabilities === null
               ? "Checking agent availability…"
-              : capabilities.llm_base_url == null
-                ? "This server has no LLM provider configured, so the agent cannot run."
-                : "Add your LLM API key and model to use the agent."}
+              : canConfigure
+                ? "Add your LLM API key to use the agent."
+                : "This server has no LLM provider configured, so the agent cannot run."}
           </p>
-          {capabilities?.llm_base_url != null && (
+          {canConfigure && (
             <Button
               size="sm"
               variant="outline"
@@ -954,6 +958,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             setIsSettingsOpen(false);
           }}
           baseUrl={capabilities?.llm_base_url ?? null}
+          chatModel={capabilities?.llm_chat_model ?? null}
           settings={settings}
           onSave={(next) => {
             saveAgentSettings(next);

@@ -5,13 +5,12 @@ const STORAGE_KEY = "simflow.agentSettings";
 /**
  * Per-user LLM credentials for the agent.
  *
- * The backend requires both fields together, so they are always read and
- * written as a pair. The provider base URL is not included: it is fixed by the
- * server and reported via `/capabilities`.
+ * Only the API key is user-supplied; the provider base URL and the model are
+ * fixed by the server and reported via `/capabilities`. Extra keys left over
+ * from an earlier version of this shape are dropped on read.
  */
 export const AgentSettingsSchema = z.object({
   llm_api_key: z.string().min(1),
-  llm_chat_model: z.string().min(1),
 });
 export type AgentSettings = z.infer<typeof AgentSettingsSchema>;
 

@@ -1,7 +1,7 @@
 import base64
 import gzip
 from enum import StrEnum
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal
 
 import numpy as np
 from pydantic import (
@@ -12,7 +12,6 @@ from pydantic import (
     Field,
     PlainSerializer,
     Tag,
-    model_validator,
 )
 
 
@@ -356,21 +355,9 @@ class AgentRequest(BaseModel):
     history: list[HistoryMessage] = []
     session_id: str | None = None
     user_id: str = "default"
-    # Caller-supplied LLM credentials; they override the server configuration for
-    # this request only and are never stored. The base URL stays server-side.
+    # Caller-supplied API key; overrides the server configuration for this request
+    # only and is never stored. The base URL and model stay server-side.
     llm_api_key: str | None = None
-    llm_chat_model: str | None = None
-
-    @model_validator(mode="after")
-    def _credentials_paired(self) -> Self:
-        """Reject a half-filled credential pair.
-
-        Accepting only one of the two would silently mix the caller's value with
-        the server's, e.g. sending the server's API key to a caller-chosen model.
-        """
-        if bool(self.llm_api_key) != bool(self.llm_chat_model):
-            raise ValueError("llm_api_key and llm_chat_model must be supplied together")
-        return self
 
 
 class AgentResponse(BaseModel):

@@ -175,19 +175,23 @@ def test_agent_stream_without_any_credentials_returns_503(
     assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
 
-@pytest.mark.parametrize(
-    "credentials",
-    [{"llm_api_key": "user-key"}, {"llm_chat_model": "user-model"}],
-)
-def test_agent_stream_rejects_half_filled_credentials(
-    client: ApiClient, credentials: dict[str, str]
+def test_agent_stream_with_a_key_but_no_server_provider_returns_503(
+    client: ApiClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """A caller's key cannot substitute for the server-side base URL and model."""
+    monkeypatch.setattr("sim_atlas.agent._runner.load_settings", _NoLLMSettings)
+
     response = client.post(
         "/api/v1/agent/stream",
-        json={"query": "hi", "nodes": [], "edges": [], **credentials},
+        json={
+            "query": "hi",
+            "nodes": [],
+            "edges": [],
+            "llm_api_key": "user-key",
+        },
     )
 
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
 
 # ---------------------------------------------------------------------------

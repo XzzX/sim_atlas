@@ -280,6 +280,8 @@ export const AgentRequestSchema = z.object({
     .optional(),
   session_id: z.string().optional(),
   user_id: z.string().optional(),
+  // Caller-supplied API key; the provider URL and model are fixed server-side.
+  llm_api_key: z.string().optional(),
 });
 export type AgentRequest = z.infer<typeof AgentRequestSchema>;
 
@@ -319,8 +321,12 @@ export const AgentSSEEventSchema = z.discriminatedUnion("type", [
 ]);
 
 export const CapabilitiesResponseSchema = z.object({
+  // True when the server alone can run the agent. When it is false but both
+  // llm_base_url and llm_chat_model are set, the user can still supply a key.
   agent_enabled: z.boolean(),
   embeddings_enabled: z.boolean(),
+  llm_base_url: z.string().nullish(),
+  llm_chat_model: z.string().nullish(),
 });
 export type CapabilitiesResponse = z.infer<typeof CapabilitiesResponseSchema>;
 export type AgentSSEEvent = z.infer<typeof AgentSSEEventSchema>;

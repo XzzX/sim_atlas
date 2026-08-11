@@ -6,7 +6,8 @@ from typing import Any, cast
 
 import pytest
 
-from sim_atlas.agent._runner import run_agent_stream
+from sim_atlas.agent._runner import resolve_llm_config, run_agent_stream
+from sim_atlas.exceptions import AINotConfiguredError
 from sim_atlas.models import AgentRequest
 from sim_atlas.storage_interface import StorageInterface
 
@@ -86,6 +87,7 @@ def test_run_agent_stream_records_tracing_without_changing_sse(
             async for chunk in run_agent_stream(
                 request,
                 cast(StorageInterface, _FakeStorage()),
+                resolve_llm_config(request),
             )
         ]
 
@@ -93,3 +95,77 @@ def test_run_agent_stream_records_tracing_without_changing_sse(
 
     assert any('"type":"message"' in chunk for chunk in chunks)
     assert any('"type":"graph_update"' in chunk for chunk in chunks)
+
+
+# --- credential resolution ---
+
+
+class _NoKeySettings(_FakeSettings):
+    llm_api_key = None
+
+
+class _NoBaseUrlSettings(_FakeSettings):
+    llm_base_url = None
+
+
+class _NoModelSettings(_FakeSettings):
+    llm_chat_model = None
+
+
+def test_resolve_llm_config_prefers_the_request_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
+
+    llm = resolve_llm_config(
+        AgentRequest(query="Hello", nodes=[], edges=[], llm_api_key="user-key")
+    )
+
+    assert llm.api_key == "user-key"
+    # Neither the base URL nor the model is caller-supplied.
+    assert llm.base_url == "http://localhost"
+    assert llm.chat_model == "test-model"
+
+
+def test_resolve_llm_config_falls_back_to_the_server_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
+
+    llm = resolve_llm_config(AgentRequest(query="Hello", nodes=[], edges=[]))
+
+    assert llm == ("test-key", "http://localhost", "test-model")
+
+
+def test_resolve_llm_config_uses_the_request_key_without_a_server_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runner_module, "load_settings", _NoKeySettings)
+
+    llm = resolve_llm_config(
+        AgentRequest(query="Hello", nodes=[], edges=[], llm_api_key="user-key")
+    )
+
+    assert llm == ("user-key", "http://localhost", "test-model")
+
+
+def test_resolve_llm_config_raises_without_any_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runner_module, "load_settings", _NoKeySettings)
+
+    with pytest.raises(AINotConfiguredError):
+        resolve_llm_config(AgentRequest(query="Hello", nodes=[], edges=[]))
+
+
+@pytest.mark.parametrize("settings_cls", [_NoBaseUrlSettings, _NoModelSettings])
+def test_resolve_llm_config_raises_when_the_server_is_incomplete(
+    settings_cls: type[_FakeSettings], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A caller-supplied key cannot substitute for a missing base URL or model."""
+    monkeypatch.setattr(runner_module, "load_settings", settings_cls)
+
+    with pytest.raises(AINotConfiguredError):
+        resolve_llm_config(
+            AgentRequest(query="Hello", nodes=[], edges=[], llm_api_key="user-key")
+        )

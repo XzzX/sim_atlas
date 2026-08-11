@@ -2,7 +2,7 @@ import json
 import logging
 import uuid
 from collections.abc import AsyncGenerator
-from typing import Any, cast
+from typing import Any, NamedTuple, cast
 
 from openai.types.chat import (
     ChatCompletionMessageParam,
@@ -34,12 +34,46 @@ from sim_atlas.agent.tools import (
     execute_tool,
     validate_graph,
 )
+from sim_atlas.exceptions import AINotConfiguredError
 from sim_atlas.models import AgentRequest
 from sim_atlas.settings import load_settings
 from sim_atlas.storage_interface import StorageInterface
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+
+class LLMConfig(NamedTuple):
+    """Fully resolved LLM connection details for a single agent run."""
+
+    api_key: str
+    base_url: str
+    chat_model: str
+
+
+def resolve_llm_config(request: AgentRequest) -> LLMConfig:
+    """Resolve the LLM credentials to use for `request`.
+
+    A caller-supplied API key wins over the server configuration, so a user can
+    spend their own key. The base URL and model are deliberately not
+    caller-supplied: forwarding an arbitrary URL would turn this endpoint into an
+    SSRF vector, and the model is pinned to whatever the operator provisioned.
+
+    Raises:
+        AINotConfiguredError: When neither the request nor the server provides a
+            complete set of credentials.
+    """
+    settings = load_settings()
+    api_key = request.llm_api_key or settings.llm_api_key
+    chat_model = settings.llm_chat_model
+    base_url = settings.llm_base_url
+    if not (api_key and base_url and chat_model):
+        raise AINotConfiguredError(
+            "No LLM credentials available: the server must provide llm_base_url and "
+            "llm_chat_model, and an llm_api_key must come from either the request "
+            "or the server"
+        )
+    return LLMConfig(api_key=api_key, base_url=base_url, chat_model=chat_model)
 
 
 def _graph_update_event(scratch: ScratchGraph) -> GraphUpdateEvent:
@@ -52,17 +86,17 @@ def _graph_update_event(scratch: ScratchGraph) -> GraphUpdateEvent:
 async def run_agent_stream(
     request: AgentRequest,
     storage: StorageInterface,
+    llm: LLMConfig,
 ) -> AsyncGenerator[str, None]:
     """Async generator that streams SSE events while running the agent loop."""
     settings = load_settings()
-    assert settings.llm_api_key and settings.llm_base_url and settings.llm_chat_model
     lf = Langfuse(
         public_key=settings.langfuse_public_key,
         secret_key=settings.langfuse_secret_key,
         host=settings.langfuse_host,
         environment=settings.langfuse_environment,
     )
-    client = AsyncOpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url)
+    client = AsyncOpenAI(api_key=llm.api_key, base_url=llm.base_url)
     scratch = ScratchGraph(request.nodes, request.edges)
 
     history_messages: list[ChatCompletionMessageParam] = [
@@ -94,7 +128,7 @@ async def run_agent_stream(
             # or falls through (no break) when the turn limit is reached.
             for _ in range(max_turns):
                 response = await client.chat.completions.create(
-                    model=settings.llm_chat_model,
+                    model=llm.chat_model,
                     messages=messages,
                     tools=TOOLS,
                     tool_choice="auto",
@@ -196,7 +230,7 @@ async def run_agent_stream(
                 )
 
                 summary_response = await client.chat.completions.create(
-                    model=settings.llm_chat_model,
+                    model=llm.chat_model,
                     messages=messages,
                     tool_choice="none",
                 )

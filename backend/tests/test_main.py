@@ -149,6 +149,52 @@ def test_me_unauthenticated_returns_401(unauthed_client: ApiClient) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Agent endpoint
+# ---------------------------------------------------------------------------
+
+
+class _NoLLMSettings:
+    """Settings stand-in for a server without any LLM configuration."""
+
+    llm_api_key = None
+    llm_base_url = None
+    llm_chat_model = None
+
+
+def test_agent_stream_without_any_credentials_returns_503(
+    client: ApiClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The route is always registered, so an unconfigured server must say 503."""
+    monkeypatch.setattr("sim_atlas.agent._runner.load_settings", _NoLLMSettings)
+
+    response = client.post(
+        "/api/v1/agent/stream",
+        json={"query": "build me a workflow", "nodes": [], "edges": []},
+    )
+
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+
+def test_agent_stream_with_a_key_but_no_server_provider_returns_503(
+    client: ApiClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A caller's key cannot substitute for the server-side base URL and model."""
+    monkeypatch.setattr("sim_atlas.agent._runner.load_settings", _NoLLMSettings)
+
+    response = client.post(
+        "/api/v1/agent/stream",
+        json={
+            "query": "hi",
+            "nodes": [],
+            "edges": [],
+            "llm_api_key": "user-key",
+        },
+    )
+
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+
+# ---------------------------------------------------------------------------
 # Artifact CRUD — create
 # ---------------------------------------------------------------------------
 

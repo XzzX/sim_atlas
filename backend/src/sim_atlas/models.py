@@ -355,6 +355,9 @@ class AgentRequest(BaseModel):
     history: list[HistoryMessage] = []
     session_id: str | None = None
     user_id: str = "default"
+    # Caller-supplied API key; overrides the server configuration for this request
+    # only and is never stored. The base URL and model stay server-side.
+    llm_api_key: str | None = None
 
 
 class AgentResponse(BaseModel):

@@ -1,5 +1,5 @@
 ---
-status: draft
+status: accepted
 date: 2026-04-27
 deciders: Sebastian Eibl
 scope: cross-cutting
@@ -50,31 +50,60 @@ Chosen option: **B — Server-side agent, client-supplied credentials**, because
 all deployment modes without duplicating the orchestration logic and without exposing secrets
 beyond what HTTPS already protects.
 
-The `AgentRequest` model gains three optional fields:
+The `AgentRequest` model gains **one** optional field — the API key:
 
 ```python
 class AgentRequest(BaseModel):
     query: str
     nodes: list[GraphNodeContext]
     edges: list[GraphEdgeContext]
-    llm_api_key: str | None = None   # falls back to settings.llm_api_key if absent
-    llm_api_url: str | None = None   # falls back to settings.llm_api_url if absent
-    llm_chat_model: str | None = None  # falls back to settings.llm_chat_model if absent
+    llm_api_key: str | None = None   # overrides settings.llm_api_key
 ```
 
-The runner constructs the `AsyncOpenAI` client from the request fields, falling back to
-server-configured values when they are absent. Keys are never logged or stored.
+**Neither the base URL nor the model is client-supplied.** Both always come from
+`settings.llm_base_url` and `settings.llm_chat_model`.
 
-In **private mode** none of the fields need to be sent — the server env vars take precedence
-and the UI can hide the credentials panel entirely.
+For the base URL this is a security decision: forwarding a caller-controlled URL would let
+anyone use this unauthenticated endpoint to probe the server's internal network (SSRF), and
+the available mitigations — an HTTPS-only rule, or an operator allowlist — both add
+configuration surface for a capability nobody has asked for yet.
 
-In **public mode** the frontend presents a settings panel where users enter their credentials
-once; the values are stored in `localStorage` and attached to every agent request. Users who
-prefer a local model supply an Ollama (or equivalent) URL instead of an API key.
+For the model it is a scope decision: the operator provisions one model per deployment, and
+pinning it keeps the request contract to a single field. Since the model is fixed, the
+question of a half-filled credential pair — and the `model_validator` that would have guarded
+it — disappears.
+
+Accepting a caller-supplied URL behind an operator allowlist, and a caller-supplied model,
+both remain open as follow-up work. Until then, users who want a different provider or model
+configure it on the server (which for a single-user local deployment they own anyway).
+
+Note that the field named `llm_api_url` in earlier drafts of this ADR never existed; the
+setting is `llm_base_url`.
+
+Credential resolution lives in `resolve_llm_config()` in `agent/_runner.py`, which the route
+calls **before** the `StreamingResponse` starts — once the response headers are flushed, the
+`AINotConfiguredError` handler can no longer produce a 503. A caller key wins over the server
+key; a caller key cannot substitute for a missing server-side base URL or model. Keys are
+never logged or stored.
+
+The `/agent/stream` route is registered unconditionally. It used to be created only when
+`settings.agent_enabled` was true at import time, which meant a server without an operator key
+had no endpoint for a bring-your-own-key user to call at all.
+
+`GET /capabilities` reports `agent_enabled` (the server alone can run the agent) alongside
+`llm_base_url` and `llm_chat_model` (both non-null means bring-your-own-key is possible, and
+the dialog displays them read-only so the user knows which provider their key must be for).
+The Web IDE always renders the agent panel and uses these values to decide between the message
+composer and a "configure your LLM" call to action.
+
+In **private mode** the field need not be sent — the server configuration is used as-is and
+the settings dialog can be left untouched.
+
+In **public mode** the frontend presents a settings dialog where users enter their key once;
+it is stored in `localStorage` and attached to every agent request.
 
 Multi-turn conversation is handled by retaining the `messages` list in the frontend between
-turns and including it in subsequent `AgentRequest` payloads (a `history` field to be added
-in a follow-up ADR).
+turns and including it in subsequent `AgentRequest` payloads (see ADR-0016).
 
 ### Consequences
 
@@ -82,18 +111,22 @@ in a follow-up ADR).
   with no code branching.
 * Good, because credentials travel only over HTTPS and are discarded after each request —
   the server never becomes a credential store.
-* Good, because the MCP interface continues to work: MCP callers supply their own credentials
-  in the request body just as the browser does.
-* Good, because local-model users supply their own `llm_api_url` (e.g.
-  `http://localhost:11434/v1`) without any server reconfiguration.
+* Good, because the MCP interface continues to work: MCP callers supply their own key in the
+  request body just as the browser does.
 * Good, because direct storage access inside the tool-calling loop is preserved — no
   extra HTTP round-trips per tool call.
+* Good, because keeping the base URL server-side means the endpoint cannot be turned into an
+  SSRF vector.
+* Neutral, because pinning the model server-side keeps the request contract to one field, at
+  the cost of users not being able to choose a model.
 * Neutral, because the frontend must collect and manage per-user credentials; this adds a
   small settings UI to the Web IDE.
-* Neutral, because `llm_api_url` is a user-supplied URL; the backend should validate it
-  against an allowlist or restrict to HTTPS in public deployments to mitigate SSRF risk.
 * Bad, because credentials appear in the HTTP request body and therefore in access logs
-  unless log sanitisation is applied.
+  unless log sanitisation is applied — an operator responsibility in public deployments.
+* Bad, because a key held in `localStorage` is readable by any XSS on the origin. Accepted:
+  the key is transmitted to the backend on every request regardless, so `localStorage` widens
+  the exposure window rather than creating a new class of exposure, and the alternative
+  (re-entry on every page load) was judged not worth the friction.
 
 ## Pros and Cons of the Options
 
@@ -113,10 +146,10 @@ in a follow-up ADR).
 * Good, because each user is responsible for their own LLM costs and credentials.
 * Good, because the orchestration logic, storage access, and MCP surface remain in the
   backend unchanged.
-* Good, because local-model users only need to configure a URL in the UI — no server
-  access required.
 * Neutral, because per-user credential handling adds a small settings UI.
 * Bad, because credentials must be sanitised from access logs in public deployments.
+* Bad, because choosing a different provider (e.g. a local Ollama) or a different model still
+  requires server access, since neither is client-supplied.
 
 ### C — Client-side agent
 

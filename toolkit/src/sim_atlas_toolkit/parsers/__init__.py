@@ -12,6 +12,13 @@ except ImportError as exc:
     logger.debug("flowrep parser unavailable: %s", exc)
 
 try:
+    from sim_atlas_toolkit.parsers import pyiron_workflow
+
+    register_parser(pyiron_workflow.parse)
+except ImportError as exc:
+    logger.debug("pyiron_workflow parser unavailable: %s", exc)
+
+try:
     from sim_atlas_toolkit.parsers import dataclass_node
 
     register_parser(dataclass_node.parse)

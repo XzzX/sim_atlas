@@ -20,13 +20,22 @@ import {
   ShieldAlert,
   Trash2,
   SendHorizontal,
+  Settings,
   Loader2,
   Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { simAtlasAPI } from "../services/api";
+import { AgentSettingsDialog } from "../dialogs/AgentSettingsDialog";
+import {
+  clearAgentSettings,
+  loadAgentSettings,
+  saveAgentSettings,
+  type AgentSettings,
+} from "../lib/agentSettings";
 import type {
   AgentSSEEvent,
+  CapabilitiesResponse,
   GraphEdgeContext,
   GraphNodeContext,
   FunctionResponse,
@@ -337,6 +346,13 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   const [isRunning, setIsRunning] = useState(false);
   const [inputText, setInputText] = useState("");
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
+  const [capabilities, setCapabilities] = useState<CapabilitiesResponse | null>(
+    null,
+  );
+  const [settings, setSettings] = useState<AgentSettings | null>(
+    loadAgentSettings,
+  );
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const finalMessageRef = useRef<string>("");
   const graphGenRef = useRef(0);
@@ -381,6 +397,19 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     }
   }, [messages]);
 
+  useEffect(() => {
+    simAtlasAPI
+      .getCapabilities()
+      .then(setCapabilities)
+      .catch(() => {
+        setCapabilities({
+          agent_enabled: false,
+          embeddings_enabled: false,
+          llm_base_url: null,
+        });
+      });
+  }, []);
+
   const sendQuery = useCallback(
     async (query: string) => {
       if (!query || isRunning) return;
@@ -410,6 +439,8 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         history,
         session_id: sessionId,
         user_id: "default",
+        // Omitted entirely when unset, so the server falls back to its own config.
+        ...(settings ?? {}),
       };
 
       const updateAssistant = (
@@ -536,6 +567,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       edges,
       history,
       sessionId,
+      settings,
       setNodes,
       setEdges,
       layoutRef,
@@ -553,6 +585,9 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     }
   };
 
+  // Either the server carries its own credentials, or the user supplied theirs.
+  const canRun = capabilities?.agent_enabled === true || settings !== null;
+
   return (
     <div className="flex flex-col h-full bg-background border-l border-border">
       {/* Header */}
@@ -569,6 +604,18 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
           title="New conversation"
         >
           <RotateCcw className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="w-7 h-7"
+          onClick={() => {
+            setIsSettingsOpen(true);
+          }}
+          aria-label="Agent settings"
+          title="Agent settings"
+        >
+          <Settings className="w-3.5 h-3.5" />
         </Button>
       </div>
 
@@ -850,32 +897,74 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         ))}
       </div>
 
-      {/* Input */}
-      <div className="border-t border-border p-3 flex gap-2 shrink-0">
-        <textarea
-          className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-          rows={2}
-          placeholder="Describe a workflow…"
-          value={inputText}
-          onChange={(e) => {
-            setInputText(e.target.value);
-          }}
-          onKeyDown={handleKeyDown}
-          disabled={isRunning}
-        />
-        <Button
-          size="icon"
-          onClick={handleSend}
-          disabled={isRunning || !inputText.trim()}
-          aria-label="Send"
-        >
-          {isRunning ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <SendHorizontal className="w-4 h-4" />
+      {/* Input — replaced by a call to action while no credentials are available */}
+      {canRun ? (
+        <div className="border-t border-border p-3 flex gap-2 shrink-0">
+          <textarea
+            className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+            rows={2}
+            placeholder="Describe a workflow…"
+            value={inputText}
+            onChange={(e) => {
+              setInputText(e.target.value);
+            }}
+            onKeyDown={handleKeyDown}
+            disabled={isRunning}
+          />
+          <Button
+            size="icon"
+            onClick={handleSend}
+            disabled={isRunning || !inputText.trim()}
+            aria-label="Send"
+          >
+            {isRunning ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <SendHorizontal className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+      ) : (
+        <div className="border-t border-border p-3 space-y-2 shrink-0">
+          <p className="text-xs text-muted-foreground">
+            {capabilities === null
+              ? "Checking agent availability…"
+              : capabilities.llm_base_url == null
+                ? "This server has no LLM provider configured, so the agent cannot run."
+                : "Add your LLM API key and model to use the agent."}
+          </p>
+          {capabilities?.llm_base_url != null && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={() => {
+                setIsSettingsOpen(true);
+              }}
+            >
+              Configure
+            </Button>
           )}
-        </Button>
-      </div>
+        </div>
+      )}
+
+      {isSettingsOpen && (
+        <AgentSettingsDialog
+          onClose={() => {
+            setIsSettingsOpen(false);
+          }}
+          baseUrl={capabilities?.llm_base_url ?? null}
+          settings={settings}
+          onSave={(next) => {
+            saveAgentSettings(next);
+            setSettings(next);
+          }}
+          onClear={() => {
+            clearAgentSettings();
+            setSettings(null);
+          }}
+        />
+      )}
     </div>
   );
 };

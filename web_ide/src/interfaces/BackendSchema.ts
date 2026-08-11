@@ -280,6 +280,9 @@ export const AgentRequestSchema = z.object({
     .optional(),
   session_id: z.string().optional(),
   user_id: z.string().optional(),
+  // Caller-supplied LLM credentials; must be sent together or not at all.
+  llm_api_key: z.string().optional(),
+  llm_chat_model: z.string().optional(),
 });
 export type AgentRequest = z.infer<typeof AgentRequestSchema>;
 
@@ -319,8 +322,11 @@ export const AgentSSEEventSchema = z.discriminatedUnion("type", [
 ]);
 
 export const CapabilitiesResponseSchema = z.object({
+  // True when the server alone can run the agent. A non-null llm_base_url means
+  // the user can bring their own key and model even when this is false.
   agent_enabled: z.boolean(),
   embeddings_enabled: z.boolean(),
+  llm_base_url: z.string().nullish(),
 });
 export type CapabilitiesResponse = z.infer<typeof CapabilitiesResponseSchema>;
 export type AgentSSEEvent = z.infer<typeof AgentSSEEventSchema>;

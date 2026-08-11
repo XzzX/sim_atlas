@@ -16,9 +16,13 @@ async def return_creator(
 
 
 @router.get("/capabilities", tags=["meta"])
-async def get_capabilities() -> dict[str, bool]:
+async def get_capabilities() -> dict[str, bool | str | None]:
     settings = load_settings()
     return {
+        # True when the server alone can run the agent, i.e. the caller needs to
+        # supply nothing. A non-null llm_base_url means callers can bring their
+        # own key and model even when this is False.
         "agent_enabled": settings.agent_enabled,
         "embeddings_enabled": settings.embeddings_enabled,
+        "llm_base_url": settings.llm_base_url,
     }

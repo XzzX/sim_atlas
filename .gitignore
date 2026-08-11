@@ -162,6 +162,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+# ...but not the TypeScript source directories the Python rule above also matches.
+!*/src/lib/
 lib64/
 parts/
 sdist/

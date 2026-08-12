@@ -18,7 +18,7 @@ uv run pyright                          # type-check (strict mode)
 - **Parser plugins**: add new parsers in `parsers/` following the existing modules (`dataclass_node.py`, `pyiron_core.py`, `pyiron_workflow.py`, `python_function.py`, `python_workflow_definition.py`); each parser receives a single Python object and returns `list[Metadata]`; `parsers/metadata.py` holds the shared `Metadata` model and annotation utilities used by all parsers
 - **Core parsing**: `parser.py` (`get_metadata`) tries each registered parser in order and returns the first non-empty result; module-level traversal and recursion strategies (`no`, `import`, `filesystem`) live in `NodeStore.upload_module`
 - **Schema**: two distinct types — `Metadata` (`parsers/metadata.py`, internal parser output) and `NodeRequest` (`models.py`, HTTP upload payload sent to the backend); keep both in sync with the backend's Pydantic schemas
-- **CLI**: `cli.py` provides the `sim-atlas-upload` entry point; reads `SIM_ATLAS_API_URL` and `SIM_ATLAS_API_TOKEN` env vars as defaults
+- **CLI**: `cli.py` provides the `sim-atlas-upload` entry point as `UploadCommand`, a `ToolkitSettings` subclass run via pydantic-settings' `CliApp`; flags are derived from field names (kebab-case) and every option also reads its `SIM_ATLAS_*` env var — add a field, not an argument parser
 - **No server code**: this package runs entirely on the client machine; never add server-side dependencies
 
 ## Think Before Coding

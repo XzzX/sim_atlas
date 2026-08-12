@@ -19,4 +19,4 @@ uv pip install dummy_module/. ../toolkit/.
 uv run sim-atlas-upload dummy_module dummy_module.flowrep \
   --api-url "$API_URL" \
   --api-token "$TOKEN" \
-  --module-allow flowrep
+  --allowed-modules flowrep

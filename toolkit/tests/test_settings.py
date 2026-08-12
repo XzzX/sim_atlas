@@ -27,11 +27,11 @@ def test_llm_docstrings_rejects_unknown_value(monkeypatch: pytest.MonkeyPatch) -
         ToolkitSettings()
 
 
-def test_embed_enabled_defaults_true() -> None:
-    assert ToolkitSettings().embed_enabled is True
+def test_embed_defaults_true() -> None:
+    assert ToolkitSettings().embed is True
 
 
-def test_embed_enabled_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SIM_ATLAS_EMBED_ENABLED", "false")
+def test_embed_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SIM_ATLAS_EMBED", "false")
 
-    assert ToolkitSettings().embed_enabled is False
+    assert ToolkitSettings().embed is False

@@ -6,7 +6,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class ToolkitSettings(BaseSettings):
     """Top-level toolkit configuration threaded through the upload pipeline."""
 
-    model_config = SettingsConfigDict(env_prefix="SIM_ATLAS_")
+    model_config = SettingsConfigDict(
+        env_prefix="SIM_ATLAS_", use_attribute_docstrings=True
+    )
 
     api_url: str = ""
     """Backend API base URL."""
@@ -15,7 +17,7 @@ class ToolkitSettings(BaseSettings):
     """API token sent as x-api-key to the backend."""
 
     llm_docstrings: Literal["no", "missing", "overwrite"] = "no"
-    """Docstring enrichment strategy: ``no`` disables the LLM entirely, ``missing`` generates only when the docstring is empty, ``overwrite`` always regenerates."""
+    """Docstring enrichment strategy: 'no' disables the LLM entirely, 'missing' generates only when the docstring is empty, 'overwrite' always regenerates."""
 
     llm_url: str = ""
     """OpenAI-compatible base URL."""
@@ -26,5 +28,5 @@ class ToolkitSettings(BaseSettings):
     llm_model: str = ""
     """Model name to use for generating docstrings."""
 
-    embed_enabled: bool = True
+    embed: bool = True
     """Master switch for triggering backend embedding after upload; on by default."""

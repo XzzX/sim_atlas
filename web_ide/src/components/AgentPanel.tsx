@@ -5,8 +5,10 @@ import remarkGfm from "remark-gfm";
 import type { MutableRefObject } from "react";
 import type { Edge } from "@xyflow/react";
 import {
+  Ban,
   BrainCircuit,
   ChevronDown,
+  CircleStop,
   GitCommitHorizontal,
   HelpCircle,
   History,
@@ -18,6 +20,7 @@ import {
   ArrowRight,
   RotateCcw,
   ShieldAlert,
+  Square,
   Trash2,
   SendHorizontal,
   Settings,
@@ -70,6 +73,7 @@ interface ConversationTurn {
   steps: StepItem[];
   error?: string;
   truncated?: boolean;
+  cancelled?: boolean;
 }
 
 // ---- helpers ---------------------------------------------------------------
@@ -90,6 +94,16 @@ const TOOL_LABELS: Record<string, string> = {
 // so they never force the conversation itself to scroll sideways.
 const PROSE_CLASS =
   "prose prose-sm dark:prose-invert max-w-none min-w-0 break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto";
+
+// Passed to AbortController.abort() so the catch block can tell a deliberate
+// stop from an unmount teardown (which aborts with no reason).
+const STOP_REASON = "sim-atlas:user-stop";
+const RESUME_QUERY = "Please continue where you left off.";
+const CANCELLED_BODY =
+  "You stopped this run. The graph shows the work completed so far.";
+// Replaces the empty assistant message a cancelled run would otherwise replay.
+const CANCELLED_HISTORY_NOTE =
+  "(The user stopped this run before it finished. The work completed so far is reflected in the current graph.)";
 
 function ToolIcon({ name }: { name: string }) {
   const cls = "w-3.5 h-3.5 shrink-0";
@@ -199,6 +213,90 @@ function ToolStepDetail({
             }}
           >
             {showFullResult ? "Show compact JSON" : "Show full JSON"}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The three ways an assistant turn can end. "paused" and "cancelled" share the
+// amber styling — both are incomplete but resumable; icon and title separate them.
+const OUTCOME_STYLES = {
+  summary: {
+    icon: MessageSquare,
+    title: "Summary",
+    box: "border-border bg-muted/30",
+    head: "text-muted-foreground",
+    body: "border-border",
+  },
+  paused: {
+    icon: PauseCircle,
+    title: "Paused — turn limit reached",
+    box: "border-amber-500/50 bg-amber-500/10",
+    head: "text-amber-600 dark:text-amber-400",
+    body: "border-amber-500/30 text-amber-700 dark:text-amber-300",
+  },
+  cancelled: {
+    icon: CircleStop,
+    title: "Stopped — you cancelled this run",
+    box: "border-amber-500/50 bg-amber-500/10",
+    head: "text-amber-600 dark:text-amber-400",
+    body: "border-amber-500/30 text-amber-700 dark:text-amber-300",
+  },
+} as const;
+
+function TurnOutcomeCard({
+  outcome,
+  text,
+  expanded,
+  onToggle,
+  onResume,
+  resumeDisabled,
+}: {
+  outcome: keyof typeof OUTCOME_STYLES;
+  text?: string;
+  expanded: boolean;
+  onToggle: () => void;
+  onResume?: () => void;
+  resumeDisabled?: boolean;
+}) {
+  const style = OUTCOME_STYLES[outcome];
+  const Icon = style.icon;
+  return (
+    <div className={`rounded-md border ${style.box}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`flex w-full items-center gap-1.5 px-3 py-1.5 text-xs hover:text-foreground transition-colors ${style.head}`}
+      >
+        <Icon className="w-3.5 h-3.5 shrink-0" />
+        <span className="font-medium min-w-0 truncate">{style.title}</span>
+        <ChevronDown
+          className={`w-3 h-3 ml-auto shrink-0 transition-transform ${
+            expanded ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+      {expanded && (
+        <div
+          className={`px-3 pb-3 border-t pt-2 [&_*]:text-xs ${style.body} ${PROSE_CLASS}`}
+        >
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {text ?? CANCELLED_BODY}
+          </ReactMarkdown>
+        </div>
+      )}
+      {onResume && (
+        <div className="px-3 pb-3">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs border-amber-500/50 hover:bg-amber-500/10"
+            disabled={resumeDisabled}
+            onClick={onResume}
+          >
+            Resume
           </Button>
         </div>
       )}
@@ -383,8 +481,12 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
 
   const handleRestoreSnapshot = useCallback(
     (snapshotNodes: GraphNodeContext[], snapshotEdges: GraphEdgeContext[]) => {
+      // Same generation guard as graph_update: a restore must not be undone by
+      // a conversion that was already in flight when it was requested.
+      const myGen = ++graphGenRef.current;
       void convertAgentGraph(snapshotNodes, snapshotEdges).then(
         ({ nodes: newNodes, edges: newEdges }) => {
+          if (graphGenRef.current !== myGen) return;
           setNodes(newNodes);
           setEdges(newEdges);
           setTimeout(() => {
@@ -395,6 +497,10 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     },
     [setNodes, setEdges, layoutRef],
   );
+
+  // Stop the backend run when the panel goes away. Aborting with no reason
+  // marks this as a teardown rather than a user stop, so no card is rendered.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   // auto-scroll to bottom when messages change
   useEffect(() => {
@@ -424,7 +530,6 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       setInputText("");
       setIsRunning(true);
       finalMessageRef.current = "";
-      graphGenRef.current = 0;
 
       // push user turn
       setMessages((prev) => [
@@ -458,6 +563,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         );
       };
 
+      let stopped = false;
       try {
         await simAtlasAPI.agentStream(
           request,
@@ -551,7 +657,12 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
           ctrl.signal,
         );
       } catch (err: unknown) {
-        if (err instanceof Error && err.name !== "AbortError") {
+        // Aborting with a custom reason rejects with that raw value rather than
+        // a DOMException, so the signal — not the error — is what we inspect.
+        if (ctrl.signal.aborted) {
+          stopped = ctrl.signal.reason === STOP_REASON;
+          if (stopped) updateAssistant((t) => ({ ...t, cancelled: true }));
+        } else if (err instanceof Error) {
           updateAssistant((t) => ({
             ...t,
             error: err.message,
@@ -560,10 +671,15 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       } finally {
         setIsRunning(false);
         abortRef.current = null;
+        // Never record an empty assistant message: some OpenAI-compatible
+        // gateways reject it when the history is replayed on the next request.
+        const assistantContent =
+          finalMessageRef.current ||
+          (stopped ? CANCELLED_HISTORY_NOTE : "(no response)");
         setHistory((prev) => [
           ...prev,
           { role: "user", content: query },
-          { role: "assistant", content: finalMessageRef.current },
+          { role: "assistant", content: assistantContent },
         ]);
       }
     },
@@ -584,6 +700,13 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   const handleSend = useCallback(() => {
     void sendQuery(inputText.trim());
   }, [inputText, sendQuery]);
+
+  const handleStop = useCallback(() => {
+    // Discard any conversion still in flight so it cannot repaint the canvas
+    // after the user has stopped.
+    graphGenRef.current += 1;
+    abortRef.current?.abort(STOP_REASON);
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -812,6 +935,11 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                               expanded ? "rotate-180" : ""
                             }`}
                           />
+                        ) : turn.cancelled === true ||
+                          turn.error !== undefined ? (
+                          // The run ended before this tool reported back — the
+                          // spinner would otherwise never stop.
+                          <Ban className="w-3 h-3 ml-auto shrink-0 opacity-50" />
                         ) : (
                           <Loader2 className="w-3 h-3 animate-spin ml-auto shrink-0" />
                         )}
@@ -832,93 +960,54 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                   </div>
                 )}
 
-                {/* Final message — Paused card (truncated) or Summary card (done) */}
-                {turn.text
-                  ? turn.truncated
-                    ? (() => {
-                        const pKey = `paused-${i}`;
-                        const pExpanded = expandedSteps.has(pKey);
-                        return (
-                          <div className="rounded-md border border-amber-500/50 bg-amber-500/10">
-                            <button
-                              type="button"
-                              onClick={() => toggleStep(pKey)}
-                              className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs text-amber-600 dark:text-amber-400 hover:text-foreground transition-colors"
-                            >
-                              <PauseCircle className="w-3.5 h-3.5 shrink-0" />
-                              <span className="font-medium min-w-0 truncate">
-                                Paused — turn limit reached
-                              </span>
-                              <ChevronDown
-                                className={`w-3 h-3 ml-auto shrink-0 transition-transform ${
-                                  pExpanded ? "rotate-180" : ""
-                                }`}
-                              />
-                            </button>
-                            {pExpanded && (
-                              <div
-                                className={`px-3 pb-3 border-t border-amber-500/30 pt-2 [&_*]:text-xs text-amber-700 dark:text-amber-300 ${PROSE_CLASS}`}
-                              >
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                  {turn.text}
-                                </ReactMarkdown>
-                              </div>
-                            )}
-                            <div className="px-3 pb-3">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs border-amber-500/50 hover:bg-amber-500/10"
-                                disabled={isRunning}
-                                onClick={() =>
-                                  void sendQuery(
-                                    "Please continue where you left off.",
-                                  )
-                                }
-                              >
-                                Resume
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })()
-                    : (() => {
-                        const sKey = `summary-${i}`;
-                        const sExpanded = expandedSteps.has(sKey);
-                        return (
-                          <div className="rounded-md border border-border bg-muted/30">
-                            <button
-                              type="button"
-                              onClick={() => toggleStep(sKey)}
-                              className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                              <span className="font-medium min-w-0 truncate">
-                                Summary
-                              </span>
-                              <ChevronDown
-                                className={`w-3 h-3 ml-auto shrink-0 transition-transform ${
-                                  sExpanded ? "rotate-180" : ""
-                                }`}
-                              />
-                            </button>
-                            {sExpanded && (
-                              <div
-                                className={`px-3 pb-3 border-t border-border pt-2 [&_*]:text-xs ${PROSE_CLASS}`}
-                              >
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                  {turn.text}
-                                </ReactMarkdown>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()
-                  : isRunning &&
-                    i === messages.length - 1 &&
-                    !turn.error && (
+                {/* How the turn ended — Stopped, Paused (turn limit) or Summary.
+                    Cancelled wins over the others: if the user stopped between
+                    the final message and the stream closing, "stopped" is the
+                    honest label and the text stays available under the chevron. */}
+                {(() => {
+                  const oKey = `outcome-${i}`;
+                  const expanded = expandedSteps.has(oKey);
+                  const onToggle = () => {
+                    toggleStep(oKey);
+                  };
+                  if (turn.cancelled === true) {
+                    return (
+                      <TurnOutcomeCard
+                        outcome="cancelled"
+                        text={turn.text}
+                        expanded={expanded}
+                        onToggle={onToggle}
+                        resumeDisabled={isRunning}
+                        onResume={() => void sendQuery(RESUME_QUERY)}
+                      />
+                    );
+                  }
+                  if (turn.text !== undefined) {
+                    return turn.truncated === true ? (
+                      <TurnOutcomeCard
+                        outcome="paused"
+                        text={turn.text}
+                        expanded={expanded}
+                        onToggle={onToggle}
+                        resumeDisabled={isRunning}
+                        onResume={() => void sendQuery(RESUME_QUERY)}
+                      />
+                    ) : (
+                      <TurnOutcomeCard
+                        outcome="summary"
+                        text={turn.text}
+                        expanded={expanded}
+                        onToggle={onToggle}
+                      />
+                    );
+                  }
+                  if (isRunning && i === messages.length - 1 && !turn.error) {
+                    return (
                       <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                    )}
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
           </div>
@@ -942,12 +1031,14 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
           <Button
             size="icon"
             className="shrink-0"
-            onClick={handleSend}
-            disabled={isRunning || !inputText.trim()}
-            aria-label="Send"
+            variant={isRunning ? "secondary" : "default"}
+            onClick={isRunning ? handleStop : handleSend}
+            disabled={isRunning ? false : !inputText.trim()}
+            aria-label={isRunning ? "Stop agent" : "Send"}
+            title={isRunning ? "Stop agent" : "Send"}
           >
             {isRunning ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Square className="w-3.5 h-3.5 fill-current" />
             ) : (
               <SendHorizontal className="w-4 h-4" />
             )}

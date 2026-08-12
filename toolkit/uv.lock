@@ -1160,7 +1160,7 @@ wheels = [
 
 [[package]]
 name = "sim-atlas-toolkit"
-version = "0.0.12"
+version = "0.0.13"
 source = { editable = "." }
 dependencies = [
     { name = "griffe" },

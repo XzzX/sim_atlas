@@ -188,10 +188,14 @@ async def parse_atomic_recipe(
         merge_annotation(sig_ann, fr_inp)
         for sig_ann, fr_inp in zip(sig_inputs, fr_inputs, strict=True)
     ]
-    metadata.outputs = [
-        merge_annotation(sig_ann, fr_out)
-        for sig_ann, fr_out in zip(sig_outputs, fr_outputs, strict=True)
-    ]
+    metadata.outputs = (
+        [
+            merge_annotation(sig_ann, fr_out)
+            for sig_ann, fr_out in zip(sig_outputs, fr_outputs, strict=True)
+        ]
+        if len(sig_outputs) == len(fr_outputs)
+        else fr_outputs
+    )
 
     metadata.name = f"{obj.__module__}.{obj.__qualname__}"
     metadata.artifact_type = ArtifactType.FUNCTION
@@ -256,13 +260,14 @@ async def parse_workflow_recipe(
         merge_annotation(sig_ann, fr_inp)
         for sig_ann, fr_inp in zip(sig_inputs, fr_inputs, strict=True)
     ]
-    if len(sig_outputs) != len(fr_outputs):
-        metadata.outputs = fr_outputs
-    else:
-        metadata.outputs = [
+    metadata.outputs = (
+        [
             merge_annotation(sig_ann, fr_out)
             for sig_ann, fr_out in zip(sig_outputs, fr_outputs, strict=True)
         ]
+        if len(sig_outputs) == len(fr_outputs)
+        else fr_outputs
+    )
 
     uses_import = [
         (label, try_import(node.reference.info.module, node.reference.info.qualname))

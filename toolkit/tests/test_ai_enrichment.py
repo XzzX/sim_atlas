@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 import pytest
@@ -45,9 +45,14 @@ def _install_fake_openai(monkeypatch: pytest.MonkeyPatch, content: str | None) -
     monkeypatch.setattr(openai, "AsyncOpenAI", _FakeAsyncOpenAI)
 
 
-def _settings(**overrides: Any) -> ToolkitSettings:
+def _settings(
+    llm_docstrings: Literal["no", "missing", "overwrite"] = "missing",
+) -> ToolkitSettings:
     return ToolkitSettings(
-        llm_enabled=True, llm_url="http://llm", llm_key="k", llm_model="m", **overrides
+        llm_docstrings=llm_docstrings,
+        llm_url="http://llm",
+        llm_key="k",
+        llm_model="m",
     )
 
 
@@ -198,9 +203,7 @@ async def test_generate_docstring_disabled_returns_existing(
 ) -> None:
     _install_fake_openai(monkeypatch, GENERATED)
 
-    result = await generate_docstring(
-        ToolkitSettings(llm_enabled=False), "def f(): ...", "existing"
-    )
+    result = await generate_docstring(ToolkitSettings(), "def f(): ...", "existing")
 
     assert result == "existing"
 
@@ -230,9 +233,7 @@ async def test_generate_docstring_existing_not_overwritten(
 ) -> None:
     _install_fake_openai(monkeypatch, GENERATED)
 
-    result = await generate_docstring(
-        _settings(llm_overwrite=False), "def f(): ...", "existing"
-    )
+    result = await generate_docstring(_settings(), "def f(): ...", "existing")
 
     assert result == "existing"
 
@@ -243,7 +244,7 @@ async def test_generate_docstring_overwrite_regenerates(
     _install_fake_openai(monkeypatch, GENERATED)
 
     result = await generate_docstring(
-        _settings(llm_overwrite=True), "def f(): ...", "existing"
+        _settings(llm_docstrings="overwrite"), "def f(): ...", "existing"
     )
 
     assert result == GENERATED
@@ -280,11 +281,7 @@ async def test_generate_workflow_docstring_disabled_returns_existing(
     wf_definition = WfDefinition(nodes=[], edges=[])
 
     result = await generate_workflow_docstring(
-        ToolkitSettings(llm_enabled=False),
-        "wf",
-        "def wf(): ...",
-        "existing",
-        wf_definition,
+        ToolkitSettings(), "wf", "def wf(): ...", "existing", wf_definition
     )
 
     assert result == "existing"
@@ -310,7 +307,7 @@ async def test_generate_workflow_docstring_existing_not_overwritten(
     wf_definition = WfDefinition(nodes=[], edges=[])
 
     result = await generate_workflow_docstring(
-        _settings(llm_overwrite=False), "wf", "def wf(): ...", "existing", wf_definition
+        _settings(), "wf", "def wf(): ...", "existing", wf_definition
     )
 
     assert result == "existing"
@@ -323,7 +320,11 @@ async def test_generate_workflow_docstring_overwrite_regenerates(
     wf_definition = WfDefinition(nodes=[], edges=[])
 
     result = await generate_workflow_docstring(
-        _settings(llm_overwrite=True), "wf", "def wf(): ...", "existing", wf_definition
+        _settings(llm_docstrings="overwrite"),
+        "wf",
+        "def wf(): ...",
+        "existing",
+        wf_definition,
     )
 
     assert result == GENERATED

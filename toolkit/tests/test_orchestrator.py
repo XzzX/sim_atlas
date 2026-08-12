@@ -28,9 +28,7 @@ def test_upload_modules_embed_disabled_skips_trigger(
 ) -> None:
     store = install_mock_node_store(monkeypatch)
 
-    upload_modules(
-        ToolkitSettings(embed_enabled=False), modules=["tests.test_orchestrator"]
-    )
+    upload_modules(ToolkitSettings(embed=False), modules=["tests.test_orchestrator"])
 
     assert store.embed_triggers == 0
 

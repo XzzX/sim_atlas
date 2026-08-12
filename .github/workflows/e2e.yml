@@ -76,7 +76,7 @@ jobs:
           uv run sim-atlas-upload dummy_module dummy_module.flowrep \
             --api-url http://127.0.0.1:8000/api/v1 \
             --api-token "$SIM_ATLAS_API_TOKEN" \
-            --module-allow flowrep \
+            --allowed-modules flowrep \
             --log-level debug
         working-directory: ./e2e
 

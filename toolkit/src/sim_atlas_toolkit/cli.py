@@ -1,170 +1,89 @@
 from __future__ import annotations
 
-import argparse
 import logging
+import sys
+from typing import Literal
+
+from pydantic import ValidationError, model_validator
+from pydantic_settings import CliApp, CliPositionalArg, SettingsConfigDict
 
 from sim_atlas_toolkit import upload_modules
 from sim_atlas_toolkit.settings import ToolkitSettings
 
-DEFAULT_API_URL_ENV = "SIM_ATLAS_API_URL"
-DEFAULT_API_TOKEN_ENV = "SIM_ATLAS_API_TOKEN"
-
 logger = logging.getLogger(__name__)
 
 
-def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="sim-atlas-upload",
-        description=(
-            "Upload one or more Python modules to a Sim Atlas backend. "
-            "Values can be provided via CLI flags or environment variables."
-        ),
+class UploadCommand(ToolkitSettings):
+    """Upload one or more Python modules to a Sim Atlas backend.
+
+    Every option can also be provided via its SIM_ATLAS_<OPTION> environment
+    variable. Docstring enrichment requires the 'ai' extra.
+    """
+
+    model_config = SettingsConfigDict(
+        cli_prog_name="sim-atlas-upload",
+        cli_kebab_case=True,
+        cli_implicit_flags=True,
+        cli_avoid_json=True,
     )
-    parser.add_argument(
-        "modules",
-        nargs="+",
-        help="Module name(s) to upload, for example 'mypackage.mymodule'.",
-    )
-    parser.add_argument(
-        "--api-url",
-        default=None,
-        help=(f"Backend API base URL. Defaults to ${DEFAULT_API_URL_ENV} if omitted."),
-    )
-    parser.add_argument(
-        "--api-token",
-        default=None,
-        help=(
-            f"API token sent as x-api-key. Defaults to ${DEFAULT_API_TOKEN_ENV} "
-            "if omitted."
-        ),
-    )
-    parser.add_argument(
-        "--recursive",
-        choices=["no", "import", "filesystem"],
-        default="no",
-        help="Recursion strategy for module traversal.",
-    )
-    parser.add_argument(
-        "--update-existing",
-        action="store_true",
-        help="Update existing nodes if they already exist.",
-    )
-    parser.add_argument(
-        "--module-allow",
-        action="append",
-        dest="module_allowlist",
-        metavar="MODULE",
-        help=(
-            "Allow symbols from MODULE (by prefix) even if they are not defined in "
-            "the uploaded module. Can be repeated: --module-allow foo --module-allow bar."
-        ),
-    )
-    parser.add_argument(
-        "--concurrency",
-        type=int,
-        default=10,
-        help="Maximum number of concurrent uploads.",
-    )
-    parser.add_argument(
-        "--enrich-docstrings",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help=(
-            "Generate docstrings from source code via an LLM before parsing. "
-            "Defaults to $SIM_ATLAS_LLM_ENABLED. Requires the 'ai' extra."
-        ),
-    )
-    parser.add_argument(
-        "--llm-url",
-        default=None,
-        help="OpenAI-compatible base URL. Defaults to $SIM_ATLAS_LLM_URL.",
-    )
-    parser.add_argument(
-        "--llm-key",
-        default=None,
-        help="API key for the LLM service. Defaults to $SIM_ATLAS_LLM_KEY.",
-    )
-    parser.add_argument(
-        "--llm-model",
-        default=None,
-        help="LLM model name. Defaults to $SIM_ATLAS_LLM_MODEL.",
-    )
-    parser.add_argument(
-        "--overwrite-docstrings",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help=(
-            "Regenerate docstrings even when one already exists. "
-            "Defaults to $SIM_ATLAS_LLM_OVERWRITE."
-        ),
-    )
-    parser.add_argument(
-        "--embed",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help=(
-            "Trigger backend embedding of newly uploaded nodes after the upload "
-            "finishes. Defaults to $SIM_ATLAS_EMBED_ENABLED (on by default)."
-        ),
-    )
-    parser.add_argument(
-        "--log-level",
-        choices=["debug", "info", "warning", "error", "critical"],
-        default="info",
-        help="Logging level.",
-    )
-    return parser
+
+    modules: CliPositionalArg[list[str]]
+    """Module name(s) to upload, for example 'mypackage.mymodule'."""
+
+    # Deliberately narrower than ToolkitSettings, which defaults both to "": an upload
+    # cannot run without them, so the CLI reports them as required options.
+    api_url: str  # type: ignore[reportGeneralTypeIssues]
+    """Backend API base URL."""
+
+    api_token: str  # type: ignore[reportGeneralTypeIssues]
+    """API token sent as x-api-key to the backend."""
+
+    recursive: Literal["no", "import", "filesystem"] = "no"
+    """Recursion strategy for module traversal."""
+
+    update_existing: bool = False
+    """Update existing nodes if they already exist."""
+
+    allowed_modules: list[str] = []
+    """Allow symbols from these module prefixes even if they are not defined in the uploaded module. Can be repeated: --allowed-modules foo --allowed-modules bar."""
+
+    concurrency: int = 10
+    """Maximum number of concurrent uploads."""
+
+    log_level: Literal["debug", "info", "warning", "error", "critical"] = "info"
+    """Logging level."""
+
+    @model_validator(mode="after")
+    def _check_llm_config(self) -> UploadCommand:
+        if self.llm_docstrings != "no" and not (self.llm_url and self.llm_model):
+            raise ValueError(
+                "llm_url and llm_model are required when llm_docstrings is enabled"
+            )
+        return self
+
+    def cli_cmd(self) -> None:
+        logging.basicConfig(level=self.log_level.upper())
+        upload_modules(
+            self,
+            modules=self.modules,
+            recursive=self.recursive,
+            update_existing=self.update_existing,
+            module_allowlist=self.allowed_modules,
+            concurrency=self.concurrency,
+        )
 
 
 def main() -> int:
-    parser = _build_parser()
-    args = parser.parse_args()
-
-    logging.basicConfig(level=args.log_level.upper())
-
-    overrides = {
-        k: v
-        for k, v in {
-            "api_url": args.api_url,
-            "api_token": args.api_token,
-            "llm_enabled": args.enrich_docstrings,
-            "llm_url": args.llm_url,
-            "llm_key": args.llm_key,
-            "llm_model": args.llm_model,
-            "llm_overwrite": args.overwrite_docstrings,
-            "embed_enabled": args.embed,
-        }.items()
-        if v is not None
-    }
-    settings = ToolkitSettings(**overrides)
-
-    if not settings.api_url:
-        parser.error(
-            f"Missing API URL. Provide --api-url or set {DEFAULT_API_URL_ENV}."
-        )
-        return 1
-
-    if not settings.api_token:
-        parser.error(
-            f"Missing API token. Provide --api-token or set {DEFAULT_API_TOKEN_ENV}."
-        )
-        return 1
-
-    if settings.llm_enabled and not (settings.llm_url and settings.llm_model):
-        parser.error(
-            "Docstring enrichment is enabled but the LLM URL or model is missing. "
-            "Provide --llm-url/--llm-model or set SIM_ATLAS_LLM_URL/SIM_ATLAS_LLM_MODEL."
-        )
-        return 1
-
-    upload_modules(
-        settings,
-        modules=args.modules,
-        recursive=args.recursive,
-        update_existing=args.update_existing,
-        module_allowlist=args.module_allowlist,
-        concurrency=args.concurrency,
-    )
+    try:
+        CliApp.run(UploadCommand)
+    except ValidationError as exc:
+        for error in exc.errors():
+            location = ".".join(str(part) for part in error["loc"]) or "config"
+            print(
+                f"sim-atlas-upload: error: {location}: {error['msg']}",
+                file=sys.stderr,
+            )
+        return 2
     return 0
 
 

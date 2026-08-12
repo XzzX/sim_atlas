@@ -83,7 +83,7 @@ async def _upload_modules_async(  # noqa: PLR0913
             f"Upload summary for {module_name}: {created} created, {conflicts} conflicts, {errors} errors"
         )
 
-    if settings.embed_enabled:
+    if settings.embed:
         try:
             response = await node_store_api.trigger_embed(
                 settings.api_url, settings.api_token

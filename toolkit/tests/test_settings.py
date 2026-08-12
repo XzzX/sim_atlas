@@ -1,27 +1,37 @@
 import pytest
+from pydantic import ValidationError
 
 from sim_atlas_toolkit.settings import ToolkitSettings
 
 
 def test_settings_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SIM_ATLAS_LLM_ENABLED", "true")
+    monkeypatch.setenv("SIM_ATLAS_LLM_DOCSTRINGS", "overwrite")
     monkeypatch.setenv("SIM_ATLAS_LLM_URL", "http://env-llm")
     monkeypatch.setenv("SIM_ATLAS_LLM_MODEL", "env-model")
-    monkeypatch.setenv("SIM_ATLAS_LLM_OVERWRITE", "true")
 
     settings = ToolkitSettings()
 
-    assert settings.llm_enabled is True
+    assert settings.llm_docstrings == "overwrite"
     assert settings.llm_url == "http://env-llm"
     assert settings.llm_model == "env-model"
-    assert settings.llm_overwrite is True
 
 
-def test_embed_enabled_defaults_true() -> None:
-    assert ToolkitSettings().embed_enabled is True
+def test_llm_docstrings_defaults_to_no() -> None:
+    assert ToolkitSettings().llm_docstrings == "no"
 
 
-def test_embed_enabled_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SIM_ATLAS_EMBED_ENABLED", "false")
+def test_llm_docstrings_rejects_unknown_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SIM_ATLAS_LLM_DOCSTRINGS", "maybe")
 
-    assert ToolkitSettings().embed_enabled is False
+    with pytest.raises(ValidationError):
+        ToolkitSettings()
+
+
+def test_embed_defaults_true() -> None:
+    assert ToolkitSettings().embed is True
+
+
+def test_embed_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SIM_ATLAS_EMBED", "false")
+
+    assert ToolkitSettings().embed is False

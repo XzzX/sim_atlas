@@ -1,3 +1,6 @@
+import asyncio
+import contextlib
+from collections.abc import AsyncGenerator
 from typing import Any, Literal
 
 from pydantic import BaseModel
@@ -69,3 +72,47 @@ Event = (
 def to_sse(event: Event) -> str:
     """Format an event payload as an SSE data frame."""
     return f"data: {event.model_dump_json()}\n\n"
+
+
+KEEPALIVE_INTERVAL_SECONDS = 15.0
+
+# An SSE comment frame: valid per the spec and ignored by conformant clients,
+# but real bytes on the wire.
+_KEEPALIVE_FRAME = ": keep-alive\n\n"
+
+
+async def with_keepalive(
+    events: AsyncGenerator[str, None],
+    interval: float = KEEPALIVE_INTERVAL_SECONDS,
+) -> AsyncGenerator[str, None]:
+    """Interleave keep-alive frames into `events` whenever it goes quiet.
+
+    The agent runs non-streaming completions, so it emits nothing at all while a
+    turn is in flight. A reverse proxy sees only an idle connection and closes it
+    once its read timeout expires (nginx defaults to 60s) — and because the
+    response headers were flushed before the first event, it cannot report that
+    as an error status. It resets the stream instead, which the browser surfaces
+    as ERR_HTTP2_PROTOCOL_ERROR.
+    """
+    pending = asyncio.ensure_future(anext(events))
+    try:
+        while True:
+            done, _ = await asyncio.wait({pending}, timeout=interval)
+            if not done:
+                yield _KEEPALIVE_FRAME
+                continue
+            try:
+                chunk = pending.result()
+            except StopAsyncIteration:
+                return
+            # Read the result before yielding, so that a throw() or close() at
+            # the yield below cannot be mistaken for the inner generator ending.
+            yield chunk
+            pending = asyncio.ensure_future(anext(events))
+    finally:
+        pending.cancel()
+        # aclose() on a generator with an in-flight asend() raises RuntimeError,
+        # so let the cancellation land before closing.
+        with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+            await pending
+        await events.aclose()

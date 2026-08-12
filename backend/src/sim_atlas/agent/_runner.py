@@ -96,19 +96,6 @@ async def run_agent_stream(
         host=settings.langfuse_host,
         environment=settings.langfuse_environment,
     )
-    client = AsyncOpenAI(api_key=llm.api_key, base_url=llm.base_url)
-    scratch = ScratchGraph(request.nodes, request.edges)
-
-    history_messages: list[ChatCompletionMessageParam] = [
-        cast(ChatCompletionMessageParam, {"role": m.role, "content": m.content})
-        for m in request.history
-    ]
-    messages: list[ChatCompletionMessageParam] = [
-        {"role": "system", "content": build_system_prompt(request, storage)},
-        *history_messages,
-        {"role": "user", "content": request.query},
-    ]
-
     session_id = request.session_id or str(uuid.uuid4())
     final_message: str | None = None
     correction_rounds = 0
@@ -124,6 +111,22 @@ async def run_agent_stream(
         propagate_attributes(user_id=request.user_id, session_id=session_id),
     ):
         try:
+            # Setup lives inside the try because the response headers are flushed
+            # before this generator first runs: an exception escaping here would
+            # abort an already-started 200 rather than surface as an error.
+            client = AsyncOpenAI(api_key=llm.api_key, base_url=llm.base_url)
+            scratch = ScratchGraph(request.nodes, request.edges)
+
+            history_messages: list[ChatCompletionMessageParam] = [
+                cast(ChatCompletionMessageParam, {"role": m.role, "content": m.content})
+                for m in request.history
+            ]
+            messages: list[ChatCompletionMessageParam] = [
+                {"role": "system", "content": build_system_prompt(request, storage)},
+                *history_messages,
+                {"role": "user", "content": request.query},
+            ]
+
             # Runaway-check loop: exits naturally (break) when the agent finishes,
             # or falls through (no break) when the turn limit is reached.
             for _ in range(max_turns):

@@ -158,4 +158,63 @@ sequenceDiagram
 
 ---
 
+## 6. Deployment Behind a Reverse Proxy
+
+Every route except one is a plain request/response and needs no special proxy handling.
+`POST /api/v1/agent/stream` is the exception: it is a long-lived Server-Sent Events stream,
+and it fails in a distinctive way when proxied naively.
+
+The agent runs *non-streaming* LLM completions, so it emits no bytes at all while a turn is
+in flight — and a run may take ten turns (`agent_max_iterations`). Meanwhile the response
+headers go out immediately, before the first event is produced. That ordering is what makes
+misconfiguration hard to diagnose: once the `200` is on the wire, neither the app nor the
+proxy can downgrade a later failure to an error status. The stream is simply reset, which
+browsers report as `net::ERR_HTTP2_PROTOCOL_ERROR` over HTTP/2 (or
+`ERR_INCOMPLETE_CHUNKED_ENCODING` over HTTP/1.1) with no server-side status to correlate
+against.
+
+The backend defends itself on two fronts, so the endpoint works against a default nginx
+config:
+
+- `X-Accel-Buffering: no` and `Cache-Control: no-cache` on the response, so nginx streams
+  the events instead of buffering them until the response completes.
+- A keep-alive frame (`: keep-alive`, an SSE comment) emitted every 15s whenever the agent
+  goes quiet — see `with_keepalive` in `backend/src/sim_atlas/agent/_sse.py`. These are real
+  bytes, so they reset the read timer at *every* hop, not just the one we know about.
+
+A proxy config is therefore defensive rather than required, but recommended:
+
+```nginx
+location /api/v1/agent/stream {
+    proxy_pass http://127.0.0.1:8000;
+
+    proxy_http_version 1.1;      # default 1.0 disables chunked upstream + keepalive
+    proxy_set_header Connection "";
+
+    proxy_buffering off;         # redundant with X-Accel-Buffering: no, but explicit
+    proxy_cache off;
+    gzip off;                    # never compress text/event-stream
+
+    proxy_read_timeout 1h;       # the 15s heartbeat already clears the 60s default
+    proxy_send_timeout 1h;
+}
+```
+
+The one line worth applying regardless of the heartbeat is `proxy_http_version 1.1`: nginx
+defaults to HTTP/1.0 upstream, which sends `Connection: close` and disables chunked transfer
+encoding — enough to break a stream on its own.
+
+To verify a deployment, watch for the heartbeat directly:
+
+```bash
+curl -N -X POST https://<host>/api/v1/agent/stream \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"build me a workflow","nodes":[],"edges":[]}'
+```
+
+`: keep-alive` lines should appear roughly every 15s during LLM turns, and the run should
+continue past the 60s mark.
+
+---
+
 *End of document.*

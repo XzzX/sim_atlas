@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
-from sim_atlas.agent import resolve_llm_config, run_agent_stream
+from sim_atlas.agent import resolve_llm_config, run_agent_stream, with_keepalive
 from sim_atlas.dependencies import get_storage
 from sim_atlas.models import AgentRequest
 from sim_atlas.security import Creator, get_current_user
@@ -49,7 +49,7 @@ async def agent_stream(
     # AINotConfiguredError handler can no longer turn this into a 503.
     llm = resolve_llm_config(request)
     return StreamingResponse(
-        run_agent_stream(request, storage, llm),
+        with_keepalive(run_agent_stream(request, storage, llm)),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

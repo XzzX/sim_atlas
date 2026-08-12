@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+from collections.abc import AsyncGenerator
 from typing import Any, cast
 
 import pytest
 
 from sim_atlas.agent._runner import resolve_llm_config, run_agent_stream
+from sim_atlas.agent._sse import with_keepalive
 from sim_atlas.exceptions import AINotConfiguredError
 from sim_atlas.models import AgentRequest
 from sim_atlas.storage_interface import StorageInterface
@@ -95,6 +97,83 @@ def test_run_agent_stream_records_tracing_without_changing_sse(
 
     assert any('"type":"message"' in chunk for chunk in chunks)
     assert any('"type":"graph_update"' in chunk for chunk in chunks)
+
+
+# --- SSE keep-alive ---
+
+
+def test_with_keepalive_fills_silent_gaps() -> None:
+    async def slow_events() -> AsyncGenerator[str, None]:
+        yield "data: one\n\n"
+        await asyncio.sleep(0.25)
+        yield "data: two\n\n"
+
+    async def collect() -> list[str]:
+        return [chunk async for chunk in with_keepalive(slow_events(), interval=0.05)]
+
+    chunks = asyncio.run(collect())
+
+    assert [c for c in chunks if c.startswith("data: ")] == [
+        "data: one\n\n",
+        "data: two\n\n",
+    ]
+    # 0.25s of silence at a 0.05s interval, with slack for a slow test machine.
+    min_keepalives = 2
+    assert chunks.count(": keep-alive\n\n") >= min_keepalives
+    # The filler lands inside the gap, not before the first event or after the last.
+    assert chunks[0] == "data: one\n\n"
+    assert chunks[-1] == "data: two\n\n"
+
+
+def test_with_keepalive_stays_silent_while_events_flow() -> None:
+    async def fast_events() -> AsyncGenerator[str, None]:
+        yield "data: one\n\n"
+        yield "data: two\n\n"
+
+    async def collect() -> list[str]:
+        return [chunk async for chunk in with_keepalive(fast_events(), interval=30.0)]
+
+    assert asyncio.run(collect()) == ["data: one\n\n", "data: two\n\n"]
+
+
+def test_with_keepalive_propagates_generator_failures() -> None:
+    async def failing_events() -> AsyncGenerator[str, None]:
+        yield "data: one\n\n"
+        raise RuntimeError("boom")
+
+    async def collect() -> list[str]:
+        return [
+            chunk async for chunk in with_keepalive(failing_events(), interval=30.0)
+        ]
+
+    with pytest.raises(RuntimeError, match="boom"):
+        asyncio.run(collect())
+
+
+def test_with_keepalive_closes_the_agent_stream_when_the_client_leaves() -> None:
+    """A disconnect must not strand the in-flight `anext` on the inner generator."""
+    closed = False
+
+    async def slow_events() -> AsyncGenerator[str, None]:
+        nonlocal closed
+        try:
+            yield "data: one\n\n"
+            await asyncio.sleep(30)
+            yield "data: two\n\n"
+        finally:
+            closed = True
+
+    async def take_one() -> str:
+        stream = with_keepalive(slow_events(), interval=30.0)
+        first = ""
+        async for chunk in stream:
+            first = chunk
+            break
+        await stream.aclose()
+        return first
+
+    assert asyncio.run(take_one()) == "data: one\n\n"
+    assert closed
 
 
 # --- credential resolution ---

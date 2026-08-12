@@ -61,20 +61,18 @@ async def generate_docstring(
 
     Args:
         settings: Toolkit settings; gates whether generation runs
-            (``llm_enabled``, ``llm_overwrite``) and provides the LLM client
-            config.
+            (``llm_docstrings``) and provides the LLM client config.
         source_code: The source code to generate a docstring for.
         docstring: The existing docstring, if any.
 
     Returns:
         The generated docstring, or ``docstring`` unchanged if generation is
         disabled, unnecessary (a docstring already exists and
-        ``llm_overwrite`` is not set), or the LLM call fails.
+        ``llm_docstrings`` is not ``overwrite``), or the LLM call fails.
     """
-    should_generate = (
-        settings.llm_enabled
-        and bool(source_code)
-        and (settings.llm_overwrite or not docstring)
+    should_generate = bool(source_code) and (
+        settings.llm_docstrings == "overwrite"
+        or (settings.llm_docstrings == "missing" and not docstring)
     )
     if not should_generate:
         return docstring
@@ -237,8 +235,8 @@ async def generate_workflow_docstring(
 
     Args:
         settings: Toolkit settings; gates whether generation runs
-            (``llm_enabled``, ``llm_overwrite``) and provides the LLM client
-            config and the backend API URL used to fetch per-node descriptions.
+            (``llm_docstrings``) and provides the LLM client config and the
+            backend API URL used to fetch per-node descriptions.
         name: The workflow's name.
         source_code: The workflow's rendered Python source code.
         docstring: The workflow's existing docstring, if any.
@@ -248,9 +246,11 @@ async def generate_workflow_docstring(
     Returns:
         The generated docstring, or ``docstring`` unchanged if generation is
         disabled, unnecessary (a docstring already exists and
-        ``llm_overwrite`` is not set), or the LLM call fails.
+        ``llm_docstrings`` is not ``overwrite``), or the LLM call fails.
     """
-    should_generate = settings.llm_enabled and (settings.llm_overwrite or not docstring)
+    should_generate = settings.llm_docstrings == "overwrite" or (
+        settings.llm_docstrings == "missing" and not docstring
+    )
     if not should_generate:
         return docstring
 

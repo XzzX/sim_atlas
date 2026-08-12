@@ -96,7 +96,7 @@ sequenceDiagram
         Note over T: most parsers stop here,<br/>skipping LLM + upload
     else not found
         B-->>T: 404 Not Found
-        opt llm_enabled
+        opt llm_docstrings != no
             T->>L: generate/refine docstring from source (+ dataflow graph for workflows)
             L-->>T: docstring
         end

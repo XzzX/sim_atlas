@@ -50,13 +50,13 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Update existing nodes if they already exist.",
     )
     parser.add_argument(
-        "--module-allow",
+        "--allow-module",
         action="append",
         dest="module_allowlist",
         metavar="MODULE",
         help=(
             "Allow symbols from MODULE (by prefix) even if they are not defined in "
-            "the uploaded module. Can be repeated: --module-allow foo --module-allow bar."
+            "the uploaded module. Can be repeated: --allow-module foo --allow-module bar."
         ),
     )
     parser.add_argument(
@@ -67,11 +67,13 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--enrich-docstrings",
-        action=argparse.BooleanOptionalAction,
+        choices=["no", "missing", "overwrite"],
         default=None,
         help=(
-            "Generate docstrings from source code via an LLM before parsing. "
-            "Defaults to $SIM_ATLAS_LLM_ENABLED. Requires the 'ai' extra."
+            "Docstring enrichment strategy: generate docstrings from source code "
+            "via an LLM before parsing. 'no' disables it, 'missing' only fills in "
+            "empty docstrings, 'overwrite' regenerates all of them. "
+            "Defaults to $SIM_ATLAS_LLM_DOCSTRINGS. Requires the 'ai' extra."
         ),
     )
     parser.add_argument(
@@ -88,15 +90,6 @@ def _build_parser() -> argparse.ArgumentParser:
         "--llm-model",
         default=None,
         help="LLM model name. Defaults to $SIM_ATLAS_LLM_MODEL.",
-    )
-    parser.add_argument(
-        "--overwrite-docstrings",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help=(
-            "Regenerate docstrings even when one already exists. "
-            "Defaults to $SIM_ATLAS_LLM_OVERWRITE."
-        ),
     )
     parser.add_argument(
         "--embed",
@@ -127,11 +120,10 @@ def main() -> int:
         for k, v in {
             "api_url": args.api_url,
             "api_token": args.api_token,
-            "llm_enabled": args.enrich_docstrings,
+            "llm_docstrings": args.enrich_docstrings,
             "llm_url": args.llm_url,
             "llm_key": args.llm_key,
             "llm_model": args.llm_model,
-            "llm_overwrite": args.overwrite_docstrings,
             "embed_enabled": args.embed,
         }.items()
         if v is not None
@@ -150,7 +142,9 @@ def main() -> int:
         )
         return 1
 
-    if settings.llm_enabled and not (settings.llm_url and settings.llm_model):
+    if settings.llm_docstrings != "no" and not (
+        settings.llm_url and settings.llm_model
+    ):
         parser.error(
             "Docstring enrichment is enabled but the LLM URL or model is missing. "
             "Provide --llm-url/--llm-model or set SIM_ATLAS_LLM_URL/SIM_ATLAS_LLM_MODEL."

@@ -2,8 +2,9 @@ import React, { useState, useMemo, useCallback } from "react";
 import type { Edge, ReactFlowJsonObject } from "@xyflow/react";
 import type { WorkflowNode } from "../nodes/nodes";
 import { toWorkflowDefinition } from "../exportWorkflow";
+import { toFlowrepRecipe } from "../exportFlowrep";
 
-type ExportFormat = "python-workflow-definition" | "reactflow";
+type ExportFormat = "python-workflow-definition" | "flowrep" | "reactflow";
 
 interface FormatOption {
   value: ExportFormat;
@@ -12,8 +13,15 @@ interface FormatOption {
 
 const FORMAT_OPTIONS: FormatOption[] = [
   { value: "python-workflow-definition", label: "Python Workflow Definition" },
+  { value: "flowrep", label: "flowrep (WorkflowRecipe)" },
   { value: "reactflow", label: "ReactFlow (native)" },
 ];
+
+const FILE_NAMES: Record<ExportFormat, string> = {
+  "python-workflow-definition": "workflow.json",
+  flowrep: "workflow.flowrep.json",
+  reactflow: "reactflow.json",
+};
 
 interface ExportDialogProps {
   isOpen: boolean;
@@ -35,11 +43,33 @@ export const ExportDialog: React.FunctionComponent<ExportDialogProps> = ({
   );
   const [copied, setCopied] = useState(false);
 
-  const serialized = useMemo(() => {
-    if (format === "reactflow") {
-      return JSON.stringify(rfObject, null, 2);
+  const { serialized, errors, warnings } = useMemo((): {
+    serialized: string;
+    errors: string[];
+    warnings: string[];
+  } => {
+    switch (format) {
+      case "reactflow":
+        return {
+          serialized: JSON.stringify(rfObject, null, 2),
+          errors: [],
+          warnings: [],
+        };
+      case "flowrep": {
+        const result = toFlowrepRecipe(nodes, edges);
+        return {
+          serialized: JSON.stringify(result.recipe, null, 2),
+          errors: result.errors,
+          warnings: result.warnings,
+        };
+      }
+      case "python-workflow-definition":
+        return {
+          serialized: JSON.stringify(toWorkflowDefinition(nodes, edges), null, 2),
+          errors: [],
+          warnings: [],
+        };
     }
-    return JSON.stringify(toWorkflowDefinition(nodes, edges), null, 2);
   }, [format, nodes, edges, rfObject]);
 
   const handleCopy = useCallback(() => {
@@ -54,10 +84,10 @@ export const ExportDialog: React.FunctionComponent<ExportDialogProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "workflow.json";
+    a.download = FILE_NAMES[format];
     a.click();
     URL.revokeObjectURL(url);
-  }, [serialized]);
+  }, [serialized, format]);
 
   if (!isOpen) return null;
 
@@ -92,6 +122,40 @@ export const ExportDialog: React.FunctionComponent<ExportDialogProps> = ({
             ))}
           </select>
         </div>
+
+        {errors.length > 0 && (
+          <div
+            data-testid="export-errors"
+            className="border border-red-300 bg-red-50 rounded p-3 max-h-32 overflow-y-auto"
+          >
+            <p className="text-sm font-medium text-red-800">
+              {errors.length === 1 ? "1 problem" : `${errors.length} problems`} — this
+              recipe will be rejected
+            </p>
+            <ul className="mt-1 list-disc list-inside text-sm text-red-700">
+              {errors.map((message, index) => (
+                <li key={index}>{message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {warnings.length > 0 && (
+          <div
+            data-testid="export-warnings"
+            className="border border-amber-300 bg-amber-50 rounded p-3 max-h-32 overflow-y-auto"
+          >
+            <p className="text-sm font-medium text-amber-800">
+              {warnings.length === 1 ? "1 note" : `${warnings.length} notes`} — exported
+              with changes
+            </p>
+            <ul className="mt-1 list-disc list-inside text-sm text-amber-700">
+              {warnings.map((message, index) => (
+                <li key={index}>{message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <textarea
           readOnly

@@ -47,6 +47,39 @@ test("web IDE loads linear workflow and add-node dialog shows 4 function nodes",
   await expect(page.locator('[data-id="emul_0.product-add_0.a"]')).toBeVisible();
   await expect(page.locator('[data-id="eadd_0.sum-result."]')).toBeVisible();
 
+  // Exporting as flowrep must reproduce dummy_module.flowrep.linear's own recipe
+  await page.getByRole("button", { name: "export" }).click();
+  await page.locator("#export-format").selectOption("flowrep");
+  const recipe = JSON.parse(
+    await page.locator("textarea[readonly]").inputValue(),
+  ) as {
+    type: string;
+    inputs: string[];
+    outputs: string[];
+    nodes: Record<string, { reference: { info: { qualname: string } } }>;
+    input_edges: Record<string, string>;
+    edges: Record<string, string>;
+    output_edges: Record<string, string>;
+    reference: unknown;
+  };
+  expect(recipe.type).toBe("workflow");
+  expect(recipe.inputs).toEqual(["x", "slope", "intercept"]);
+  expect(recipe.outputs).toEqual(["result"]);
+  expect(Object.keys(recipe.nodes)).toEqual(["mul_0", "add_0"]);
+  expect(recipe.nodes.mul_0.reference.info.qualname).toBe("mul");
+  expect(recipe.input_edges).toEqual({
+    "mul_0.a": "x",
+    "mul_0.b": "slope",
+    "add_0.b": "intercept",
+  });
+  expect(recipe.edges).toEqual({ "add_0.a": "mul_0.product" });
+  expect(recipe.output_edges).toEqual({ result: "add_0.sum" });
+  expect(recipe.reference).toBeNull();
+  // A graph imported from a real recipe must export without diagnostics
+  await expect(page.getByTestId("export-errors")).toHaveCount(0);
+  await expect(page.getByTestId("export-warnings")).toHaveCount(0);
+  await page.getByRole("button", { name: "Close" }).click();
+
   // Right-click on a corner of the pane (avoids nodes which are placed in the centre)
   await page.locator(".react-flow__pane").click({ button: "right", position: { x: 10, y: 10 } });
 

@@ -93,8 +93,16 @@ async def with_keepalive(
     response headers were flushed before the first event, it cannot report that
     as an error status. It resets the stream instead, which the browser surfaces
     as ERR_HTTP2_PROTOCOL_ERROR.
+
+    Each `anext(events)` runs in its own Task, and a Task copies its context
+    from the caller at creation time rather than from whatever the previous Task
+    left behind. Left alone, that drops any contextvars `events` sets on itself
+    (Langfuse's session/user propagation among them) after the first chunk. So
+    the context each Task finishes in is captured and handed to the next one,
+    carrying those mutations forward chunk to chunk.
     """
-    pending = asyncio.ensure_future(anext(events))
+    loop = asyncio.get_running_loop()
+    pending = loop.create_task(anext(events))
     try:
         while True:
             done, _ = await asyncio.wait({pending}, timeout=interval)
@@ -107,8 +115,9 @@ async def with_keepalive(
                 return
             # Read the result before yielding, so that a throw() or close() at
             # the yield below cannot be mistaken for the inner generator ending.
+            ctx = pending.get_context()
             yield chunk
-            pending = asyncio.ensure_future(anext(events))
+            pending = loop.create_task(anext(events), context=ctx)
     finally:
         pending.cancel()
         # aclose() on a generator with an in-flight asend() raises RuntimeError,

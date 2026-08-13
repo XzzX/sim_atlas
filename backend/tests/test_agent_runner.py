@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import importlib
 import json
 from collections.abc import AsyncGenerator
@@ -486,6 +487,32 @@ def test_with_keepalive_closes_the_agent_stream_when_the_client_leaves() -> None
 
     assert asyncio.run(take_one()) == "data: one\n\n"
     assert closed
+
+
+def test_with_keepalive_preserves_contextvars_set_by_the_wrapped_generator() -> None:
+    """Each `anext` runs in its own Task; a Task copies context at creation time
+    from the caller, not from whatever the previous Task's execution mutated.
+    Left unhandled, that drops Langfuse's session/user propagation after the
+    first chunk -- `events` sets the var once and every later read would see
+    the un-set default.
+    """
+    session_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+        "session_var", default=None
+    )
+    seen: list[str | None] = []
+
+    async def events() -> AsyncGenerator[str, None]:
+        session_var.set("session-123")
+        for i in range(3):
+            seen.append(session_var.get())
+            yield f"data: {i}\n\n"
+
+    async def collect() -> list[str]:
+        return [chunk async for chunk in with_keepalive(events(), interval=30.0)]
+
+    asyncio.run(collect())
+
+    assert seen == ["session-123", "session-123", "session-123"]
 
 
 # --- credential resolution ---

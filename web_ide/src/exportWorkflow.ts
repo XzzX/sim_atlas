@@ -9,7 +9,7 @@ import type {
   PythonWorkflowDefinitionEdge,
 } from "./interfaces/PythonWorkflowDefinitionSchema";
 
-function tryParseValue(raw: string): unknown {
+export function tryParseValue(raw: string): unknown {
   if (raw === "") return undefined;
   try {
     return JSON.parse(raw) as unknown;

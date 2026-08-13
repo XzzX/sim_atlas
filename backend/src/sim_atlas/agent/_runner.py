@@ -2,14 +2,12 @@ import json
 import logging
 import uuid
 from collections.abc import AsyncGenerator
-from typing import Any, NamedTuple, cast
+from typing import Any, Literal, NamedTuple
 
-from openai.types.chat import (
-    ChatCompletionMessageParam,
-    ChatCompletionMessageToolCall,
-)
+from openai.types.shared.reasoning_effort import ReasoningEffort
 from pydantic import ValidationError
 
+from sim_atlas.agent._llm import create_backend
 from sim_atlas.agent._observability import (
     AsyncOpenAI,  # pyright: ignore[reportPrivateImportUsage]
     Langfuse,
@@ -28,7 +26,6 @@ from sim_atlas.agent._sse import (
     to_sse,
 )
 from sim_atlas.agent.tools import (
-    TOOLS,
     ScratchGraph,
     ToolError,
     execute_tool,
@@ -49,6 +46,8 @@ class LLMConfig(NamedTuple):
     api_key: str
     base_url: str
     chat_model: str
+    api: Literal["chat", "responses"] = "chat"
+    reasoning_effort: ReasoningEffort = None
 
 
 def resolve_llm_config(request: AgentRequest) -> LLMConfig:
@@ -73,7 +72,13 @@ def resolve_llm_config(request: AgentRequest) -> LLMConfig:
             "llm_chat_model, and an llm_api_key must come from either the request "
             "or the server"
         )
-    return LLMConfig(api_key=api_key, base_url=base_url, chat_model=chat_model)
+    return LLMConfig(
+        api_key=api_key,
+        base_url=base_url,
+        chat_model=chat_model,
+        api=settings.llm_api,
+        reasoning_effort=settings.llm_reasoning_effort,
+    )
 
 
 def _graph_update_event(scratch: ScratchGraph) -> GraphUpdateEvent:
@@ -116,43 +121,24 @@ async def run_agent_stream(
             # abort an already-started 200 rather than surface as an error.
             client = AsyncOpenAI(api_key=llm.api_key, base_url=llm.base_url)
             scratch = ScratchGraph(request.nodes, request.edges)
-
-            history_messages: list[ChatCompletionMessageParam] = [
-                cast(ChatCompletionMessageParam, {"role": m.role, "content": m.content})
-                for m in request.history
-            ]
-            messages: list[ChatCompletionMessageParam] = [
-                {"role": "system", "content": build_system_prompt(request, storage)},
-                *history_messages,
-                {"role": "user", "content": request.query},
-            ]
+            backend = create_backend(
+                client,
+                llm.api,
+                llm.chat_model,
+                llm.reasoning_effort,
+                build_system_prompt(request, storage),
+                request,
+            )
 
             # Runaway-check loop: exits naturally (break) when the agent finishes,
             # or falls through (no break) when the turn limit is reached.
             for _ in range(max_turns):
-                response = await client.chat.completions.create(
-                    model=llm.chat_model,
-                    messages=messages,
-                    tools=TOOLS,
-                    tool_choice="auto",
-                )
-                choice = response.choices[0]
-                logger.debug(
-                    "LLM response message: %s",
-                    json.dumps(choice.message.model_dump(exclude_unset=True), indent=2),
-                )
-                if response.usage:
-                    total_input_tokens += response.usage.prompt_tokens
-                    total_output_tokens += response.usage.completion_tokens
-                messages.append(
-                    cast(
-                        ChatCompletionMessageParam,
-                        choice.message.model_dump(exclude_unset=True),
-                    )
-                )
+                turn = await backend.turn()
+                total_input_tokens += turn.input_tokens
+                total_output_tokens += turn.output_tokens
 
-                if not choice.message.tool_calls:
-                    final_message = choice.message.content or "(no response)"
+                if not turn.tool_calls:
+                    final_message = turn.text or "(no response)"
                     with lf.start_as_current_observation(
                         name="graph_validation"
                     ) as span:
@@ -170,49 +156,31 @@ async def run_agent_stream(
                         "Graph validation errors (stream); asking agent to correct:\n%s",
                         error_text,
                     )
-                    correction_message = (
+                    backend.add_user_message(
                         "The current graph has validation errors. "
                         "Please fix them using the available tools:\n" + error_text
                     )
-                    messages.append({"role": "user", "content": correction_message})
                     continue
 
-                reasoning = (
-                    getattr(choice.message, "reasoning", None)
-                    or choice.message.content
-                    or None
-                )
+                reasoning = turn.reasoning or turn.text
                 if reasoning:
                     yield to_sse(ReasoningEvent(content=reasoning))
-                for tc in choice.message.tool_calls:
-                    if not isinstance(tc, ChatCompletionMessageToolCall):
-                        continue
-                    args: dict[str, Any] = json.loads(tc.function.arguments)
-                    yield to_sse(ToolCallEvent(name=tc.function.name, args=args))
+                for call in turn.tool_calls:
+                    args: dict[str, Any] = json.loads(call.arguments)
+                    yield to_sse(ToolCallEvent(name=call.name, args=args))
 
                     try:
-                        result = await execute_tool(
-                            tc.function.name, args, storage, scratch
-                        )
-                        content = result
+                        content = await execute_tool(call.name, args, storage, scratch)
                     except (ValidationError, ToolError) as exc:
                         msg = (
-                            f"Invalid arguments for '{tc.function.name}': {exc}"
+                            f"Invalid arguments for '{call.name}': {exc}"
                             if isinstance(exc, ValidationError)
                             else str(exc)
                         )
                         content = json.dumps({"error": msg})
 
-                    yield to_sse(
-                        ToolResultEvent(name=tc.function.name, content=content)
-                    )
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tc.id,
-                            "content": content,
-                        }
-                    )
+                    yield to_sse(ToolResultEvent(name=call.name, content=content))
+                    backend.add_tool_result(call.id, content)
 
                 yield to_sse(_graph_update_event(scratch))
 
@@ -220,31 +188,30 @@ async def run_agent_stream(
             if truncated:
                 # Turn limit reached without natural completion.
                 # Make one tool-free summary call so the history entry is honest.
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": (
-                            "You have reached the maximum number of turns. "
-                            "Summarise in 2-3 sentences: what you have built so far "
-                            "and what still needs to be done to fulfil the original request. "
-                            "End with a clear statement of the next step the user should ask you to take."
-                        ),
-                    }
+                backend.add_user_message(
+                    "You have reached the maximum number of turns. "
+                    "Summarise in 2-3 sentences: what you have built so far "
+                    "and what still needs to be done to fulfil the original request. "
+                    "End with a clear statement of the next step the user should ask you to take."
                 )
 
-                summary_response = await client.chat.completions.create(
-                    model=llm.chat_model,
-                    messages=messages,
-                    tool_choice="none",
-                )
-                summary_choice = summary_response.choices[0]
-                final_message = summary_choice.message.content or "(turn limit reached)"
-                if summary_response.usage:
-                    total_input_tokens += summary_response.usage.prompt_tokens
-                    total_output_tokens += summary_response.usage.completion_tokens
+                summary = await backend.turn(use_tools=False)
+                final_message = summary.text or "(turn limit reached)"
+                total_input_tokens += summary.input_tokens
+                total_output_tokens += summary.output_tokens
                 logger.debug("Turn limit reached; summary: %s", final_message)
 
-            root_span.update(output=final_message)
+            root_span.update(
+                output=final_message,
+                metadata={
+                    "llm_api": llm.api,
+                    "reasoning_effort": llm.reasoning_effort,
+                    "correction_rounds": correction_rounds,
+                    "truncated": truncated,
+                    "input_tokens": total_input_tokens,
+                    "output_tokens": total_output_tokens,
+                },
+            )
             yield to_sse(_graph_update_event(scratch))
             yield to_sse(MessageEvent(content=final_message))
             if truncated:

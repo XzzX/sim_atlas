@@ -1,11 +1,17 @@
 ---
-status: accepted
+status: superseded by [ADR-0019](0019-caller-selected-llm-provider-allowlist.md)
 date: 2026-04-27
 deciders: Sebastian Eibl
 scope: cross-cutting
 ---
 
 # Agent Orchestration Placement
+
+> **Superseded in part by [ADR-0019](0019-caller-selected-llm-provider-allowlist.md).** The
+> placement decision (option B — server-side orchestration, client-supplied credentials) still
+> holds. What ADR-0019 replaces is the credential and selection contract described below: the
+> caller now also chooses the provider (by opaque id, against an operator allowlist), the model
+> and the reasoning effort, and the agent no longer falls back to the server's `llm_api_key`.
 
 ## Context and Problem Statement
 

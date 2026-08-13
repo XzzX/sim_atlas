@@ -4,6 +4,7 @@ import uuid
 from collections.abc import AsyncGenerator
 from typing import Any, NamedTuple, cast
 
+from openai import omit
 from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionMessageToolCall,
@@ -34,7 +35,8 @@ from sim_atlas.agent.tools import (
     execute_tool,
     validate_graph,
 )
-from sim_atlas.exceptions import AINotConfiguredError
+from sim_atlas.exceptions import AINotConfiguredError, LLMSelectionError
+from sim_atlas.llm_providers import ReasoningEffort
 from sim_atlas.models import AgentRequest
 from sim_atlas.settings import load_settings
 from sim_atlas.storage_interface import StorageInterface
@@ -49,31 +51,79 @@ class LLMConfig(NamedTuple):
     api_key: str
     base_url: str
     chat_model: str
+    reasoning_effort: ReasoningEffort | None = None
+
+
+#: `AsyncOpenAI` refuses an empty api_key, so unauthenticated providers (a local
+#: Ollama, say) get a placeholder that the endpoint will ignore.
+_UNUSED_API_KEY = "none"
 
 
 def resolve_llm_config(request: AgentRequest) -> LLMConfig:
-    """Resolve the LLM credentials to use for `request`.
+    """Resolve the provider, model and credentials to use for `request`.
 
-    A caller-supplied API key wins over the server configuration, so a user can
-    spend their own key. The base URL and model are deliberately not
-    caller-supplied: forwarding an arbitrary URL would turn this endpoint into an
-    SSRF vector, and the model is pinned to whatever the operator provisioned.
+    The API key always comes from the caller: the server's own `llm_api_key` is
+    reserved for docstring enrichment behind an access token, so an anonymous
+    caller can never spend the operator's credits here.
+
+    The provider is a caller-supplied *id* looked up in the operator's allowlist,
+    never a URL, so no caller string reaches the HTTP client and this endpoint
+    cannot be aimed at an arbitrary host. The model must be one the selected
+    provider offers. See ADR-0019.
 
     Raises:
-        AINotConfiguredError: When neither the request nor the server provides a
-            complete set of credentials.
+        LLMSelectionError: When the provider id or model is not allowlisted, or
+            the caller supplied no API key for a provider that needs one.
+        AINotConfiguredError: When the server has no providers configured at all.
     """
     settings = load_settings()
-    api_key = request.llm_api_key or settings.llm_api_key
-    chat_model = settings.llm_chat_model
-    base_url = settings.llm_base_url
-    if not (api_key and base_url and chat_model):
+    catalog = settings.llm_catalog
+    if not catalog:
         raise AINotConfiguredError(
-            "No LLM credentials available: the server must provide llm_base_url and "
-            "llm_chat_model, and an llm_api_key must come from either the request "
-            "or the server"
+            "This server has no LLM providers configured, so the agent cannot run"
         )
-    return LLMConfig(api_key=api_key, base_url=base_url, chat_model=chat_model)
+
+    provider_id = request.llm_provider or settings.llm_default_provider
+    if provider_id is None:
+        provider = next(iter(catalog.values()))
+    elif (found := catalog.get(provider_id)) is not None:
+        provider = found
+    else:
+        # Names only the allowlist, never the rejected value: this string is
+        # returned to the caller.
+        raise LLMSelectionError(
+            f"Unknown LLM provider. Allowed providers: {', '.join(catalog)}"
+        )
+
+    if request.llm_chat_model is None:
+        model = provider.resolved_default_model
+    elif (chosen := provider.get_model(request.llm_chat_model)) is not None:
+        model = chosen
+    else:
+        raise LLMSelectionError(
+            f"Unknown model for provider {provider.id!r}. Allowed models: "
+            f"{', '.join(m.name for m in provider.models)}"
+        )
+
+    if provider.requires_api_key:
+        if not request.llm_api_key:
+            raise LLMSelectionError(
+                f"The agent runs on your own API key. Provide llm_api_key for "
+                f"provider {provider.id!r}."
+            )
+        api_key = request.llm_api_key
+    else:
+        api_key = request.llm_api_key or _UNUSED_API_KEY
+
+    # Dropped rather than rejected when unsupported: a selection left over in a
+    # user's browser must not break a run after the catalog changes.
+    reasoning_effort = request.llm_reasoning_effort if model.reasoning_effort else None
+    return LLMConfig(
+        api_key=api_key,
+        base_url=provider.base_url,
+        chat_model=model.name,
+        reasoning_effort=reasoning_effort,
+    )
 
 
 def _graph_update_event(scratch: ScratchGraph) -> GraphUpdateEvent:
@@ -115,6 +165,9 @@ async def run_agent_stream(
             # before this generator first runs: an exception escaping here would
             # abort an already-started 200 rather than surface as an error.
             client = AsyncOpenAI(api_key=llm.api_key, base_url=llm.base_url)
+            # `omit` rather than None: None is a real value the SDK serialises, and
+            # an explicit null trips up servers that do not know the parameter.
+            reasoning_effort = llm.reasoning_effort or omit
             scratch = ScratchGraph(request.nodes, request.edges)
 
             history_messages: list[ChatCompletionMessageParam] = [
@@ -135,6 +188,7 @@ async def run_agent_stream(
                     messages=messages,
                     tools=TOOLS,
                     tool_choice="auto",
+                    reasoning_effort=reasoning_effort,
                 )
                 choice = response.choices[0]
                 logger.debug(
@@ -236,6 +290,7 @@ async def run_agent_stream(
                     model=llm.chat_model,
                     messages=messages,
                     tool_choice="none",
+                    reasoning_effort=reasoning_effort,
                 )
                 summary_choice = summary_response.choices[0]
                 final_message = summary_choice.message.content or "(turn limit reached)"

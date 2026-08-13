@@ -48,8 +48,9 @@ A decision that affects multiple components lists all values, e.g. `scope: [back
 | [0011](0011-metadata-only-storage.md) | Store node metadata with links to external source repositories | accepted | cross-cutting |
 | [0012](0012-best-effort-data-quality.md) | Information is provided on a best-effort basis without freshness or correctness guarantees | accepted | cross-cutting |
 | [0013](0013-jupyterhub-like-server-client-infrastructure.md) | JupyterHub-like scale-agnostic server-client infrastructure | accepted | cross-cutting |
-| [0014](0014-agent-orchestration-placement.md) | Server-side agent with client-supplied LLM credentials | draft | cross-cutting |
+| [0014](0014-agent-orchestration-placement.md) | Server-side agent with client-supplied LLM credentials | superseded by 0019 | cross-cutting |
 | [0015](0015-agent-filter-options-in-system-prompt.md) | Inject catalog filter options into the agent system prompt | accepted | backend |
 | [0016](0016-multi-turn-agent-conversation-history.md) | Multi-turn agent conversation via client-carried history | accepted | backend, web-ide |
 | [0017](0017-layered-settings-loading.md) | Layered settings loading with XDG-inspired priority order | accepted | backend |
 | [0018](0018-single-hybrid-search-endpoint.md) | Single auto-hybrid search endpoint with keyword fallback | accepted | backend |
+| [0019](0019-caller-selected-llm-provider-allowlist.md) | Caller-selected LLM provider, model and reasoning effort behind an operator allowlist | accepted | backend, web-ide |

@@ -269,6 +269,15 @@ export const GraphEdgeContextSchema = z.object({
 });
 export type GraphEdgeContext = z.infer<typeof GraphEdgeContextSchema>;
 
+/** Mirrors `ReasoningEffort` in the backend's `llm_providers` module. */
+export const ReasoningEffortSchema = z.enum([
+  "minimal",
+  "low",
+  "medium",
+  "high",
+]);
+export type ReasoningEffort = z.infer<typeof ReasoningEffortSchema>;
+
 export const AgentRequestSchema = z.object({
   query: z.string(),
   nodes: z.array(GraphNodeContextSchema),
@@ -280,8 +289,13 @@ export const AgentRequestSchema = z.object({
     .optional(),
   session_id: z.string().optional(),
   user_id: z.string().optional(),
-  // Caller-supplied API key; the provider URL and model are fixed server-side.
+  // Caller-supplied credentials and selection. `llm_provider` is an opaque id
+  // from `/capabilities`, never a URL — the server resolves it against its own
+  // allowlist. See ADR-0019.
   llm_api_key: z.string().optional(),
+  llm_provider: z.string().optional(),
+  llm_chat_model: z.string().optional(),
+  llm_reasoning_effort: ReasoningEffortSchema.optional(),
 });
 export type AgentRequest = z.infer<typeof AgentRequestSchema>;
 
@@ -320,13 +334,33 @@ export const AgentSSEEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("truncated") }),
 ]);
 
+export const LLMModelInfoSchema = z.object({
+  name: z.string(),
+  label: z.string(),
+  supports_reasoning_effort: z.boolean(),
+});
+export type LLMModelInfo = z.infer<typeof LLMModelInfoSchema>;
+
+export const LLMProviderInfoSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  // Informational, so the user can see where their key is sent; the request
+  // carries `id`, not this.
+  base_url: z.string(),
+  models: z.array(LLMModelInfoSchema),
+  default_model: z.string(),
+  requires_api_key: z.boolean(),
+});
+export type LLMProviderInfo = z.infer<typeof LLMProviderInfoSchema>;
+
 export const CapabilitiesResponseSchema = z.object({
-  // True when the server alone can run the agent. When it is false but both
-  // llm_base_url and llm_chat_model are set, the user can still supply a key.
-  agent_enabled: z.boolean(),
   embeddings_enabled: z.boolean(),
-  llm_base_url: z.string().nullish(),
-  llm_chat_model: z.string().nullish(),
+  // The operator's allowlist of endpoints the agent may be pointed at. There is
+  // no `agent_enabled` flag: the agent always runs on the user's own key, so a
+  // run is possible whenever this list is non-empty and a key is stored.
+  llm_providers: z.array(LLMProviderInfoSchema),
+  llm_default_provider: z.string().nullish(),
+  llm_reasoning_efforts: z.array(z.string()),
 });
 export type CapabilitiesResponse = z.infer<typeof CapabilitiesResponseSchema>;
 export type AgentSSEEvent = z.infer<typeof AgentSSEEventSchema>;

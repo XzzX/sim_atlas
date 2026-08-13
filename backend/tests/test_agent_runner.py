@@ -9,7 +9,8 @@ import pytest
 
 from sim_atlas.agent._runner import resolve_llm_config, run_agent_stream
 from sim_atlas.agent._sse import with_keepalive
-from sim_atlas.exceptions import AINotConfiguredError
+from sim_atlas.exceptions import AINotConfiguredError, LLMSelectionError
+from sim_atlas.llm_providers import LLMProvider
 from sim_atlas.models import AgentRequest
 from sim_atlas.storage_interface import StorageInterface
 
@@ -59,10 +60,36 @@ class _FakeAsyncOpenAI:
         self.chat = _FakeChat()
 
 
+# Built via model_validate so the bare-string model shorthand — the form an
+# operator writes in TOML — is exercised here too.
+_PLAIN_PROVIDER = LLMProvider.model_validate(
+    {
+        "id": "plain",
+        "label": "Plain",
+        "base_url": "http://localhost",
+        "models": ["test-model", {"name": "thinker", "reasoning_effort": True}],
+    }
+)
+_OPEN_PROVIDER = LLMProvider.model_validate(
+    {
+        "id": "open",
+        "label": "Open",
+        "base_url": "http://ollama",
+        "models": ["local-model"],
+        "requires_api_key": False,
+    }
+)
+
+
 class _FakeSettings:
-    llm_api_key = "test-key"
-    llm_base_url = "http://localhost"
-    llm_chat_model = "test-model"
+    # Present but unused by the agent: enrichment-only settings must not leak
+    # back into credential resolution.
+    llm_api_key = "server-key"
+    llm_base_url = "http://enrichment-only"
+    llm_chat_model = "enrichment-only-model"
+    llm_providers = [_PLAIN_PROVIDER, _OPEN_PROVIDER]
+    llm_catalog = {"plain": _PLAIN_PROVIDER, "open": _OPEN_PROVIDER}
+    llm_default_provider = None
     agent_max_iterations = 10
     langfuse_public_key = None
     langfuse_secret_key = None
@@ -81,7 +108,7 @@ def test_run_agent_stream_records_tracing_without_changing_sse(
 
     monkeypatch.setattr(runner_module, "validate_graph", fake_validate_graph)
 
-    request = AgentRequest(query="Hello", nodes=[], edges=[])
+    request = AgentRequest(query="Hello", nodes=[], edges=[], llm_api_key="user-key")
 
     async def collect() -> list[str]:
         return [
@@ -179,72 +206,134 @@ def test_with_keepalive_closes_the_agent_stream_when_the_client_leaves() -> None
 # --- credential resolution ---
 
 
-class _NoKeySettings(_FakeSettings):
-    llm_api_key = None
+class _NoProvidersSettings(_FakeSettings):
+    llm_providers: list[LLMProvider] = []
+    llm_catalog: dict[str, LLMProvider] = {}
 
 
-class _NoBaseUrlSettings(_FakeSettings):
-    llm_base_url = None
+class _DefaultProviderSettings(_FakeSettings):
+    llm_default_provider = "open"
 
 
-class _NoModelSettings(_FakeSettings):
-    llm_chat_model = None
+def _request(**kwargs: Any) -> AgentRequest:
+    return AgentRequest(query="Hello", nodes=[], edges=[], **kwargs)
 
 
-def test_resolve_llm_config_prefers_the_request_api_key(
+def test_resolve_llm_config_uses_the_selected_provider_and_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
 
     llm = resolve_llm_config(
-        AgentRequest(query="Hello", nodes=[], edges=[], llm_api_key="user-key")
+        _request(llm_api_key="user-key", llm_provider="plain", llm_chat_model="thinker")
     )
 
-    assert llm.api_key == "user-key"
-    # Neither the base URL nor the model is caller-supplied.
-    assert llm.base_url == "http://localhost"
-    assert llm.chat_model == "test-model"
+    # The base URL comes from the catalog, never from the request.
+    assert llm == ("user-key", "http://localhost", "thinker", None)
 
 
-def test_resolve_llm_config_falls_back_to_the_server_api_key(
+def test_resolve_llm_config_defaults_to_the_first_provider_and_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
 
-    llm = resolve_llm_config(AgentRequest(query="Hello", nodes=[], edges=[]))
+    llm = resolve_llm_config(_request(llm_api_key="user-key"))
 
-    assert llm == ("test-key", "http://localhost", "test-model")
+    assert llm == ("user-key", "http://localhost", "test-model", None)
 
 
-def test_resolve_llm_config_uses_the_request_key_without_a_server_key(
+def test_resolve_llm_config_honours_the_configured_default_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(runner_module, "load_settings", _NoKeySettings)
+    monkeypatch.setattr(runner_module, "load_settings", _DefaultProviderSettings)
+
+    llm = resolve_llm_config(_request(llm_api_key="user-key"))
+
+    assert llm.base_url == "http://ollama"
+    assert llm.chat_model == "local-model"
+
+
+def test_resolve_llm_config_never_falls_back_to_the_server_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The server key is reserved for enrichment; the agent always spends the caller's."""
+    monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
+
+    with pytest.raises(LLMSelectionError):
+        resolve_llm_config(_request())
+
+
+def test_resolve_llm_config_allows_a_provider_that_needs_no_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
+
+    llm = resolve_llm_config(_request(llm_provider="open"))
+
+    assert llm.base_url == "http://ollama"
+    assert llm.api_key
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "rejected"),
+    [
+        # A URL is just another unknown id: it is looked up, never dialled.
+        ({"llm_provider": "http://169.254.169.254/"}, "http://169.254.169.254/"),
+        (
+            {"llm_provider": "plain", "llm_chat_model": "not-allowlisted"},
+            "not-allowlisted",
+        ),
+    ],
+)
+def test_resolve_llm_config_rejects_selections_outside_the_allowlist(
+    kwargs: dict[str, str], rejected: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
+
+    with pytest.raises(LLMSelectionError) as excinfo:
+        resolve_llm_config(_request(llm_api_key="user-key", **kwargs))
+
+    # The message enumerates the allowlist and never reflects the rejected value.
+    assert rejected not in str(excinfo.value)
+
+
+def test_resolve_llm_config_raises_without_any_providers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runner_module, "load_settings", _NoProvidersSettings)
+
+    with pytest.raises(AINotConfiguredError):
+        resolve_llm_config(_request(llm_api_key="user-key"))
+
+
+def test_resolve_llm_config_keeps_reasoning_effort_for_a_supporting_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
 
     llm = resolve_llm_config(
-        AgentRequest(query="Hello", nodes=[], edges=[], llm_api_key="user-key")
-    )
-
-    assert llm == ("user-key", "http://localhost", "test-model")
-
-
-def test_resolve_llm_config_raises_without_any_api_key(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(runner_module, "load_settings", _NoKeySettings)
-
-    with pytest.raises(AINotConfiguredError):
-        resolve_llm_config(AgentRequest(query="Hello", nodes=[], edges=[]))
-
-
-@pytest.mark.parametrize("settings_cls", [_NoBaseUrlSettings, _NoModelSettings])
-def test_resolve_llm_config_raises_when_the_server_is_incomplete(
-    settings_cls: type[_FakeSettings], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A caller-supplied key cannot substitute for a missing base URL or model."""
-    monkeypatch.setattr(runner_module, "load_settings", settings_cls)
-
-    with pytest.raises(AINotConfiguredError):
-        resolve_llm_config(
-            AgentRequest(query="Hello", nodes=[], edges=[], llm_api_key="user-key")
+        _request(
+            llm_api_key="user-key",
+            llm_chat_model="thinker",
+            llm_reasoning_effort="high",
         )
+    )
+
+    assert llm.reasoning_effort == "high"
+
+
+def test_resolve_llm_config_drops_reasoning_effort_for_other_models(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stale browser selection must not break a run on a non-reasoning model."""
+    monkeypatch.setattr(runner_module, "load_settings", _FakeSettings)
+
+    llm = resolve_llm_config(
+        _request(
+            llm_api_key="user-key",
+            llm_chat_model="test-model",
+            llm_reasoning_effort="high",
+        )
+    )
+
+    assert llm.reasoning_effort is None

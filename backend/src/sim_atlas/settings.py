@@ -4,12 +4,18 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, ValidationError
+from pydantic import Field, ValidationError, model_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
     SettingsConfigDict,
     TomlConfigSettingsSource,
+)
+
+from sim_atlas.llm_providers import (
+    DEFAULT_LLM_PROVIDERS,
+    LLMProvider,
+    build_catalog,
 )
 
 _CONFIG_FILES = [
@@ -42,12 +48,14 @@ jwt_secret = "replace-with-strong-secret-key-min-32-chars"
 # Common values: HS256 (HMAC with SHA-256), HS512 (HMAC with SHA-512)
 # jwt_algorithm = "HS256"
 
-# === OPTIONAL: LLM / AI ENRICHMENT ===
-# Leave commented out if you don't use AI features (semantic search, docstring enrichment).
-# If any of these are configured, AI endpoints will be enabled in the API.
+# === OPTIONAL: LLM / DOCSTRING ENRICHMENT ===
+# These three settings power docstring enrichment (POST /enrich) ONLY. They are
+# charged to you, the operator, so the endpoint requires an access token.
+# The workflow agent does NOT use them: it takes its provider and model from the
+# [[llm_providers]] catalog below and its API key from the caller.
+# Leave commented out if you don't use docstring enrichment.
 
 # OpenAI-compatible LLM API Key
-# Used for generating refined docstrings and AI agent features.
 # Examples: OpenAI (sk-...), LocalAI, Ollama via OpenAI-compatible endpoint
 # llm_api_key = "sk-..."
 
@@ -60,12 +68,64 @@ jwt_secret = "replace-with-strong-secret-key-min-32-chars"
 
 # LLM Chat Model Name
 # Name of the model to use for conversational docstring refinement.
-# llm_chat_model = "qwen3.5-27b"
+# llm_chat_model = "qwen3.6-27b"
 
 # LLM Concurrency
 # Maximum number of simultaneous LLM requests.
 # Lower values reduce API load; higher values speed up large batches.
 # llm_concurrency = 5
+
+# === OPTIONAL: AGENT LLM PROVIDER ALLOWLIST ===
+# The endpoints the workflow agent is allowed to relay to. Users pick a provider
+# and model in the Web IDE and supply their own API key, so nothing here is
+# charged to you.
+#
+# This is a SECURITY boundary: clients send only the opaque `id`, never a URL, so
+# the agent endpoint cannot be turned into an open proxy or an SSRF vector. Only
+# add endpoints you are willing to have anonymous callers relay to, and never put
+# a credential in a base_url — these values are served by the public
+# GET /capabilities.
+#
+# Defaults (GWDG + OpenAI, shown below) apply when this section is absent.
+# Uncommenting it REPLACES the defaults rather than extending them, so re-list
+# every provider you want to keep.
+#
+# `models` entries are either a bare model id or a table. Set
+# reasoning_effort = true only for models that accept OpenAI's reasoning_effort
+# parameter — most vLLM-hosted open-weight models reject it. Providers rotate
+# their line-ups often; GWDG only lists its current set via
+# `curl -H "Authorization: Bearer $KEY" https://chat-ai.academiccloud.de/v1/models`.
+
+# [[llm_providers]]
+# id = "gwdg"
+# label = "GWDG Academic Cloud"
+# base_url = "https://chat-ai.academiccloud.de/v1/"
+# models = ["qwen3.6-27b"]
+
+# [[llm_providers]]
+# id = "openai"
+# label = "OpenAI"
+# base_url = "https://api.openai.com/v1"
+# models = [
+#     { name = "gpt-5", label = "GPT-5", reasoning_effort = true },
+#     { name = "gpt-5-mini", label = "GPT-5 mini", reasoning_effort = true },
+#     "gpt-4.1",
+# ]
+
+# A local, unauthenticated endpoint needs requires_api_key = false so users are
+# not asked for a key they do not have.
+# [[llm_providers]]
+# id = "ollama"
+# label = "Local Ollama"
+# base_url = "http://localhost:11434/v1"
+# models = ["llama3.1"]
+# requires_api_key = false
+
+# Provider preselected in the Web IDE. Defaults to the first entry above.
+# llm_default_provider = "gwdg"
+
+# Maximum tool-calling turns per agent run.
+# agent_max_iterations = 10
 
 # === OPTIONAL: EMBEDDINGS ===
 # Configure the embedding provider for semantic search.
@@ -102,10 +162,19 @@ embedding_batch_size = 8                            # number of documents per em
 class Settings(BaseSettings):
     jwt_secret: str
     jwt_algorithm: str = "HS256"
+    # These three drive docstring enrichment (`POST /enrich`) only. The agent
+    # gets its provider and model from `llm_providers` and its key from the
+    # caller; see ADR-0019. Do not reintroduce them into the agent path.
     llm_api_key: str | None = None
     llm_base_url: str | None = None
     llm_chat_model: str | None = None
     llm_concurrency: int = 5
+    # Providers the agent may relay to. Setting this in a config file *replaces*
+    # the built-in list rather than extending it.
+    llm_providers: list[LLMProvider] = Field(
+        default_factory=lambda: list(DEFAULT_LLM_PROVIDERS)
+    )
+    llm_default_provider: str | None = None
     agent_max_iterations: int = Field(default=10, ge=1)
     embedding_provider: Literal["fastembed", "openai", "voyageai"] | None = None
     embedding_model: str | None = None
@@ -123,6 +192,20 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         env_prefix="SIM_ATLAS_",
     )
+
+    @model_validator(mode="after")
+    def _check_llm_providers(self) -> "Settings":
+        # Surfaces a misconfigured catalog at startup rather than as a 400 on the
+        # first agent request.
+        catalog = build_catalog(self.llm_providers)
+        if self.llm_default_provider is not None and (
+            self.llm_default_provider not in catalog
+        ):
+            raise ValueError(
+                f"llm_default_provider {self.llm_default_provider!r} is not among "
+                f"the configured llm_providers ({', '.join(catalog) or 'none'})"
+            )
+        return self
 
     @classmethod
     def settings_customise_sources(
@@ -155,7 +238,13 @@ class Settings(BaseSettings):
         )
 
     @property
-    def agent_enabled(self) -> bool:
+    def llm_catalog(self) -> dict[str, LLMProvider]:
+        """Configured providers indexed by id; validated at construction."""
+        return build_catalog(self.llm_providers)
+
+    @property
+    def enrichment_enabled(self) -> bool:
+        """Whether `POST /enrich` can run on the server's own credentials."""
         return bool(self.llm_api_key and self.llm_base_url and self.llm_chat_model)
 
     @property

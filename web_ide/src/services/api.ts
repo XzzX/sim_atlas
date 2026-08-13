@@ -66,7 +66,24 @@ export const simAtlasAPI = {
       signal,
     });
     if (!response.ok) {
-      throw new Error(`Agent stream error: ${response.status}`);
+      // The backend rejects a non-allowlisted provider/model or a missing key
+      // with a 400 whose `detail` says what is allowed — without it the user
+      // sees only a bare status code.
+      const detail = await response
+        .json()
+        .then((body: unknown) =>
+          typeof body === "object" &&
+          body !== null &&
+          typeof (body as { detail?: unknown }).detail === "string"
+            ? (body as { detail: string }).detail
+            : null,
+        )
+        .catch(() => null);
+      throw new Error(
+        detail !== null
+          ? `Agent stream error: ${detail}`
+          : `Agent stream error: ${response.status}`,
+      );
     }
     const reader = response.body?.getReader();
     if (!reader) return;

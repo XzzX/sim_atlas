@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from sim_atlas.api import api_router
 from sim_atlas.dependencies import set_storage
-from sim_atlas.exceptions import AINotConfiguredError
+from sim_atlas.exceptions import AINotConfiguredError, LLMSelectionError
 from sim_atlas.mcp_server import mcp, mcp_app
 from sim_atlas.static_files import mount_spas
 from sim_atlas.storage_interface import get_storage_backend
@@ -48,6 +48,13 @@ async def ai_not_configured_handler(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail="AI features are not configured",
     )
+
+
+@app.exception_handler(LLMSelectionError)
+async def llm_selection_handler(request: Request, exc: LLMSelectionError) -> Response:
+    # The caller picked something outside the operator's allowlist. `exc` only
+    # ever names what is allowed, so it is safe to return verbatim.
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 app.include_router(api_router)

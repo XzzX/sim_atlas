@@ -515,10 +515,10 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       .then(setCapabilities)
       .catch(() => {
         setCapabilities({
-          agent_enabled: false,
           embeddings_enabled: false,
-          llm_base_url: null,
-          llm_chat_model: null,
+          llm_providers: [],
+          llm_default_provider: null,
+          llm_reasoning_efforts: [],
         });
       });
   }, []);
@@ -568,7 +568,6 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         await simAtlasAPI.agentStream(
           request,
           (event: AgentSSEEvent) => {
-            console.log("Received event:", event);
             if (event.type === "reasoning") {
               updateAssistant((t) => ({
                 ...t,
@@ -715,11 +714,11 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     }
   };
 
-  // Either the server carries its own key, or the user supplied one.
-  const canRun = capabilities?.agent_enabled === true || settings !== null;
-  // A user key is only usable if the server pinned a provider and a model.
-  const canConfigure =
-    capabilities?.llm_base_url != null && capabilities.llm_chat_model != null;
+  // The agent only ever runs on the user's own key, so stored settings are the
+  // one prerequisite.
+  const canRun = settings !== null;
+  // ...and a key is only usable if the operator allowlisted somewhere to send it.
+  const canConfigure = (capabilities?.llm_providers.length ?? 0) > 0;
 
   return (
     // w-full is load-bearing: the panel is mounted as a flex item, which would
@@ -1050,7 +1049,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             {capabilities === null
               ? "Checking agent availability…"
               : canConfigure
-                ? "Add your LLM API key to use the agent."
+                ? "Pick a provider and model and add your LLM API key to use the agent."
                 : "This server has no LLM provider configured, so the agent cannot run."}
           </p>
           {canConfigure && (
@@ -1073,8 +1072,9 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
           onClose={() => {
             setIsSettingsOpen(false);
           }}
-          baseUrl={capabilities?.llm_base_url ?? null}
-          chatModel={capabilities?.llm_chat_model ?? null}
+          providers={capabilities?.llm_providers ?? []}
+          defaultProvider={capabilities?.llm_default_provider ?? null}
+          reasoningEfforts={capabilities?.llm_reasoning_efforts ?? []}
           settings={settings}
           onSave={(next) => {
             saveAgentSettings(next);

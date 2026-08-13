@@ -18,6 +18,7 @@ from fastmcp import Client
 
 from sim_atlas.api.artifacts import compose_artifact
 from sim_atlas.file_system_storage import FileSystemStorage
+from sim_atlas.llm_providers import LLM_REASONING_EFFORTS, LLMProvider
 from sim_atlas.main import app, mcp
 from sim_atlas.models import (
     AnnotationRequest,
@@ -153,33 +154,73 @@ def test_me_unauthenticated_returns_401(unauthed_client: ApiClient) -> None:
 # ---------------------------------------------------------------------------
 
 
-class _NoLLMSettings:
-    """Settings stand-in for a server without any LLM configuration."""
+_TEST_PROVIDER = LLMProvider.model_validate(
+    {
+        "id": "plain",
+        "label": "Plain",
+        "base_url": "http://localhost",
+        "models": ["test-model"],
+    }
+)
 
-    llm_api_key = None
-    llm_base_url = None
-    llm_chat_model = None
+
+class _AllowlistSettings:
+    """Settings stand-in for a server with one allowlisted provider."""
+
+    # Set, but reserved for enrichment: the agent must never spend it.
+    llm_api_key = "server-key"
+    llm_providers = [_TEST_PROVIDER]
+    llm_catalog = {"plain": _TEST_PROVIDER}
+    llm_default_provider = None
 
 
-def test_agent_stream_without_any_credentials_returns_503(
+class _NoProvidersSettings(_AllowlistSettings):
+    """Settings stand-in for a server with an empty allowlist."""
+
+    llm_providers: list[LLMProvider] = []
+    llm_catalog: dict[str, LLMProvider] = {}
+
+
+def test_agent_stream_without_a_caller_key_returns_400(
     client: ApiClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The route is always registered, so an unconfigured server must say 503."""
-    monkeypatch.setattr("sim_atlas.agent._runner.load_settings", _NoLLMSettings)
+    """The server's own key is never spent here, even though it is configured."""
+    monkeypatch.setattr("sim_atlas.agent._runner.load_settings", _AllowlistSettings)
 
     response = client.post(
         "/api/v1/agent/stream",
         json={"query": "build me a workflow", "nodes": [], "edges": []},
     )
 
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_agent_stream_without_any_providers_returns_503(
+    client: ApiClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The route is always registered, so an unconfigured server must say 503."""
+    monkeypatch.setattr("sim_atlas.agent._runner.load_settings", _NoProvidersSettings)
+
+    response = client.post(
+        "/api/v1/agent/stream",
+        json={"query": "hi", "nodes": [], "edges": [], "llm_api_key": "user-key"},
+    )
+
     assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
 
-def test_agent_stream_with_a_key_but_no_server_provider_returns_503(
-    client: ApiClient, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    "selection",
+    [
+        # A caller-supplied URL is only ever looked up as an id, never dialled.
+        {"llm_provider": "http://169.254.169.254/"},
+        {"llm_provider": "plain", "llm_chat_model": "not-allowlisted"},
+    ],
+)
+def test_agent_stream_rejects_selections_outside_the_allowlist(
+    selection: dict[str, str], client: ApiClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A caller's key cannot substitute for the server-side base URL and model."""
-    monkeypatch.setattr("sim_atlas.agent._runner.load_settings", _NoLLMSettings)
+    monkeypatch.setattr("sim_atlas.agent._runner.load_settings", _AllowlistSettings)
 
     response = client.post(
         "/api/v1/agent/stream",
@@ -188,10 +229,55 @@ def test_agent_stream_with_a_key_but_no_server_provider_returns_503(
             "nodes": [],
             "edges": [],
             "llm_api_key": "user-key",
+            **selection,
         },
     )
 
-    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "plain" in response.json()["detail"]
+
+
+def test_agent_stream_rejects_an_unknown_reasoning_effort(
+    client: ApiClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("sim_atlas.agent._runner.load_settings", _AllowlistSettings)
+
+    response = client.post(
+        "/api/v1/agent/stream",
+        json={
+            "query": "hi",
+            "nodes": [],
+            "edges": [],
+            "llm_api_key": "user-key",
+            "llm_reasoning_effort": "ludicrous",
+        },
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+# ---------------------------------------------------------------------------
+# Capabilities
+# ---------------------------------------------------------------------------
+
+
+def test_capabilities_advertises_the_provider_allowlist(client: ApiClient) -> None:
+    response = client.get("/api/v1/capabilities")
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    # No agent_enabled flag: the agent always runs on the caller's own key.
+    assert "agent_enabled" not in body
+    assert {p["id"] for p in body["llm_providers"]} == {"gwdg", "openai"}
+    assert body["llm_reasoning_efforts"] == list(LLM_REASONING_EFFORTS)
+    openai_provider = next(p for p in body["llm_providers"] if p["id"] == "openai")
+    assert openai_provider["default_model"] == "gpt-5"
+    # The per-model flag the settings dialog uses to enable its effort control.
+    efforts = {
+        m["name"]: m["supports_reasoning_effort"] for m in openai_provider["models"]
+    }
+    assert efforts["gpt-5"] is True
+    assert efforts["gpt-4o"] is False
 
 
 # ---------------------------------------------------------------------------

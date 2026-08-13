@@ -14,6 +14,8 @@ from pydantic import (
     Tag,
 )
 
+from sim_atlas.llm_providers import LLMProvider, ReasoningEffort
+
 
 def nd_array_custom_before_validator(x: np.ndarray | dict[str, str]) -> np.ndarray:
     if isinstance(x, np.ndarray):
@@ -355,15 +357,71 @@ class AgentRequest(BaseModel):
     history: list[HistoryMessage] = []
     session_id: str | None = None
     user_id: str = "default"
-    # Caller-supplied API key; overrides the server configuration for this request
-    # only and is never stored. The base URL and model stay server-side.
+    # Caller-supplied credentials and selection, used for this request only and
+    # never stored. `llm_provider` is an opaque id resolved against the operator's
+    # allowlist (`settings.llm_providers`): the caller never supplies a URL, so
+    # this endpoint cannot be pointed at an arbitrary host. `llm_chat_model` must
+    # be one the selected provider offers. See ADR-0019.
     llm_api_key: str | None = None
+    llm_provider: str | None = None
+    llm_chat_model: str | None = None
+    # Dropped rather than forwarded when the selected model does not accept it.
+    llm_reasoning_effort: ReasoningEffort | None = None
 
 
 class AgentResponse(BaseModel):
     nodes: list[GraphNodeContext]
     edges: list[GraphEdgeContext]
     message: str
+
+
+class LLMModelInfo(BaseModel):
+    name: str
+    label: str
+    supports_reasoning_effort: bool
+
+
+class LLMProviderInfo(BaseModel):
+    """A provider as advertised to clients.
+
+    `base_url` is published so a user can see where their key is being sent; it
+    is informational only — clients select a provider by `id`.
+    """
+
+    id: str
+    label: str
+    base_url: str
+    models: list[LLMModelInfo]
+    default_model: str
+    requires_api_key: bool
+
+    @classmethod
+    def from_provider(cls, provider: LLMProvider) -> "LLMProviderInfo":
+        return cls(
+            id=provider.id,
+            label=provider.label,
+            base_url=provider.base_url,
+            models=[
+                LLMModelInfo(
+                    name=m.name,
+                    label=m.display_label,
+                    supports_reasoning_effort=m.reasoning_effort,
+                )
+                for m in provider.models
+            ],
+            default_model=provider.resolved_default_model.name,
+            requires_api_key=provider.requires_api_key,
+        )
+
+
+class CapabilitiesResponse(BaseModel):
+    embeddings_enabled: bool
+    # Providers the agent may be pointed at. The agent always runs on a
+    # caller-supplied key, so there is no "agent enabled" flag: an agent run is
+    # possible whenever this list is non-empty and the user has a key.
+    llm_providers: list[LLMProviderInfo]
+    llm_default_provider: str | None
+    llm_reasoning_efforts: list[str]
 
 
 class IOValue(BaseModel):

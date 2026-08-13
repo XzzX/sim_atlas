@@ -209,8 +209,13 @@ To verify a deployment, watch for the heartbeat directly:
 ```bash
 curl -N -X POST https://<host>/api/v1/agent/stream \
   -H 'Content-Type: application/json' \
-  -d '{"query":"build me a workflow","nodes":[],"edges":[]}'
+  -d '{"query":"build me a workflow","nodes":[],"edges":[],
+       "llm_api_key":"'"$LLM_API_KEY"'","llm_provider":"gwdg"}'
 ```
+
+`llm_api_key` is required — the agent always runs on the caller's own key (see
+[ADR-0019](adr/0019-caller-selected-llm-provider-allowlist.md)). `llm_provider` is an id from
+`GET /api/v1/capabilities`; omit it to use the server's default provider.
 
 `: keep-alive` lines should appear roughly every 15s during LLM turns, and the run should
 continue past the 60s mark.

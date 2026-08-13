@@ -1,16 +1,26 @@
 import { z } from "zod";
+import { ReasoningEffortSchema } from "../interfaces/BackendSchema";
 
 const STORAGE_KEY = "simflow.agentSettings";
 
 /**
- * Per-user LLM credentials for the agent.
+ * Per-user LLM credentials and provider choice for the agent.
  *
- * Only the API key is user-supplied; the provider base URL and the model are
- * fixed by the server and reported via `/capabilities`. Extra keys left over
+ * `llm_provider` is an opaque id from `/capabilities`, never a URL: the server
+ * resolves it against its own allowlist, so a value edited here cannot point the
+ * agent anywhere the operator has not permitted. Every field is spread straight
+ * into the `AgentRequest` body, so this shape must stay a subset of
+ * `AgentRequestSchema`.
+ *
+ * The selection fields are optional so an entry written before they existed still
+ * loads; the server then falls back to its own defaults. Extra keys left over
  * from an earlier version of this shape are dropped on read.
  */
 export const AgentSettingsSchema = z.object({
   llm_api_key: z.string().min(1),
+  llm_provider: z.string().min(1).optional(),
+  llm_chat_model: z.string().min(1).optional(),
+  llm_reasoning_effort: ReasoningEffortSchema.optional(),
 });
 export type AgentSettings = z.infer<typeof AgentSettingsSchema>;
 

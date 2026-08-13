@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from openai.types.chat import ChatCompletionToolParam
+from openai.types.responses import FunctionToolParam
 from pydantic import BaseModel
 
 from sim_atlas.agent._observability import get_client
@@ -191,6 +192,25 @@ def _build_tools_list() -> list[ChatCompletionToolParam]:
 TOOLS: list[ChatCompletionToolParam] = _build_tools_list()
 
 
+def _build_responses_tools_list() -> list[FunctionToolParam]:
+    """Same registry as `TOOLS`, in the flattened shape the Responses API expects."""
+    return [
+        {
+            "type": "function",
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": _schema_from_input_model(tool.input_model),
+            # `_schema_from_input_model` emits neither `additionalProperties: false`
+            # nor an exhaustive `required` list, both of which strict mode demands.
+            "strict": False,
+        }
+        for tool in TOOL_REGISTRY
+    ]
+
+
+RESPONSES_TOOLS: list[FunctionToolParam] = _build_responses_tools_list()
+
+
 def get_tool_prompt_guidance_lines() -> list[str]:
     return [tool.prompt_guidance for tool in TOOL_REGISTRY]
 
@@ -218,6 +238,7 @@ async def execute_tool(
 
 
 __all__ = [
+    "RESPONSES_TOOLS",
     "TOOL_REGISTRY",
     "TOOLS",
     "ScratchGraph",

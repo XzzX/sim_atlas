@@ -4,6 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from openai.types.shared.reasoning_effort import ReasoningEffort
 from pydantic import Field, ValidationError
 from pydantic_settings import (
     BaseSettings,
@@ -62,6 +63,21 @@ jwt_secret = "replace-with-strong-secret-key-min-32-chars"
 # Name of the model to use for conversational docstring refinement.
 # llm_chat_model = "qwen3.5-27b"
 
+# LLM API Endpoint (workflow agent only)
+# Which OpenAI-compatible endpoint the agent calls.
+# "chat"      -> /v1/chat/completions (default; the only endpoint GWDG serves)
+# "responses" -> /v1/responses (needed by gateways that refuse function tools on
+#                /v1/chat/completions when a reasoning effort is applied)
+# llm_api = "chat"
+
+# LLM Reasoning Effort (workflow agent only)
+# Reasoning budget for the agent. Omit to send no reasoning parameter at all,
+# which is what gateways that do not know the parameter expect.
+# Set to "none" to disable reasoning on a gateway that applies a default effort
+# and then rejects function tools on /v1/chat/completions.
+# Values: none | minimal | low | medium | high (model-dependent)
+# llm_reasoning_effort = "none"
+
 # LLM Concurrency
 # Maximum number of simultaneous LLM requests.
 # Lower values reduce API load; higher values speed up large batches.
@@ -105,6 +121,8 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_base_url: str | None = None
     llm_chat_model: str | None = None
+    llm_api: Literal["chat", "responses"] = "chat"
+    llm_reasoning_effort: ReasoningEffort = None
     llm_concurrency: int = 5
     agent_max_iterations: int = Field(default=10, ge=1)
     embedding_provider: Literal["fastembed", "openai", "voyageai"] | None = None

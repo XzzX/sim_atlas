@@ -35,6 +35,8 @@ def test_config_template_structure():
     assert "embedding_model" in CONFIG_TEMPLATE
     assert "embedding_api_key" in CONFIG_TEMPLATE
     assert "llm_chat_model" in CONFIG_TEMPLATE
+    assert "llm_api" in CONFIG_TEMPLATE
+    assert "llm_reasoning_effort" in CONFIG_TEMPLATE
     assert "langfuse_public_key" in CONFIG_TEMPLATE
     assert "langfuse_secret_key" in CONFIG_TEMPLATE
     assert "langfuse_host" in CONFIG_TEMPLATE

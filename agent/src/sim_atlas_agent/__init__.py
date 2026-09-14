@@ -8,11 +8,9 @@ from langgraph.types import Command
 from sim_atlas_agent.agent import get_async_agent
 from sim_atlas_agent.logging_callback import LoggingCallbackHandler
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
+logging.basicConfig(level=logging.WARNING, format="%(asctime)s  %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger("sim_atlas_agent")
+logger.setLevel(logging.INFO)
 
 langfuse_handler = CallbackHandler()
 

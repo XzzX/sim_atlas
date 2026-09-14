@@ -71,6 +71,17 @@ async def exec():
             )
 
         print(result["messages"][-1].content)
+        return result
 
 
-asyncio.run(exec())
+result = asyncio.run(exec())
+
+from sim_atlas_agent.flowrep import graph_to_flowrep
+import flowrep as fr
+
+
+g = asyncio.run(graph_to_flowrep("http://127.0.0.1:8000/api/v1", result.value["graph"]))
+unreferenced_recipe = g.model_copy(update={"reference": None})
+rendered = fr.tools.flowrep2python(unreferenced_recipe)
+print("================")
+print(rendered.source)

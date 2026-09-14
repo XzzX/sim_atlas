@@ -346,46 +346,41 @@ class FileSystemStorage(StorageInterface):
         page: int = 1,
         limit: int = 10,
     ) -> ScoredSearchResponse:
-        item_filter: NodeFilter = NodeFilter(filter or Filter())
-        filtered_items = (
-            item for item in self._artifacts.values() if item_filter(item)
-        )
+        if not query or not query.strip() or not load_settings().embeddings_enabled:
+            return self.search(query, filter, page=page, limit=limit)
 
-        def score_item(query: str, item: StoredArtifact) -> float:
-            search_field = item.name.lower()
-            brief_description = (
-                item.brief_description.lower() if item.brief_description else ""
-            )
-            docstring = ""
-            if isinstance(item, FunctionMetadata) and item.docstring:
-                docstring = item.docstring.lower()
-            if isinstance(item, FunctionMetadata):
-                search_field = f"{item.name} {item.python_import}".lower()
-            if query in search_field:
-                return 1.0
-            if query in brief_description:
-                return 0.8
-            if query in docstring:
-                return 0.5
-            return 0.0
+        min_token_len = 3
+        tokens = [t for t in query.lower().split() if len(t) >= min_token_len]
 
-        scored_items = (
-            item
-            for item in (
-                ScoredSearchItem(
-                    score=score_item(query.lower(), item) if query else 1.0, node=item
+        item_filter = NodeFilter(filter or Filter())
+        filtered_nodes = [n for n in self._artifacts.values() if item_filter(n)]
+
+        # --- keyword rank (all filtered nodes) ---
+        hit_counts: list[tuple[StoredArtifact, int]] = []
+        for node in filtered_nodes:
+            if isinstance(node, FunctionMetadata):
+                search_text = (
+                    f"{node.name} {node.python_import} {node.description}".lower()
                 )
-                for item in filtered_items
+            else:
+                search_text = f"{node.name} {node.description}".lower()
+            hits = sum(1 for tok in tokens if tok in search_text)
+            if hits > 0:
+                hit_counts.append((node, hits))
+
+        scored: list[ScoredSearchItem] = [
+            ScoredSearchItem(
+                score=item[1],
+                node=item[0],
             )
-            if item.score > 0.0
-        )
+            for item in hit_counts
+        ]
+        scored.sort(key=lambda x: x.score, reverse=True)
 
-        sorted_items = sorted(scored_items, key=lambda x: x.score, reverse=True)
-
-        paginated_items = self._paginate(sorted_items, page=page, limit=limit)
+        paginated_items = self._paginate(scored, page=page, limit=limit)
 
         for item in paginated_items.results.data:
-            if isinstance(item.node, FunctionMetadata):
+            if isinstance(item.node, FunctionResponse):
                 item.node.used_by = self._used_by(item.node.id)
                 self._fill_connections(item.node)
 

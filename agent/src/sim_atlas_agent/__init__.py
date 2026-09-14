@@ -1,10 +1,18 @@
 import asyncio
+import logging
 import uuid
 
 from langfuse.langchain import CallbackHandler
 from langgraph.types import Command
 
 from sim_atlas_agent.agent import get_async_agent
+from sim_atlas_agent.logging_callback import LoggingCallbackHandler
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger("sim_atlas_agent")
 
 langfuse_handler = CallbackHandler()
 
@@ -15,7 +23,7 @@ async def exec():
     thread_id = uuid.uuid4().hex
 
     config = {
-        "callbacks": [langfuse_handler],
+        "callbacks": [langfuse_handler, LoggingCallbackHandler()],
         "configurable": {"thread_id": thread_id},
         "metadata": {"langfuse_session_id": thread_id},
     }
@@ -50,14 +58,14 @@ async def exec():
             decisions = []
             for req in pending["action_requests"]:
                 if req["name"] == "ask_user":
-                    print(f"User question: {req['args']['question']}")
+                    logger.info("User question: %s", req["args"]["question"])
                     try:
                         answer = input(">").strip()
                     except (EOFError, KeyboardInterrupt):
                         break
                     decisions.append({"type": "respond", "message": answer})
                 else:
-                    print(f"Unknown action request: {req['name']}, rejecting")
+                    logger.info("Unknown action request: %s, rejecting", req["name"])
                     decisions.append(
                         {
                             "type": "reject",

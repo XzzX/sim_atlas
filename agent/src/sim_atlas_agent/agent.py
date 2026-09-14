@@ -1,3 +1,4 @@
+import logging
 import os
 
 from deepagents import create_deep_agent
@@ -8,6 +9,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from sim_atlas_agent.prompts import system_prompt
 from sim_atlas_agent.tools import ask_user
 from sim_atlas_agent.tools.wf import GraphState, apply_ops, graph_view
+
+logger = logging.getLogger("sim_atlas_agent")
 
 model = ChatOpenAI(
     model=os.environ["SIM_ATLAS_LLM_MODEL"],
@@ -27,10 +30,9 @@ async def get_mcp_tools():
     )
     tools = await client.get_tools()
 
-    print(f"\ndocs-langchain: {len(tools)} tool(s)")
+    logger.info("docs-langchain: %d tool(s)", len(tools))
     for t in tools:
-        print(f"  {t.name}")
-        print(f"  {t.description[:90]}")
+        logger.info("  %s: %s", t.name, t.description[:90])
     return tools
 
 
@@ -46,7 +48,6 @@ async def get_async_agent():
             "ask_user": {"allowed_decisions": ["respond"]},
         },
         state_schema=GraphState,
-        debug=True,
     )
 
     return agent

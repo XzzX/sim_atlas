@@ -3,8 +3,11 @@ from pydantic import BaseModel
 
 from sim_atlas.dependencies import get_storage
 from sim_atlas.models import (
+    AnnotationResponse,
     Filter,
+    FunctionMetadata,
     FunctionResponse,
+    Reference,
     StoredArtifact,
     WorkflowResponse,
 )
@@ -60,6 +63,40 @@ async def cookbook(sim_atlas_id: str) -> str:
     )
 
 
+def _format_references(refs: list[Reference] | None) -> str:
+    if not refs:
+        return "(none)"
+    return ", ".join(f"{r.label} ({r.id}) x{r.count}" for r in refs)
+
+
+def _format_port(p: AnnotationResponse) -> str:
+    type_info = p.datatype or "any"
+    if p.unit:
+        type_info += f", unit={p.unit}"
+    if p.quantity:
+        type_info += f", quantity={p.quantity}"
+    required = "optional" if p.has_default_value else "required"
+    line = f" - {p.label} ({type_info}, {required}): {p.description}"
+    if p.connections:
+        line += f"\n     connected in practice to: {_format_references(p.connections)}"
+    return line
+
+
+def _artifact_to_str(artifact: StoredArtifact) -> str:
+    sections = [
+        f"sim-atlas-id: {artifact.id}",
+        f"description: \n{artifact.brief_description}",
+        "inputs:\n" + "\n".join(_format_port(p) for p in artifact.inputs),
+        "outputs:\n" + "\n".join(_format_port(p) for p in artifact.outputs),
+        f"see also: {_format_references(artifact.see_also)}",
+    ]
+    if isinstance(artifact, FunctionMetadata):
+        sections.append(f"used in workflows: {_format_references(artifact.used_by)}")
+    else:
+        sections.append(f"uses: {_format_references(artifact.uses)}")
+    return "\n\n".join(sections)
+
+
 @mcp.tool
 async def detailed_node_info(sim_atlas_ids: list[str]) -> str:
     """Get detailed information about a specific nodes.
@@ -68,24 +105,14 @@ async def detailed_node_info(sim_atlas_ids: list[str]) -> str:
         sim_atlas_ids (list[str]): The IDs of the nodes to retrieve.
 
     Returns:
-        str: Details about the nodes, including their inputs and outputs.
+        str: Details about the nodes, including their inputs and outputs
+            (with real-world connections observed in stored workflows) and
+            related/usage references.
     """
     storage = get_storage()
     responses = [storage.read_artifact(sim_atlas_id) for sim_atlas_id in sim_atlas_ids]
 
-    def artifact_to_str(artifact: StoredArtifact) -> str:
-        return f"""sim-atlas-id: {artifact.id}
-
-description: 
-{artifact.brief_description}
-
-inputs:
-{"\n".join([f" - {p.label} ({p.datatype}): {p.description}" for p in artifact.inputs])}
-
-outputs:
-{"\n".join([f" - {p.label} ({p.datatype}): {p.description}" for p in artifact.outputs])}"""
-
-    return "\n\n===\n\n".join([artifact_to_str(response) for response in responses])
+    return "\n\n===\n\n".join([_artifact_to_str(response) for response in responses])
 
 
 mcp_app = mcp.http_app(path="/")

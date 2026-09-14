@@ -85,7 +85,9 @@ def _headline(name: str, input_str: Any) -> str:
 
 
 def _result_summary(name: str, output: Any) -> str:
-    text = str(output)
+    # Tool results usually arrive wrapped in a ToolMessage; str() on that repr's
+    # the whole object with escaped "\n"s, which breaks any line-based counting.
+    text = str(getattr(output, "content", output))
     fn = _TOOL_RESULT.get(name)
     if fn is not None:
         return fn(text)
@@ -98,29 +100,67 @@ def _reasoning_from_kwargs(kwargs: dict | None) -> str:
     return kwargs.get("reasoning_content") or kwargs.get("reasoning") or ""
 
 
+def _extract_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                parts.append(block.get("text", ""))
+        return "".join(parts)
+    return ""
+
+
+def _first_from_response(response: Any, extract) -> str:
+    """First truthy value `extract(message)` yields across a non-streamed LLMResult.
+
+    Streaming doesn't always happen (some graph nodes call the model with a plain
+    ainvoke), in which case on_llm_new_token never fires and the only place the
+    text exists is the final aggregated response handed to on_llm_end.
+    """
+    for generation in getattr(response, "generations", []) or []:
+        for gen in generation:
+            value = extract(getattr(gen, "message", None))
+            if value:
+                return value
+    return ""
+
+
 class LoggingCallbackHandler(AsyncCallbackHandler):
     """Narrates agent/tool/LLM activity as short, human-readable lines."""
 
     def __init__(self):
         super().__init__()
-        self._tool_starts: dict[UUID, tuple[str, float]] = {}
+        # (name, headline, started) per run_id. Tool calls in the same LLM turn run
+        # concurrently, so if we logged the headline in on_tool_start, every call's
+        # headline would print before any of their results; instead we hold onto it
+        # and print call+result together in on_tool_end/on_tool_error, atomically.
+        self._tool_starts: dict[UUID, tuple[str, str, float]] = {}
         self._llm_starts: dict[UUID, float] = {}
         self._reasoning: dict[UUID, list[str]] = {}
         self._content: dict[UUID, list[str]] = {}
 
     async def on_tool_start(self, serialized, input_str, *, run_id, **kwargs):
         name = (serialized or {}).get("name") or kwargs.get("name") or "tool"
-        self._tool_starts[run_id] = (name, time.monotonic())
-        logger.info(_headline(name, input_str))
+        self._tool_starts[run_id] = (name, _headline(name, input_str), time.monotonic())
 
     async def on_tool_end(self, output, *, run_id, **kwargs):
-        name, started = self._tool_starts.pop(run_id, ("tool", time.monotonic()))
+        name, headline, started = self._tool_starts.pop(
+            run_id, ("tool", "tool", time.monotonic())
+        )
         elapsed = time.monotonic() - started
+        logger.info(headline)
         logger.info("  → %s (%.1fs)", _result_summary(name, output), elapsed)
 
     async def on_tool_error(self, error, *, run_id, **kwargs):
-        name, started = self._tool_starts.pop(run_id, ("tool", time.monotonic()))
+        name, headline, started = self._tool_starts.pop(
+            run_id, ("tool", "tool", time.monotonic())
+        )
         elapsed = time.monotonic() - started
+        logger.info(headline)
         logger.info("  ✗ %s failed: %s (%.1fs)", name, _truncate(error), elapsed)
 
     async def on_chat_model_start(self, serialized, messages, *, run_id, **kwargs):
@@ -139,23 +179,18 @@ class LoggingCallbackHandler(AsyncCallbackHandler):
     async def on_llm_end(self, response, *, run_id, **kwargs):
         started = self._llm_starts.pop(run_id, time.monotonic())
         elapsed = time.monotonic() - started
-        reasoning = "".join(self._reasoning.pop(run_id, []))
-        if not reasoning:
-            for generation in getattr(response, "generations", []) or []:
-                for gen in generation:
-                    message = getattr(gen, "message", None)
-                    reasoning = _reasoning_from_kwargs(
-                        getattr(message, "additional_kwargs", None)
-                    )
-                    if reasoning:
-                        break
-                if reasoning:
-                    break
+
+        reasoning = "".join(self._reasoning.pop(run_id, [])) or _first_from_response(
+            response,
+            lambda m: _reasoning_from_kwargs(getattr(m, "additional_kwargs", None)),
+        )
         if reasoning:
             logger.info("thinking: %s (%.1fs)", _truncate(reasoning), elapsed)
 
         # The assistant's actual words (as opposed to its reasoning) are printed
         # in full, unlike everything else above — a real reply isn't truncated.
-        content = "".join(self._content.pop(run_id, [])).strip()
+        content = "".join(self._content.pop(run_id, [])).strip() or _first_from_response(
+            response, lambda m: _extract_text(getattr(m, "content", "")).strip()
+        )
         if content:
             logger.info(content)

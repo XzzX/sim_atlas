@@ -7,7 +7,7 @@ from langfuse.langchain import CallbackHandler
 from langgraph.types import Command
 
 from sim_atlas_agent.agent import get_async_agent
-from sim_atlas_agent.flowrep import graph_to_flowrep
+from sim_atlas_agent.flowrep import API_URL, graph_to_flowrep
 from sim_atlas_agent.logging_callback import LoggingCallbackHandler
 
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s  %(message)s", datefmt="%H:%M:%S")
@@ -101,7 +101,7 @@ class Agent:
         return self.result.value["graph"]
 
     async def get_flowrep(self):
-        return await graph_to_flowrep("http://127.0.0.1:8000/api/v1", self.result.value["graph"])
+        return await graph_to_flowrep(API_URL, self.result.value["graph"])
 
     async def print_flowrep(self):
         g = await self.get_flowrep()

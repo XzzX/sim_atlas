@@ -6,6 +6,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 
+from sim_atlas_agent.flowrep import check_flowrep
 from sim_atlas_agent.prompts import system_prompt
 from sim_atlas_agent.tools import ask_user
 from sim_atlas_agent.tools.wf import GraphState, apply_ops, graph_view
@@ -42,7 +43,7 @@ async def get_async_agent():
     agent = create_deep_agent(
         model=model,
         system_prompt=system_prompt,
-        tools=[ask_user, graph_view, apply_ops, *mcp_tools],
+        tools=[ask_user, graph_view, apply_ops, check_flowrep, *mcp_tools],
         checkpointer=MemorySaver(),
         interrupt_on={
             "ask_user": {"allowed_decisions": ["respond"]},

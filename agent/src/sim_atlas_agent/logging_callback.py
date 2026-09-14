@@ -19,6 +19,7 @@ _TOOL_HEADLINE = {
     "apply_ops": lambda args: args.get("intent"),
     "ask_user": lambda args: args.get("question"),
     "graph_view": lambda args: None,
+    "check_flowrep": lambda args: None,
 }
 
 # Tool name -> function summarizing its raw string output.

@@ -19,13 +19,15 @@ Protocol:
    a type or port name.
 3. Make each logical change in ONE `apply_ops` call. Batches are atomic, so a rewire
    is one call containing the disconnect and the connect together.
-4. `graph_view` again at the end and summarise what changed.
+4. Before telling the user you are done, call `check_flowrep`. If it reports REJECTED,
+   use `apply_ops` to fix the stated problem, then call `check_flowrep` again.
+5. `graph_view` again at the end and summarise what changed.
 
 Rules:
 - Change the graph ONLY via `apply_ops`.
 - Input ports take exactly one producer; output ports may fan out.
-- REJECTED means nothing changed. Fix the stated problem and retry; do not try to
-  achieve the same edit some other way.
+- REJECTED (from `apply_ops` or `check_flowrep`) means: read the reason, fix it via
+  `apply_ops`, and retry/recheck; do not try to achieve the same edit some other way.
 
 Ops available to apply_ops:
 {_ops_reference()}

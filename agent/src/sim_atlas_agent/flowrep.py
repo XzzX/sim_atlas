@@ -1,10 +1,14 @@
 import asyncio
+from typing import Annotated
 
 import httpx
+import pydantic
 from flowrep import base_models, edge_models
 from flowrep.prospective.atomic_recipe import AtomicRecipe
 from flowrep.prospective.constant_recipe import ConstantRecipe
 from flowrep.prospective.workflow_recipe import WorkflowRecipe
+from langchain_core.tools import tool
+from langgraph.prebuilt import InjectedState
 from pyiron_snippets import versions
 
 from sim_atlas_agent.models.sim_atlas import (
@@ -12,7 +16,9 @@ from sim_atlas_agent.models.sim_atlas import (
     FunctionResponse,
     artifact_response_adapter,
 )
-from sim_atlas_agent.tools.wf import Graph
+from sim_atlas_agent.tools.wf import Graph, GraphState
+
+API_URL = "http://127.0.0.1:8000/api/v1"
 
 
 async def read_artifact(
@@ -130,3 +136,28 @@ async def graph_to_flowrep(api_url: str, g: Graph) -> WorkflowRecipe:
         edges=edges,
         output_edges=output_edges,
     )
+
+
+async def check_flowrep_core(api_url: str, g: Graph) -> tuple[bool, str]:
+    """Try converting the graph to a flowrep recipe. Never raises."""
+    try:
+        recipe = await graph_to_flowrep(api_url, g)
+    except (ValueError, TypeError, pydantic.ValidationError, httpx.HTTPError) as exc:
+        return False, f"REJECTED. {exc}"
+    return True, (
+        f"flowrep OK: {len(recipe.nodes)} node(s). "
+        f"Workflow inputs: {recipe.inputs or '(none)'}. "
+        f"Workflow outputs: {recipe.outputs or '(none)'}."
+    )
+
+
+@tool
+async def check_flowrep(state: Annotated[GraphState, InjectedState]) -> str:
+    """Convert the current graph to its flowrep recipe against the live node
+    catalogue. Read-only, never changes the graph. Catches what apply_ops cannot:
+    unknown port names, a param on a nonexistent input, a port with both a param
+    and an edge, a malformed python import path, or a node that is actually a
+    workflow (unsupported). Call this before telling the user you are done.
+    On REJECTED, fix the stated problem with apply_ops and call this again."""
+    _, message = await check_flowrep_core(API_URL, state["graph"])
+    return message

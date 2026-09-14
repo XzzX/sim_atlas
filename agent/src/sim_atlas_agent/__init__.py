@@ -76,7 +76,6 @@ async def exec():
                 version="v2",
             )
 
-        print(result["messages"][-1].content)
         return result
 
 

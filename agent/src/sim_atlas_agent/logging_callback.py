@@ -106,6 +106,7 @@ class LoggingCallbackHandler(AsyncCallbackHandler):
         self._tool_starts: dict[UUID, tuple[str, float]] = {}
         self._llm_starts: dict[UUID, float] = {}
         self._reasoning: dict[UUID, list[str]] = {}
+        self._content: dict[UUID, list[str]] = {}
 
     async def on_tool_start(self, serialized, input_str, *, run_id, **kwargs):
         name = (serialized or {}).get("name") or kwargs.get("name") or "tool"
@@ -125,8 +126,11 @@ class LoggingCallbackHandler(AsyncCallbackHandler):
     async def on_chat_model_start(self, serialized, messages, *, run_id, **kwargs):
         self._llm_starts[run_id] = time.monotonic()
         self._reasoning[run_id] = []
+        self._content[run_id] = []
 
     async def on_llm_new_token(self, token, *, run_id, chunk=None, **kwargs):
+        if token:
+            self._content.setdefault(run_id, []).append(token)
         message = getattr(chunk, "message", None)
         reasoning = _reasoning_from_kwargs(getattr(message, "additional_kwargs", None))
         if reasoning:
@@ -149,3 +153,9 @@ class LoggingCallbackHandler(AsyncCallbackHandler):
                     break
         if reasoning:
             logger.info("thinking: %s (%.1fs)", _truncate(reasoning), elapsed)
+
+        # The assistant's actual words (as opposed to its reasoning) are printed
+        # in full, unlike everything else above — a real reply isn't truncated.
+        content = "".join(self._content.pop(run_id, [])).strip()
+        if content:
+            logger.info(content)

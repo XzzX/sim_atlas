@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 import { useDebouncedCallback } from "use-debounce";
 import { simAtlasAPI } from "../services/api";
@@ -92,19 +92,30 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Searches are not guaranteed to come back in the order they were sent: the
+  // backend embeds the query for hybrid search, so one request can easily
+  // outlive a later one. Only the newest request may touch state — otherwise a
+  // slow earlier response overwrites fresher results, or its `finally` clears
+  // the spinner while the current search is still running.
+  const latestRequestRef = useRef(0);
+
   const debouncedSearch = useDebouncedCallback(
     // eslint-disable-next-line @typescript-eslint/no-inferrable-types
     async (q: string, f: Filter, page: number = 1) => {
+      const requestId = ++latestRequestRef.current;
+      const isStale = () => requestId !== latestRequestRef.current;
       try {
         setLoading(true);
         setError(null);
         const results = await simAtlasAPI.search(q, f, page);
+        if (isStale()) return;
         setSearchResponse(results);
       } catch (err) {
+        if (isStale()) return;
         setError("Search failed. Please try again.");
         console.error(err);
       } finally {
-        setLoading(false);
+        if (!isStale()) setLoading(false);
       }
     },
     500,

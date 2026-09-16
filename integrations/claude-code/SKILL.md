@@ -1,6 +1,6 @@
 ---
 name: sim-atlas
-description: Find and reuse existing simulation building blocks from the Simulation Atlas catalog when writing scientific, numerical or simulation Python — structure and file I/O, unit conversions, physics kernels, solvers, post-processing, or multi-step pipelines. Use when writing such code, when a needed routine may already exist in a research package, or when a physical quantity or unit has to line up between two calls.
+description: Find and reuse existing simulation building blocks from the Simulation Atlas catalog when writing scientific, numerical or simulation Python — structure and file I/O, unit conversions, physics kernels, solvers, post-processing, or multi-step pipelines — and compose them into flowrep workflows. Use when writing such code, when a needed routine may already exist in a research package, when a physical quantity or unit has to line up between two calls, or when asked to write, convert or publish a workflow or pipeline.
 ---
 
 # Simulation Atlas
@@ -83,6 +83,53 @@ best-effort metadata, not registry truth:
 
 So propose, let the user confirm, and verify by importing rather than trusting
 the metadata.
+
+## Composing workflows
+
+When the result is a multi-step pipeline — or the user asks for a workflow —
+write it as a `@flowrep.workflow` function. That is the format this catalog
+stores workflows in, so the pipeline stays inspectable, re-runnable and
+publishable instead of being a one-off script.
+
+Read `references/flowrep.md` before writing the syntax. The body is a restricted
+grammar, not ordinary Python: no arithmetic, no nested calls, one assignment per
+node. Importing the module parses it and raises on any violation — always do
+that, then print `.flowrep_recipe` to check the wiring.
+
+**Every node should be a function you found in the catalog.** Writing your own
+`@flowrep.atomic` is the exception and needs a reason you can state.
+
+That is a reproducibility requirement, not a style preference. A catalog function
+carries a recorded version, provenance, units and quantities, and someone else's
+review; a workflow built from catalog nodes can be re-run and trusted by a group
+that was not in this conversation. A node you write yourself is another copy of a
+routine some research group already implemented — unreviewed, unmatchable against
+the catalog, and a silent fork of the thing it duplicates.
+
+So, per step of the pipeline:
+
+1. `search_functions(...)` **before** writing that step — every step, not just
+   the ones that look hard.
+2. Chain with `find_by_signature(unit=..., match="parameter")`: "what accepts
+   what the previous node produced", rather than assuming two functions fit.
+3. `get_workflow_source(id)` on a nearby catalog workflow — the composition may
+   already exist, in which case adapt it.
+4. Only after two or three genuinely different searches come back empty may you
+   write that node yourself.
+
+Two things do justify a hand-written node: a thin wrapper around a compiled
+callable, which flowrep cannot turn into a node (keep it to the call, no science
+of your own inside it), and genuinely novel domain logic the catalog lacks —
+write that one as if it will be published, with a real docstring and units named
+in the parameter docs.
+
+Glue that only rearranges data — renaming keys, zipping two lists, pulling a
+field off an object — usually means the two nodes were not the right pair. Search
+once more for a node that takes what you actually have before writing an adapter.
+
+Then tell the user which nodes came from the catalog (with their ids), which you
+wrote, and what you searched for before writing each one. That is their cue to
+publish the new node, or to point you at the package you missed.
 
 ## What the catalog will not do
 

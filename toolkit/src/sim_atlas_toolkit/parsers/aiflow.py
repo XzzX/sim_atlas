@@ -107,7 +107,9 @@ async def parse_function_node(
     )
 
 
-async def parse_group_node(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
+async def parse_group_node(
+    settings: ToolkitSettings, obj: Any
+) -> list[httpx2.Response]:
     if isinstance(obj, WorkflowGroupFactory):
         obj = obj()
 

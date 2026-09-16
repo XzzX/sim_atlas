@@ -66,6 +66,81 @@ def test_search_hybrid_falls_back_to_keyword_without_embeddings(
     assert "special_fn" in names
 
 
+def test_search_hybrid_without_embeddings_matches_a_sentence_shaped_query(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The keyword-only path must serve the full sentences the MCP tools ask for.
+
+    Whole-query substring matching returned nothing here, which left a
+    zero-config deployment with a catalog its agent could never see.
+    """
+    storage = FileSystemStorage(path=None)
+    storage.create_artifact(
+        make_node(
+            name="gradient_on_mesh",
+            python_import="mylib.mesh.gradient_on_mesh",
+            brief_description="Gradient of a scalar field on an unstructured mesh.",
+            source_code="def gradient_on_mesh(): pass",
+        )
+    )
+    storage.create_artifact(
+        make_node(
+            name="get_temperature",
+            python_import="ase.md.get_temperature",
+            brief_description="Instantaneous temperature of an atomic structure.",
+            source_code="def get_temperature(): pass",
+        )
+    )
+
+    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=False))
+
+    async def _boom(*_args: Any, **_kwargs: Any) -> np.ndarray:
+        raise AssertionError("create_embedding must not be called")
+
+    monkeypatch.setattr(fss, "create_embedding", _boom)
+
+    response = asyncio.run(
+        storage.search_hybrid(
+            "compute the gradient of a temperature field on an unstructured mesh"
+        )
+    )
+
+    assert [item.node.name for item in response.results.data][0] == "gradient_on_mesh"
+
+
+def test_search_drop_unmatched_false_ranks_without_excluding() -> None:
+    """A query must only order the filtered set, never shrink it.
+
+    This is what find_by_signature needs: the annotation filters are the
+    constraint, and a descriptive query is a tie-breaker on top of them.
+    """
+    storage = FileSystemStorage(path=None)
+    storage.create_artifact(
+        make_node(
+            name="heat_capacity",
+            source_code="def heat_capacity(): pass",
+            outputs=[AnnotationResponse(label="c", datatype="float")],
+        )
+    )
+    storage.create_artifact(
+        make_node(
+            name="lattice_constant",
+            source_code="def lattice_constant(): pass",
+            outputs=[AnnotationResponse(label="a", datatype="float")],
+        )
+    )
+    float_outputs = Filter(datatypes=["float"], port_type="outputs")
+
+    unqueried = storage.search(None, float_outputs)
+    queried = storage.search(
+        "the heat capacity of a solid", float_outputs, drop_unmatched=False
+    )
+
+    assert queried.results.total_items == unqueried.results.total_items == 2  # noqa: PLR2004
+    assert queried.results.data[0].node.name == "heat_capacity"
+    assert queried.results.data[1].score == 0.0
+
+
 def test_search_hybrid_none_query_returns_filtered() -> None:
     """A missing query degrades to filter-only browse without touching embeddings."""
     storage = FileSystemStorage(path=None)

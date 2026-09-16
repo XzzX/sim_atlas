@@ -590,6 +590,40 @@ def test_mcp_search_functions_without_matches_suggests_giving_up(
     assert "write the code yourself" in text
 
 
+def test_mcp_search_functions_matches_a_sentence_shaped_query(
+    client: ApiClient,
+) -> None:
+    """The query schema demands full sentences, so a full sentence must work.
+
+    With no embedding provider configured this runs the keyword-only path,
+    which is exactly how a zero-config deployment serves a coding agent.
+    """
+    _seed_function(
+        client,
+        name="gradient_on_mesh",
+        python_import="mylib.mesh.gradient_on_mesh",
+        source_code="def gradient_on_mesh(field): pass",
+        docstring="Gradient of a scalar field on an unstructured mesh.",
+    )
+    _seed_function(
+        client,
+        name="add_numbers",
+        python_import="mylib.add_numbers",
+        source_code="def add_numbers(a, b): pass",
+        docstring="Adds two numbers.",
+    )
+
+    text = _call_mcp(
+        "search_functions",
+        {
+            "query": "compute the gradient of a temperature field on an unstructured mesh"
+        },
+    )
+
+    assert "from mylib.mesh import gradient_on_mesh" in text
+    assert "No matches" not in text
+
+
 def test_mcp_find_by_signature_filters_on_a_parameter_unit(client: ApiClient) -> None:
     _seed_function(
         client,
@@ -640,6 +674,46 @@ def test_mcp_find_by_signature_without_criteria_raises(client: ApiClient) -> Non
         _call_mcp("find_by_signature", {"query": "anything"})
 
     assert "search_functions" in str(exc.value)
+
+
+def test_mcp_find_by_signature_query_ranks_but_never_excludes(
+    client: ApiClient,
+) -> None:
+    """The annotation filters constrain; the optional query only orders them.
+
+    Passing a helpful description used to drop every result, so the tool
+    punished an agent for filling in the optional field.
+    """
+    _seed_function(
+        client,
+        name="takes_kelvin",
+        source_code="def takes_kelvin(t): pass",
+        python_import="mylib.takes_kelvin",
+        docstring="Accepts a temperature.",
+        inputs=[{"label": "t", "datatype": "float", "unit": "K"}],
+    )
+    _seed_function(
+        client,
+        name="also_takes_kelvin",
+        source_code="def also_takes_kelvin(t): pass",
+        python_import="mylib.also_takes_kelvin",
+        docstring="Something else entirely.",
+        inputs=[{"label": "t", "datatype": "float", "unit": "K"}],
+    )
+
+    unqueried = _call_mcp("find_by_signature", {"unit": "K"})
+    queried = _call_mcp(
+        "find_by_signature",
+        {"unit": "K", "query": "accepts a temperature in kelvin"},
+    )
+
+    # "takes_kelvin" is a substring of "also_takes_kelvin", so anchor on the
+    # rendered signature line to tell the two entries apart.
+    for text in (unqueried, queried):
+        assert "def takes_kelvin(" in text
+        assert "def also_takes_kelvin(" in text
+    # The query decides the order without removing the weaker match.
+    assert queried.index("def takes_kelvin(") < queried.index("def also_takes_kelvin(")
 
 
 def test_mcp_get_function_returns_full_docstring_and_parameters(

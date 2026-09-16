@@ -106,7 +106,13 @@ class StorageInterface(ABC):
         filter: Filter | None = None,
         page: int = 1,
         limit: int = 10,
+        drop_unmatched: bool = True,
     ) -> ScoredSearchResponse:
+        """Keyword search over the stored artifacts.
+
+        When ``drop_unmatched`` is False the query only ranks the artifacts the
+        filters selected, instead of also excluding the ones it does not match.
+        """
         pass
 
     @abstractmethod

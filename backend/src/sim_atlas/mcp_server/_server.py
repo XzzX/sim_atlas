@@ -15,7 +15,6 @@ from pydantic import Field
 from sim_atlas.dependencies import get_storage
 from sim_atlas.mcp_server import _format
 from sim_atlas.models import ArtifactType, Filter, FunctionResponse
-from sim_atlas.settings import load_settings
 
 SERVER_INSTRUCTIONS = """\
 Simulation Atlas is a searchable catalog of real, installable Python functions
@@ -70,7 +69,8 @@ async def search_functions(
                 "domain language. 'compute the gradient of a temperature field "
                 "on an unstructured mesh' works; 'gradient' does not. Include "
                 "the physical quantities, the data structures and the scientific "
-                "intent — the index is semantic and rewards detail."
+                "intent — the index matches meaning and wording both, and "
+                "rewards detail."
             )
         ),
     ],
@@ -117,9 +117,9 @@ async def find_by_signature(
         str | None,
         Field(
             description=(
-                "Optional full-sentence intent used to rank the filtered "
-                "candidates. Combine with the filters below to narrow a large "
-                "result set."
+                "Optional full-sentence intent used to order the filtered "
+                "candidates. It only ranks them — it never removes a candidate "
+                "the filters below matched."
             )
         ),
     ] = None,
@@ -178,14 +178,17 @@ async def find_by_signature(
         quantities=[quantity] if quantity else None,
         port_type=_MATCH_TO_PORT_TYPE[match],
     )
-    if query and load_settings().embeddings_enabled:
-        response = await storage.search_semantic(
-            query, artifact_filter, limit=_format.MAX_RESULTS
-        )
-    else:
-        response = storage.search(
-            query=query, filter=artifact_filter, limit=_format.MAX_RESULTS
-        )
+    # The annotation filters are the constraint; the optional query only orders
+    # what they matched, so it can never shrink the result set. Keyword ranking
+    # is used even where embeddings are configured: semantic ranking silently
+    # skips artifacts that have no embedding yet, which would turn this tool's
+    # tie-breaker back into a filter.
+    response = storage.search(
+        query=query,
+        filter=artifact_filter,
+        limit=_format.MAX_RESULTS,
+        drop_unmatched=False,
+    )
     return _format.render_results(query, response)
 
 

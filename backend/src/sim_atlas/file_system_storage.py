@@ -12,6 +12,7 @@ import numpy as np
 from pydantic import BaseModel
 from tqdm.asyncio import tqdm as atqdm
 
+from sim_atlas import keyword_search
 from sim_atlas.ai import enrich_artifact_metadata
 from sim_atlas.embedding import create_embedding
 from sim_atlas.models import (
@@ -345,40 +346,31 @@ class FileSystemStorage(StorageInterface):
         filter: Filter | None = None,
         page: int = 1,
         limit: int = 10,
+        drop_unmatched: bool = True,
     ) -> ScoredSearchResponse:
+        """Keyword search: BM25 over the filtered artifacts.
+
+        With ``drop_unmatched`` (the default) the query is a constraint and
+        artifacts it does not touch are excluded. With ``drop_unmatched=False``
+        the filters alone decide membership and the query only orders what they
+        returned, so adding a query can never shrink the result set.
+        """
         item_filter: NodeFilter = NodeFilter(filter or Filter())
-        filtered_items = (
+        filtered_items = [
             item for item in self._artifacts.values() if item_filter(item)
-        )
+        ]
 
-        def score_item(query: str, item: StoredArtifact) -> float:
-            search_field = item.name.lower()
-            brief_description = (
-                item.brief_description.lower() if item.brief_description else ""
-            )
-            docstring = ""
-            if isinstance(item, FunctionMetadata) and item.docstring:
-                docstring = item.docstring.lower()
-            if isinstance(item, FunctionMetadata):
-                search_field = f"{item.name} {item.python_import}".lower()
-            if query in search_field:
-                return 1.0
-            if query in brief_description:
-                return 0.8
-            if query in docstring:
-                return 0.5
-            return 0.0
-
-        scored_items = (
-            item
-            for item in (
-                ScoredSearchItem(
-                    score=score_item(query.lower(), item) if query else 1.0, node=item
-                )
+        if not query or not query.strip():
+            scored_items = [
+                ScoredSearchItem(score=1.0, node=item) for item in filtered_items
+            ]
+        else:
+            scores = keyword_search.rank(query, filtered_items)
+            scored_items = [
+                ScoredSearchItem(score=scores.get(item.id, 0.0), node=item)
                 for item in filtered_items
-            )
-            if item.score > 0.0
-        )
+                if not drop_unmatched or scores.get(item.id, 0.0) > 0.0
+            ]
 
         sorted_items = sorted(scored_items, key=lambda x: x.score, reverse=True)
 
@@ -515,18 +507,13 @@ class FileSystemStorage(StorageInterface):
         Falls back to keyword-only search when there is no query to embed or no
         embedding provider is configured, so search always works even without AI.
 
-        Tokens shorter than 3 characters are dropped from keyword matching so that
-        short-but-meaningful domain tokens like "fcc" or "bcc" are preserved while
-        noise words like "of" or "is" are filtered out. Unenriched nodes that
-        have no embedding can still surface through the keyword rank.
+        Both legs see every filtered node: unenriched nodes that have no
+        embedding can still surface through the BM25 keyword rank, and nodes
+        whose wording misses the query entirely can still surface through the
+        semantic rank.
         """
         if not query or not query.strip() or not load_settings().embeddings_enabled:
             return self.search(query, filter, page=page, limit=limit)
-
-        min_token_len = 3
-        tokens = [t for t in query.lower().split() if len(t) >= min_token_len]
-        if not tokens:
-            return await self.search_semantic(query, filter, page=page, limit=limit)
 
         item_filter = NodeFilter(filter or Filter())
         filtered_nodes = [n for n in self._artifacts.values() if item_filter(n)]
@@ -544,20 +531,13 @@ class FileSystemStorage(StorageInterface):
         }
 
         # --- keyword rank (all filtered nodes) ---
-        hit_counts: list[tuple[str, int]] = []
-        for node in filtered_nodes:
-            if isinstance(node, FunctionMetadata):
-                search_text = (
-                    f"{node.name} {node.python_import} {node.brief_description}".lower()
-                )
-            else:
-                search_text = f"{node.name} {node.brief_description}".lower()
-            hits = sum(1 for tok in tokens if tok in search_text)
-            if hits > 0:
-                hit_counts.append((node.id, hits))
-        hit_counts.sort(key=lambda x: x[1], reverse=True)
+        kw_scores = sorted(
+            keyword_search.rank(query, filtered_nodes).items(),
+            key=lambda x: x[1],
+            reverse=True,
+        )
         kw_rank: dict[str, int] = {
-            node_id: r + 1 for r, (node_id, _) in enumerate(hit_counts)
+            node_id: r + 1 for r, (node_id, _) in enumerate(kw_scores)
         }
 
         # --- RRF merge ---

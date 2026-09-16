@@ -18,6 +18,7 @@ from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
     parse_annotation,
 )
+from sim_atlas_toolkit.provenance import apply_provenance
 from sim_atlas_toolkit.settings import ToolkitSettings
 
 # The legacy node API (``Function``, ``NOT_DATA``) moved under ``pyiron_workflow._legacy``
@@ -92,6 +93,7 @@ async def parse(settings: ToolkitSettings, node: Any) -> list[httpx.Response]:
     metadata.category = f"{node.node_function.__module__}".replace(".", ">")
     metadata.docstring = node.node_function.__doc__ or ""
     metadata.keywords = ["pyiron_workflow_function"]
+    apply_provenance(metadata, node.node_function.__module__)
 
     metadata.docstring = await generate_docstring(
         settings, metadata.source_code, metadata.docstring

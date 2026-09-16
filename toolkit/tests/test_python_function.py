@@ -1,10 +1,20 @@
 import pytest
 
-from sim_atlas_toolkit.models import FunctionRequest
+from sim_atlas_toolkit.models import ArtifactRequest, FunctionRequest, PackageRef
+from sim_atlas_toolkit.parsers import python_function
 from sim_atlas_toolkit.parsers.python_function import parse
 from sim_atlas_toolkit.settings import ToolkitSettings
 
 from .mock_api import install_mock_node_store
+
+
+def _stub_provenance(*refs: PackageRef):
+    """Replace the real environment lookup with fixed packages."""
+
+    def apply(metadata: ArtifactRequest, _module_name: str | None) -> None:
+        metadata.packages = list(refs)
+
+    return apply
 
 
 def simple(x: int, y: float) -> str:
@@ -39,3 +49,18 @@ async def test_parse_simple_function(monkeypatch: pytest.MonkeyPatch):
     # enrich_from_docstring parsed the existing NumPy docstring.
     assert artifact.brief_description == "A simple function."
     assert artifact.inputs[0].description == "The first value."
+
+
+async def test_parse_attaches_package_provenance(monkeypatch: pytest.MonkeyPatch):
+    """The parser records which distribution the function came from."""
+    ref = PackageRef(
+        ecosystem="conda", name="demo", version="1.0", channel="conda-forge"
+    )
+    monkeypatch.setattr(
+        python_function, "apply_provenance", _stub_provenance(ref), raising=True
+    )
+    store = install_mock_node_store(monkeypatch)
+
+    await parse(ToolkitSettings(), simple)
+
+    assert store.uploaded[0].packages == [ref]

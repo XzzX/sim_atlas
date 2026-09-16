@@ -66,3 +66,44 @@ uv run sim-atlas-upload --recursive filesystem mypackage.mymodule
 
 Head over to the webinterface and explore the nodes you uploaded:  
 http://localhost:8000
+
+## Use from Claude Code
+
+Sim Atlas exposes a read-only MCP tool surface aimed at CLI coding agents, so you
+can write plain Python against the catalog without leaving the terminal (see
+[ADR-0019](docs/adr/0019-mcp-python-tool-surface.md)). It is independent of the
+Web IDE's agent — no LLM key is needed on the server for this path.
+
+### 1. Register the server
+
+```bash
+claude mcp add --transport http sim-atlas http://localhost:8000/mcp/
+```
+
+Reads are public, so no token is required. Four tools become available:
+
+| Tool | Answers |
+|---|---|
+| `search_functions` | "what does X?" |
+| `find_by_signature` | "what returns a temperature in K?" |
+| `get_function` | "how exactly do I call it, and what do I need installed?" |
+| `get_workflow_source` | "show me a pipeline that uses it" |
+
+Results come back as Python: a call signature, the exact `from ... import ...`
+line, and an install hint for the distribution the function was parsed from
+(PyPI and conda).
+
+### 2. Install the skill (recommended)
+
+The tools work on their own, but the skill tells the agent *when* to reach for
+the catalog and how to handle a package that is not installed locally:
+
+```bash
+mkdir -p ~/.claude/skills/sim-atlas
+cp integrations/claude-code/SKILL.md ~/.claude/skills/sim-atlas/
+```
+
+Claude Code checks whether a package is importable before writing an import, and
+proposes an install command matched to your project's package manager (uv, pixi,
+conda or pip) for you to confirm. The server never inspects or changes your
+environment.

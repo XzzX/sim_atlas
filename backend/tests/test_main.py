@@ -15,6 +15,7 @@ import pytest
 from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 from fastmcp import Client
+from fastmcp.exceptions import ToolError
 
 from sim_atlas.api.artifacts import compose_artifact
 from sim_atlas.file_system_storage import FileSystemStorage
@@ -474,35 +475,276 @@ def test_search_semantic_false_forces_keyword(
 
 
 # ---------------------------------------------------------------------------
-# MCP search tool
+# MCP tool surface (ADR-0019)
 # ---------------------------------------------------------------------------
 
+MCP_TOOL_NAMES = [
+    "find_by_signature",
+    "get_function",
+    "get_workflow_source",
+    "search_functions",
+]
 
-def test_mcp_lists_search_tool(client: ApiClient) -> None:
-    async def run() -> list[str]:
+
+def _call_mcp(name: str, args: dict[str, Any]) -> str:
+    async def run() -> str:
         async with Client(mcp) as c:
-            tools = await c.list_tools()
-            return [tool.name for tool in tools]
+            return cast(str, (await c.call_tool(name, args)).data)
 
-    names = asyncio.run(run())
-    assert names == ["search"]
+    return asyncio.run(run())
 
 
-def test_mcp_search_returns_at_most_3(client: ApiClient) -> None:
-    for i in range(4):
-        client.post(
-            "/api/v1/artifacts",
-            json=make_function_request_body(
-                name=f"mcp_fn_{i}", source_code=f"def mcp_fn_{i}(): pass"
-            ),
+def _seed_function(client: ApiClient, **kwargs: Any) -> str:
+    response = client.post(
+        "/api/v1/artifacts", json=make_function_request_body(**kwargs)
+    )
+    return cast(str, response.json()["id"])
+
+
+def _seed_workflow(client: ApiClient, **kwargs: Any) -> str:
+    response = client.post(
+        "/api/v1/artifacts", json=make_workflow_request_body(**kwargs)
+    )
+    return cast(str, response.json()["id"])
+
+
+def test_mcp_lists_the_python_tool_surface(client: ApiClient) -> None:
+    """The surface is exactly four read-only tools; no write tool may appear."""
+
+    async def run() -> list[tuple[str, str | None, Any]]:
+        async with Client(mcp) as c:
+            return [
+                (t.name, t.description, t.annotations) for t in await c.list_tools()
+            ]
+
+    tools = asyncio.run(run())
+
+    assert sorted(name for name, _, _ in tools) == MCP_TOOL_NAMES
+    for _, description, hints in tools:
+        assert description
+        assert hints is not None
+        assert hints.readOnlyHint is True
+
+
+def test_mcp_search_functions_returns_a_signature_and_import(client: ApiClient) -> None:
+    _seed_function(
+        client,
+        python_import="mylib.math.add_numbers",
+        inputs=[
+            {"label": "a", "datatype": "float", "unit": "m", "quantity": "length"},
+            {"label": "b", "datatype": "float"},
+        ],
+        outputs=[{"label": "result", "datatype": "float"}],
+    )
+
+    text = _call_mcp("search_functions", {"query": "add_numbers"})
+
+    assert "def add_numbers(a: float, b: float) -> float" in text
+    assert "from mylib.math import add_numbers" in text
+    assert "# id:" in text
+    assert "unit: m" in text
+    assert "quantity: length" in text
+
+
+def test_mcp_search_functions_caps_results_at_five(client: ApiClient) -> None:
+    for i in range(8):
+        _seed_function(
+            client, name=f"mcp_fn_{i}", source_code=f"def mcp_fn_{i}(): pass"
         )
 
-    async def run() -> int:
-        async with Client(mcp) as c:
-            result = await c.call_tool("search", {"query": "mcp_fn"})
-            return len(result.data)
+    text = _call_mcp("search_functions", {"query": "mcp_fn"})
 
-    assert asyncio.run(run()) <= 3  # noqa: PLR2004
+    assert text.count("# id:") == 5  # noqa: PLR2004
+
+
+def test_mcp_search_functions_omits_source_code(client: ApiClient) -> None:
+    """Search output must stay small: import the function, do not copy it."""
+    _seed_function(
+        client, source_code="def add_numbers():\n    return 'SOURCE_MARKER'\n"
+    )
+
+    text = _call_mcp("search_functions", {"query": "add_numbers"})
+
+    assert "SOURCE_MARKER" not in text
+
+
+def test_mcp_search_functions_kind_workflow_returns_only_workflows(
+    client: ApiClient,
+) -> None:
+    _seed_function(client, name="shared_topic_function")
+    _seed_workflow(client, name="shared_topic_workflow", source_code="def wf(): pass")
+
+    text = _call_mcp("search_functions", {"query": "shared_topic", "kind": "workflow"})
+
+    assert "shared_topic_workflow" in text or "(workflow)" in text
+    assert "shared_topic_function" not in text
+
+
+def test_mcp_search_functions_without_matches_suggests_giving_up(
+    client: ApiClient,
+) -> None:
+    text = _call_mcp("search_functions", {"query": "zzz_no_such_thing"})
+
+    assert "No matches" in text
+    assert "find_by_signature" in text
+    assert "write the code yourself" in text
+
+
+def test_mcp_find_by_signature_filters_on_a_parameter_unit(client: ApiClient) -> None:
+    _seed_function(
+        client,
+        name="takes_kelvin",
+        source_code="def takes_kelvin(t): pass",
+        python_import="mylib.takes_kelvin",
+        inputs=[{"label": "t", "datatype": "float", "unit": "K"}],
+    )
+    _seed_function(
+        client,
+        name="takes_metres",
+        source_code="def takes_metres(d): pass",
+        python_import="mylib.takes_metres",
+        inputs=[{"label": "d", "datatype": "float", "unit": "m"}],
+    )
+
+    text = _call_mcp("find_by_signature", {"unit": "K", "match": "parameter"})
+
+    assert "takes_kelvin" in text
+    assert "takes_metres" not in text
+
+
+def test_mcp_find_by_signature_match_return_uses_output_ports(
+    client: ApiClient,
+) -> None:
+    _seed_function(
+        client,
+        name="produces_temperature",
+        source_code="def produces_temperature(): pass",
+        python_import="mylib.produces_temperature",
+        inputs=[{"label": "x"}],
+        outputs=[{"label": "t", "datatype": "float", "quantity": "temperature"}],
+    )
+
+    found = _call_mcp(
+        "find_by_signature", {"quantity": "temperature", "match": "return"}
+    )
+    not_found = _call_mcp(
+        "find_by_signature", {"quantity": "temperature", "match": "parameter"}
+    )
+
+    assert "produces_temperature" in found
+    assert "No matches" in not_found
+
+
+def test_mcp_find_by_signature_without_criteria_raises(client: ApiClient) -> None:
+    with pytest.raises(ToolError) as exc:
+        _call_mcp("find_by_signature", {"query": "anything"})
+
+    assert "search_functions" in str(exc.value)
+
+
+def test_mcp_get_function_returns_full_docstring_and_parameters(
+    client: ApiClient,
+) -> None:
+    artifact_id = _seed_function(
+        client,
+        docstring="Adds two numbers.\n\nWith a longer explanation.",
+        inputs=[{"label": "a", "datatype": "float"}],
+    )
+
+    text = _call_mcp("get_function", {"id": artifact_id})
+
+    assert "With a longer explanation." in text
+    assert "Parameters:" in text
+    assert "from mylib import add_numbers" in text
+
+
+def test_mcp_get_function_with_unknown_id_raises(client: ApiClient) -> None:
+    with pytest.raises(ToolError) as exc:
+        _call_mcp("get_function", {"id": "no-such-id"})
+
+    assert "no-such-id" in str(exc.value)
+
+
+def test_mcp_get_workflow_source_returns_stored_python(client: ApiClient) -> None:
+    artifact_id = _seed_workflow(
+        client,
+        python_import="mylib.flows.linear",
+        source_code="def linear(x):\n    return 2 * x\n",
+    )
+
+    text = _call_mcp("get_workflow_source", {"id": artifact_id})
+
+    assert "return 2 * x" in text
+    assert "from mylib.flows import linear" in text
+
+
+def test_mcp_get_workflow_source_labels_a_json_workflow_definition(
+    client: ApiClient,
+) -> None:
+    artifact_id = _seed_workflow(client, source_code='{"nodes": [], "edges": []}')
+
+    text = _call_mcp("get_workflow_source", {"id": artifact_id})
+
+    assert "not executable Python" in text
+
+
+def test_mcp_get_workflow_source_rejects_a_function_id(client: ApiClient) -> None:
+    artifact_id = _seed_function(client)
+
+    with pytest.raises(ToolError) as exc:
+        _call_mcp("get_workflow_source", {"id": artifact_id})
+
+    assert "get_function" in str(exc.value)
+
+
+def test_mcp_tools_never_leak_embeddings(
+    client: ApiClient, storage: FileSystemStorage, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The renderers read declared fields only; embeddings must never appear."""
+    dim = 16
+    node = make_node(
+        name="embedded_fn",
+        source_code="def embedded_fn(): pass",
+        embedding=np.arange(dim, dtype=np.float32),
+    )
+    storage.create_artifact(node)
+
+    async def _fake_embed(
+        documents: list[str], input_type: str = "document"
+    ) -> np.ndarray:
+        return np.ones((len(documents), dim), dtype=np.float32)
+
+    monkeypatch.setattr(
+        "sim_atlas.file_system_storage.load_settings",
+        lambda: SimpleNamespace(embeddings_enabled=True),
+    )
+    monkeypatch.setattr("sim_atlas.file_system_storage.create_embedding", _fake_embed)
+
+    search_text = _call_mcp("search_functions", {"query": "embedded_fn"})
+    detail_text = _call_mcp("get_function", {"id": node.id})
+
+    assert "embedding" not in search_text
+    assert "embedding" not in detail_text
+
+
+def test_mcp_install_hint_uses_recorded_packages(client: ApiClient) -> None:
+    _seed_function(
+        client,
+        packages=[
+            {
+                "ecosystem": "conda",
+                "name": "mylib",
+                "version": "1.4.0",
+                "channel": "conda-forge",
+            },
+            {"ecosystem": "pypi", "name": "mylib", "version": "1.4.0"},
+        ],
+    )
+
+    text = _call_mcp("search_functions", {"query": "add_numbers"})
+
+    assert "# install: conda install -c conda-forge mylib=1.4.0" in text
+    assert '# install: pip install "mylib==1.4.0"' in text
 
 
 # ---------------------------------------------------------------------------

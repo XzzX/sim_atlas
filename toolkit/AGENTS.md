@@ -14,10 +14,11 @@ uv run pyright                          # type-check (strict mode)
 
 ## Key Patterns
 
-- **Entry point**: `node_store.py` (`NodeStore`) orchestrates the full pipeline: module import → recursive traversal → per-object parsing → HTTP upload
-- **Parser plugins**: add new parsers in `parsers/` following the existing modules (`dataclass_node.py`, `pyiron_core.py`, `pyiron_workflow.py`, `python_function.py`, `python_workflow_definition.py`); each parser receives a single Python object and returns `list[Metadata]`; `parsers/metadata.py` holds the shared `Metadata` model and annotation utilities used by all parsers
-- **Core parsing**: `parser.py` (`get_metadata`) tries each registered parser in order and returns the first non-empty result; module-level traversal and recursion strategies (`no`, `import`, `filesystem`) live in `NodeStore.upload_module`
-- **Schema**: two distinct types — `Metadata` (`parsers/metadata.py`, internal parser output) and `NodeRequest` (`models.py`, HTTP upload payload sent to the backend); keep both in sync with the backend's Pydantic schemas
+- **Entry point**: `cli.py` → `orchestrator.py` (`upload_modules`) orchestrates the full pipeline: module import → recursive traversal (`collector.py`) → per-object parsing (`uploader.py` → `parsers/parser.py`) → HTTP upload (`node_store_api.py`)
+- **Parser plugins**: add new parsers in `parsers/` following the existing modules (`aiflow.py`, `dataclass_node.py`, `flowrep_parser.py`, `pyiron_workflow.py`, `python_function.py`, `python_workflow_definition.py`) and register them in `parsers/__init__.py`; each parser receives a single Python object, returns `[]` to defer, and performs its own HTTP upload, returning `list[httpx.Response]`; `parsers/metadata.py` holds the shared annotation and docstring utilities
+- **Core parsing**: `parsers/parser.py` (`get_metadata`) tries each registered parser in order and returns the first non-empty result; module-level traversal and recursion strategies (`no`, `import`, `filesystem`) live in `collector.py`
+- **Schema**: `models.py` holds `FunctionRequest`/`WorkflowRequest` (upload payloads) and their `*Response` counterparts; these are a hand-maintained mirror of the backend's Pydantic schemas with no codegen — a field added on one side must be added on the other, and to `compose_artifact` in the backend's `api/artifacts.py`, or it is silently dropped
+- **Provenance**: `provenance.py` resolves which distribution an object came from (`apply_provenance(metadata, obj.__module__)`), populating `packages` (pypi + conda, via `importlib.metadata` and `conda-meta/*.json`) plus author/URL/dependency metadata; call it from every parser that knows its module of origin. It is best-effort and never raises (ADR-0012, ADR-0019)
 - **CLI**: `cli.py` provides the `sim-atlas-upload` entry point as `UploadCommand`, a `ToolkitSettings` subclass run via pydantic-settings' `CliApp`; flags are derived from field names (kebab-case) and every option also reads its `SIM_ATLAS_*` env var — add a field, not an argument parser
 - **No server code**: this package runs entirely on the client machine; never add server-side dependencies
 

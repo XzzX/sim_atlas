@@ -22,7 +22,7 @@ The system is structured as a **monorepo** containing four sub-packages: `backen
 - Support semantic search via AI-generated embeddings
 - Never execute arbitrary user-provided code on the server
 - Keep the server stateless with respect to parsing logic
-- Expose a machine-readable MCP tool for AI agent integration
+- Expose a read-only, Python-shaped MCP tool surface for CLI coding agents (ADR-0019)
 - Provide a visual drag-and-drop workflow composer
 
 **Non-Goals**
@@ -57,7 +57,7 @@ flowchart TD
     end
 
     subgraph SRV["Server"]
-        B["FastAPI Backend<br/>· JWT auth for write endpoints<br/>· CRUD for nodes<br/>· Keyword & semantic search<br/>· On-demand AI enrichment endpoint<br/>· MCP tool for semantic search<br/>· Serves frontend & web_ide SPAs"]
+        B["FastAPI Backend<br/>· JWT auth for write endpoints<br/>· CRUD for nodes<br/>· Keyword & semantic search<br/>· On-demand AI enrichment endpoint<br/>· Read-only MCP tool surface<br/>· Serves frontend & web_ide SPAs"]
         FS["FileSystemStorage<br/>· In-memory dict[id→StoredArtifact]<br/>· Persisted as artifacts.json<br/>· Embeddings: gzip+base64 numpy array"]
         subgraph AI["External AI Services"]
             V["VoyageAI<br/>voyage-code-3<br/>(embeddings)"]
@@ -67,12 +67,20 @@ flowchart TD
 
     F["React Frontend  /<br/>· Keyword search<br/>· Semantic search<br/>· Faceted filter<br/>· NodeCard view"]
     W["Web IDE  /ide<br/>· Drag-drop canvas<br/>· ReactFlow + dagre<br/>· Import/export<br/>  PythonWorkflowDefinition JSON"]
+    C["CLI coding agent<br/>(Claude Code)<br/>· search_functions<br/>· find_by_signature<br/>· get_function<br/>· get_workflow_source"]
 
     T -->|"POST /api/v1/artifacts  (JWT)"| B
     B --> FS
-    B -->|"REST API / MCP"| F
-    B -->|"REST API / MCP"| W
+    B -->|"REST API"| F
+    B -->|"REST API"| W
+    B -->|"MCP  /mcp  (read-only)"| C
 ```
+
+The CLI coding agent is a *second*, independent AI surface: the backend hands it
+Python (signature, import line, install hint) and it owns the local environment —
+checking what is importable and proposing installs itself. The Web IDE agent
+(`/api/v1/agent/stream`) is unchanged and shares no code path with it. See
+ADR-0019.
 
 ---
 

@@ -43,6 +43,7 @@ from sim_atlas_toolkit.parsers.metadata import (
     extract_id,
     type_to_str,
 )
+from sim_atlas_toolkit.provenance import apply_provenance
 from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
@@ -86,6 +87,7 @@ async def parse_function_node(
     metadata.python_import = obj._module_path
     metadata.name = metadata.python_import
     metadata.category = metadata.python_import.replace(".", ">")
+    apply_provenance(metadata, obj._module_path)
     metadata.inputs = [
         Annotation(label=inp.label, datatype=type_to_str(inp.type))
         for inp in obj.inputs
@@ -146,6 +148,7 @@ async def parse_group_node(settings: ToolkitSettings, obj: Any) -> list[httpx.Re
     metadata.python_import = python_import
     metadata.category = module.replace(".", ">")
     metadata.keywords = ["aiflow", "group_node"]
+    apply_provenance(metadata, module)
     metadata.inputs = inputs
     metadata.outputs = outputs
     metadata.docstring = ""

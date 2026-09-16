@@ -42,6 +42,7 @@ from sim_atlas_toolkit.parsers.metadata import (
     parse_signature,
     try_import,
 )
+from sim_atlas_toolkit.provenance import apply_provenance
 from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
@@ -202,6 +203,7 @@ async def parse_atomic_recipe(
     metadata.python_import = f"{obj.__module__}.{obj.__qualname__}"
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]
+    apply_provenance(metadata, obj.__module__)
 
     metadata.docstring = await generate_docstring(
         settings, metadata.source_code, metadata.docstring
@@ -294,6 +296,7 @@ async def parse_workflow_recipe(
     metadata.python_import = f"{obj.__module__}.{obj.__qualname__}"
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]
+    apply_provenance(metadata, obj.__module__)
     metadata.uses = uses
     metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
 

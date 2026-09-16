@@ -6,7 +6,7 @@ from http import HTTPStatus
 from typing import Any, cast
 
 import flowrep as fr
-import httpx
+import httpx2
 from flowrep.api.schemas import (
     AtomicRecipe,
     InputSource,
@@ -147,7 +147,7 @@ async def parse_atomic_recipe(
     settings: ToolkitSettings,
     obj: Any,
     recipe: AtomicRecipe,
-) -> list[httpx.Response]:
+) -> list[httpx2.Response]:
     metadata = FunctionRequest.model_construct()
     metadata.source_code = inspect.getsource(obj) or ""
     metadata.docstring = inspect.getdoc(obj) or ""
@@ -218,7 +218,7 @@ async def parse_workflow_recipe(
     settings: ToolkitSettings,
     obj: Any,
     recipe: WorkflowRecipe,
-) -> list[httpx.Response]:
+) -> list[httpx2.Response]:
     unreferenced_recipe = recipe.model_copy(update={"reference": None})
     rendered = fr.tools.flowrep2python(unreferenced_recipe)
 
@@ -317,7 +317,7 @@ async def parse_workflow_recipe(
 async def parse_workflow_instance(
     settings: ToolkitSettings,
     wf_instance: DagData,
-) -> list[httpx.Response]:
+) -> list[httpx2.Response]:
     logger.debug("parsing workflow instance")
 
     # DagData's generic base (flowrep) doesn't parameterize NodeData[RecipeType],
@@ -370,7 +370,7 @@ async def parse_workflow_instance(
 async def parse(
     settings: ToolkitSettings,
     obj: Any,
-) -> list[httpx.Response]:
+) -> list[httpx2.Response]:
     if isinstance(obj, DagData):
         return await parse_workflow_instance(settings, obj)
 

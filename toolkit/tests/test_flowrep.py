@@ -4,7 +4,7 @@ from http import HTTPStatus
 from typing import Any, cast
 
 import flowrep as fr
-import httpx
+import httpx2
 import pytest
 from flowrep.api.schemas import WorkflowRecipe
 from flowrep.retrospective.datastructures import DagData
@@ -322,8 +322,8 @@ async def test_flowrep_atomic_skips_upload_when_already_exists(
 ) -> None:
     store = install_mock_node_store(monkeypatch)
 
-    async def existing_artifact(api_url: str, artifact_id: str) -> httpx.Response:
-        return httpx.Response(200, json={"id": artifact_id})
+    async def existing_artifact(api_url: str, artifact_id: str) -> httpx2.Response:
+        return httpx2.Response(200, json={"id": artifact_id})
 
     monkeypatch.setattr(node_store_api, "read_artifact", existing_artifact)
 
@@ -338,8 +338,8 @@ async def test_flowrep_workflow_skips_upload_when_already_exists(
 ) -> None:
     store = install_mock_node_store(monkeypatch)
 
-    async def existing_artifact(api_url: str, artifact_id: str) -> httpx.Response:
-        return httpx.Response(200, json={"id": artifact_id})
+    async def existing_artifact(api_url: str, artifact_id: str) -> httpx2.Response:
+        return httpx2.Response(200, json={"id": artifact_id})
 
     monkeypatch.setattr(node_store_api, "read_artifact", existing_artifact)
 
@@ -435,7 +435,7 @@ async def test_flowrep_execution_result_workflow_upload_fails(
 
     async def fake_upload(
         settings: ToolkitSettings, obj: object
-    ) -> list[httpx.Response]:
+    ) -> list[httpx2.Response]:
         return []
 
     monkeypatch.setattr(flowrep_parser, "upload", fake_upload)
@@ -449,7 +449,7 @@ async def test_flowrep_execution_result_workflow_upload_fails(
     assert responses == []
 
 
-def _no_id(response: httpx.Response) -> str | None:
+def _no_id(response: httpx2.Response) -> str | None:
     return None
 
 
@@ -521,9 +521,9 @@ async def test_extract_id_handles_conflict_on_create(
 
     async def create_artifacts_conflict(
         api_url: str, api_key: str | None, artifacts: list[object]
-    ) -> list[httpx.Response]:
+    ) -> list[httpx2.Response]:
         store.uploaded.extend(artifacts)  # type: ignore[arg-type]
-        return [httpx.Response(409, json={"id": "existing-id"}) for _ in artifacts]
+        return [httpx2.Response(409, json={"id": "existing-id"}) for _ in artifacts]
 
     monkeypatch.setattr(node_store_api, "create_artifacts", create_artifacts_conflict)
 

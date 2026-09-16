@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from http import HTTPStatus
 from typing import Any, Literal
 
-import httpx
+import httpx2
 from tqdm.asyncio import tqdm as atqdm
 
 from sim_atlas_toolkit import node_store_api
@@ -20,7 +20,7 @@ async def _upload_modules_async(  # noqa: PLR0913
     modules: list[str],
     recursive: Literal["no", "import", "filesystem"] = "no",
     update_existing: bool = False,
-    parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] | None = None,
+    parsers: list[Callable[..., Awaitable[list[httpx2.Response]]]] | None = None,
     module_allowlist: list[str] | None = None,
     concurrency: int = 10,
     **kwargs: dict[str, Any],
@@ -107,7 +107,7 @@ def upload_modules(  # noqa: PLR0913
     modules: list[str],
     recursive: Literal["no", "import", "filesystem"] = "no",
     update_existing: bool = False,
-    parsers: list[Callable[..., Awaitable[list[httpx.Response]]]] | None = None,
+    parsers: list[Callable[..., Awaitable[list[httpx2.Response]]]] | None = None,
     module_allowlist: list[str] | None = None,
     concurrency: int = 10,
     **kwargs: dict[str, Any],

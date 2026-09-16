@@ -6,7 +6,7 @@ from functools import cache
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
-import httpx
+import httpx2
 
 from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
@@ -44,7 +44,7 @@ def _legacy_api_available() -> bool:
     return supports_legacy_api(installed)
 
 
-async def parse(settings: ToolkitSettings, node: Any) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, node: Any) -> list[httpx2.Response]:
     if not isinstance(node, type):
         return []
 

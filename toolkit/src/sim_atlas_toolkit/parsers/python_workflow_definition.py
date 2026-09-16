@@ -3,7 +3,7 @@
 import hashlib
 from typing import Any
 
-import httpx
+import httpx2
 
 from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
@@ -13,7 +13,7 @@ from sim_atlas_toolkit.models import (
 from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     try:
         from python_workflow_definition.models import (  # noqa: PLC0415
             PythonWorkflowDefinitionInputNode,

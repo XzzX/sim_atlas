@@ -5,7 +5,7 @@ import textwrap
 from http import HTTPStatus
 from typing import Any, get_type_hints
 
-import httpx
+import httpx2
 
 from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
@@ -49,7 +49,7 @@ def _field_annotations(cls: type) -> list[Annotation]:
     return result
 
 
-async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     if not (dataclasses.is_dataclass(obj) and isinstance(obj, type)):
         return []
 

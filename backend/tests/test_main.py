@@ -9,7 +9,7 @@ from math import ceil
 from types import SimpleNamespace
 from typing import Any, Protocol, cast
 
-import httpx
+import httpx2
 import numpy as np
 import pytest
 from fastapi import HTTPException, status
@@ -45,10 +45,10 @@ TEST_CREATOR = Creator(name="Test User", email="test@example.com")
 
 
 class ApiClient(Protocol):
-    def get(self, url: str, **kwargs: Any) -> httpx.Response: ...
-    def post(self, url: str, **kwargs: Any) -> httpx.Response: ...
-    def put(self, url: str, **kwargs: Any) -> httpx.Response: ...
-    def delete(self, url: str, **kwargs: Any) -> httpx.Response: ...
+    def get(self, url: str, **kwargs: Any) -> httpx2.Response: ...
+    def post(self, url: str, **kwargs: Any) -> httpx2.Response: ...
+    def put(self, url: str, **kwargs: Any) -> httpx2.Response: ...
+    def delete(self, url: str, **kwargs: Any) -> httpx2.Response: ...
 
 
 # ---------------------------------------------------------------------------
@@ -523,7 +523,7 @@ def test_mcp_lists_the_python_tool_surface(client: ApiClient) -> None:
     for _, description, hints in tools:
         assert description
         assert hints is not None
-        assert hints.readOnlyHint is True
+        assert hints.read_only_hint is True
 
 
 def test_mcp_search_functions_returns_a_signature_and_import(client: ApiClient) -> None:

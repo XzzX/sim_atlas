@@ -7,7 +7,7 @@ import json
 from collections.abc import AsyncGenerator
 from typing import Any, cast
 
-import httpx
+import httpx2
 import pytest
 from openai import AsyncOpenAI
 from openai.types.chat import (
@@ -100,7 +100,7 @@ class _FakeAPI:
         self._chat_script = chat_script
         self._responses_script = responses_script
 
-    def __call__(self, request: httpx.Request) -> httpx.Response:
+    def __call__(self, request: httpx2.Request) -> httpx2.Response:
         body = cast(dict[str, Any], json.loads(request.content))
         if request.url.path.endswith("/responses"):
             self.responses.append(body)
@@ -110,7 +110,7 @@ class _FakeAPI:
             script, count = self._chat_script, len(self.chat)
         # The last scripted reply repeats, so a script need only cover the turns
         # a test actually cares about.
-        return httpx.Response(200, json=script[min(count - 1, len(script) - 1)])
+        return httpx2.Response(200, json=script[min(count - 1, len(script) - 1)])
 
 
 def _install_client(
@@ -137,7 +137,7 @@ def _install_client(
         return AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
-            http_client=httpx.AsyncClient(transport=httpx.MockTransport(api)),
+            http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(api)),
         )
 
     def no_validation_errors(scratch: Any, storage: Any) -> list[str]:

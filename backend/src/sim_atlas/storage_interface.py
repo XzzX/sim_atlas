@@ -8,6 +8,7 @@ from sim_atlas.models import (
     FilterOptions,
     ScoredSearchResponse,
     StoredArtifact,
+    Suggestion,
 )
 
 
@@ -106,7 +107,25 @@ class StorageInterface(ABC):
         filter: Filter | None = None,
         page: int = 1,
         limit: int = 10,
+        drop_unmatched: bool = True,
     ) -> ScoredSearchResponse:
+        """Keyword search over the stored artifacts.
+
+        When ``drop_unmatched`` is False the query only ranks the artifacts the
+        filters selected, instead of also excluding the ones it does not match.
+        """
+        pass
+
+    @abstractmethod
+    def suggest(
+        self, query: str, filter: Filter | None = None, limit: int = 10
+    ) -> list[Suggestion]:
+        """Cheap type-ahead lookup: name/import matches only, best-first.
+
+        Unlike ``search``, this never touches docstrings, descriptions or
+        embeddings, and never runs the ``used_by``/connections enrichment —
+        it exists to be fast. Returns ``[]`` for a blank query.
+        """
         pass
 
     @abstractmethod

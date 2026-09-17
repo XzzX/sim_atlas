@@ -1,3 +1,4 @@
+import contextlib
 import hashlib
 import inspect
 import json
@@ -6,7 +7,7 @@ from http import HTTPStatus
 from typing import Any, cast
 
 import flowrep as fr
-import httpx
+import httpx2
 from flowrep.api.schemas import (
     AtomicRecipe,
     InputSource,
@@ -42,6 +43,7 @@ from sim_atlas_toolkit.parsers.metadata import (
     parse_signature,
     try_import,
 )
+from sim_atlas_toolkit.provenance import apply_provenance
 from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
@@ -146,7 +148,7 @@ async def parse_atomic_recipe(
     settings: ToolkitSettings,
     obj: Any,
     recipe: AtomicRecipe,
-) -> list[httpx.Response]:
+) -> list[httpx2.Response]:
     metadata = FunctionRequest.model_construct()
     metadata.source_code = inspect.getsource(obj) or ""
     metadata.docstring = inspect.getdoc(obj) or ""
@@ -202,6 +204,7 @@ async def parse_atomic_recipe(
     metadata.python_import = f"{obj.__module__}.{obj.__qualname__}"
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]
+    apply_provenance(metadata, obj.__module__)
 
     metadata.docstring = await generate_docstring(
         settings, metadata.source_code, metadata.docstring
@@ -216,7 +219,7 @@ async def parse_workflow_recipe(
     settings: ToolkitSettings,
     obj: Any,
     recipe: WorkflowRecipe,
-) -> list[httpx.Response]:
+) -> list[httpx2.Response]:
     unreferenced_recipe = recipe.model_copy(update={"reference": None})
     rendered = fr.tools.flowrep2python(unreferenced_recipe)
 
@@ -294,8 +297,10 @@ async def parse_workflow_recipe(
     metadata.python_import = f"{obj.__module__}.{obj.__qualname__}"
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]
+    apply_provenance(metadata, obj.__module__)
     metadata.uses = uses
-    metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
+    with contextlib.suppress(Exception):
+        metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
 
     metadata.docstring = await generate_workflow_docstring(
         settings,
@@ -314,7 +319,7 @@ async def parse_workflow_recipe(
 async def parse_workflow_instance(
     settings: ToolkitSettings,
     wf_instance: DagData,
-) -> list[httpx.Response]:
+) -> list[httpx2.Response]:
     logger.debug("parsing workflow instance")
 
     # DagData's generic base (flowrep) doesn't parameterize NodeData[RecipeType],
@@ -367,7 +372,7 @@ async def parse_workflow_instance(
 async def parse(
     settings: ToolkitSettings,
     obj: Any,
-) -> list[httpx.Response]:
+) -> list[httpx2.Response]:
     if isinstance(obj, DagData):
         return await parse_workflow_instance(settings, obj)
 

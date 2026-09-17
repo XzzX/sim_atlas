@@ -7,6 +7,8 @@ from sim_atlas.models import (
     FilterOptions,
     ScoredSearchResponse,
     SearchRequest,
+    Suggestion,
+    SuggestRequest,
 )
 from sim_atlas.storage_interface import StorageInterface
 
@@ -43,3 +45,18 @@ async def search_nodes(
     return await storage.search_hybrid(
         request.query, request.filter, page=request.page, limit=request.limit
     )
+
+
+@router.post("/suggest", response_model=list[Suggestion], tags=["search"])
+async def suggest_nodes(
+    request: SuggestRequest,
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+):
+    """Fast type-ahead lookup: matches only the artifact name and import path.
+
+    For the search-as-you-type list under the search box, not the results
+    table — no docstrings, no semantic ranking, no `used_by`/connections
+    enrichment. Honours the same filters as `/search` so the two stay in
+    the same scope; not exposed as an MCP tool (ADR-0020).
+    """
+    return storage.suggest(request.query, request.filter, limit=request.limit)

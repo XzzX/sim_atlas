@@ -3,6 +3,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from sim_atlas.agent.tools._errors import ToolError
+from sim_atlas.artifact_text import short_description
 from sim_atlas.models import ArtifactType, Filter, FunctionResponse
 from sim_atlas.settings import load_settings
 from sim_atlas.storage_interface import StorageInterface
@@ -110,13 +111,6 @@ class GetNodeDetailsResult(BaseModel):
     outputs: list[PortMetadata]
 
 
-def _to_short_description(brief_description: str | None, docstring: str) -> str | None:
-    if brief_description:
-        return brief_description
-    lines = docstring.splitlines()
-    return lines[0] if lines else None
-
-
 def format_port(port: PortMetadata) -> str:
     line = port.label or "?"
     if port.datatype:
@@ -166,9 +160,7 @@ async def execute_search_nodes(
             i,
             item.node.id,
             item.node.name,
-            _to_short_description(
-                item.node.brief_description or "", item.node.docstring
-            ),
+            short_description(item.node.brief_description or "", item.node.docstring),
             [
                 PortMetadata.model_validate(a.model_dump(exclude_none=True))
                 for a in item.node.inputs
@@ -208,7 +200,7 @@ async def execute_find_compatible_nodes(
             i,
             item.node.id,
             item.node.name,
-            _to_short_description(
+            short_description(
                 item.node.brief_description or "", item.node.docstring or ""
             ),
             [
@@ -249,7 +241,7 @@ async def execute_get_node_details(
         1,
         node.id,
         node.name,
-        _to_short_description(node.brief_description or "", node.docstring),
+        short_description(node.brief_description or "", node.docstring),
         inputs,
         outputs,
     )

@@ -1,4 +1,4 @@
-import httpx
+import httpx2
 import pytest
 
 from sim_atlas_toolkit import node_store_api
@@ -38,8 +38,8 @@ def test_upload_modules_embed_not_configured_does_not_raise(
 ) -> None:
     store = install_mock_node_store(monkeypatch)
 
-    async def trigger_embed(api_url: str, api_key: str | None) -> httpx.Response:
-        return httpx.Response(503)
+    async def trigger_embed(api_url: str, api_key: str | None) -> httpx2.Response:
+        return httpx2.Response(503)
 
     monkeypatch.setattr(node_store_api, "trigger_embed", trigger_embed)
 

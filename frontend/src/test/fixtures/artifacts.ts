@@ -3,6 +3,7 @@ import type {
   WorkflowResponse,
   ExecutionResultMetadata,
   FilterOptions,
+  NodeSuggestion,
   ScoredSearchResponse,
 } from "@/types/index";
 
@@ -132,3 +133,13 @@ export const searchResponse: ScoredSearchResponse = {
   },
   aggregations: null,
 };
+
+export const suggestions: NodeSuggestion[] = [
+  {
+    id: "fn-add-0001",
+    name: "dummy_module.functions.add",
+    python_import: "dummy_module.functions.add",
+    artifact_type: "function",
+    short_description: "Add two numbers.",
+  },
+];

@@ -43,6 +43,20 @@ class ArtifactType(StrEnum):
     WORKFLOW = "workflow"
 
 
+class PackageRef(BaseModel):
+    """How to install the distribution a node was parsed from.
+
+    Records what an uploader's environment actually contained, not registry
+    truth: the absence of a conda entry does not mean the package is
+    unavailable on conda-forge (see ADR-0012 and ADR-0019).
+    """
+
+    ecosystem: Literal["pypi", "conda"]
+    name: str
+    version: str | None = None
+    channel: str | None = None
+
+
 class Reference(BaseModel):
     label: str
     id: str
@@ -87,6 +101,7 @@ class FunctionRequest(BaseModel):
 
     python_import: str
     dependencies: list[str] | None = None
+    packages: list[PackageRef] = []
 
     source_code: str
 
@@ -121,6 +136,7 @@ class FunctionResponse(BaseModel):
 
     python_import: str
     dependencies: list[str] | None = None
+    packages: list[PackageRef] = []
 
     source_code: str
 
@@ -198,6 +214,7 @@ class WorkflowRequest(BaseModel):
 
     python_import: str | None = None
     dependencies: list[str] | None = None
+    packages: list[PackageRef] = []
 
     source_code: str
     docstring: str | None = None
@@ -234,6 +251,7 @@ class WorkflowResponse(BaseModel):
 
     python_import: str | None = None
     dependencies: list[str] | None = None
+    packages: list[PackageRef] = []
 
     source_code: str
     docstring: str | None = None
@@ -319,6 +337,22 @@ class SearchRequest(BaseModel):
     semantic: bool | None = None
     page: int = Field(default=1, ge=1)
     limit: int = Field(default=10, ge=1, le=100)
+
+
+class Suggestion(BaseModel):
+    """A single type-ahead hit: enough to render a row and navigate to it."""
+
+    id: str
+    name: str
+    python_import: str | None = None
+    artifact_type: ArtifactType
+    short_description: str | None = None
+
+
+class SuggestRequest(BaseModel):
+    query: str
+    filter: Filter | None = None
+    limit: int = Field(default=10, ge=1, le=25)
 
 
 # --- Agent models ---

@@ -4,7 +4,7 @@ import textwrap
 from http import HTTPStatus
 from typing import Any
 
-import httpx
+import httpx2
 
 from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import FunctionRequest
@@ -14,10 +14,11 @@ from sim_atlas_toolkit.parsers.metadata import (
     parse_return_annotation,
     parse_signature,
 )
+from sim_atlas_toolkit.provenance import apply_provenance
 from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
         return []
 
@@ -42,6 +43,7 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
     metadata.source_code = source_code
     metadata.docstring = inspect.getdoc(obj) or ""
     metadata.keywords = ["python"]
+    apply_provenance(metadata, obj.__module__)
 
     sig = inspect.signature(obj)
     metadata.inputs = parse_signature(sig)

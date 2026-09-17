@@ -28,7 +28,7 @@ classifiers = [
 ]
 dependencies = [
     "griffe>=2",
-    "httpx>=0.27",
+    "httpx2>=2.13.0",
     "pydantic>=2",
     "pydantic-settings>=2",
     "tqdm>=4",

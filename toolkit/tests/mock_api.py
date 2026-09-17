@@ -1,14 +1,14 @@
 import uuid
 
-import httpx
+import httpx2
 import pytest
 
 from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import ArtifactRequest, ExecutionResultRequest
 
 
-def _mock_response() -> httpx.Response:
-    return httpx.Response(201, json={"id": str(uuid.uuid4())})
+def _mock_response() -> httpx2.Response:
+    return httpx2.Response(201, json={"id": str(uuid.uuid4())})
 
 
 class MockNodeStore:
@@ -24,28 +24,28 @@ def install_mock_node_store(monkeypatch: pytest.MonkeyPatch) -> MockNodeStore:
 
     async def create_artifact(
         api_url: str, api_key: str | None, artifact: ArtifactRequest
-    ) -> httpx.Response:
+    ) -> httpx2.Response:
         store.uploaded.append(artifact)
         return _mock_response()
 
     async def create_artifacts(
         api_url: str, api_key: str | None, artifacts: list[ArtifactRequest]
-    ) -> list[httpx.Response]:
+    ) -> list[httpx2.Response]:
         store.uploaded.extend(artifacts)
         return [_mock_response() for _ in artifacts]
 
-    async def read_artifact(api_url: str, artifact_id: str) -> httpx.Response:
-        return httpx.Response(404)  # Not found
+    async def read_artifact(api_url: str, artifact_id: str) -> httpx2.Response:
+        return httpx2.Response(404)  # Not found
 
     async def create_execution_result(
         api_url: str, api_key: str | None, execution_result: ExecutionResultRequest
-    ) -> httpx.Response:
+    ) -> httpx2.Response:
         store.uploaded_execution_results.append(execution_result)
         return _mock_response()
 
-    async def trigger_embed(api_url: str, api_key: str | None) -> httpx.Response:
+    async def trigger_embed(api_url: str, api_key: str | None) -> httpx2.Response:
         store.embed_triggers += 1
-        return httpx.Response(200)
+        return httpx2.Response(200)
 
     monkeypatch.setattr(node_store_api, "create_artifact", create_artifact)
     monkeypatch.setattr(node_store_api, "create_artifacts", create_artifacts)

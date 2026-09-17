@@ -5,7 +5,7 @@ import textwrap
 from http import HTTPStatus
 from typing import Any, get_type_hints
 
-import httpx
+import httpx2
 
 from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
@@ -17,6 +17,7 @@ from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
     parse_annotation,
 )
+from sim_atlas_toolkit.provenance import apply_provenance
 from sim_atlas_toolkit.settings import ToolkitSettings
 
 
@@ -48,7 +49,7 @@ def _field_annotations(cls: type) -> list[Annotation]:
     return result
 
 
-async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     if not (dataclasses.is_dataclass(obj) and isinstance(obj, type)):
         return []
 
@@ -103,6 +104,8 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
         outputs=[dataclass_annotation],
     )
 
+    apply_provenance(pack_metadata, module)
+
     raw_doc = inspect.getdoc(obj) or ""
     enrich_from_docstring(raw_doc, pack_metadata)
 
@@ -119,6 +122,8 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
         inputs=pack_metadata.outputs,
         outputs=pack_metadata.inputs,
     )
+
+    apply_provenance(unpack_metadata, module)
 
     return await node_store_api.create_artifacts(
         settings.api_url, settings.api_token, [pack_metadata, unpack_metadata]

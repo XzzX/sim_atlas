@@ -243,3 +243,16 @@ export const ExecutionResultMetadataSchema = z.object({
 export type ExecutionResultMetadata = z.infer<typeof ExecutionResultMetadataSchema>;
 
 export const ExecutionResultListSchema = z.array(ExecutionResultMetadataSchema);
+
+// --- Suggest (fast type-ahead lookup, ADR-0020) ---
+
+export const NodeSuggestionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  python_import: z.string().nullish(),
+  artifact_type: ArtifactTypeSchema,
+  short_description: z.string().nullish(),
+});
+export type NodeSuggestion = z.infer<typeof NodeSuggestionSchema>;
+
+export const NodeSuggestionListSchema = z.array(NodeSuggestionSchema);

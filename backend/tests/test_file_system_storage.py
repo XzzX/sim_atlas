@@ -66,6 +66,81 @@ def test_search_hybrid_falls_back_to_keyword_without_embeddings(
     assert "special_fn" in names
 
 
+def test_search_hybrid_without_embeddings_matches_a_sentence_shaped_query(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The keyword-only path must serve the full sentences the MCP tools ask for.
+
+    Whole-query substring matching returned nothing here, which left a
+    zero-config deployment with a catalog its agent could never see.
+    """
+    storage = FileSystemStorage(path=None)
+    storage.create_artifact(
+        make_node(
+            name="gradient_on_mesh",
+            python_import="mylib.mesh.gradient_on_mesh",
+            brief_description="Gradient of a scalar field on an unstructured mesh.",
+            source_code="def gradient_on_mesh(): pass",
+        )
+    )
+    storage.create_artifact(
+        make_node(
+            name="get_temperature",
+            python_import="ase.md.get_temperature",
+            brief_description="Instantaneous temperature of an atomic structure.",
+            source_code="def get_temperature(): pass",
+        )
+    )
+
+    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=False))
+
+    async def _boom(*_args: Any, **_kwargs: Any) -> np.ndarray:
+        raise AssertionError("create_embedding must not be called")
+
+    monkeypatch.setattr(fss, "create_embedding", _boom)
+
+    response = asyncio.run(
+        storage.search_hybrid(
+            "compute the gradient of a temperature field on an unstructured mesh"
+        )
+    )
+
+    assert [item.node.name for item in response.results.data][0] == "gradient_on_mesh"
+
+
+def test_search_drop_unmatched_false_ranks_without_excluding() -> None:
+    """A query must only order the filtered set, never shrink it.
+
+    This is what find_by_signature needs: the annotation filters are the
+    constraint, and a descriptive query is a tie-breaker on top of them.
+    """
+    storage = FileSystemStorage(path=None)
+    storage.create_artifact(
+        make_node(
+            name="heat_capacity",
+            source_code="def heat_capacity(): pass",
+            outputs=[AnnotationResponse(label="c", datatype="float")],
+        )
+    )
+    storage.create_artifact(
+        make_node(
+            name="lattice_constant",
+            source_code="def lattice_constant(): pass",
+            outputs=[AnnotationResponse(label="a", datatype="float")],
+        )
+    )
+    float_outputs = Filter(datatypes=["float"], port_type="outputs")
+
+    unqueried = storage.search(None, float_outputs)
+    queried = storage.search(
+        "the heat capacity of a solid", float_outputs, drop_unmatched=False
+    )
+
+    assert queried.results.total_items == unqueried.results.total_items == 2  # noqa: PLR2004
+    assert queried.results.data[0].node.name == "heat_capacity"
+    assert queried.results.data[1].score == 0.0
+
+
 def test_search_hybrid_none_query_returns_filtered() -> None:
     """A missing query degrades to filter-only browse without touching embeddings."""
     storage = FileSystemStorage(path=None)
@@ -341,6 +416,67 @@ def test_fill_connections_populates_workflow_ports() -> None:
     connections = node.outputs[0].connections
     assert connections is not None
     assert [c.id for c in connections] == [fn_sink.id]
+
+
+# ---------------------------------------------------------------------------
+# suggest: must stay cheap — no enrichment, no mutation
+# ---------------------------------------------------------------------------
+
+
+def test_suggest_does_not_enrich_or_touch_the_graph(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """suggest must not go through _used_by/_fill_connections at all.
+
+    This is the regression guard against someone "simplifying" suggest into a
+    call to search: those enrichment steps are O(N·(V+E)) per port and are
+    exactly what makes the hybrid path too slow to be the type-ahead path.
+    """
+
+    def _boom(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError("suggest must not call this")
+
+    monkeypatch.setattr(FileSystemStorage, "_used_by", _boom)
+    monkeypatch.setattr(FileSystemStorage, "_fill_connections", _boom)
+
+    storage = FileSystemStorage(path=None)
+    storage.create_artifact(
+        make_node(name="get_temperature", source_code="def a(): pass")
+    )
+
+    results = storage.suggest("temp")
+    assert [s.name for s in results] == ["get_temperature"]
+
+
+def test_suggest_does_not_mutate_stored_artifacts() -> None:
+    """suggest must not stamp used_by/connections onto the stored objects.
+
+    ScoredSearchItem.node aliases the same object as the one held in storage,
+    which is why the search paths' enrichment loops mutate stored state.
+    suggest reads fields and builds a fresh Suggestion, so the stored artifact
+    must come back untouched.
+    """
+    storage = FileSystemStorage(path=None)
+    fn = make_node(
+        name="get_temperature",
+        source_code="def a(): pass",
+        inputs=[AnnotationResponse(label="atoms")],
+    )
+    storage.create_artifact(fn)
+    wf = make_workflow(
+        name="temperature_pipeline",
+        uses=[Reference(label="get_temperature", id=fn.id, count=1)],
+    )
+    storage.create_artifact(wf)
+
+    storage.suggest("temp")
+
+    stored = next(
+        item.node for item in storage.filter(Filter()) if item.node.id == fn.id
+    )
+    assert isinstance(stored, FunctionResponse)
+    assert stored.used_by is None
+    assert stored.inputs[0].connections is None
 
 
 # ---------------------------------------------------------------------------

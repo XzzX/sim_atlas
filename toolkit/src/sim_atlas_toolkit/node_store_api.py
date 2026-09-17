@@ -1,6 +1,6 @@
 import logging
 
-import httpx
+import httpx2
 
 from sim_atlas_toolkit.models import (
     ArtifactRequest,
@@ -15,13 +15,13 @@ async def create_artifact(
     api_url: str,
     api_key: str | None,
     artifact: ArtifactRequest,
-) -> httpx.Response:
+) -> httpx2.Response:
     if not api_key:
         raise ValueError("API key is required to create an artifact")
 
     headers: dict[str, str] = {"x-api-key": api_key}
 
-    return httpx.post(
+    return httpx2.post(
         f"{api_url}/artifacts",
         json=artifact_request_adapter.dump_python(
             artifact_request_adapter.validate_python(artifact.model_dump())
@@ -34,39 +34,39 @@ async def create_artifacts(
     api_url: str,
     api_key: str | None,
     artifacts: list[ArtifactRequest],
-) -> list[httpx.Response]:
+) -> list[httpx2.Response]:
     return [await create_artifact(api_url, api_key, artifact) for artifact in artifacts]
 
 
 async def read_artifact(
     api_url: str,
     artifact_id: str,
-) -> httpx.Response:
-    return httpx.get(
+) -> httpx2.Response:
+    return httpx2.get(
         f"{api_url}/artifacts/{artifact_id}",
     )
 
 
-async def trigger_embed(api_url: str, api_key: str | None) -> httpx.Response:
+async def trigger_embed(api_url: str, api_key: str | None) -> httpx2.Response:
     if not api_key:
         raise ValueError("API key is required to trigger embedding")
 
     headers: dict[str, str] = {"x-api-key": api_key}
 
-    return httpx.post(f"{api_url}/embed", headers=headers)
+    return httpx2.post(f"{api_url}/embed", headers=headers)
 
 
 async def create_execution_result(
     api_url: str,
     api_key: str | None,
     execution_result: ExecutionResultRequest,
-) -> httpx.Response:
+) -> httpx2.Response:
     if not api_key:
         raise ValueError("API key is required to create an execution result")
 
     headers: dict[str, str] = {"x-api-key": api_key}
 
-    return httpx.post(
+    return httpx2.post(
         f"{api_url}/execution_results",
         json=execution_result.model_dump(),
         headers=headers,

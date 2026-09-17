@@ -7,7 +7,7 @@ import textwrap
 from http import HTTPStatus
 from typing import Any
 
-import httpx
+import httpx2
 from core import (  # pyright: ignore[reportMissingImports]
     Workflow,  # pyright: ignore[reportMissingImports]
 )
@@ -43,13 +43,14 @@ from sim_atlas_toolkit.parsers.metadata import (
     extract_id,
     type_to_str,
 )
+from sim_atlas_toolkit.provenance import apply_provenance
 from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
 
 async def parse_function_node(
     settings: ToolkitSettings, obj: Any
-) -> list[httpx.Response]:
+) -> list[httpx2.Response]:
     if type(obj) is type and issubclass(obj, Node):
         obj = obj()
 
@@ -86,6 +87,7 @@ async def parse_function_node(
     metadata.python_import = obj._module_path
     metadata.name = metadata.python_import
     metadata.category = metadata.python_import.replace(".", ">")
+    apply_provenance(metadata, obj._module_path)
     metadata.inputs = [
         Annotation(label=inp.label, datatype=type_to_str(inp.type))
         for inp in obj.inputs
@@ -105,7 +107,9 @@ async def parse_function_node(
     )
 
 
-async def parse_group_node(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
+async def parse_group_node(
+    settings: ToolkitSettings, obj: Any
+) -> list[httpx2.Response]:
     if isinstance(obj, WorkflowGroupFactory):
         obj = obj()
 
@@ -146,6 +150,7 @@ async def parse_group_node(settings: ToolkitSettings, obj: Any) -> list[httpx.Re
     metadata.python_import = python_import
     metadata.category = module.replace(".", ">")
     metadata.keywords = ["aiflow", "group_node"]
+    apply_provenance(metadata, module)
     metadata.inputs = inputs
     metadata.outputs = outputs
     metadata.docstring = ""
@@ -196,7 +201,7 @@ async def to_wf_definition(
     return WfDefinition(nodes=nodes, edges=edges)
 
 
-async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
+async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     if not isinstance(obj, Workflow):
         return []
 
@@ -256,7 +261,7 @@ async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx.Resp
     ]
 
 
-async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx.Response]:
+async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     if metadata := await parse_workflow(settings, obj):
         return metadata
 

@@ -1,5 +1,11 @@
 import { http, HttpResponse } from "msw";
-import { linearWorkflow, linearExecutions, filterOptions, searchResponse } from "../fixtures/artifacts";
+import {
+  linearWorkflow,
+  linearExecutions,
+  filterOptions,
+  searchResponse,
+  suggestions,
+} from "../fixtures/artifacts";
 
 export const handlers = [
   // ":id" matches one path segment, so this cannot shadow the artifact route below
@@ -7,4 +13,5 @@ export const handlers = [
   http.get("/api/v1/artifacts/:id", () => HttpResponse.json(linearWorkflow)),
   http.get("/api/v1/filter_options", () => HttpResponse.json(filterOptions)),
   http.post("/api/v1/search", () => HttpResponse.json(searchResponse)),
+  http.post("/api/v1/suggest", () => HttpResponse.json(suggestions)),
 ];

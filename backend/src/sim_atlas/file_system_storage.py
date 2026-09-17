@@ -14,6 +14,7 @@ from tqdm.asyncio import tqdm as atqdm
 
 from sim_atlas import keyword_search
 from sim_atlas.ai import enrich_artifact_metadata
+from sim_atlas.artifact_text import short_description
 from sim_atlas.embedding import create_embedding
 from sim_atlas.models import (
     AnnotationResponse,
@@ -28,6 +29,7 @@ from sim_atlas.models import (
     ScoredSearchResponse,
     SearchResults,
     StoredArtifact,
+    Suggestion,
     WfFunctionNode,
     WorkflowMetadata,
     WorkflowResponse,
@@ -382,6 +384,68 @@ class FileSystemStorage(StorageInterface):
                 self._fill_connections(item.node)
 
         return paginated_items
+
+    def suggest(
+        self, query: str, filter: Filter | None = None, limit: int = 10
+    ) -> list[Suggestion]:
+        """Cheap type-ahead lookup: name/import matches only, tiered and sorted.
+
+        Matches first, then filters the survivors — ``NodeFilter`` allocates
+        ``inputs + outputs`` per artifact even with no port filter set, so
+        matching first keeps the cost proportional to the match count instead
+        of to the catalog size. No enrichment (``_used_by``/connections) and
+        no mutation of stored artifacts: this path exists to be fast.
+        """
+        needle = query.strip().lower()
+        if not needle:
+            return []
+
+        tiered: list[tuple[int, StoredArtifact]] = []
+        for artifact in self._artifacts.values():
+            tier = self._suggest_tier(artifact, needle)
+            if tier is not None:
+                tiered.append((tier, artifact))
+
+        item_filter = NodeFilter(filter or Filter())
+        matching = [(tier, a) for tier, a in tiered if item_filter(a)]
+        matching.sort(
+            key=lambda pair: (
+                pair[0],
+                len(pair[1].name),
+                pair[1].name.lower(),
+                pair[1].id,
+            )
+        )
+
+        return [self._to_suggestion(artifact) for _, artifact in matching[:limit]]
+
+    @staticmethod
+    def _suggest_tier(artifact: StoredArtifact, needle: str) -> int | None:
+        """The best-matching tier for *needle* against *artifact*, or None."""
+        name = artifact.name.lower()
+        if name.startswith(needle):
+            return 0
+        if any(
+            token.startswith(needle) for token in keyword_search.tokenize(artifact.name)
+        ):
+            return 1
+        if needle in name:
+            return 2
+        if needle in (artifact.python_import or "").lower():
+            return 3
+        return None
+
+    @staticmethod
+    def _to_suggestion(artifact: StoredArtifact) -> Suggestion:
+        return Suggestion(
+            id=artifact.id,
+            name=artifact.name,
+            python_import=artifact.python_import,
+            artifact_type=artifact.artifact_type,
+            short_description=short_description(
+                artifact.brief_description, artifact.docstring
+            ),
+        )
 
     def _used_by(self, artifact_id: str) -> list[Reference] | None:
         """Workflows whose uses reference the given function artifact."""

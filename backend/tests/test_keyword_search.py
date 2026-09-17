@@ -7,6 +7,8 @@ could never find.
 
 from __future__ import annotations
 
+import pytest
+
 from sim_atlas import keyword_search
 from sim_atlas.models import AnnotationResponse
 
@@ -108,3 +110,30 @@ def test_query_without_usable_tokens_scores_nothing() -> None:
 
 def test_empty_corpus_scores_nothing() -> None:
     assert keyword_search.rank("anything", []) == {}
+
+
+# ---------------------------------------------------------------------------
+# Partial-word matching (the trailing token is treated as a prefix)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "prefix", ["t", "te", "tem", "temp", "tempe", "temper", "temperat"]
+)
+def test_partial_prefix_of_a_name_token_matches(prefix: str) -> None:
+    """The regression: a query typed mid-word must already find the word."""
+    assert _TEMPERATURE.id in keyword_search.rank(prefix, _CORPUS)
+
+
+def test_only_the_trailing_token_is_prefix_expanded() -> None:
+    """An earlier, complete-looking token is matched exactly, not as a prefix."""
+    assert _TEMPERATURE.id not in keyword_search.rank("temperat gradient", _CORPUS)
+
+
+def test_prefix_expansion_keeps_the_exact_match_ranked_first() -> None:
+    """Once the word is complete, the exact match still wins outright."""
+    assert _order("temperature")[0] == "get_temperature"
+
+
+def test_an_unmatched_prefix_scores_nothing() -> None:
+    assert keyword_search.rank("crystall", _CORPUS) == {}

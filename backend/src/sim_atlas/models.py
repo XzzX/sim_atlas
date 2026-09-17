@@ -339,6 +339,22 @@ class SearchRequest(BaseModel):
     limit: int = Field(default=10, ge=1, le=100)
 
 
+class Suggestion(BaseModel):
+    """A single type-ahead hit: enough to render a row and navigate to it."""
+
+    id: str
+    name: str
+    python_import: str | None = None
+    artifact_type: ArtifactType
+    short_description: str | None = None
+
+
+class SuggestRequest(BaseModel):
+    query: str
+    filter: Filter | None = None
+    limit: int = Field(default=10, ge=1, le=25)
+
+
 # --- Agent models ---
 
 

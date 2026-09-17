@@ -419,6 +419,67 @@ def test_fill_connections_populates_workflow_ports() -> None:
 
 
 # ---------------------------------------------------------------------------
+# suggest: must stay cheap — no enrichment, no mutation
+# ---------------------------------------------------------------------------
+
+
+def test_suggest_does_not_enrich_or_touch_the_graph(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """suggest must not go through _used_by/_fill_connections at all.
+
+    This is the regression guard against someone "simplifying" suggest into a
+    call to search: those enrichment steps are O(N·(V+E)) per port and are
+    exactly what makes the hybrid path too slow to be the type-ahead path.
+    """
+
+    def _boom(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError("suggest must not call this")
+
+    monkeypatch.setattr(FileSystemStorage, "_used_by", _boom)
+    monkeypatch.setattr(FileSystemStorage, "_fill_connections", _boom)
+
+    storage = FileSystemStorage(path=None)
+    storage.create_artifact(
+        make_node(name="get_temperature", source_code="def a(): pass")
+    )
+
+    results = storage.suggest("temp")
+    assert [s.name for s in results] == ["get_temperature"]
+
+
+def test_suggest_does_not_mutate_stored_artifacts() -> None:
+    """suggest must not stamp used_by/connections onto the stored objects.
+
+    ScoredSearchItem.node aliases the same object as the one held in storage,
+    which is why the search paths' enrichment loops mutate stored state.
+    suggest reads fields and builds a fresh Suggestion, so the stored artifact
+    must come back untouched.
+    """
+    storage = FileSystemStorage(path=None)
+    fn = make_node(
+        name="get_temperature",
+        source_code="def a(): pass",
+        inputs=[AnnotationResponse(label="atoms")],
+    )
+    storage.create_artifact(fn)
+    wf = make_workflow(
+        name="temperature_pipeline",
+        uses=[Reference(label="get_temperature", id=fn.id, count=1)],
+    )
+    storage.create_artifact(wf)
+
+    storage.suggest("temp")
+
+    stored = next(
+        item.node for item in storage.filter(Filter()) if item.node.id == fn.id
+    )
+    assert isinstance(stored, FunctionResponse)
+    assert stored.used_by is None
+    assert stored.inputs[0].connections is None
+
+
+# ---------------------------------------------------------------------------
 # Semantic scoring
 # ---------------------------------------------------------------------------
 

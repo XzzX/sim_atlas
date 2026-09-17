@@ -431,6 +431,121 @@ def test_search_does_not_leak_embedding(
     assert "embedding" not in response.text
 
 
+def test_search_matches_a_partial_word(client: ApiClient) -> None:
+    """The keyword-only path must already match mid-word, not just whole tokens."""
+    client.post(
+        "/api/v1/artifacts", json=make_function_request_body(name="get_temperature")
+    )
+    response = client.post("/api/v1/search", json={"query": "temp"})
+    assert response.status_code == status.HTTP_200_OK
+    names = [item["node"]["name"] for item in response.json()["results"]["data"]]
+    assert "get_temperature" in names
+
+
+# ---------------------------------------------------------------------------
+# Suggest: the fast type-ahead lookup
+# ---------------------------------------------------------------------------
+
+
+def test_suggest_returns_matching_names_with_ids(client: ApiClient) -> None:
+    response = client.post(
+        "/api/v1/artifacts", json=make_function_request_body(name="special_fn")
+    )
+    artifact_id = response.json()["id"]
+
+    response = client.post("/api/v1/suggest", json={"query": "spec"})
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == artifact_id
+    assert body[0]["name"] == "special_fn"
+
+
+def test_suggest_matches_a_partial_word(client: ApiClient) -> None:
+    """The reported regression, end to end: 'temp' must find 'get_temperature'."""
+    client.post(
+        "/api/v1/artifacts", json=make_function_request_body(name="get_temperature")
+    )
+    response = client.post("/api/v1/suggest", json={"query": "temp"})
+    assert response.status_code == status.HTTP_200_OK
+    names = [item["name"] for item in response.json()]
+    assert "get_temperature" in names
+
+
+def test_suggest_honours_filter(client: ApiClient) -> None:
+    client.post(
+        "/api/v1/artifacts",
+        json=make_function_request_body(name="calc_physics", category="physics"),
+    )
+    client.post(
+        "/api/v1/artifacts",
+        json=make_function_request_body(
+            name="calc_chemistry",
+            category="chemistry",
+            source_code="def calc_chemistry(): pass",
+        ),
+    )
+    response = client.post(
+        "/api/v1/suggest",
+        json={"query": "calc", "filter": {"category": "physics"}},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    names = [item["name"] for item in response.json()]
+    assert names == ["calc_physics"]
+
+
+def test_suggest_honours_limit(client: ApiClient) -> None:
+    for i in range(3):
+        client.post(
+            "/api/v1/artifacts",
+            json=make_function_request_body(
+                name=f"calc_{i}", source_code=f"def calc_{i}(): pass"
+            ),
+        )
+    response = client.post("/api/v1/suggest", json={"query": "calc", "limit": 2})
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.json()) == 2  # noqa: PLR2004
+
+
+def test_suggest_limit_above_cap_returns_422(client: ApiClient) -> None:
+    response = client.post("/api/v1/suggest", json={"query": "a", "limit": 9999})
+    assert response.status_code == 422  # noqa: PLR2004
+
+
+def test_suggest_missing_query_returns_422(client: ApiClient) -> None:
+    response = client.post("/api/v1/suggest", json={})
+    assert response.status_code == 422  # noqa: PLR2004
+
+
+def test_suggest_empty_query_returns_empty(client: ApiClient) -> None:
+    client.post("/api/v1/artifacts", json=make_function_request_body(name="special_fn"))
+    response = client.post("/api/v1/suggest", json={"query": "   "})
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == []
+
+
+def test_suggest_is_public(unauthed_client: ApiClient) -> None:
+    response = unauthed_client.post("/api/v1/suggest", json={"query": "anything"})
+    assert response.status_code == status.HTTP_200_OK
+
+
+def test_suggest_returns_only_the_suggestion_fields(client: ApiClient) -> None:
+    """The response model must strip everything but the type-ahead fields."""
+    client.post("/api/v1/artifacts", json=make_function_request_body(name="special_fn"))
+    response = client.post("/api/v1/suggest", json={"query": "special"})
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    assert len(body) == 1
+    assert set(body[0]) == {
+        "id",
+        "name",
+        "python_import",
+        "artifact_type",
+        "short_description",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Hybrid vs. forced-keyword routing (storage.search_hybrid monkeypatched)
 # ---------------------------------------------------------------------------

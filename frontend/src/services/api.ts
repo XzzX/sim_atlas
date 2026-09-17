@@ -9,6 +9,8 @@ import {
   FilterOptionsSchema,
   type ExecutionResultMetadata,
   ExecutionResultListSchema,
+  type NodeSuggestion,
+  NodeSuggestionListSchema,
 } from "../types/index";
 
 const API_BASE_URL = "/api/v1";
@@ -49,6 +51,22 @@ export const simAtlasAPI = {
       limit,
     });
     return ScoredSearchResponseSchema.parse(response.data);
+  },
+
+  // Fast type-ahead lookup for the search-as-you-type dropdown — matches only
+  // name/import path, honours the same filters as `search`, no enrichment.
+  // See ADR-0020.
+  suggest: async (
+    query: string,
+    filterOptions: Filter,
+    limit = 8,
+  ): Promise<NodeSuggestion[]> => {
+    const response = await api.post("/suggest", {
+      query,
+      filter: filterOptions,
+      limit,
+    });
+    return NodeSuggestionListSchema.parse(response.data);
   },
 };
 

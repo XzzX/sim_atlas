@@ -638,6 +638,142 @@ class StorageContractTests:
         assert storage.count() == 2  # noqa: PLR2004
 
     # -----------------------------------------------------------------------
+    # suggest: cheap type-ahead lookup
+    # -----------------------------------------------------------------------
+
+    def test_suggest_matches_a_name_prefix(self, storage: StorageInterface) -> None:
+        storage.create_artifact(
+            make_node(name="calculate_energy", source_code="def a(): pass")
+        )
+        results = storage.suggest("calc")
+        assert [s.name for s in results] == ["calculate_energy"]
+
+    def test_suggest_matches_a_partial_word_inside_the_name(
+        self, storage: StorageInterface
+    ) -> None:
+        """The reported regression: 'temp' must already find 'get_temperature'."""
+        storage.create_artifact(
+            make_node(name="get_temperature", source_code="def a(): pass")
+        )
+        results = storage.suggest("temp")
+        assert [s.name for s in results] == ["get_temperature"]
+
+    def test_suggest_matches_the_python_import(self, storage: StorageInterface) -> None:
+        storage.create_artifact(
+            make_node(
+                name="unrelated_name",
+                python_import="ase.md.get_temperature",
+                source_code="def a(): pass",
+            )
+        )
+        results = storage.suggest("get_temperature")
+        assert [s.name for s in results] == ["unrelated_name"]
+
+    def test_suggest_is_case_insensitive(self, storage: StorageInterface) -> None:
+        storage.create_artifact(
+            make_node(name="calculate_energy", source_code="def a(): pass")
+        )
+        results = storage.suggest("CALC")
+        assert [s.name for s in results] == ["calculate_energy"]
+
+    def test_suggest_returns_the_artifact_id(self, storage: StorageInterface) -> None:
+        created = storage.create_artifact(
+            make_node(name="calculate_energy", source_code="def a(): pass")
+        )
+        results = storage.suggest("calc")
+        assert results[0].id == created.id
+
+    def test_suggest_ranks_a_name_prefix_above_a_name_substring(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create_artifact(
+            make_node(name="attempt_calc", source_code="def a(): pass")
+        )
+        storage.create_artifact(
+            make_node(name="calculate_energy", source_code="def b(): pass")
+        )
+        results = storage.suggest("calc")
+        assert [s.name for s in results] == ["calculate_energy", "attempt_calc"]
+
+    def test_suggest_ranks_name_matches_above_import_matches(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create_artifact(
+            make_node(
+                name="unrelated_name",
+                python_import="lib.calculate_energy",
+                source_code="def a(): pass",
+            )
+        )
+        storage.create_artifact(
+            make_node(name="calculate_energy", source_code="def b(): pass")
+        )
+        results = storage.suggest("calc")
+        assert [s.name for s in results] == ["calculate_energy", "unrelated_name"]
+
+    def test_suggest_ignores_docstrings_and_descriptions(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create_artifact(
+            make_node(
+                name="unrelated_name",
+                python_import="lib.unrelated",
+                docstring="Computes the calculation of interest.",
+                brief_description="A calculation helper.",
+                source_code="def a(): pass",
+            )
+        )
+        assert storage.suggest("calc") == []
+
+    def test_suggest_honours_limit(self, storage: StorageInterface) -> None:
+        for i in range(5):
+            storage.create_artifact(
+                make_node(name=f"calc_{i}", source_code=f"def f{i}(): pass")
+            )
+        results = storage.suggest("calc", limit=2)
+        assert len(results) == 2  # noqa: PLR2004
+
+    def test_suggest_honours_filter(self, storage: StorageInterface) -> None:
+        storage.create_artifact(
+            make_node(
+                name="calc_physics",
+                category="physics",
+                source_code="def a(): pass",
+            )
+        )
+        storage.create_artifact(
+            make_node(
+                name="calc_chemistry",
+                category="chemistry",
+                source_code="def b(): pass",
+            )
+        )
+        results = storage.suggest("calc", Filter(category="physics"))
+        assert [s.name for s in results] == ["calc_physics"]
+
+    def test_suggest_blank_query_returns_nothing(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create_artifact(
+            make_node(name="calculate_energy", source_code="def a(): pass")
+        )
+        assert storage.suggest("") == []
+        assert storage.suggest("   ") == []
+
+    def test_suggest_empty_storage_returns_nothing(
+        self, storage: StorageInterface
+    ) -> None:
+        assert storage.suggest("anything") == []
+
+    def test_suggest_finds_workflows(self, storage: StorageInterface) -> None:
+        wf = make_workflow(name="temperature_pipeline")
+        storage.create_artifact(wf)
+        results = storage.suggest("temperature")
+        assert [s.name for s in results] == ["temperature_pipeline"]
+        assert results[0].python_import is None
+        assert results[0].artifact_type == ArtifactType.WORKFLOW
+
+    # -----------------------------------------------------------------------
     # Workflow artifact contract tests
     # -----------------------------------------------------------------------
 

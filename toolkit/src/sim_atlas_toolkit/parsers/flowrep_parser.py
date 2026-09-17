@@ -1,3 +1,4 @@
+import contextlib
 import hashlib
 import inspect
 import json
@@ -298,7 +299,8 @@ async def parse_workflow_recipe(
     metadata.keywords = ["flowrep"]
     apply_provenance(metadata, obj.__module__)
     metadata.uses = uses
-    metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
+    with contextlib.suppress(Exception):
+        metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
 
     metadata.docstring = await generate_workflow_docstring(
         settings,

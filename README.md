@@ -99,11 +99,16 @@ The tools work on their own, but the skill tells the agent *when* to reach for
 the catalog and how to handle a package that is not installed locally:
 
 ```bash
-mkdir -p ~/.claude/skills/sim-atlas
-cp integrations/claude-code/SKILL.md ~/.claude/skills/sim-atlas/
+mkdir -p ~/.claude/skills
+cp -r skills/sim-atlas ~/.claude/skills/
 ```
+
+The `references/` directory has to come along: the skill loads its syntax guides
+for flowrep and executorlib from there — `cp -r` on the whole `sim-atlas`
+directory takes care of that.
 
 Claude Code checks whether a package is importable before writing an import, and
 proposes an install command matched to your project's package manager (uv, pixi,
 conda or pip) for you to confirm. The server never inspects or changes your
-environment.
+environment. For a pipeline it asks whether you want plain Python, a flowrep
+workflow or an executorlib pipeline rather than picking for you.

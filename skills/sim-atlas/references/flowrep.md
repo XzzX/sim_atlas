@@ -5,8 +5,9 @@ of nodes and edges that a workflow management system can run. It is the format
 the Simulation Atlas stores workflows in.
 
 This file is syntax only. For *which* functions may become nodes, see the
-"Composing workflows" section of SKILL.md — the short version is that nodes come
-from the catalog and writing your own is the exception.
+"Every step comes from the catalog" section of SKILL.md — the short version is
+that nodes come from the catalog and writing your own is the exception. For the
+alternative pipeline format, see `executorlib.md`.
 
 Checked against **flowrep 0.6.2**. Upstream guide:
 <https://github.com/pyiron/flowrep/blob/main/notebooks/user-guide.ipynb>
@@ -147,6 +148,30 @@ Never fabricate a structure file or launch a solver just to prove a graph parses
 dag = fr.tools.run_recipe(summarize.flowrep_recipe, values=[1.0, 2.0], factor=3.0)
 print({k: v.value for k, v in dag.output_ports.items()})
 ```
+
+## Running a recipe on HPC
+
+`fr.tools.run_recipe` executes in-process. To give the same recipe real
+resources — cores, GPUs, SLURM, Flux — convert it to
+python-workflow-definition and hand it to executorlib:
+
+```python
+from executorlib import SingleNodeExecutor
+from python_workflow_definition.executorlib import load_workflow_json
+
+pwd = fr.tools.flowrep2pwd(summarize.flowrep_recipe, values=[1.0, 2.0], factor=3.0)
+with open("summarize.json", "w") as f:
+    f.write(pwd.model_dump_json(indent=2))
+
+with SingleNodeExecutor() as exe:
+    print(load_workflow_json("summarize.json", exe).result())
+```
+
+`flowrep2pwd` is stricter than flowrep itself: the workflow must be flat (atomic
+children only — inline any nested `@fr.workflow`), every child needs exactly one
+output port, and every workflow input needs a default passed as a keyword
+argument. `fr.tools.pwd2flowrep` goes back the other way, which is how an
+executorlib pipeline becomes publishable. See `executorlib.md`.
 
 ## Also available
 

@@ -41,6 +41,7 @@ from sim_atlas_toolkit.parsers.metadata import (
     extract_id,
     parse_return_annotation,
     parse_signature,
+    self_contain_source,
     try_import,
 )
 from sim_atlas_toolkit.provenance import apply_provenance
@@ -210,6 +211,7 @@ async def parse_atomic_recipe(
         settings, metadata.source_code, metadata.docstring
     )
     enrich_from_docstring(metadata.docstring, metadata)
+    metadata.source_code = self_contain_source(settings, obj, metadata.source_code)
     return await node_store_api.create_artifacts(
         settings.api_url, settings.api_token, [metadata]
     )

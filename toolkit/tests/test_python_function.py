@@ -1,3 +1,5 @@
+import inspect
+
 import pytest
 
 from sim_atlas_toolkit.models import ArtifactRequest, FunctionRequest, PackageRef
@@ -49,6 +51,60 @@ async def test_parse_simple_function(monkeypatch: pytest.MonkeyPatch):
     # enrich_from_docstring parsed the existing NumPy docstring.
     assert artifact.brief_description == "A simple function."
     assert artifact.inputs[0].description == "The first value."
+
+
+def _double(z: int) -> int:
+    return z * 2
+
+
+def calls_helper(x: int) -> int:
+    """Calls a module-level helper.
+
+    Parameters
+    ----------
+    x : int
+        The value to double.
+    """
+    return _double(x)
+
+
+def references_missing_name(x: int) -> int:
+    """Uses a name that resolves to nothing.
+
+    Parameters
+    ----------
+    x : int
+        The value to offset.
+    """
+    return x + undefined_global  # noqa: F821  # pyright: ignore[reportUndefinedVariable, reportUnknownVariableType] -- deliberately unresolved, to exercise the extractor's fallback
+
+
+async def test_parse_self_contained_source_inlines_helper(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    store = install_mock_node_store(monkeypatch)
+    settings = ToolkitSettings(self_contained_source=True)
+
+    await parse(settings, calls_helper)
+
+    artifact = store.uploaded[0]
+    assert "def _double" in artifact.source_code
+    assert "def calls_helper" in artifact.source_code
+    # Docstring generation still ran off the plain (non-inlined) source.
+    assert artifact.brief_description == "Calls a module-level helper."
+
+
+async def test_parse_self_contained_source_falls_back_when_incomplete(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    store = install_mock_node_store(monkeypatch)
+    settings = ToolkitSettings(self_contained_source=True)
+
+    await parse(settings, references_missing_name)
+
+    artifact = store.uploaded[0]
+    # Falls back to the plain function source rather than emitting incomplete code.
+    assert artifact.source_code == inspect.getsource(references_missing_name)
 
 
 async def test_parse_attaches_package_provenance(monkeypatch: pytest.MonkeyPatch):

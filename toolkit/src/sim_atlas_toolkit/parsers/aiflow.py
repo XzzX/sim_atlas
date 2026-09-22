@@ -41,6 +41,7 @@ from sim_atlas_toolkit.parsers.ai_enrichment import (
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
     extract_id,
+    self_contain_source,
     type_to_str,
 )
 from sim_atlas_toolkit.provenance import apply_provenance
@@ -101,6 +102,10 @@ async def parse_function_node(
         settings, metadata.source_code, metadata.docstring
     )
     enrich_from_docstring(metadata.docstring, metadata)
+    if obj.node_type == "function_node":
+        metadata.source_code = self_contain_source(
+            settings, obj._original_func, metadata.source_code
+        )
 
     return await node_store_api.create_artifacts(
         settings.api_url, settings.api_token, [metadata]

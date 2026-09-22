@@ -1,5 +1,6 @@
 import importlib
 import inspect
+import logging
 import types
 from http import HTTPStatus
 from typing import Annotated, Any, Union, get_args, get_origin
@@ -22,6 +23,13 @@ from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactRequest,
 )
+from sim_atlas_toolkit.parsers.self_contained_source_code import (
+    ExtractionError,
+    extract,
+)
+from sim_atlas_toolkit.settings import ToolkitSettings
+
+logger = logging.getLogger(__name__)
 
 
 def type_to_str(tp: Any) -> str:
@@ -177,3 +185,22 @@ def extract_id(response: httpx2.Response) -> str | None:
     if response.status_code in (HTTPStatus.OK, HTTPStatus.CREATED, HTTPStatus.CONFLICT):
         return response.json().get("id")
     return None
+
+
+def self_contain_source(settings: ToolkitSettings, obj: Any, source_code: str) -> str:
+    """Swap in a self-contained extraction of `obj`, if enabled and it fully resolves.
+
+    Falls back to `source_code` unchanged on any extraction failure or incomplete result
+    (unresolved names / star imports) - a swap must never produce broken source.
+    """
+    if not settings.self_contained_source:
+        return source_code
+    try:
+        extraction = extract(obj)
+    except ExtractionError:
+        logger.warning("self-contained extraction failed for %r", obj, exc_info=True)
+        return source_code
+    if not extraction.complete:
+        logger.warning("self-contained extraction for %r left names unresolved", obj)
+        return source_code
+    return extraction.code

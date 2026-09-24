@@ -12,7 +12,7 @@ from typing import Any, Protocol, cast
 import httpx2
 import numpy as np
 import pytest
-from fastapi import HTTPException, status
+from fastapi import status
 from fastapi.testclient import TestClient
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
@@ -23,14 +23,13 @@ from sim_atlas.main import app, mcp
 from sim_atlas.models import (
     AnnotationRequest,
     ArtifactType,
-    FunctionRequest,
+    NodeRequest,
     ScoredSearchResponse,
     SearchResults,
     WfDefinition,
     WfEdge,
     WfInputNode,
     WfOutputNode,
-    WorkflowRequest,
 )
 from sim_atlas.security import Creator, get_current_user
 from sim_atlas.static_files import is_asset_path
@@ -57,7 +56,7 @@ class ApiClient(Protocol):
 
 
 def make_function_request_body(**kwargs: Any) -> dict[str, Any]:
-    """Return a JSON-serialisable dict for a FunctionRequest with sensible defaults."""
+    """Return a JSON-serialisable dict for a function NodeRequest with sensible defaults."""
     defaults: dict[str, Any] = {
         "artifact_type": "function",
         "author_name": "Alice",
@@ -76,7 +75,7 @@ def make_function_request_body(**kwargs: Any) -> dict[str, Any]:
 
 
 def make_workflow_request_body(**kwargs: Any) -> dict[str, Any]:
-    """Return a JSON-serialisable dict for a WorkflowRequest with sensible defaults."""
+    """Return a JSON-serialisable dict for a workflow NodeRequest with sensible defaults."""
     defaults: dict[str, Any] = {
         "artifact_type": "workflow",
         "author_name": "Bob",
@@ -942,7 +941,8 @@ def test_mcp_install_hint_uses_recorded_packages(client: ApiClient) -> None:
 
 
 def test_compose_artifact_function_sets_expected_fields() -> None:
-    request = FunctionRequest(
+    request = NodeRequest(
+        artifact_type=ArtifactType.FUNCTION,
         author_name="Alice",
         author_email="alice@example.com",
         name="my_fn",
@@ -974,7 +974,8 @@ def test_compose_artifact_workflow_sets_expected_fields() -> None:
         ],
         edges=[WfEdge(source_node="i1", target_node="o1")],
     )
-    request = WorkflowRequest(
+    request = NodeRequest(
+        artifact_type=ArtifactType.WORKFLOW,
         name="my_wf",
         category="pipeline",
         keywords=["wf"],
@@ -996,13 +997,15 @@ def test_compose_artifact_workflow_sets_expected_fields() -> None:
     assert artifact.hash == expected_hash
 
 
-def test_compose_artifact_invalid_type_raises_400() -> None:
-    class _BadRequest:
-        pass
-
-    with pytest.raises(HTTPException) as exc_info:
-        compose_artifact(_BadRequest(), TEST_CREATOR)  # type: ignore[arg-type]
-    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+def test_create_artifact_with_invalid_artifact_type_returns_422(
+    client: ApiClient,
+) -> None:
+    """An unrecognised ``artifact_type`` is rejected by request validation,
+    before ``compose_artifact`` ever sees it — there is only one node schema
+    now, so it's the ``artifact_type`` enum itself that gatekeeps this."""
+    body = make_function_request_body(artifact_type="not-a-real-type")
+    response = client.post("/api/v1/artifacts", json=body)
+    assert response.status_code == 422  # noqa: PLR2004
 
 
 # ---------------------------------------------------------------------------

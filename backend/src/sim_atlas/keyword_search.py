@@ -16,7 +16,7 @@ import re
 from collections.abc import Iterable
 from math import log
 
-from sim_atlas.models import StoredArtifact
+from sim_atlas.models import NodeMetadata
 
 # Identifiers are the point: splitting on every non-alphanumeric turns
 # "ase.md.get_temperature" into the tokens a sentence-shaped query contains.
@@ -62,7 +62,7 @@ def query_tokens(query: str) -> list[str]:
     return long_tokens or tokens
 
 
-def _weighted_fields(artifact: StoredArtifact) -> list[tuple[float, str]]:
+def _weighted_fields(artifact: NodeMetadata) -> list[tuple[float, str]]:
     port_text = " ".join(
         part
         for port in artifact.inputs + artifact.outputs
@@ -80,7 +80,7 @@ def _weighted_fields(artifact: StoredArtifact) -> list[tuple[float, str]]:
     ]
 
 
-def _term_frequencies(artifact: StoredArtifact) -> dict[str, float]:
+def _term_frequencies(artifact: NodeMetadata) -> dict[str, float]:
     """Weighted term frequencies for one artifact, fields folded into one bag."""
     frequencies: dict[str, float] = {}
     for weight, text in _weighted_fields(artifact):
@@ -108,7 +108,7 @@ def _term_frequency(
     )
 
 
-def rank(query: str, artifacts: Iterable[StoredArtifact]) -> dict[str, float]:
+def rank(query: str, artifacts: Iterable[NodeMetadata]) -> dict[str, float]:
     """Score *artifacts* against *query*, as ``{artifact id: score}``.
 
     Only artifacts that at least one query token touches are present; the rest

@@ -21,8 +21,8 @@ from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactType,
     ExecutionResultRequest,
-    FunctionRequest,
     IOValue,
+    NodeRequest,
     Reference,
     WfDefinition,
     WfEdge,
@@ -30,7 +30,6 @@ from sim_atlas_toolkit.models import (
     WfInputNode,
     WfNode,
     WfOutputNode,
-    WorkflowRequest,
 )
 from sim_atlas_toolkit.parsers.ai_enrichment import (
     generate_docstring,
@@ -149,7 +148,7 @@ async def parse_atomic_recipe(
     obj: Any,
     recipe: AtomicRecipe,
 ) -> list[httpx2.Response]:
-    metadata = FunctionRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.FUNCTION)
     metadata.source_code = inspect.getsource(obj) or ""
     metadata.docstring = inspect.getdoc(obj) or ""
 
@@ -200,7 +199,6 @@ async def parse_atomic_recipe(
     )
 
     metadata.name = f"{obj.__module__}.{obj.__qualname__}"
-    metadata.artifact_type = ArtifactType.FUNCTION
     metadata.python_import = f"{obj.__module__}.{obj.__qualname__}"
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]
@@ -223,7 +221,7 @@ async def parse_workflow_recipe(
     unreferenced_recipe = recipe.model_copy(update={"reference": None})
     rendered = fr.tools.flowrep2python(unreferenced_recipe)
 
-    metadata = WorkflowRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.WORKFLOW)
     metadata.source_code = rendered.source
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
 
@@ -293,7 +291,6 @@ async def parse_workflow_recipe(
     ]
 
     metadata.name = f"{obj.__module__}.{obj.__qualname__}"
-    metadata.artifact_type = ArtifactType.WORKFLOW
     metadata.python_import = f"{obj.__module__}.{obj.__qualname__}"
     metadata.category = f"{obj.__module__}".replace(".", ">")
     metadata.keywords = ["flowrep"]

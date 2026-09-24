@@ -22,17 +22,14 @@ from sim_atlas.models import (
     ExecutionResultMetadata,
     Filter,
     FilterOptions,
-    FunctionMetadata,
-    FunctionResponse,
+    NodeMetadata,
+    NodeResponse,
     Reference,
     ScoredSearchItem,
     ScoredSearchResponse,
     SearchResults,
-    StoredArtifact,
     Suggestion,
     WfFunctionNode,
-    WorkflowMetadata,
-    WorkflowResponse,
 )
 from sim_atlas.settings import load_settings
 from sim_atlas.storage_interface import (
@@ -47,11 +44,8 @@ from sim_atlas.type_utils import collect_datatypes, datatype_matches
 logger = logging.getLogger(__name__)
 
 
-def _deserialize_artifact(data: dict[str, object]) -> StoredArtifact:
-    artifact_type = data.get("artifact_type")
-    if artifact_type == ArtifactType.WORKFLOW:
-        return WorkflowMetadata.model_validate(data)
-    return FunctionMetadata.model_validate(data)
+def _deserialize_artifact(data: dict[str, object]) -> NodeMetadata:
+    return NodeMetadata.model_validate(data)
 
 
 def _write_json_atomically(target: Path, payload: dict[str, object]) -> None:
@@ -108,14 +102,14 @@ class NodeFilter:
         )
         self.port_type = filter_options.port_type or "both"
 
-    def _annotations(self, node: StoredArtifact) -> list[AnnotationResponse]:
+    def _annotations(self, node: NodeMetadata) -> list[AnnotationResponse]:
         if self.port_type == "inputs":
             return node.inputs
         if self.port_type == "outputs":
             return node.outputs
         return node.inputs + node.outputs
 
-    def __call__(self, node: StoredArtifact) -> bool:  # noqa: PLR0911
+    def __call__(self, node: NodeMetadata) -> bool:  # noqa: PLR0911
         if self.category and not node.category.startswith(self.category):
             return False
 
@@ -155,7 +149,7 @@ class FileSystemStorage(StorageInterface):
     EXECUTION_RESULTS_FILENAME = "execution_results.json"
 
     def __init__(self, path: Path | None = None) -> None:
-        self._artifacts: dict[str, StoredArtifact] = {}
+        self._artifacts: dict[str, NodeMetadata] = {}
         self._execution_results: dict[str, ExecutionResultMetadata] = {}
         self._path = path
         self._connected = False
@@ -196,8 +190,8 @@ class FileSystemStorage(StorageInterface):
         )
 
     def create_artifact(
-        self, value: StoredArtifact, check_source_hash: bool = True
-    ) -> StoredArtifact:
+        self, value: NodeMetadata, check_source_hash: bool = True
+    ) -> NodeMetadata:
         id = value.id
         if id in self._artifacts:
             raise ArtifactAlreadyExistsError(self._artifacts[id])
@@ -209,16 +203,15 @@ class FileSystemStorage(StorageInterface):
         self._save_artifacts_to_disk()
         return value
 
-    def read_artifact(self, id: str) -> StoredArtifact:
+    def read_artifact(self, id: str) -> NodeMetadata:
         if id not in self._artifacts:
             raise KeyError(id)
         artifact = self._artifacts[id]
-        if isinstance(artifact, FunctionMetadata):
-            artifact.used_by = self._used_by(artifact.id)
+        artifact.used_by = self._used_by(artifact.id)
         self._fill_connections(artifact)
         return artifact
 
-    def update_artifact(self, id: str, value: StoredArtifact) -> StoredArtifact:
+    def update_artifact(self, id: str, value: NodeMetadata) -> NodeMetadata:
         if id not in self._artifacts:
             raise KeyError(id)
         self._artifacts[id] = value
@@ -253,7 +246,7 @@ class FileSystemStorage(StorageInterface):
             parts = category.split(">")
             return {">".join(parts[:i]): {v} for i, v in enumerate(parts)}
 
-        def extract_filter_options(node: StoredArtifact) -> FilterOptionsSet:
+        def extract_filter_options(node: NodeMetadata) -> FilterOptionsSet:
             return FilterOptionsSet(
                 category=extract_categories(node.category),
                 type={node.artifact_type},
@@ -379,9 +372,8 @@ class FileSystemStorage(StorageInterface):
         paginated_items = self._paginate(sorted_items, page=page, limit=limit)
 
         for item in paginated_items.results.data:
-            if isinstance(item.node, FunctionMetadata):
-                item.node.used_by = self._used_by(item.node.id)
-                self._fill_connections(item.node)
+            item.node.used_by = self._used_by(item.node.id)
+            self._fill_connections(item.node)
 
         return paginated_items
 
@@ -400,7 +392,7 @@ class FileSystemStorage(StorageInterface):
         if not needle:
             return []
 
-        tiered: list[tuple[int, StoredArtifact]] = []
+        tiered: list[tuple[int, NodeMetadata]] = []
         for artifact in self._artifacts.values():
             tier = self._suggest_tier(artifact, needle)
             if tier is not None:
@@ -420,7 +412,7 @@ class FileSystemStorage(StorageInterface):
         return [self._to_suggestion(artifact) for _, artifact in matching[:limit]]
 
     @staticmethod
-    def _suggest_tier(artifact: StoredArtifact, needle: str) -> int | None:
+    def _suggest_tier(artifact: NodeMetadata, needle: str) -> int | None:
         """The best-matching tier for *needle* against *artifact*, or None."""
         name = artifact.name.lower()
         if name.startswith(needle):
@@ -436,7 +428,7 @@ class FileSystemStorage(StorageInterface):
         return None
 
     @staticmethod
-    def _to_suggestion(artifact: StoredArtifact) -> Suggestion:
+    def _to_suggestion(artifact: NodeMetadata) -> Suggestion:
         return Suggestion(
             id=artifact.id,
             name=artifact.name,
@@ -457,7 +449,7 @@ class FileSystemStorage(StorageInterface):
                 artifact_type=n.artifact_type,
             )
             for n in self._artifacts.values()
-            if isinstance(n, WorkflowMetadata)
+            if n.artifact_type == ArtifactType.WORKFLOW
             and any(c.id == artifact_id for c in n.uses)
         ] or None
 
@@ -467,7 +459,7 @@ class FileSystemStorage(StorageInterface):
         """Other artifacts whose port is directly wired to this port."""
         counts: dict[str, int] = {}
         for wf in self._artifacts.values():
-            if not isinstance(wf, WorkflowMetadata):
+            if wf.artifact_type != ArtifactType.WORKFLOW:
                 continue
             nodes_by_id = {n.node_id: n for n in wf.wf_definition.nodes}
             own_node_ids = {
@@ -509,7 +501,7 @@ class FileSystemStorage(StorageInterface):
         ]
         return sorted(references, key=lambda r: (-r.count, r.label, r.id)) or None
 
-    def _fill_connections(self, node: FunctionResponse | WorkflowResponse) -> None:
+    def _fill_connections(self, node: NodeResponse) -> None:
         for annotation in node.inputs:
             if annotation.label:
                 annotation.connections = self._connections(
@@ -553,9 +545,8 @@ class FileSystemStorage(StorageInterface):
         paginated_items = self._paginate(similarities, page=page, limit=limit)
 
         for item in paginated_items.results.data:
-            if isinstance(item.node, FunctionMetadata):
-                item.node.used_by = self._used_by(item.node.id)
-                self._fill_connections(item.node)
+            item.node.used_by = self._used_by(item.node.id)
+            self._fill_connections(item.node)
 
         return paginated_items
 
@@ -607,7 +598,7 @@ class FileSystemStorage(StorageInterface):
         # --- RRF merge ---
         k = 60
         candidate_ids = set(sem_rank) | set(kw_rank)
-        node_lookup: dict[str, StoredArtifact] = {n.id: n for n in filtered_nodes}
+        node_lookup: dict[str, NodeMetadata] = {n.id: n for n in filtered_nodes}
         scored: list[ScoredSearchItem] = [
             ScoredSearchItem(
                 score=(1 / (k + sem_rank[nid]) if nid in sem_rank else 0.0)
@@ -621,14 +612,13 @@ class FileSystemStorage(StorageInterface):
         paginated_items = self._paginate(scored, page=page, limit=limit)
 
         for item in paginated_items.results.data:
-            if isinstance(item.node, FunctionResponse):
-                item.node.used_by = self._used_by(item.node.id)
-                self._fill_connections(item.node)
+            item.node.used_by = self._used_by(item.node.id)
+            self._fill_connections(item.node)
 
         return paginated_items
 
     @staticmethod
-    def _embedding_text(node: StoredArtifact) -> str:
+    def _embedding_text(node: NodeMetadata) -> str:
         description = node.description or ""
         port_lines = [
             f"{a.label}: {a.description}"
@@ -688,7 +678,7 @@ class FileSystemStorage(StorageInterface):
             else [node for node in self._artifacts.values() if node.embedding is None]
         )
 
-        async def _enrich_one(v: StoredArtifact) -> None:
+        async def _enrich_one(v: NodeMetadata) -> None:
             async with sem:
                 try:
                     await enrich_artifact_metadata(v, self)

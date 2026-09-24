@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from sim_atlas.agent.tools._errors import ToolError
 from sim_atlas.artifact_text import short_description
-from sim_atlas.models import ArtifactType, Filter, FunctionResponse
+from sim_atlas.models import ArtifactType, Filter
 from sim_atlas.settings import load_settings
 from sim_atlas.storage_interface import StorageInterface
 
@@ -171,7 +171,7 @@ async def execute_search_nodes(
             ],
         )
         for i, item in enumerate(items, start=1)
-        if isinstance(item.node, FunctionResponse)
+        if item.node.artifact_type == ArtifactType.FUNCTION
     ]
     return "Retrieved functions:\n\n" + "\n\n".join(entries)
 
@@ -213,7 +213,7 @@ async def execute_find_compatible_nodes(
             ],
         )
         for i, item in enumerate(items, start=1)
-        if isinstance(item.node, FunctionResponse)
+        if item.node.artifact_type == ArtifactType.FUNCTION
     ]
     return "Retrieved functions:\n\n" + "\n\n".join(entries)
 
@@ -227,7 +227,7 @@ async def execute_get_node_details(
         node = storage.read_artifact(args.atlas_node_id)
     except KeyError as exc:
         raise ToolError(f"Node '{args.atlas_node_id}' not found.") from exc
-    if not isinstance(node, FunctionResponse):
+    if node.artifact_type != ArtifactType.FUNCTION:
         raise ToolError(f"Node '{args.atlas_node_id}' is not a function node.")
     inputs = [
         PortMetadata.model_validate(a.model_dump(exclude_none=True))

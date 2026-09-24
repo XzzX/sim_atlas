@@ -11,7 +11,7 @@ from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactType,
-    FunctionRequest,
+    NodeRequest,
 )
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
@@ -90,7 +90,7 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     field_annotations = _field_annotations(obj)
     dataclass_annotation = Annotation(label=qualname.lower(), datatype=python_import)
 
-    pack_metadata = FunctionRequest.model_construct(
+    pack_metadata = NodeRequest.model_construct(
         id=pack_hash,
         hash=pack_hash,
         name=f"[PACK] {python_import}",
@@ -109,7 +109,7 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     raw_doc = inspect.getdoc(obj) or ""
     enrich_from_docstring(raw_doc, pack_metadata)
 
-    unpack_metadata = FunctionRequest.model_construct(
+    unpack_metadata = NodeRequest.model_construct(
         id=unpack_hash,
         hash=unpack_hash,
         name=f"[UNPACK] {python_import}",

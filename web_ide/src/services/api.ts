@@ -1,11 +1,11 @@
 import axios from "axios";
 import {
-  ArtifactResponseSchema,
+  NodeResponseSchema,
   ScoredSearchResponseSchema,
   FilterOptionsSchema,
   AgentSSEEventSchema,
   CapabilitiesResponseSchema,
-  type ArtifactResponse,
+  type NodeResponse,
   type ScoredSearchResponse,
   type Filter,
   type FilterOptions,
@@ -24,9 +24,9 @@ const api = axios.create({
 });
 
 export const simAtlasAPI = {
-  getArtifact: async (artifactId: string): Promise<ArtifactResponse> => {
+  getArtifact: async (artifactId: string): Promise<NodeResponse> => {
     const response = await api.get(`/artifacts/${artifactId}`);
-    return ArtifactResponseSchema.parse(response.data);
+    return NodeResponseSchema.parse(response.data);
   },
 
   getFilterOptions: async (): Promise<FilterOptions> => {

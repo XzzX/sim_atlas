@@ -9,7 +9,8 @@ openai = pytest.importorskip("openai")
 from sim_atlas_toolkit import node_store_api  # noqa: E402
 from sim_atlas_toolkit.models import (  # noqa: E402
     Annotation,
-    FunctionResponse,
+    ArtifactType,
+    NodeResponse,
     WfDefinition,
     WfEdge,
     WfFunctionNode,
@@ -95,7 +96,8 @@ def test_single_quote_char_not_overstripped() -> None:
 
 
 def _function_response(name: str, brief_description: str) -> dict[str, Any]:
-    return FunctionResponse(
+    return NodeResponse(
+        artifact_type=ArtifactType.FUNCTION,
         id="atlas-1",
         hash="hash-1",
         name=name,

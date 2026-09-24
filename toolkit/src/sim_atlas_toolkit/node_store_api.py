@@ -3,9 +3,9 @@ import logging
 import httpx2
 
 from sim_atlas_toolkit.models import (
-    ArtifactRequest,
     ExecutionResultRequest,
-    artifact_request_adapter,
+    NodeRequest,
+    node_request_adapter,
 )
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 async def create_artifact(
     api_url: str,
     api_key: str | None,
-    artifact: ArtifactRequest,
+    artifact: NodeRequest,
 ) -> httpx2.Response:
     if not api_key:
         raise ValueError("API key is required to create an artifact")
@@ -23,8 +23,8 @@ async def create_artifact(
 
     return httpx2.post(
         f"{api_url}/artifacts",
-        json=artifact_request_adapter.dump_python(
-            artifact_request_adapter.validate_python(artifact.model_dump())
+        json=node_request_adapter.dump_python(
+            node_request_adapter.validate_python(artifact.model_dump())
         ),
         headers=headers,
     )
@@ -33,7 +33,7 @@ async def create_artifact(
 async def create_artifacts(
     api_url: str,
     api_key: str | None,
-    artifacts: list[ArtifactRequest],
+    artifacts: list[NodeRequest],
 ) -> list[httpx2.Response]:
     return [await create_artifact(api_url, api_key, artifact) for artifact in artifacts]
 

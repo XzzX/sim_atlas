@@ -16,7 +16,6 @@ from sim_atlas_toolkit.models import (
     WfFunctionNode,
     WfInputNode,
     WfOutputNode,
-    WorkflowRequest,
 )
 from sim_atlas_toolkit.parsers import flowrep_parser
 from sim_atlas_toolkit.parsers.flowrep_parser import flowrep_to_wf_definition, parse
@@ -186,7 +185,6 @@ async def test_flowrep_workflow(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(responses) == 1
     assert len(store.uploaded) == 3  # noqa: PLR2004
     metadata = store.uploaded[-1]
-    assert isinstance(metadata, WorkflowRequest)
     assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [a.label for a in metadata.inputs] == ["x", "slope", "intercept"]
     assert all(a.datatype == "float" for a in metadata.inputs)
@@ -356,7 +354,7 @@ async def test_flowrep_workflow_reuses_function_twice(
     responses = await parse(ToolkitSettings(), reused_twice)
     assert len(responses) == 1
     metadata = store.uploaded[-1]
-    assert isinstance(metadata, WorkflowRequest)
+    assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [ref.label for ref in metadata.uses] == ["mul_0", "mul_1"]
     assert len(store.uploaded) == 3  # noqa: PLR2004
 
@@ -368,7 +366,7 @@ async def test_flowrep_workflow_output_arity_mismatch(
     responses = await parse(ToolkitSettings(), multi_out)
     assert len(responses) == 1
     metadata = store.uploaded[-1]
-    assert isinstance(metadata, WorkflowRequest)
+    assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [a.label for a in metadata.outputs] == ["a", "b"]
     assert all(a.datatype is None for a in metadata.outputs)
 
@@ -381,7 +379,7 @@ async def test_flowrep_workflow_nested_workflow(
     assert len(responses) == 1
     assert len(store.uploaded) == 4  # noqa: PLR2004  (mul, add, linear, outer)
     metadata = store.uploaded[-1]
-    assert isinstance(metadata, WorkflowRequest)
+    assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [ref.label for ref in metadata.uses] == ["linear_0"]
     nested_node = next(
         n for n in metadata.wf_definition.nodes if n.node_id == "linear_0"
@@ -531,5 +529,5 @@ async def test_extract_id_handles_conflict_on_create(
     assert len(responses) == 1
     assert responses[0].status_code == HTTPStatus.CONFLICT
     metadata = store.uploaded[-1]
-    assert isinstance(metadata, WorkflowRequest)
+    assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert all(ref.id == "existing-id" for ref in metadata.uses)

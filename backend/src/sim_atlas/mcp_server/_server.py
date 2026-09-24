@@ -14,7 +14,7 @@ from pydantic import Field
 
 from sim_atlas.dependencies import get_storage
 from sim_atlas.mcp_server import _format
-from sim_atlas.models import ArtifactType, Filter, FunctionResponse
+from sim_atlas.models import ArtifactType, Filter
 
 SERVER_INSTRUCTIONS = """\
 Simulation Atlas is a searchable catalog of real, installable Python functions
@@ -255,7 +255,7 @@ async def get_workflow_source(
             f"No catalog entry with id '{id}'. Ids come from the '# id:' line of "
             "a search result — call search_functions(...) first."
         ) from exc
-    if isinstance(artifact, FunctionResponse):
+    if artifact.artifact_type != ArtifactType.WORKFLOW:
         raise ToolError(
             f"'{id}' is a function, not a workflow. You do not need its source — "
             f"import it and call it; use get_function('{id}') for its signature "

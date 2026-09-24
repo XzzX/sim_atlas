@@ -26,13 +26,12 @@ from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactType,
-    FunctionRequest,
+    NodeRequest,
     Reference,
     WfDefinition,
     WfEdge,
     WfFunctionNode,
     WfNode,
-    WorkflowRequest,
 )
 from sim_atlas_toolkit.parsers.ai_enrichment import (
     generate_docstring,
@@ -57,7 +56,7 @@ async def parse_function_node(
     if not isinstance(obj, Node):
         return []
 
-    metadata = FunctionRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.FUNCTION)
     match obj.node_type:
         case "function_node":
             metadata.source_code = textwrap.dedent(
@@ -85,8 +84,8 @@ async def parse_function_node(
     metadata.id = hash
 
     metadata.python_import = obj._module_path
-    metadata.name = metadata.python_import
-    metadata.category = metadata.python_import.replace(".", ">")
+    metadata.name = metadata.python_import or ""
+    metadata.category = (metadata.python_import or "").replace(".", ">")
     apply_provenance(metadata, obj._module_path)
     metadata.inputs = [
         Annotation(label=inp.label, datatype=type_to_str(inp.type))
@@ -98,7 +97,7 @@ async def parse_function_node(
     ]
 
     metadata.docstring = await generate_docstring(
-        settings, metadata.source_code, metadata.docstring
+        settings, metadata.source_code, metadata.docstring or ""
     )
     enrich_from_docstring(metadata.docstring, metadata)
 
@@ -118,7 +117,7 @@ async def parse_group_node(
 
     group_node: GroupNode = obj
 
-    metadata = FunctionRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.FUNCTION)
 
     metadata.source_code = graph_to_workflow_code(
         group_node.subgraph, group_node.label, "decorator", True
@@ -146,7 +145,6 @@ async def parse_group_node(
     ]
 
     metadata.name = group_node.label
-    metadata.artifact_type = ArtifactType.FUNCTION
     metadata.python_import = python_import
     metadata.category = module.replace(".", ">")
     metadata.keywords = ["aiflow", "group_node"]
@@ -207,7 +205,7 @@ async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx2.Res
 
     wf: Workflow = obj
 
-    metadata = WorkflowRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.WORKFLOW)
     metadata.source_code = graph_to_workflow_code(
         wf._graph, wf._graph.label, "decorator", True
     )

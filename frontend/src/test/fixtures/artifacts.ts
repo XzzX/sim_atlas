@@ -1,6 +1,6 @@
 import type {
   Annotation,
-  WorkflowResponse,
+  NodeResponse,
   ExecutionResultMetadata,
   FilterOptions,
   NodeSuggestion,
@@ -13,7 +13,7 @@ const floatPort = (label: string): Annotation => ({
   has_default_value: false,
 });
 
-export function makeLinearWorkflow(overrides: Partial<WorkflowResponse> = {}): WorkflowResponse {
+export function makeLinearWorkflow(overrides: Partial<NodeResponse> = {}): NodeResponse {
   return {
     author_name: "Test Author",
     author_email: "author@example.com",

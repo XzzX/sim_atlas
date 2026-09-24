@@ -1,6 +1,6 @@
 import pytest
 
-from sim_atlas_toolkit.models import ArtifactRequest, FunctionRequest, PackageRef
+from sim_atlas_toolkit.models import ArtifactType, NodeRequest, PackageRef
 from sim_atlas_toolkit.parsers import python_function
 from sim_atlas_toolkit.parsers.python_function import parse
 from sim_atlas_toolkit.settings import ToolkitSettings
@@ -11,7 +11,7 @@ from .mock_api import install_mock_node_store
 def _stub_provenance(*refs: PackageRef):
     """Replace the real environment lookup with fixed packages."""
 
-    def apply(metadata: ArtifactRequest, _module_name: str | None) -> None:
+    def apply(metadata: NodeRequest, _module_name: str | None) -> None:
         metadata.packages = list(refs)
 
     return apply
@@ -43,7 +43,7 @@ async def test_parse_simple_function(monkeypatch: pytest.MonkeyPatch):
     assert len(store.uploaded) == 1
     artifact = store.uploaded[0]
 
-    assert isinstance(artifact, FunctionRequest)
+    assert artifact.artifact_type == ArtifactType.FUNCTION
 
     assert artifact.name == "tests.test_python_function.simple"
     # enrich_from_docstring parsed the existing NumPy docstring.

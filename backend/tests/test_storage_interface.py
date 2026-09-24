@@ -39,14 +39,12 @@ from sim_atlas.models import (
     ArtifactType,
     Filter,
     FilterOptions,
-    FunctionMetadata,
-    FunctionResponse,
+    NodeMetadata,
     ScoredSearchResponse,
     WfDefinition,
     WfEdge,
     WfInputNode,
     WfOutputNode,
-    WorkflowMetadata,
 )
 from sim_atlas.storage_interface import (
     ArtifactAlreadyExistsError,
@@ -59,13 +57,14 @@ from sim_atlas.storage_interface import (
 # ---------------------------------------------------------------------------
 
 
-def make_node(**kwargs: Any) -> FunctionMetadata:
-    """Return a ``FunctionMetadata`` instance with sensible defaults.
+def make_node(**kwargs: Any) -> NodeMetadata:
+    """Return a function-typed ``NodeMetadata`` instance with sensible defaults.
 
     Keyword arguments override any default field value so tests can focus on
     the field(s) they care about.
     """
     defaults: dict[str, Any] = {
+        "artifact_type": ArtifactType.FUNCTION,
         "author_name": "Test Author",
         "author_email": "test@example.com",
         "creator_name": "Test Creator",
@@ -94,12 +93,13 @@ def make_node(**kwargs: Any) -> FunctionMetadata:
         defaults["hash"] = hashlib.sha256(
             defaults["source_code"].encode("utf-8")
         ).hexdigest()
-    return FunctionMetadata(**defaults)
+    return NodeMetadata(**defaults)
 
 
-def make_workflow(**kwargs: Any) -> WorkflowMetadata:
-    """Return a ``WorkflowMetadata`` instance with sensible defaults."""
+def make_workflow(**kwargs: Any) -> NodeMetadata:
+    """Return a workflow-typed ``NodeMetadata`` instance with sensible defaults."""
     defaults: dict[str, Any] = {
+        "artifact_type": ArtifactType.WORKFLOW,
         "author_name": "Test Author",
         "author_email": "test@example.com",
         "creator_name": "Test Creator",
@@ -130,7 +130,7 @@ def make_workflow(**kwargs: Any) -> WorkflowMetadata:
     defaults.update(kwargs)
     if "id" not in defaults:
         defaults["id"] = str(uuid.uuid4())
-    return WorkflowMetadata(**defaults)
+    return NodeMetadata(**defaults)
 
 
 # ---------------------------------------------------------------------------
@@ -377,7 +377,7 @@ class StorageContractTests:
         imports = [
             item.node.python_import
             for item in result.results.data
-            if isinstance(item.node, FunctionResponse)
+            if item.node.artifact_type == ArtifactType.FUNCTION
         ]
         assert "mypackage.mymodule" in imports
 

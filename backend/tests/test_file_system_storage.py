@@ -18,14 +18,12 @@ from sim_atlas.models import (
     ArtifactType,
     ExecutionResultMetadata,
     Filter,
-    FunctionResponse,
     IOValue,
     Reference,
     ScoredSearchResponse,
     WfDefinition,
     WfEdge,
     WfFunctionNode,
-    WorkflowResponse,
 )
 
 from .test_storage_interface import StorageContractTests, make_node, make_workflow
@@ -170,7 +168,7 @@ def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     kw_fn = next(
         i.node
         for i in keyword.results.data
-        if isinstance(i.node, FunctionResponse) and i.node.name == "child_fn"
+        if i.node.artifact_type == ArtifactType.FUNCTION and i.node.name == "child_fn"
     )
     assert kw_fn.used_by is not None
     assert any(ref.id == wf.id for ref in kw_fn.used_by)
@@ -191,7 +189,7 @@ def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     hy_fn = next(
         i.node
         for i in hybrid.results.data
-        if isinstance(i.node, FunctionResponse) and i.node.name == "child_fn"
+        if i.node.artifact_type == ArtifactType.FUNCTION and i.node.name == "child_fn"
     )
     assert hy_fn.used_by is not None
     assert any(ref.id == wf.id for ref in hy_fn.used_by)
@@ -215,7 +213,7 @@ def test_used_by_count_reflects_usages_within_workflow() -> None:
     node = next(
         i.node
         for i in result.results.data
-        if isinstance(i.node, FunctionResponse) and i.node.name == "child_fn"
+        if i.node.artifact_type == ArtifactType.FUNCTION and i.node.name == "child_fn"
     )
     assert node.used_by is not None
     ref = next(r for r in node.used_by if r.id == wf.id)
@@ -302,7 +300,7 @@ def test_connections_lists_other_artifacts_sorted_by_count() -> None:
     node = next(
         i.node
         for i in result.results.data
-        if isinstance(i.node, FunctionResponse) and i.node.name == "fn_a"
+        if i.node.artifact_type == ArtifactType.FUNCTION and i.node.name == "fn_a"
     )
     connections = node.outputs[0].connections
     assert connections is not None
@@ -360,7 +358,7 @@ def test_read_artifact_populates_connections_and_used_by() -> None:
     storage.create_artifact(wf)
 
     node = storage.read_artifact(fn_a.id)
-    assert isinstance(node, FunctionResponse)
+    assert node.artifact_type == ArtifactType.FUNCTION
     assert node.used_by is not None
     assert any(ref.id == wf.id for ref in node.used_by)
 
@@ -412,7 +410,7 @@ def test_fill_connections_populates_workflow_ports() -> None:
     storage.create_artifact(outer_wf)
 
     node = storage.read_artifact(inner_wf.id)
-    assert isinstance(node, WorkflowResponse)
+    assert node.artifact_type == ArtifactType.WORKFLOW
     connections = node.outputs[0].connections
     assert connections is not None
     assert [c.id for c in connections] == [fn_sink.id]
@@ -474,7 +472,7 @@ def test_suggest_does_not_mutate_stored_artifacts() -> None:
     stored = next(
         item.node for item in storage.filter(Filter()) if item.node.id == fn.id
     )
-    assert isinstance(stored, FunctionResponse)
+    assert stored.artifact_type == ArtifactType.FUNCTION
     assert stored.used_by is None
     assert stored.inputs[0].connections is None
 
@@ -812,7 +810,7 @@ def test_search_semantic_populates_used_by_and_connections(
     node = next(
         i.node
         for i in response.results.data
-        if isinstance(i.node, FunctionResponse) and i.node.name == "child_fn"
+        if i.node.artifact_type == ArtifactType.FUNCTION and i.node.name == "child_fn"
     )
     assert node.used_by is not None
     assert [ref.id for ref in node.used_by] == [wf.id]
@@ -844,6 +842,6 @@ def test_search_semantic_does_not_return_stale_used_by(
     node = next(
         i.node
         for i in response.results.data
-        if isinstance(i.node, FunctionResponse) and i.node.name == "child_fn"
+        if i.node.artifact_type == ArtifactType.FUNCTION and i.node.name == "child_fn"
     )
     assert node.used_by is None

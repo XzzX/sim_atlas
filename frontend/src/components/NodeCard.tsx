@@ -1,5 +1,5 @@
 import React from "react";
-import { type ArtifactResponse } from "../types/index";
+import { type NodeResponse } from "../types/index";
 import { Card } from "@/components/ui/card";
 import {
   ArtifactHeader,
@@ -10,7 +10,7 @@ import {
 } from "./artifact";
 
 interface NodeCardProps {
-  node: ArtifactResponse;
+  node: NodeResponse;
   score?: number;
   onReferenceClick?: (id: string) => void;
 }
@@ -30,20 +30,20 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         homepage_url={node.homepage_url ?? undefined}
         documentation_url={node.documentation_url ?? undefined}
         source_url={node.source_url ?? undefined}
-        python_import={"python_import" in node ? node.python_import ?? undefined : undefined}
+        python_import={node.python_import ?? undefined}
       />
       <ArtifactDescription
-        docstring={"docstring" in node ? node.docstring ?? undefined : undefined}
+        docstring={node.docstring ?? undefined}
         description={node.description ?? undefined}
       />
       <ArtifactDetails
         inputs={node.inputs}
         outputs={node.outputs}
-        dependencies={"dependencies" in node ? node.dependencies ?? undefined : undefined}
-        source_code={"source_code" in node ? node.source_code : undefined}
+        dependencies={node.dependencies ?? undefined}
+        source_code={node.source_code}
         see_also={node.see_also ?? []}
-        uses={"uses" in node ? (node.uses ?? []) : undefined}
-        used_by={"used_by" in node ? (node.used_by ?? undefined) : undefined}
+        uses={node.uses ?? []}
+        used_by={node.used_by ?? undefined}
         onReferenceClick={onReferenceClick}
       />
       <ArtifactMisc keywords={node.keywords} />

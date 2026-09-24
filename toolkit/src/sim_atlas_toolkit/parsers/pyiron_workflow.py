@@ -11,7 +11,7 @@ import httpx2
 from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
     ArtifactType,
-    FunctionRequest,
+    NodeRequest,
 )
 from sim_atlas_toolkit.parsers.ai_enrichment import generate_docstring
 from sim_atlas_toolkit.parsers.metadata import (
@@ -66,7 +66,7 @@ async def parse(settings: ToolkitSettings, node: Any) -> list[httpx2.Response]:
     if not issubclass(node, Function):
         return []
 
-    metadata = FunctionRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.FUNCTION)
 
     metadata.source_code = inspect.getsource(node.node_function)
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
@@ -86,7 +86,6 @@ async def parse(settings: ToolkitSettings, node: Any) -> list[httpx2.Response]:
         metadata.outputs.append(ann)
 
     metadata.name = f"{node.node_function.__module__}.{node.node_function.__qualname__}"
-    metadata.artifact_type = ArtifactType.FUNCTION
     metadata.python_import = (
         f"{node.node_function.__module__}.{node.node_function.__qualname__}"
     )

@@ -1,5 +1,5 @@
 import React from "react";
-import { type ArtifactResponse } from "../../types/index";
+import { type NodeResponse } from "../../types/index";
 import { Calendar, BookAIcon, FilePlusCornerIcon } from "lucide-react";
 import { CardFooter } from "@/components/ui/card";
 
@@ -12,7 +12,7 @@ const formatDate = (dateString: string) => {
 };
 
 interface ArtifactFooterProps {
-  node: ArtifactResponse;
+  node: NodeResponse;
 }
 
 export const ArtifactFooter: React.FC<ArtifactFooterProps> = ({ node }) => {

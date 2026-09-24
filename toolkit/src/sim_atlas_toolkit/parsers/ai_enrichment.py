@@ -9,7 +9,7 @@ from sim_atlas_toolkit.models import (
     WfFunctionNode,
     WfInputNode,
     WfOutputNode,
-    artifact_response_adapter,
+    node_response_adapter,
 )
 from sim_atlas_toolkit.settings import ToolkitSettings
 
@@ -168,7 +168,7 @@ async def _render_function_node(api_url: str, node: WfFunctionNode) -> str:
         try:
             response = await node_store_api.read_artifact(api_url, node.atlas_id)
             if response.status_code == HTTPStatus.OK:
-                artifact = artifact_response_adapter.validate_python(response.json())
+                artifact = node_response_adapter.validate_python(response.json())
                 display_name = artifact.name
                 brief = artifact.brief_description or next(
                     (p for p in (artifact.docstring or "").split("\n\n") if p.strip()),

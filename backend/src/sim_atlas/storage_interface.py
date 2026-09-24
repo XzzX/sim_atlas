@@ -6,8 +6,8 @@ from sim_atlas.models import (
     ExecutionResultMetadata,
     Filter,
     FilterOptions,
+    NodeMetadata,
     ScoredSearchResponse,
-    StoredArtifact,
     Suggestion,
 )
 
@@ -15,7 +15,7 @@ from sim_atlas.models import (
 class ArtifactAlreadyExistsError(Exception):
     """Raised when an artifact with the same id already exists in storage."""
 
-    def __init__(self, artifact: StoredArtifact) -> None:
+    def __init__(self, artifact: NodeMetadata) -> None:
         super().__init__(f"Artifact with id '{artifact.id}' already exists.")
         self.artifact = artifact
 
@@ -23,7 +23,7 @@ class ArtifactAlreadyExistsError(Exception):
 class ArtifactDuplicateError(Exception):
     """Raised when an artifact with the same hash already exists in storage."""
 
-    def __init__(self, artifact: StoredArtifact) -> None:
+    def __init__(self, artifact: NodeMetadata) -> None:
         super().__init__(f"Artifact with id '{artifact.id}' already exists.")
         self.artifact = artifact
 
@@ -51,8 +51,8 @@ class ExecutionResultDuplicateError(Exception):
 class StorageInterface(ABC):
     @abstractmethod
     def create_artifact(
-        self, value: StoredArtifact, check_source_hash: bool = True
-    ) -> StoredArtifact:
+        self, value: NodeMetadata, check_source_hash: bool = True
+    ) -> NodeMetadata:
         """Store a new artifact.
 
         Returns
@@ -72,12 +72,12 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def read_artifact(self, id: str) -> StoredArtifact:
+    def read_artifact(self, id: str) -> NodeMetadata:
         """Return the artifact for *id*. Raises KeyError if not found."""
         pass
 
     @abstractmethod
-    def update_artifact(self, id: str, value: StoredArtifact) -> StoredArtifact:
+    def update_artifact(self, id: str, value: NodeMetadata) -> NodeMetadata:
         """Replace an existing artifact. Raises KeyError if not found."""
         pass
 

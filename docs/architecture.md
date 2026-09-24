@@ -58,7 +58,7 @@ flowchart TD
 
     subgraph SRV["Server"]
         B["FastAPI Backend<br/>· JWT auth for write endpoints<br/>· CRUD for nodes<br/>· Keyword & semantic search<br/>· On-demand AI enrichment endpoint<br/>· Read-only MCP tool surface<br/>· Serves frontend & web_ide SPAs"]
-        FS["FileSystemStorage<br/>· In-memory dict[id→StoredArtifact]<br/>· Persisted as artifacts.json<br/>· Embeddings: gzip+base64 numpy array"]
+        FS["FileSystemStorage<br/>· In-memory dict[id→NodeMetadata]<br/>· Persisted as artifacts.json<br/>· Embeddings: gzip+base64 numpy array"]
         subgraph AI["External AI Services"]
             V["VoyageAI<br/>voyage-code-3<br/>(embeddings)"]
             L["OpenAI-compatible LLM<br/>(configurable URL)<br/>(docstring refinement)"]
@@ -97,7 +97,7 @@ sequenceDiagram
     participant S as FileSystemStorage
 
     R->>T: upload(obj) / upload_modules(modules)
-    T->>T: inspect obj → parser picks FunctionRequest<br/>or WorkflowRequest, computes<br/>hash = SHA-256(source_code)
+    T->>T: inspect obj → parser builds a NodeRequest<br/>(function or workflow), computes<br/>hash = SHA-256(source_code)
     T->>B: GET /api/v1/artifacts/{hash}
     alt artifact already exists
         B-->>T: 200 OK (existing artifact)
@@ -111,7 +111,7 @@ sequenceDiagram
         T->>B: POST /api/v1/artifacts (x-api-key: JWT)
         B->>B: validate JWT → extract creator
         B->>B: compose_artifact: id = request.id or<br/>SHA-256(source_code)
-        B->>S: create_artifact(StoredArtifact)
+        B->>S: create_artifact(NodeMetadata)
         alt id already exists
             S-->>B: raise ArtifactAlreadyExistsError
             B-->>T: 409 Conflict (existing artifact)
@@ -121,7 +121,7 @@ sequenceDiagram
         else new artifact
             S->>S: update in-memory dict
             S->>S: flush to artifacts.json
-            B-->>T: 201 Created (ArtifactResponse)
+            B-->>T: 201 Created (NodeResponse)
         end
     end
 ```

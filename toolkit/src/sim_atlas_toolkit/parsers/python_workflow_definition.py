@@ -8,7 +8,8 @@ import httpx2
 from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.models import (
     Annotation,
-    FunctionRequest,
+    ArtifactType,
+    NodeRequest,
 )
 from sim_atlas_toolkit.settings import ToolkitSettings
 
@@ -26,7 +27,7 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     if not isinstance(obj, PythonWorkflowDefinitionWorkflow):
         return []
 
-    metadata = FunctionRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.FUNCTION)
 
     metadata.source_code = obj.model_dump_json(indent=2)
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()

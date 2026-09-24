@@ -4,7 +4,7 @@ import httpx2
 import pytest
 
 from sim_atlas_toolkit import node_store_api
-from sim_atlas_toolkit.models import ArtifactRequest, ExecutionResultRequest
+from sim_atlas_toolkit.models import ExecutionResultRequest, NodeRequest
 
 
 def _mock_response() -> httpx2.Response:
@@ -13,7 +13,7 @@ def _mock_response() -> httpx2.Response:
 
 class MockNodeStore:
     def __init__(self) -> None:
-        self.uploaded: list[ArtifactRequest] = []
+        self.uploaded: list[NodeRequest] = []
         self.uploaded_execution_results: list[ExecutionResultRequest] = []
         self.embed_triggers: int = 0
 
@@ -23,13 +23,13 @@ def install_mock_node_store(monkeypatch: pytest.MonkeyPatch) -> MockNodeStore:
     store = MockNodeStore()
 
     async def create_artifact(
-        api_url: str, api_key: str | None, artifact: ArtifactRequest
+        api_url: str, api_key: str | None, artifact: NodeRequest
     ) -> httpx2.Response:
         store.uploaded.append(artifact)
         return _mock_response()
 
     async def create_artifacts(
-        api_url: str, api_key: str | None, artifacts: list[ArtifactRequest]
+        api_url: str, api_key: str | None, artifacts: list[NodeRequest]
     ) -> list[httpx2.Response]:
         store.uploaded.extend(artifacts)
         return [_mock_response() for _ in artifacts]

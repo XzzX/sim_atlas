@@ -7,7 +7,7 @@ import { TypeChip } from "./TypeChip";
 import { ConnectionsPanel, ConnectionsPill } from "./ConnectionsPill";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { cn, formatTimestamp } from "@/lib/utils";
-import type { ArtifactResponse, Reference } from "@/types/index";
+import type { NodeResponse, Reference } from "@/types/index";
 
 const REFERENCE_KIND_STYLE: Record<string, React.CSSProperties> = {
   "See also": { background: "var(--chip-union-bg)", color: "var(--chip-union-fg)" },
@@ -36,7 +36,7 @@ const SectionHeading: React.FC<SectionHeadingProps> = ({ id, label, count }) => 
 );
 
 interface OverviewTabProps {
-  node: ArtifactResponse;
+  node: NodeResponse;
   executionsCount: number;
   onNavigateToExecutions: () => void;
 }
@@ -46,9 +46,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
   const [expandedInputIndex, setExpandedInputIndex] = useState<number | null>(null);
   const [expandedOutputIndex, setExpandedOutputIndex] = useState<number | null>(null);
 
-  const dependencies = "dependencies" in node ? node.dependencies : undefined;
-  const usedBy = "used_by" in node ? node.used_by : undefined;
-  const uses = "uses" in node ? node.uses : undefined;
+  const dependencies = node.dependencies;
+  const usedBy = node.used_by;
+  const uses = node.uses;
 
   const references = useMemo(() => {
     const items: { kind: string; ref: Reference }[] = [

@@ -9,14 +9,13 @@ from sim_atlas.artifact_text import short_description
 from sim_atlas.models import (
     AnnotationResponse,
     ArtifactType,
-    FunctionResponse,
+    NodeResponse,
     PackageRef,
     Reference,
     ScoredSearchResponse,
-    WorkflowResponse,
 )
 
-Artifact = FunctionResponse | WorkflowResponse
+Artifact = NodeResponse
 
 MAX_RESULTS = 5
 MAX_DESCRIPTION_CHARS = 240
@@ -284,9 +283,8 @@ def render_detail(artifact: Artifact) -> str:
     if ports:
         lines.extend(["", *ports])
 
-    used_by = artifact.used_by if isinstance(artifact, FunctionResponse) else None
     references = [
-        *_render_references("Used by", used_by),
+        *_render_references("Used by", artifact.used_by),
         *_render_references("See also", artifact.see_also),
     ]
     if references:

@@ -51,3 +51,48 @@ jobs:
       - name: Run pytest
         run: uv run pytest
         working-directory: ./backend
+
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      SIM_ATLAS_JWT_SECRET: test-secret-key-for-ci-testing-only
+      SIM_ATLAS_LLM_API_KEY: test-llm-api-key
+      SIM_ATLAS_LLM_BASE_URL: http://llm.local/v1
+      SIM_ATLAS_LLM_CHAT_MODEL: test-model
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+        # 'lowest' forces the lowest versions that satisfy your pyproject.toml bounds.
+        # 'highest' installs the newest available releases on PyPI.
+        resolution: ["lowest", "highest"]
+
+    steps:
+      - uses: actions/checkout@v6
+      
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        
+      - name: Install dependencies
+        run: uv sync --all-extras --all-groups
+        working-directory: ./backend
+
+      - name: Install dependencies (Lowest vs Highest)
+        run: |
+          if [ "${{ matrix.resolution }}" = "lowest" ]; then
+            uv pip install . --resolution lowest --all-extras --all-groups
+          else
+            uv pip install . --all-extras --all-groups
+          fi
+        working-directory: ./backend
+
+      - name: Run pytest
+        run: uv run pytest
+        working-directory: ./backend

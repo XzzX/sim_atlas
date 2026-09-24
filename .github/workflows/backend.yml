@@ -79,17 +79,13 @@ jobs:
       
       - name: Install uv
         uses: astral-sh/setup-uv@v7
-        
-      - name: Install dependencies
-        run: uv sync --all-extras --all-groups
-        working-directory: ./backend
 
       - name: Install dependencies (Lowest vs Highest)
         run: |
           if [ "${{ matrix.resolution }}" = "lowest" ]; then
-            uv pip install . --resolution lowest --all-extras --all-groups
+            uv pip install . --resolution lowest --all-extras
           else
-            uv pip install . --all-extras --all-groups
+            uv pip install . --all-extras
           fi
         working-directory: ./backend
 

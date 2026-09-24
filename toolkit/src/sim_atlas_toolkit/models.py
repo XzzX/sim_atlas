@@ -9,15 +9,6 @@ class ArtifactType(StrEnum):
     WORKFLOW = "workflow"
 
 
-class Annotation(BaseModel):
-    has_default_value: bool = False
-    label: str | None = None
-    datatype: str | None = None
-    unit: str | None = None
-    quantity: str | None = None
-    description: str | None = None
-
-
 class PackageRef(BaseModel):
     """How to install the distribution a node was parsed from.
 
@@ -36,6 +27,28 @@ class Reference(BaseModel):
     label: str
     id: str
     count: int
+    artifact_type: ArtifactType | None = None
+
+
+class Annotation(BaseModel):
+    """Request-side port annotation (backend: ``AnnotationRequest``)."""
+
+    has_default_value: bool = False
+    label: str | None = None
+    datatype: str | None = None
+    unit: str | None = None
+    quantity: str | None = None
+    description: str | None = None
+
+
+class AnnotationResponse(Annotation):
+    """Response-side port annotation (backend: ``AnnotationResponse``).
+
+    ``connections`` is populated only by ``GET /nodes/{id}``; nodes returned
+    from ``POST /nodes`` (201 and 409 alike) always carry ``None`` here.
+    """
+
+    connections: list[Reference] | None = None
 
 
 # --- Workflow internal-structure models ---
@@ -43,7 +56,9 @@ class Reference(BaseModel):
 # A node is either a plain Python function or a workflow; the two differ only
 # in that a workflow additionally records its internal dataflow graph
 # (``uses``/``wf_definition``) — see ADR-0021. ``WfDefinition`` describes that
-# graph and is shared by both request/response variants below.
+# graph and is shared by both request/response variants below. Its ports stay
+# ``Annotation`` (request-side) even inside ``NodeResponse``, mirroring the
+# backend, which never puts ``connections`` into ``wf_definition``.
 
 
 class WfInputNode(BaseModel):
@@ -147,11 +162,12 @@ class NodeResponse(BaseModel):
     docstring: str | None = None
     brief_description: str | None = None
     description: str | None = None
-    inputs: list[Annotation]
-    outputs: list[Annotation]
+    inputs: list[AnnotationResponse]
+    outputs: list[AnnotationResponse]
 
     see_also: list[Reference] = []
     uses: list[Reference] = []
+    used_by: list[Reference] | None = None
 
     wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 

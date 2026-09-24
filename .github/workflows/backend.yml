@@ -93,7 +93,6 @@ jobs:
             # For highest, refresh the lock to latest PyPI versions, then sync
             uv lock --upgrade --resolution highest
             uv sync --all-extras --resolution highest
-          else
           fi
         working-directory: ./backend
 

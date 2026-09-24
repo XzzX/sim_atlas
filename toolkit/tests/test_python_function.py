@@ -1,11 +1,12 @@
 import pytest
 
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.models import ArtifactType, NodeRequest, PackageRef
 from sim_atlas_toolkit.parsers import python_function
 from sim_atlas_toolkit.parsers.python_function import parse
 from sim_atlas_toolkit.settings import ToolkitSettings
 
-from .mock_api import install_mock_node_store
+from .mock_api import MockNodeStore
 
 
 def _stub_provenance(*refs: PackageRef):
@@ -35,11 +36,11 @@ def simple(x: int, y: float) -> str:
     return str(x + y)
 
 
-async def test_parse_simple_function(monkeypatch: pytest.MonkeyPatch):
+async def test_parse_simple_function() -> None:
     # Parse the function
-    store = install_mock_node_store(monkeypatch)
-    responses = await parse(ToolkitSettings(), simple)
-    assert len(responses) == 1
+    store = MockNodeStore()
+    results = await parse(ParseContext(ToolkitSettings(), store), simple)
+    assert len(results) == 1
     assert len(store.uploaded) == 1
     node = store.uploaded[0]
 
@@ -59,8 +60,8 @@ async def test_parse_attaches_package_provenance(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(
         python_function, "apply_provenance", _stub_provenance(ref), raising=True
     )
-    store = install_mock_node_store(monkeypatch)
+    store = MockNodeStore()
 
-    await parse(ToolkitSettings(), simple)
+    await parse(ParseContext(ToolkitSettings(), store), simple)
 
     assert store.uploaded[0].packages == [ref]

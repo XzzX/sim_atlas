@@ -1,10 +1,8 @@
 import importlib
 import inspect
 import types
-from http import HTTPStatus
 from typing import Annotated, Any, Union, get_args, get_origin
 
-import httpx2
 from griffe import (
     Docstring,
     DocstringSectionAttributes,
@@ -171,9 +169,3 @@ def try_import(module: str, qualname: str | None) -> Any | None:
         return obj
     except Exception:
         return None
-
-
-def extract_id(response: httpx2.Response) -> str | None:
-    if response.status_code in (HTTPStatus.OK, HTTPStatus.CREATED, HTTPStatus.CONFLICT):
-        return response.json().get("id")
-    return None

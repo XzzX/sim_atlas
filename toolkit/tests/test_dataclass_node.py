@@ -3,12 +3,14 @@ from typing import Annotated
 
 import pytest
 
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.models import ArtifactType, NodeRequest, PackageRef
+from sim_atlas_toolkit.node_store import NodeStatus
 from sim_atlas_toolkit.parsers import dataclass_node
 from sim_atlas_toolkit.parsers.dataclass_node import parse
 from sim_atlas_toolkit.settings import ToolkitSettings
 
-from .mock_api import install_mock_node_store
+from .mock_api import MockNodeStore
 
 
 @dataclasses.dataclass
@@ -30,10 +32,10 @@ class Point:
     y: Annotated[float, {"unit": "m", "quantity": "length"}] = 3.0
 
 
-async def test_dataclass_parser(monkeypatch: pytest.MonkeyPatch) -> None:
-    store = install_mock_node_store(monkeypatch)
-    responses = await parse(ToolkitSettings(), Point)
-    assert len(responses) == 2  # noqa: PLR2004
+async def test_dataclass_parser() -> None:
+    store = MockNodeStore()
+    results = await parse(ParseContext(ToolkitSettings(), store), Point)
+    assert len(results) == 2  # noqa: PLR2004
     assert len(store.uploaded) == 2  # noqa: PLR2004
 
     pack_metadata = store.uploaded[0]
@@ -83,11 +85,26 @@ async def test_parse_attaches_package_provenance_to_both_nodes(
         metadata.packages = [ref]
 
     monkeypatch.setattr(dataclass_node, "apply_provenance", apply)
-    store = install_mock_node_store(monkeypatch)
+    store = MockNodeStore()
 
-    await parse(ToolkitSettings(), Point)
+    await parse(ParseContext(ToolkitSettings(), store), Point)
 
     pack, unpack = store.uploaded
     assert pack.packages == [ref]
     assert unpack.packages == [ref]
     assert pack.packages is not unpack.packages
+
+
+async def test_dataclass_parser_skips_upload_when_both_already_exist() -> None:
+    """The dedup check requires both the PACK and UNPACK nodes to already
+    exist; when they do, neither is re-uploaded."""
+    store = MockNodeStore()
+    ctx = ParseContext(ToolkitSettings(), store)
+    await parse(ctx, Point)
+    store.uploaded.clear()
+
+    results = await parse(ctx, Point)
+
+    assert len(results) == 2  # noqa: PLR2004
+    assert all(result.status is NodeStatus.EXISTS for result in results)
+    assert store.uploaded == []

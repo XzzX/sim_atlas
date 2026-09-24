@@ -1,17 +1,15 @@
 import logging
 import re
-from http import HTTPStatus
 
-from sim_atlas_toolkit import node_store_api
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.models import (
     Annotation,
     WfDefinition,
     WfFunctionNode,
     WfInputNode,
     WfOutputNode,
-    node_response_adapter,
 )
-from sim_atlas_toolkit.settings import ToolkitSettings
+from sim_atlas_toolkit.node_store import NodeStore
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +53,12 @@ def clean_response(content: str) -> str:
 
 
 async def generate_docstring(
-    settings: ToolkitSettings, source_code: str, docstring: str
+    ctx: ParseContext, source_code: str, docstring: str
 ) -> str:
     """Generate a docstring for the given source code using an LLM, if enabled.
 
     Args:
-        settings: Toolkit settings; gates whether generation runs
+        ctx: Parse context; ``ctx.settings`` gates whether generation runs
             (``llm_docstrings``) and provides the LLM client config.
         source_code: The source code to generate a docstring for.
         docstring: The existing docstring, if any.
@@ -70,6 +68,7 @@ async def generate_docstring(
         disabled, unnecessary (a docstring already exists and
         ``llm_docstrings`` is not ``overwrite``), or the LLM call fails.
     """
+    settings = ctx.settings
     should_generate = bool(source_code) and (
         settings.llm_docstrings == "overwrite"
         or (settings.llm_docstrings == "missing" and not docstring)
@@ -161,14 +160,13 @@ def _format_boundary_node(ann: Annotation) -> str:
     return f"- {ann.label}"
 
 
-async def _render_function_node(api_url: str, node: WfFunctionNode) -> str:
+async def _render_function_node(store: NodeStore, node: WfFunctionNode) -> str:
     brief = None
     display_name = node.node_id
     if node.atlas_id is not None:
         try:
-            response = await node_store_api.read_node(api_url, node.atlas_id)
-            if response.status_code == HTTPStatus.OK:
-                catalog_node = node_response_adapter.validate_python(response.json())
+            catalog_node = await store.read_node(node.atlas_id)
+            if catalog_node is not None:
                 display_name = catalog_node.name
                 brief = catalog_node.brief_description or next(
                     (
@@ -191,12 +189,12 @@ async def _render_function_node(api_url: str, node: WfFunctionNode) -> str:
     return f"{header}\n  inputs: {input_labels}\n  outputs: {output_labels}"
 
 
-async def _render_wf_graph(api_url: str, wf_definition: WfDefinition) -> str:
+async def _render_wf_graph(store: NodeStore, wf_definition: WfDefinition) -> str:
     """Render a workflow's dataflow graph as text for the LLM prompt.
 
     Function nodes are enriched with their stored name and description,
-    fetched via ``node_store_api.read_node`` using ``atlas_id``. Nodes
-    that cannot be resolved are rendered with just their id and I/O labels.
+    fetched via ``store.read_node`` using ``atlas_id``. Nodes that cannot be
+    resolved are rendered with just their id and I/O labels.
     """
     input_nodes = [n for n in wf_definition.nodes if isinstance(n, WfInputNode)]
     output_nodes = [n for n in wf_definition.nodes if isinstance(n, WfOutputNode)]
@@ -210,7 +208,7 @@ async def _render_wf_graph(api_url: str, wf_definition: WfDefinition) -> str:
     lines.append("")
     lines.append("Function nodes:")
     for node in function_nodes:
-        lines.append(await _render_function_node(api_url, node))
+        lines.append(await _render_function_node(store, node))
 
     lines.append("")
     lines.append("Outputs:")
@@ -229,7 +227,7 @@ async def _render_wf_graph(api_url: str, wf_definition: WfDefinition) -> str:
 
 
 async def generate_workflow_docstring(
-    settings: ToolkitSettings,
+    ctx: ParseContext,
     name: str,
     source_code: str,
     docstring: str,
@@ -238,9 +236,9 @@ async def generate_workflow_docstring(
     """Generate a docstring for a workflow from its source and dataflow graph, if enabled.
 
     Args:
-        settings: Toolkit settings; gates whether generation runs
-            (``llm_docstrings``) and provides the LLM client config and the
-            backend API URL used to fetch per-node descriptions.
+        ctx: Parse context; ``ctx.settings`` gates whether generation runs
+            (``llm_docstrings``) and provides the LLM client config, while
+            ``ctx.store`` is used to fetch per-node descriptions.
         name: The workflow's name.
         source_code: The workflow's rendered Python source code.
         docstring: The workflow's existing docstring, if any.
@@ -252,6 +250,7 @@ async def generate_workflow_docstring(
         disabled, unnecessary (a docstring already exists and
         ``llm_docstrings`` is not ``overwrite``), or the LLM call fails.
     """
+    settings = ctx.settings
     should_generate = settings.llm_docstrings == "overwrite" or (
         settings.llm_docstrings == "missing" and not docstring
     )
@@ -262,7 +261,7 @@ async def generate_workflow_docstring(
         from openai import AsyncOpenAI  # noqa: PLC0415
 
         client = AsyncOpenAI(api_key=settings.llm_key, base_url=settings.llm_url)
-        graph = await _render_wf_graph(settings.api_url, wf_definition)
+        graph = await _render_wf_graph(ctx.store, wf_definition)
 
         prompt = f"""
 You are a technical writer generating Python docstrings. You will receive a

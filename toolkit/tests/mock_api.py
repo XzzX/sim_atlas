@@ -1,58 +1,84 @@
 import uuid
+from datetime import UTC, datetime
 
-import httpx2
-import pytest
+from sim_atlas_toolkit.models import (
+    ExecutionResultRequest,
+    ExecutionResultResponse,
+    NodeRequest,
+    NodeResponse,
+)
+from sim_atlas_toolkit.node_store import (
+    EmbeddingNotConfiguredError,
+    NodeResult,
+    NodeStatus,
+    NodeStore,
+)
 
-from sim_atlas_toolkit import node_store_api
-from sim_atlas_toolkit.models import ExecutionResultRequest, NodeRequest
+
+def _to_response(node: NodeRequest) -> NodeResponse:
+    """Mirror the backend's ``compose_node``: fill in the server-assigned fields."""
+    return NodeResponse(
+        **node.model_dump(exclude={"id", "hash"}),
+        id=node.id or str(uuid.uuid4()),
+        hash=node.hash or str(uuid.uuid4()),
+        creator_name="test",
+        creator_email="test@example.com",
+        creation_timestamp=datetime.now(UTC).isoformat(),
+    )
 
 
-def _mock_response() -> httpx2.Response:
-    return httpx2.Response(201, json={"id": str(uuid.uuid4())})
+class MockNodeStore(NodeStore):
+    """In-memory NodeStore recording what the pipeline uploaded.
 
+    Nodes are keyed by both ``id`` and ``hash`` because the backend derives
+    one from the other (ADR-0005), which is what lets a parser's
+    ``read_node(hash)`` dedup check find a node an earlier ``create_node``
+    stored.
+    """
 
-class MockNodeStore:
     def __init__(self) -> None:
         self.uploaded: list[NodeRequest] = []
         self.uploaded_execution_results: list[ExecutionResultRequest] = []
         self.embed_triggers: int = 0
+        self.embed_available: bool = True
+        self._nodes: dict[str, NodeResponse] = {}
 
+    def preexisting(self, node: NodeResponse) -> NodeResponse:
+        """Seed a node as already stored; later reads and creates find it."""
+        self._nodes[node.id] = node
+        self._nodes[node.hash] = node
+        return node
 
-def install_mock_node_store(monkeypatch: pytest.MonkeyPatch) -> MockNodeStore:
-    """Replace the node_store_api HTTP calls with in-memory recording stubs."""
-    store = MockNodeStore()
+    async def create_node(self, node: NodeRequest) -> NodeResult:
+        self.uploaded.append(node)
+        if (existing := self._lookup(node)) is not None:
+            return NodeResult(status=NodeStatus.EXISTS, node=existing)
+        stored = _to_response(node)
+        self.preexisting(stored)
+        return NodeResult(status=NodeStatus.CREATED, node=stored)
 
-    async def create_node(
-        api_url: str, api_key: str | None, node: NodeRequest
-    ) -> httpx2.Response:
-        store.uploaded.append(node)
-        return _mock_response()
-
-    async def create_nodes(
-        api_url: str, api_key: str | None, nodes: list[NodeRequest]
-    ) -> list[httpx2.Response]:
-        store.uploaded.extend(nodes)
-        return [_mock_response() for _ in nodes]
-
-    async def read_node(api_url: str, node_id: str) -> httpx2.Response:
-        return httpx2.Response(404)  # Not found
+    async def read_node(self, node_id: str) -> NodeResponse | None:
+        return self._nodes.get(node_id)
 
     async def create_execution_result(
-        api_url: str, api_key: str | None, execution_result: ExecutionResultRequest
-    ) -> httpx2.Response:
-        store.uploaded_execution_results.append(execution_result)
-        return _mock_response()
+        self, execution_result: ExecutionResultRequest
+    ) -> ExecutionResultResponse:
+        self.uploaded_execution_results.append(execution_result)
+        return ExecutionResultResponse(
+            **execution_result.model_dump(),
+            id=str(uuid.uuid4()),
+            creator_name="test",
+            creator_email="test@example.com",
+            creation_timestamp=datetime.now(UTC).isoformat(),
+        )
 
-    async def trigger_embed(api_url: str, api_key: str | None) -> httpx2.Response:
-        store.embed_triggers += 1
-        return httpx2.Response(200)
+    async def trigger_embed(self) -> None:
+        if not self.embed_available:
+            raise EmbeddingNotConfiguredError("no embedding provider configured")
+        self.embed_triggers += 1
 
-    monkeypatch.setattr(node_store_api, "create_node", create_node)
-    monkeypatch.setattr(node_store_api, "create_nodes", create_nodes)
-    monkeypatch.setattr(node_store_api, "read_node", read_node)
-    monkeypatch.setattr(
-        node_store_api, "create_execution_result", create_execution_result
-    )
-    monkeypatch.setattr(node_store_api, "trigger_embed", trigger_embed)
-
-    return store
+    def _lookup(self, node: NodeRequest) -> NodeResponse | None:
+        for key in (node.id, node.hash):
+            if key is not None and (found := self._nodes.get(key)) is not None:
+                return found
+        return None

@@ -107,11 +107,13 @@ async def enrich_workflow_metadata(
                 continue
 
             try:
-                artifact = storage.read_artifact(node.atlas_id)
+                catalog_node = storage.read_node(node.atlas_id)
             except KeyError:
                 continue
 
-            text = artifact.brief_description if artifact.brief_description else ""
+            text = (
+                catalog_node.brief_description if catalog_node.brief_description else ""
+            )
             lines.append(f"- {node.node_id}: {text}")
         return "\n".join(lines) if lines else "(no constituent nodes resolved)"
 
@@ -164,11 +166,9 @@ Constituent nodes:
     workflow.description = result.description
 
 
-async def enrich_artifact_metadata(
-    artifact: NodeMetadata, storage: StorageInterface
-) -> None:
-    match artifact.artifact_type:
+async def enrich_node_metadata(node: NodeMetadata, storage: StorageInterface) -> None:
+    match node.artifact_type:
         case ArtifactType.FUNCTION:
-            await enrich_function_metadata(artifact)
+            await enrich_function_metadata(node)
         case ArtifactType.WORKFLOW:
-            await enrich_workflow_metadata(artifact, storage)
+            await enrich_workflow_metadata(node, storage)

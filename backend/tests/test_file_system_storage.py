@@ -48,9 +48,7 @@ def test_search_hybrid_falls_back_to_keyword_without_embeddings(
 ) -> None:
     """With no embedding provider, search_hybrid must keyword-search, never embed."""
     storage = FileSystemStorage(path=None)
-    storage.create_artifact(
-        make_node(name="special_fn", python_import="lib.special_fn")
-    )
+    storage.create_node(make_node(name="special_fn", python_import="lib.special_fn"))
 
     monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=False))
 
@@ -73,7 +71,7 @@ def test_search_hybrid_without_embeddings_matches_a_sentence_shaped_query(
     zero-config deployment with a catalog its agent could never see.
     """
     storage = FileSystemStorage(path=None)
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="gradient_on_mesh",
             python_import="mylib.mesh.gradient_on_mesh",
@@ -81,7 +79,7 @@ def test_search_hybrid_without_embeddings_matches_a_sentence_shaped_query(
             source_code="def gradient_on_mesh(): pass",
         )
     )
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="get_temperature",
             python_import="ase.md.get_temperature",
@@ -113,14 +111,14 @@ def test_search_drop_unmatched_false_ranks_without_excluding() -> None:
     constraint, and a descriptive query is a tie-breaker on top of them.
     """
     storage = FileSystemStorage(path=None)
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="heat_capacity",
             source_code="def heat_capacity(): pass",
             outputs=[AnnotationResponse(label="c", datatype="float")],
         )
     )
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="lattice_constant",
             source_code="def lattice_constant(): pass",
@@ -142,10 +140,10 @@ def test_search_drop_unmatched_false_ranks_without_excluding() -> None:
 def test_search_hybrid_none_query_returns_filtered() -> None:
     """A missing query degrades to filter-only browse without touching embeddings."""
     storage = FileSystemStorage(path=None)
-    storage.create_artifact(
+    storage.create_node(
         make_node(name="a", category="physics", source_code="def a(): pass")
     )
-    storage.create_artifact(
+    storage.create_node(
         make_node(name="b", category="math", source_code="def b(): pass")
     )
 
@@ -158,11 +156,11 @@ def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     """`used_by` is populated identically by the keyword and hybrid paths."""
     storage = FileSystemStorage(path=None)
     fn = make_node(name="child_fn", source_code="def child_fn(): pass")
-    storage.create_artifact(fn)
+    storage.create_node(fn)
     wf = make_workflow(
         name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
     )
-    storage.create_artifact(wf)
+    storage.create_node(wf)
 
     keyword = storage.search("child_fn")
     kw_fn = next(
@@ -199,7 +197,7 @@ def test_used_by_count_reflects_usages_within_workflow() -> None:
     """`count` is how many times the function appears in that workflow's `uses`."""
     storage = FileSystemStorage(path=None)
     fn = make_node(name="child_fn", source_code="def child_fn(): pass")
-    storage.create_artifact(fn)
+    storage.create_node(fn)
     wf = make_workflow(
         name="parent_wf",
         uses=[
@@ -207,7 +205,7 @@ def test_used_by_count_reflects_usages_within_workflow() -> None:
             Reference(label="child_fn", id=fn.id, count=1),
         ],
     )
-    storage.create_artifact(wf)
+    storage.create_node(wf)
 
     result = storage.search("child_fn")
     node = next(
@@ -221,8 +219,8 @@ def test_used_by_count_reflects_usages_within_workflow() -> None:
     assert ref.artifact_type == ArtifactType.WORKFLOW
 
 
-def test_connections_lists_other_artifacts_sorted_by_count() -> None:
-    """`connections` lists the other artifacts wired to a port, sorted by count."""
+def test_connections_lists_other_nodes_sorted_by_count() -> None:
+    """`connections` lists the other nodes wired to a port, sorted by count."""
     storage = FileSystemStorage(path=None)
     fn_a = make_node(
         name="fn_a",
@@ -239,9 +237,9 @@ def test_connections_lists_other_artifacts_sorted_by_count() -> None:
         source_code="def fn_c(): pass",
         inputs=[AnnotationResponse(label="in")],
     )
-    storage.create_artifact(fn_a)
-    storage.create_artifact(fn_b)
-    storage.create_artifact(fn_c)
+    storage.create_node(fn_a)
+    storage.create_node(fn_b)
+    storage.create_node(fn_c)
 
     def a_node(node_id: str) -> WfFunctionNode:
         return WfFunctionNode(
@@ -293,8 +291,8 @@ def test_connections_lists_other_artifacts_sorted_by_count() -> None:
             ],
         ),
     )
-    storage.create_artifact(wf1)
-    storage.create_artifact(wf2)
+    storage.create_node(wf1)
+    storage.create_node(wf2)
 
     result = storage.search("fn_a")
     node = next(
@@ -311,8 +309,8 @@ def test_connections_lists_other_artifacts_sorted_by_count() -> None:
     assert all(c.artifact_type == ArtifactType.FUNCTION for c in connections)
 
 
-def test_read_artifact_populates_connections_and_used_by() -> None:
-    """`read_artifact` (not just `search`) fills in `connections` and `used_by`."""
+def test_read_node_populates_connections_and_used_by() -> None:
+    """`read_node` (not just `search`) fills in `connections` and `used_by`."""
     storage = FileSystemStorage(path=None)
     fn_a = make_node(
         name="fn_a",
@@ -324,8 +322,8 @@ def test_read_artifact_populates_connections_and_used_by() -> None:
         source_code="def fn_b(): pass",
         inputs=[AnnotationResponse(label="in")],
     )
-    storage.create_artifact(fn_a)
-    storage.create_artifact(fn_b)
+    storage.create_node(fn_a)
+    storage.create_node(fn_b)
 
     wf = make_workflow(
         name="wf",
@@ -355,9 +353,9 @@ def test_read_artifact_populates_connections_and_used_by() -> None:
             ],
         ),
     )
-    storage.create_artifact(wf)
+    storage.create_node(wf)
 
-    node = storage.read_artifact(fn_a.id)
+    node = storage.read_node(fn_a.id)
     assert node.artifact_type == ArtifactType.FUNCTION
     assert node.used_by is not None
     assert any(ref.id == wf.id for ref in node.used_by)
@@ -375,10 +373,10 @@ def test_fill_connections_populates_workflow_ports() -> None:
         source_code="def fn_sink(): pass",
         inputs=[AnnotationResponse(label="in")],
     )
-    storage.create_artifact(fn_sink)
+    storage.create_node(fn_sink)
 
     inner_wf = make_workflow(name="inner_wf", outputs=[AnnotationResponse(label="y")])
-    storage.create_artifact(inner_wf)
+    storage.create_node(inner_wf)
 
     outer_wf = make_workflow(
         name="outer_wf",
@@ -407,9 +405,9 @@ def test_fill_connections_populates_workflow_ports() -> None:
             ],
         ),
     )
-    storage.create_artifact(outer_wf)
+    storage.create_node(outer_wf)
 
-    node = storage.read_artifact(inner_wf.id)
+    node = storage.read_node(inner_wf.id)
     assert node.artifact_type == ArtifactType.WORKFLOW
     connections = node.outputs[0].connections
     assert connections is not None
@@ -438,20 +436,18 @@ def test_suggest_does_not_enrich_or_touch_the_graph(
     monkeypatch.setattr(FileSystemStorage, "_fill_connections", _boom)
 
     storage = FileSystemStorage(path=None)
-    storage.create_artifact(
-        make_node(name="get_temperature", source_code="def a(): pass")
-    )
+    storage.create_node(make_node(name="get_temperature", source_code="def a(): pass"))
 
     results = storage.suggest("temp")
     assert [s.name for s in results] == ["get_temperature"]
 
 
-def test_suggest_does_not_mutate_stored_artifacts() -> None:
+def test_suggest_does_not_mutate_stored_nodes() -> None:
     """suggest must not stamp used_by/connections onto the stored objects.
 
     ScoredSearchItem.node aliases the same object as the one held in storage,
     which is why the search paths' enrichment loops mutate stored state.
-    suggest reads fields and builds a fresh Suggestion, so the stored artifact
+    suggest reads fields and builds a fresh Suggestion, so the stored node
     must come back untouched.
     """
     storage = FileSystemStorage(path=None)
@@ -460,12 +456,12 @@ def test_suggest_does_not_mutate_stored_artifacts() -> None:
         source_code="def a(): pass",
         inputs=[AnnotationResponse(label="atoms")],
     )
-    storage.create_artifact(fn)
+    storage.create_node(fn)
     wf = make_workflow(
         name="temperature_pipeline",
         uses=[Reference(label="get_temperature", id=fn.id, count=1)],
     )
-    storage.create_artifact(wf)
+    storage.create_node(wf)
 
     storage.suggest("temp")
 
@@ -498,21 +494,21 @@ def test_search_semantic_ranks_by_cosine_similarity(
 ) -> None:
     """Results are ordered by cosine similarity to the query embedding."""
     storage = FileSystemStorage(path=None)
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="aligned",
             source_code="def aligned(): pass",
             embedding=np.array([1.0, 0.0, 0.0], dtype=np.float32),
         )
     )
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="diagonal",
             source_code="def diagonal(): pass",
             embedding=np.array([0.7, 0.7, 0.0], dtype=np.float32),
         )
     )
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="orthogonal",
             source_code="def orthogonal(): pass",
@@ -540,7 +536,7 @@ def test_search_semantic_zero_norm_embedding_scores_zero(
 ) -> None:
     """A zero vector scores exactly 0.0 rather than NaN."""
     storage = FileSystemStorage(path=None)
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="empty_vec",
             source_code="def empty_vec(): pass",
@@ -561,7 +557,7 @@ def test_search_semantic_skips_unembedded_and_respects_filter(
 ) -> None:
     """Nodes without an embedding stay invisible, and filters still apply."""
     storage = FileSystemStorage(path=None)
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="embedded_physics",
             category="physics",
@@ -569,7 +565,7 @@ def test_search_semantic_skips_unembedded_and_respects_filter(
             embedding=np.array([1.0, 0.0, 0.0], dtype=np.float32),
         )
     )
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="embedded_math",
             category="math",
@@ -577,7 +573,7 @@ def test_search_semantic_skips_unembedded_and_respects_filter(
             embedding=np.array([1.0, 0.0, 0.0], dtype=np.float32),
         )
     )
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="unembedded_physics",
             category="physics",
@@ -594,12 +590,12 @@ def test_search_semantic_skips_unembedded_and_respects_filter(
     assert [item.node.name for item in response.results.data] == ["embedded_physics"]
 
 
-def test_search_semantic_without_embedded_artifacts_returns_empty(
+def test_search_semantic_without_embedded_nodes_returns_empty(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """No embedded candidates yields an empty page, not a stacking error."""
     storage = FileSystemStorage(path=None)
-    storage.create_artifact(make_node(name="plain", source_code="def plain(): pass"))
+    storage.create_node(make_node(name="plain", source_code="def plain(): pass"))
 
     monkeypatch.setattr(fss, "create_embedding", _embed_as([1.0, 0.0, 0.0]))
 
@@ -617,7 +613,7 @@ def test_search_hybrid_semantic_rank_is_stable_on_ties(
     storage = FileSystemStorage(path=None)
     embedding = np.array([1.0, 0.0, 0.0], dtype=np.float32)
     for name in ("first_fn", "second_fn", "third_fn"):
-        storage.create_artifact(
+        storage.create_node(
             make_node(
                 name=name, source_code=f"def {name}(): pass", embedding=embedding.copy()
             )
@@ -664,7 +660,7 @@ def _execution_result(**kwargs: Any) -> ExecutionResultMetadata:
 
 
 def test_persistence_round_trip(tmp_path: Path) -> None:
-    """Artifacts and execution results survive a reload from disk."""
+    """Nodes and execution results survive a reload from disk."""
     storage = FileSystemStorage(path=tmp_path)
     fn = make_node(name="persisted_fn", source_code="def persisted_fn(): pass")
     wf = make_workflow(name="persisted_wf")
@@ -674,23 +670,23 @@ def test_persistence_round_trip(tmp_path: Path) -> None:
         source_code="def embedded_fn(): pass",
         embedding=embedding,
     )
-    storage.create_artifact(fn)
-    storage.create_artifact(wf)
-    storage.create_artifact(embedded)
+    storage.create_node(fn)
+    storage.create_node(wf)
+    storage.create_node(embedded)
     storage.create_execution_result(_execution_result(artifact_id=fn.id))
 
     reloaded = FileSystemStorage(path=tmp_path)
 
     assert reloaded.count() == 3  # noqa: PLR2004
-    # compare via read_artifact on both sides so derived fields are filled alike
-    assert reloaded.read_artifact(fn.id) == storage.read_artifact(fn.id)
-    assert reloaded.read_artifact(wf.id) == storage.read_artifact(wf.id)
+    # compare via read_node on both sides so derived fields are filled alike
+    assert reloaded.read_node(fn.id) == storage.read_node(fn.id)
+    assert reloaded.read_node(wf.id) == storage.read_node(wf.id)
     assert reloaded.read_execution_result("run-1") == storage.read_execution_result(
         "run-1"
     )
 
     # embeddings must never be compared with ==; see the ndarray note in the plan
-    reloaded_embedding = reloaded.read_artifact(embedded.id).embedding
+    reloaded_embedding = reloaded.read_node(embedded.id).embedding
     assert reloaded_embedding is not None
     assert np.array_equal(reloaded_embedding, embedding)
 
@@ -698,10 +694,10 @@ def test_persistence_round_trip(tmp_path: Path) -> None:
 def test_write_leaves_no_temp_file(tmp_path: Path) -> None:
     """The temp file used for the atomic rename does not survive the write."""
     storage = FileSystemStorage(path=tmp_path)
-    storage.create_artifact(make_node(source_code="def tmp_check(): pass"))
+    storage.create_node(make_node(source_code="def tmp_check(): pass"))
     storage.create_execution_result(_execution_result())
 
-    assert (tmp_path / FileSystemStorage.ARTIFACTS_FILENAME).exists()
+    assert (tmp_path / FileSystemStorage.NODES_FILENAME).exists()
     assert (tmp_path / FileSystemStorage.EXECUTION_RESULTS_FILENAME).exists()
     assert list(tmp_path.glob("*.tmp")) == []
 
@@ -712,9 +708,9 @@ def test_interrupted_write_leaves_previous_file_intact(
     """A write that fails mid-serialisation must not damage the stored file."""
     storage = FileSystemStorage(path=tmp_path)
     keeper = make_node(name="keeper", source_code="def keeper(): pass")
-    storage.create_artifact(keeper)
-    artifacts_file = tmp_path / FileSystemStorage.ARTIFACTS_FILENAME
-    before = artifacts_file.read_bytes()
+    storage.create_node(keeper)
+    nodes_file = tmp_path / FileSystemStorage.NODES_FILENAME
+    before = nodes_file.read_bytes()
 
     def _boom(*_args: Any, **_kwargs: Any) -> None:
         raise RuntimeError("serialisation failed")
@@ -722,31 +718,29 @@ def test_interrupted_write_leaves_previous_file_intact(
     monkeypatch.setattr(fss.json, "dump", _boom)
 
     with pytest.raises(RuntimeError):
-        storage.create_artifact(
-            make_node(name="doomed", source_code="def doomed(): pass")
-        )
+        storage.create_node(make_node(name="doomed", source_code="def doomed(): pass"))
 
-    assert artifacts_file.read_bytes() == before
+    assert nodes_file.read_bytes() == before
     reloaded = FileSystemStorage(path=tmp_path)
     assert reloaded.count() == 1
     assert reloaded.exists(keeper.id)
 
 
-def test_corrupt_artifacts_file_raises_instead_of_emptying_storage(
+def test_corrupt_nodes_file_raises_instead_of_emptying_storage(
     tmp_path: Path,
 ) -> None:
     """A damaged file must fail loudly, never silently discard the catalog."""
-    artifacts_file = tmp_path / FileSystemStorage.ARTIFACTS_FILENAME
-    artifacts_file.write_text("{ not json")
+    nodes_file = tmp_path / FileSystemStorage.NODES_FILENAME
+    nodes_file.write_text("{ not json")
 
     with pytest.raises(json.JSONDecodeError):
         FileSystemStorage(path=tmp_path)
 
-    assert artifacts_file.read_text() == "{ not json"
+    assert nodes_file.read_text() == "{ not json"
 
 
 # ---------------------------------------------------------------------------
-# Search results hold the stored artifacts, so serialisation must strip embeddings
+# Search results hold the stored nodes, so serialisation must strip embeddings
 # ---------------------------------------------------------------------------
 
 
@@ -766,14 +760,14 @@ def test_search_responses_never_serialize_embeddings(
 ) -> None:
     """`ScoredSearchItem.node` is typed as the Response class, so embeddings are dropped."""
     storage = FileSystemStorage(path=None)
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="embedded_fn",
             source_code="def embedded_fn(): pass",
             embedding=np.arange(16, dtype=np.float32),
         )
     )
-    storage.create_artifact(
+    storage.create_node(
         make_workflow(name="embedded_wf", embedding=np.arange(16, dtype=np.float32))
     )
 
@@ -798,11 +792,11 @@ def test_search_semantic_populates_used_by_and_connections(
         source_code="def child_fn(): pass",
         embedding=np.array([1.0, 0.0, 0.0], dtype=np.float32),
     )
-    storage.create_artifact(fn)
+    storage.create_node(fn)
     wf = make_workflow(
         name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
     )
-    storage.create_artifact(wf)
+    storage.create_node(wf)
 
     monkeypatch.setattr(fss, "create_embedding", _embed_as([1.0, 0.0, 0.0]))
 
@@ -819,22 +813,22 @@ def test_search_semantic_populates_used_by_and_connections(
 def test_search_semantic_does_not_return_stale_used_by(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Search results alias the stored artifacts, so derived fields must be refreshed."""
+    """Search results alias the stored nodes, so derived fields must be refreshed."""
     storage = FileSystemStorage(path=None)
     fn = make_node(
         name="child_fn",
         source_code="def child_fn(): pass",
         embedding=np.array([1.0, 0.0, 0.0], dtype=np.float32),
     )
-    storage.create_artifact(fn)
+    storage.create_node(fn)
     wf = make_workflow(
         name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
     )
-    storage.create_artifact(wf)
+    storage.create_node(wf)
 
-    # stamps used_by onto the stored artifact
+    # stamps used_by onto the stored node
     storage.search("child_fn")
-    storage.delete_artifact(wf.id)
+    storage.delete_node(wf.id)
 
     monkeypatch.setattr(fss, "create_embedding", _embed_as([1.0, 0.0, 0.0]))
 

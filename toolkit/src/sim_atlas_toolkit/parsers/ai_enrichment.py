@@ -166,12 +166,16 @@ async def _render_function_node(api_url: str, node: WfFunctionNode) -> str:
     display_name = node.node_id
     if node.atlas_id is not None:
         try:
-            response = await node_store_api.read_artifact(api_url, node.atlas_id)
+            response = await node_store_api.read_node(api_url, node.atlas_id)
             if response.status_code == HTTPStatus.OK:
-                artifact = node_response_adapter.validate_python(response.json())
-                display_name = artifact.name
-                brief = artifact.brief_description or next(
-                    (p for p in (artifact.docstring or "").split("\n\n") if p.strip()),
+                catalog_node = node_response_adapter.validate_python(response.json())
+                display_name = catalog_node.name
+                brief = catalog_node.brief_description or next(
+                    (
+                        p
+                        for p in (catalog_node.docstring or "").split("\n\n")
+                        if p.strip()
+                    ),
                     None,
                 )
         except Exception:
@@ -191,7 +195,7 @@ async def _render_wf_graph(api_url: str, wf_definition: WfDefinition) -> str:
     """Render a workflow's dataflow graph as text for the LLM prompt.
 
     Function nodes are enriched with their stored name and description,
-    fetched via ``node_store_api.read_artifact`` using ``atlas_id``. Nodes
+    fetched via ``node_store_api.read_node`` using ``atlas_id``. Nodes
     that cannot be resolved are rendered with just their id and I/O labels.
     """
     input_nodes = [n for n in wf_definition.nodes if isinstance(n, WfInputNode)]

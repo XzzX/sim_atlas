@@ -153,7 +153,7 @@ async def parse_atomic_recipe(
     metadata.docstring = inspect.getdoc(obj) or ""
 
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
-    response = await node_store_api.read_artifact(settings.api_url, hash)
+    response = await node_store_api.read_node(settings.api_url, hash)
     if response.status_code == HTTPStatus.OK:
         return [response]
     metadata.hash = hash
@@ -208,7 +208,7 @@ async def parse_atomic_recipe(
         settings, metadata.source_code, metadata.docstring
     )
     enrich_from_docstring(metadata.docstring, metadata)
-    return await node_store_api.create_artifacts(
+    return await node_store_api.create_nodes(
         settings.api_url, settings.api_token, [metadata]
     )
 
@@ -225,7 +225,7 @@ async def parse_workflow_recipe(
     metadata.source_code = rendered.source
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
 
-    response = await node_store_api.read_artifact(settings.api_url, hash)
+    response = await node_store_api.read_node(settings.api_url, hash)
     if response.status_code == HTTPStatus.OK:
         return [response]
 
@@ -308,7 +308,7 @@ async def parse_workflow_recipe(
     )
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return await node_store_api.create_artifacts(
+    return await node_store_api.create_nodes(
         settings.api_url, settings.api_token, [metadata]
     )
 

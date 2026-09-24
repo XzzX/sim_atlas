@@ -120,13 +120,13 @@ def _function_response(name: str, brief_description: str) -> dict[str, Any]:
 async def test_render_wf_graph_fetches_node_info(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def read_artifact(api_url: str, artifact_id: str) -> httpx2.Response:
-        assert artifact_id == "atlas-1"
+    async def read_node(api_url: str, node_id: str) -> httpx2.Response:
+        assert node_id == "atlas-1"
         return httpx2.Response(
             200, json=_function_response("pkg.mod.relax", "Relax a structure.")
         )
 
-    monkeypatch.setattr(node_store_api, "read_artifact", read_artifact)
+    monkeypatch.setattr(node_store_api, "read_node", read_node)
 
     wf_definition = WfDefinition(
         nodes=[
@@ -158,10 +158,10 @@ async def test_render_wf_graph_fetches_node_info(
 async def test_render_wf_graph_degrades_on_missing_node(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def read_artifact(api_url: str, artifact_id: str) -> httpx2.Response:
+    async def read_node(api_url: str, node_id: str) -> httpx2.Response:
         return httpx2.Response(404)
 
-    monkeypatch.setattr(node_store_api, "read_artifact", read_artifact)
+    monkeypatch.setattr(node_store_api, "read_node", read_node)
 
     wf_definition = WfDefinition(
         nodes=[

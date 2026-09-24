@@ -11,11 +11,11 @@ const formatDate = (dateString: string) => {
   });
 };
 
-interface ArtifactFooterProps {
+interface NodeFooterProps {
   node: NodeResponse;
 }
 
-export const ArtifactFooter: React.FC<ArtifactFooterProps> = ({ node }) => {
+export const NodeFooter: React.FC<NodeFooterProps> = ({ node }) => {
   return (
     <CardFooter className="grid grid-cols-3 gap-2 bg-chart-1">
       <div className="flex items-center">

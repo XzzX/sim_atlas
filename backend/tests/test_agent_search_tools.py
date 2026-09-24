@@ -1,7 +1,7 @@
 """Characterisation tests for the Web IDE agent's catalog search tools.
 
 These lock the exact text the agent's tools emit. The MCP surface renders the
-same artifacts in a Python-shaped format (see ``sim_atlas.mcp_server``); these
+same nodes in a Python-shaped format (see ``sim_atlas.mcp_server``); these
 tests exist so that sharing helpers between the two surfaces cannot silently
 change what the agent sees.
 """
@@ -48,7 +48,7 @@ def test_execute_search_nodes_output_format(storage: FileSystemStorage) -> None:
         ],
         outputs=[AnnotationResponse(label="result", datatype="float")],
     )
-    storage.create_artifact(node)
+    storage.create_node(node)
 
     result = asyncio.run(
         execute_search_nodes(SearchNodesInput(query="test_node"), storage, None)
@@ -74,7 +74,7 @@ def test_execute_search_nodes_falls_back_to_the_first_docstring_line(
     storage: FileSystemStorage,
 ) -> None:
     """Without a brief_description the summary is the docstring's first line."""
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             id="node-2",
             name="documented_node",
@@ -100,7 +100,7 @@ def test_execute_search_nodes_without_matches(storage: FileSystemStorage) -> Non
 
 
 def test_execute_get_node_details_output_format(storage: FileSystemStorage) -> None:
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             id="node-3",
             name="detailed_node",
@@ -132,7 +132,7 @@ def test_execute_get_node_details_output_format(storage: FileSystemStorage) -> N
 def test_execute_get_node_details_rejects_a_workflow_id(
     storage: FileSystemStorage,
 ) -> None:
-    storage.create_artifact(make_workflow(id="wf-1"))
+    storage.create_node(make_workflow(id="wf-1"))
 
     with pytest.raises(ToolError):
         asyncio.run(

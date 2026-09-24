@@ -12,20 +12,20 @@ from sim_atlas.models import (
 )
 
 
-class ArtifactAlreadyExistsError(Exception):
-    """Raised when an artifact with the same id already exists in storage."""
+class NodeAlreadyExistsError(Exception):
+    """Raised when a node with the same id already exists in storage."""
 
-    def __init__(self, artifact: NodeMetadata) -> None:
-        super().__init__(f"Artifact with id '{artifact.id}' already exists.")
-        self.artifact = artifact
+    def __init__(self, node: NodeMetadata) -> None:
+        super().__init__(f"Node with id '{node.id}' already exists.")
+        self.node = node
 
 
-class ArtifactDuplicateError(Exception):
-    """Raised when an artifact with the same hash already exists in storage."""
+class NodeDuplicateError(Exception):
+    """Raised when a node with the same hash already exists in storage."""
 
-    def __init__(self, artifact: NodeMetadata) -> None:
-        super().__init__(f"Artifact with id '{artifact.id}' already exists.")
-        self.artifact = artifact
+    def __init__(self, node: NodeMetadata) -> None:
+        super().__init__(f"Node with id '{node.id}' already exists.")
+        self.node = node
 
 
 class ExecutionResultAlreadyExistsError(Exception):
@@ -50,39 +50,39 @@ class ExecutionResultDuplicateError(Exception):
 
 class StorageInterface(ABC):
     @abstractmethod
-    def create_artifact(
+    def create_node(
         self, value: NodeMetadata, check_source_hash: bool = True
     ) -> NodeMetadata:
-        """Store a new artifact.
+        """Store a new node.
 
         Returns
         -------
         str
-            The artifact id.
+            The node id.
 
         Raises
         ------
-        ArtifactAlreadyExistsError
-            Raised if an artifact with the same id already exists
+        NodeAlreadyExistsError
+            Raised if a node with the same id already exists
 
-        ArtifactDuplicateError
-            Raised if ``check_source_hash`` is True and an artifact with the same
+        NodeDuplicateError
+            Raised if ``check_source_hash`` is True and a node with the same
             non-empty ``hash`` already exists.
         """
         pass
 
     @abstractmethod
-    def read_artifact(self, id: str) -> NodeMetadata:
-        """Return the artifact for *id*. Raises KeyError if not found."""
+    def read_node(self, id: str) -> NodeMetadata:
+        """Return the node for *id*. Raises KeyError if not found."""
         pass
 
     @abstractmethod
-    def update_artifact(self, id: str, value: NodeMetadata) -> NodeMetadata:
-        """Replace an existing artifact. Raises KeyError if not found."""
+    def update_node(self, id: str, value: NodeMetadata) -> NodeMetadata:
+        """Replace an existing node. Raises KeyError if not found."""
         pass
 
     @abstractmethod
-    def delete_artifact(self, id: str) -> None:
+    def delete_node(self, id: str) -> None:
         """Remove the node for *id*. Raises KeyError if not found."""
         pass
 
@@ -109,9 +109,9 @@ class StorageInterface(ABC):
         limit: int = 10,
         drop_unmatched: bool = True,
     ) -> ScoredSearchResponse:
-        """Keyword search over the stored artifacts.
+        """Keyword search over the stored nodes.
 
-        When ``drop_unmatched`` is False the query only ranks the artifacts the
+        When ``drop_unmatched`` is False the query only ranks the nodes the
         filters selected, instead of also excluding the ones it does not match.
         """
         pass
@@ -192,10 +192,10 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def read_execution_results_by_artifact(
-        self, artifact_id: str
+    def read_execution_results_by_node(
+        self, node_id: str
     ) -> list[ExecutionResultMetadata]:
-        """Return all execution results for the given artifact_id."""
+        """Return all execution results whose ``artifact_id`` matches *node_id*."""
         pass
 
 

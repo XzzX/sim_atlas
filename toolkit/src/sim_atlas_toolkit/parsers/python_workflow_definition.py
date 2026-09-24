@@ -50,6 +50,6 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     metadata.docstring = ""
     metadata.keywords = ["python_workflow_definition"]
 
-    return await node_store_api.create_artifacts(
+    return await node_store_api.create_nodes(
         settings.api_url, settings.api_token, [metadata]
     )

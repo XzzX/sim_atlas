@@ -70,7 +70,7 @@ export const WfDefinitionSchema = z.object({
 });
 export type WfDefinition = z.infer<typeof WfDefinitionSchema>;
 
-// --- Node artifact schemas ---
+// --- Node schemas ---
 
 export const NodeRequestSchema = z.object({
   artifact_type: NodeTypeSchema,

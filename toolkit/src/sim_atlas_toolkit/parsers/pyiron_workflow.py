@@ -99,6 +99,6 @@ async def parse(settings: ToolkitSettings, node: Any) -> list[httpx2.Response]:
     )
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return await node_store_api.create_artifacts(
+    return await node_store_api.create_nodes(
         settings.api_url, settings.api_token, [metadata]
     )

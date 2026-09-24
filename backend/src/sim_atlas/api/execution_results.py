@@ -123,11 +123,11 @@ async def delete_execution_result(
 
 
 @router.get(
-    "/artifacts/{artifact_id}/execution_results",
+    "/nodes/{node_id}/execution_results",
     tags=["execution_results"],
 )
-async def list_execution_results_by_artifact(
-    artifact_id: str,
+async def list_execution_results_by_node(
+    node_id: str,
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> list[ExecutionResultMetadata]:
-    return storage.read_execution_results_by_artifact(artifact_id)
+    return storage.read_execution_results_by_node(node_id)

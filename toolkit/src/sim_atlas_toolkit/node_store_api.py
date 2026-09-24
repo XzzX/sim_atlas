@@ -11,39 +11,39 @@ from sim_atlas_toolkit.models import (
 logger = logging.getLogger(__name__)
 
 
-async def create_artifact(
+async def create_node(
     api_url: str,
     api_key: str | None,
-    artifact: NodeRequest,
+    node: NodeRequest,
 ) -> httpx2.Response:
     if not api_key:
-        raise ValueError("API key is required to create an artifact")
+        raise ValueError("API key is required to create a node")
 
     headers: dict[str, str] = {"x-api-key": api_key}
 
     return httpx2.post(
-        f"{api_url}/artifacts",
+        f"{api_url}/nodes",
         json=node_request_adapter.dump_python(
-            node_request_adapter.validate_python(artifact.model_dump())
+            node_request_adapter.validate_python(node.model_dump())
         ),
         headers=headers,
     )
 
 
-async def create_artifacts(
+async def create_nodes(
     api_url: str,
     api_key: str | None,
-    artifacts: list[NodeRequest],
+    nodes: list[NodeRequest],
 ) -> list[httpx2.Response]:
-    return [await create_artifact(api_url, api_key, artifact) for artifact in artifacts]
+    return [await create_node(api_url, api_key, node) for node in nodes]
 
 
-async def read_artifact(
+async def read_node(
     api_url: str,
-    artifact_id: str,
+    node_id: str,
 ) -> httpx2.Response:
     return httpx2.get(
-        f"{api_url}/artifacts/{artifact_id}",
+        f"{api_url}/nodes/{node_id}",
     )
 
 

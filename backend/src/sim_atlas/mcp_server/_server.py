@@ -171,7 +171,7 @@ async def find_by_signature(
         )
 
     storage = get_storage()
-    artifact_filter = Filter(
+    node_filter = Filter(
         artifact_type=[ArtifactType.FUNCTION],
         datatypes=[datatype] if datatype else None,
         units=[unit] if unit else None,
@@ -181,11 +181,11 @@ async def find_by_signature(
     # The annotation filters are the constraint; the optional query only orders
     # what they matched, so it can never shrink the result set. Keyword ranking
     # is used even where embeddings are configured: semantic ranking silently
-    # skips artifacts that have no embedding yet, which would turn this tool's
+    # skips nodes that have no embedding yet, which would turn this tool's
     # tie-breaker back into a filter.
     response = storage.search(
         query=query,
-        filter=artifact_filter,
+        filter=node_filter,
         limit=_format.MAX_RESULTS,
         drop_unmatched=False,
     )
@@ -216,13 +216,13 @@ async def get_function(
     """
     storage = get_storage()
     try:
-        artifact = storage.read_artifact(id)
+        node = storage.read_node(id)
     except KeyError as exc:
         raise ToolError(
             f"No catalog entry with id '{id}'. Ids come from the '# id:' line of "
             "a search result — call search_functions(...) first."
         ) from exc
-    return _format.render_detail(artifact)
+    return _format.render_detail(node)
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -249,19 +249,19 @@ async def get_workflow_source(
     """
     storage = get_storage()
     try:
-        artifact = storage.read_artifact(id)
+        node = storage.read_node(id)
     except KeyError as exc:
         raise ToolError(
             f"No catalog entry with id '{id}'. Ids come from the '# id:' line of "
             "a search result — call search_functions(...) first."
         ) from exc
-    if artifact.artifact_type != ArtifactType.WORKFLOW:
+    if node.artifact_type != ArtifactType.WORKFLOW:
         raise ToolError(
             f"'{id}' is a function, not a workflow. You do not need its source — "
             f"import it and call it; use get_function('{id}') for its signature "
             "and docs."
         )
-    return _format.render_source(artifact)
+    return _format.render_source(node)
 
 
 mcp_app = mcp.http_app(path="/")

@@ -2,12 +2,12 @@ import React from "react";
 import { type NodeResponse } from "../types/index";
 import { Card } from "@/components/ui/card";
 import {
-  ArtifactHeader,
-  ArtifactDescription,
-  ArtifactDetails,
-  ArtifactMisc,
-  ArtifactFooter,
-} from "./artifact";
+  NodeHeader,
+  NodeDescription,
+  NodeDetails,
+  NodeMisc,
+  NodeFooter,
+} from "./node";
 
 interface NodeCardProps {
   node: NodeResponse;
@@ -22,7 +22,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 }) => {
   return (
     <Card className="h-full pt-0 border-1 border-chart-1">
-      <ArtifactHeader
+      <NodeHeader
         name={node.name}
         id={node.id}
         artifact_type={node.artifact_type}
@@ -32,11 +32,11 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         source_url={node.source_url ?? undefined}
         python_import={node.python_import ?? undefined}
       />
-      <ArtifactDescription
+      <NodeDescription
         docstring={node.docstring ?? undefined}
         description={node.description ?? undefined}
       />
-      <ArtifactDetails
+      <NodeDetails
         inputs={node.inputs}
         outputs={node.outputs}
         dependencies={node.dependencies ?? undefined}
@@ -46,8 +46,8 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         used_by={node.used_by ?? undefined}
         onReferenceClick={onReferenceClick}
       />
-      <ArtifactMisc keywords={node.keywords} />
-      <ArtifactFooter node={node} />
+      <NodeMisc keywords={node.keywords} />
+      <NodeFooter node={node} />
     </Card>
   );
 };

@@ -22,19 +22,19 @@ def install_mock_node_store(monkeypatch: pytest.MonkeyPatch) -> MockNodeStore:
     """Replace the node_store_api HTTP calls with in-memory recording stubs."""
     store = MockNodeStore()
 
-    async def create_artifact(
-        api_url: str, api_key: str | None, artifact: NodeRequest
+    async def create_node(
+        api_url: str, api_key: str | None, node: NodeRequest
     ) -> httpx2.Response:
-        store.uploaded.append(artifact)
+        store.uploaded.append(node)
         return _mock_response()
 
-    async def create_artifacts(
-        api_url: str, api_key: str | None, artifacts: list[NodeRequest]
+    async def create_nodes(
+        api_url: str, api_key: str | None, nodes: list[NodeRequest]
     ) -> list[httpx2.Response]:
-        store.uploaded.extend(artifacts)
-        return [_mock_response() for _ in artifacts]
+        store.uploaded.extend(nodes)
+        return [_mock_response() for _ in nodes]
 
-    async def read_artifact(api_url: str, artifact_id: str) -> httpx2.Response:
+    async def read_node(api_url: str, node_id: str) -> httpx2.Response:
         return httpx2.Response(404)  # Not found
 
     async def create_execution_result(
@@ -47,9 +47,9 @@ def install_mock_node_store(monkeypatch: pytest.MonkeyPatch) -> MockNodeStore:
         store.embed_triggers += 1
         return httpx2.Response(200)
 
-    monkeypatch.setattr(node_store_api, "create_artifact", create_artifact)
-    monkeypatch.setattr(node_store_api, "create_artifacts", create_artifacts)
-    monkeypatch.setattr(node_store_api, "read_artifact", read_artifact)
+    monkeypatch.setattr(node_store_api, "create_node", create_node)
+    monkeypatch.setattr(node_store_api, "create_nodes", create_nodes)
+    monkeypatch.setattr(node_store_api, "read_node", read_node)
     monkeypatch.setattr(
         node_store_api, "create_execution_result", create_execution_result
     )

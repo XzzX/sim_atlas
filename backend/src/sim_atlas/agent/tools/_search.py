@@ -3,8 +3,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from sim_atlas.agent.tools._errors import ToolError
-from sim_atlas.artifact_text import short_description
 from sim_atlas.models import ArtifactType, Filter
+from sim_atlas.node_text import short_description
 from sim_atlas.settings import load_settings
 from sim_atlas.storage_interface import StorageInterface
 
@@ -224,7 +224,7 @@ async def execute_get_node_details(
     _scratch: Any,
 ) -> str:
     try:
-        node = storage.read_artifact(args.atlas_node_id)
+        node = storage.read_node(args.atlas_node_id)
     except KeyError as exc:
         raise ToolError(f"Node '{args.atlas_node_id}' not found.") from exc
     if node.artifact_type != ArtifactType.FUNCTION:

@@ -320,10 +320,10 @@ async def test_flowrep_atomic_skips_upload_when_already_exists(
 ) -> None:
     store = install_mock_node_store(monkeypatch)
 
-    async def existing_artifact(api_url: str, artifact_id: str) -> httpx2.Response:
-        return httpx2.Response(200, json={"id": artifact_id})
+    async def existing_node(api_url: str, node_id: str) -> httpx2.Response:
+        return httpx2.Response(200, json={"id": node_id})
 
-    monkeypatch.setattr(node_store_api, "read_artifact", existing_artifact)
+    monkeypatch.setattr(node_store_api, "read_node", existing_node)
 
     responses = await parse(ToolkitSettings(), kinetic_energy)
     assert len(responses) == 1
@@ -336,10 +336,10 @@ async def test_flowrep_workflow_skips_upload_when_already_exists(
 ) -> None:
     store = install_mock_node_store(monkeypatch)
 
-    async def existing_artifact(api_url: str, artifact_id: str) -> httpx2.Response:
-        return httpx2.Response(200, json={"id": artifact_id})
+    async def existing_node(api_url: str, node_id: str) -> httpx2.Response:
+        return httpx2.Response(200, json={"id": node_id})
 
-    monkeypatch.setattr(node_store_api, "read_artifact", existing_artifact)
+    monkeypatch.setattr(node_store_api, "read_node", existing_node)
 
     responses = await parse(ToolkitSettings(), linear)
     assert len(responses) == 1
@@ -512,18 +512,18 @@ async def test_parse_swallows_auto_parse_failure(
 async def test_extract_id_handles_conflict_on_create(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The create-artifact path treats 409 CONFLICT like a successful create
+    """The create-node path treats 409 CONFLICT like a successful create
     (see `extract_id`), distinct from the (unfixed) duplicate-hash check on
-    `read_artifact`, which only short-circuits on 200 OK."""
+    `read_node`, which only short-circuits on 200 OK."""
     store = install_mock_node_store(monkeypatch)
 
-    async def create_artifacts_conflict(
-        api_url: str, api_key: str | None, artifacts: list[object]
+    async def create_nodes_conflict(
+        api_url: str, api_key: str | None, nodes: list[object]
     ) -> list[httpx2.Response]:
-        store.uploaded.extend(artifacts)  # type: ignore[arg-type]
-        return [httpx2.Response(409, json={"id": "existing-id"}) for _ in artifacts]
+        store.uploaded.extend(nodes)  # type: ignore[arg-type]
+        return [httpx2.Response(409, json={"id": "existing-id"}) for _ in nodes]
 
-    monkeypatch.setattr(node_store_api, "create_artifacts", create_artifacts_conflict)
+    monkeypatch.setattr(node_store_api, "create_nodes", create_nodes_conflict)
 
     responses = await parse(ToolkitSettings(), linear)
     assert len(responses) == 1

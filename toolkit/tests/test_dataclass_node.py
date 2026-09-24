@@ -76,7 +76,7 @@ async def test_dataclass_parser(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_parse_attaches_package_provenance_to_both_nodes(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Both the PACK and UNPACK artifacts carry provenance, in separate lists."""
+    """Both the PACK and UNPACK nodes carry provenance, in separate lists."""
     ref = PackageRef(ecosystem="pypi", name="demo", version="1.0")
 
     def apply(metadata: NodeRequest, _module_name: str | None) -> None:

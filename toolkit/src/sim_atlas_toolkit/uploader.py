@@ -20,7 +20,7 @@ async def upload(
     **kwargs: dict[str, Any],
 ) -> list[httpx2.Response]:
     if isinstance(obj, NodeRequest):
-        return await node_store_api.create_artifacts(
+        return await node_store_api.create_nodes(
             settings.api_url, settings.api_token, [obj]
         )
 

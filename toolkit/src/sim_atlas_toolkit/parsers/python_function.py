@@ -33,7 +33,7 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     metadata.hash = hash
     metadata.id = hash
 
-    response = await node_store_api.read_artifact(settings.api_url, hash)
+    response = await node_store_api.read_node(settings.api_url, hash)
     if response.status_code == HTTPStatus.OK:
         return [response]
 
@@ -54,6 +54,6 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     )
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return await node_store_api.create_artifacts(
+    return await node_store_api.create_nodes(
         settings.api_url, settings.api_token, [metadata]
     )

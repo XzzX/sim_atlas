@@ -76,7 +76,7 @@ async def parse_function_node(
             pass
 
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
-    response = await node_store_api.read_artifact(settings.api_url, hash)
+    response = await node_store_api.read_node(settings.api_url, hash)
     if response.status_code == HTTPStatus.OK:
         return [response]
 
@@ -101,7 +101,7 @@ async def parse_function_node(
     )
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return await node_store_api.create_artifacts(
+    return await node_store_api.create_nodes(
         settings.api_url, settings.api_token, [metadata]
     )
 
@@ -124,7 +124,7 @@ async def parse_group_node(
     )
 
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
-    response = await node_store_api.read_artifact(settings.api_url, hash)
+    response = await node_store_api.read_node(settings.api_url, hash)
     if response.status_code == HTTPStatus.OK:
         return [response]
 
@@ -153,7 +153,7 @@ async def parse_group_node(
     metadata.outputs = outputs
     metadata.docstring = ""
 
-    return await node_store_api.create_artifacts(
+    return await node_store_api.create_nodes(
         settings.api_url, settings.api_token, [metadata]
     )
 
@@ -211,7 +211,7 @@ async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx2.Res
     )
 
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
-    response = await node_store_api.read_artifact(settings.api_url, hash)
+    response = await node_store_api.read_node(settings.api_url, hash)
     if response.status_code == HTTPStatus.OK:
         return [response]
 
@@ -253,9 +253,7 @@ async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx2.Res
     enrich_from_docstring(metadata.docstring, metadata)
 
     return [
-        await node_store_api.create_artifact(
-            settings.api_url, settings.api_token, metadata
-        )
+        await node_store_api.create_node(settings.api_url, settings.api_token, metadata)
     ]
 
 

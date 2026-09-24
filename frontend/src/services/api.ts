@@ -24,7 +24,7 @@ const api = axios.create({
 
 export const simAtlasAPI = {
   getNode: async (nodeHash: string): Promise<NodeResponse> => {
-    const response = await api.get(`/artifacts/${nodeHash}`);
+    const response = await api.get(`/nodes/${nodeHash}`);
     return NodeResponseSchema.parse(response.data);
   },
 
@@ -33,8 +33,8 @@ export const simAtlasAPI = {
     return FilterOptionsSchema.parse(response.data);
   },
 
-  getExecutionResults: async (artifactId: string): Promise<ExecutionResultMetadata[]> => {
-    const response = await api.get(`/artifacts/${artifactId}/execution_results`);
+  getExecutionResults: async (nodeId: string): Promise<ExecutionResultMetadata[]> => {
+    const response = await api.get(`/nodes/${nodeId}/execution_results`);
     return ExecutionResultListSchema.parse(response.data);
   },
 

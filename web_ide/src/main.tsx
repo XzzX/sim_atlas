@@ -15,11 +15,11 @@ const fetchInitialNodesAndEdges = async (): Promise<{
   const params = new URLSearchParams(urlSearchString);
   const wf_id = params.get("wf_id");
   if (!wf_id) return { nodes: [], edges: [] };
-  const artifact = await simAtlasAPI.getArtifact(wf_id);
-  if (artifact.artifact_type !== "workflow" || !artifact.wf_definition) {
+  const node = await simAtlasAPI.getNode(wf_id);
+  if (node.artifact_type !== "workflow" || !node.wf_definition) {
     return { nodes: [], edges: [] };
   }
-  const { nodes, edges } = await convertWfDefinition(artifact.wf_definition);
+  const { nodes, edges } = await convertWfDefinition(node.wf_definition);
   return { nodes, edges };
 };
 

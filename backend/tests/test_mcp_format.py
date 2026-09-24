@@ -75,8 +75,8 @@ def test_signature_falls_back_to_positional_parameter_names() -> None:
     assert _format.render_signature(node) == "def f(arg0, arg1) -> None"
 
 
-def test_signature_falls_back_to_the_artifact_name_without_an_import() -> None:
-    """flowrep artifacts carry a dotted ``name`` even when python_import is unset."""
+def test_signature_falls_back_to_the_node_name_without_an_import() -> None:
+    """flowrep nodes carry a dotted ``name`` even when python_import is unset."""
     node = make_node(python_import="", name="dummy_module.flowrep.linear", outputs=[])
 
     assert _format.render_signature(node) == "def linear() -> None"

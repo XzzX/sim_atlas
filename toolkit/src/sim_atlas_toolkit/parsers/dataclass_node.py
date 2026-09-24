@@ -77,8 +77,8 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
 
     pack_hash = hashlib.sha256(pack_source.encode("utf-8")).hexdigest()
     unpack_hash = hashlib.sha256(unpack_source.encode("utf-8")).hexdigest()
-    response_pack = await node_store_api.read_artifact(settings.api_url, pack_hash)
-    response_unpack = await node_store_api.read_artifact(settings.api_url, unpack_hash)
+    response_pack = await node_store_api.read_node(settings.api_url, pack_hash)
+    response_unpack = await node_store_api.read_node(settings.api_url, unpack_hash)
     if (
         response_pack.status_code == HTTPStatus.OK
         and response_unpack.status_code == HTTPStatus.OK
@@ -125,6 +125,6 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
 
     apply_provenance(unpack_metadata, module)
 
-    return await node_store_api.create_artifacts(
+    return await node_store_api.create_nodes(
         settings.api_url, settings.api_token, [pack_metadata, unpack_metadata]
     )

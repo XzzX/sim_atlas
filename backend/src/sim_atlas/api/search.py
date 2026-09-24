@@ -52,7 +52,7 @@ async def suggest_nodes(
     request: SuggestRequest,
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ):
-    """Fast type-ahead lookup: matches only the artifact name and import path.
+    """Fast type-ahead lookup: matches only the node name and import path.
 
     For the search-as-you-type list under the search box, not the results
     table — no docstrings, no semantic ranking, no `used_by`/connections

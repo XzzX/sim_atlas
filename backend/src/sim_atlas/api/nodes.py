@@ -13,15 +13,15 @@ from sim_atlas.models import (
 )
 from sim_atlas.security import Creator, get_current_user
 from sim_atlas.storage_interface import (
-    ArtifactAlreadyExistsError,
-    ArtifactDuplicateError,
+    NodeAlreadyExistsError,
+    NodeDuplicateError,
     StorageInterface,
 )
 
 router = APIRouter()
 
 
-def compose_artifact(request: NodeRequest, creator: Creator) -> NodeMetadata:
+def compose_node(request: NodeRequest, creator: Creator) -> NodeMetadata:
     # Content-addressable identity for both functions and workflows (ADR-0005):
     # the source hash doubles as the id when the caller doesn't supply one.
     source_hash = hashlib.sha256(request.source_code.encode()).hexdigest()
@@ -55,71 +55,71 @@ def compose_artifact(request: NodeRequest, creator: Creator) -> NodeMetadata:
     )
 
 
-@router.post("/artifacts", tags=["artifacts"], status_code=status.HTTP_201_CREATED)
-async def create_artifact(
+@router.post("/nodes", tags=["nodes"], status_code=status.HTTP_201_CREATED)
+async def create_node(
     request: NodeRequest,
     response: Response,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> NodeResponse:
-    artifact = compose_artifact(request, creator)
+    node = compose_node(request, creator)
 
     try:
         response.status_code = status.HTTP_201_CREATED
-        return storage.create_artifact(artifact)
-    except ArtifactAlreadyExistsError as e:
+        return storage.create_node(node)
+    except NodeAlreadyExistsError as e:
         response.status_code = status.HTTP_409_CONFLICT
-        return e.artifact
-    except ArtifactDuplicateError as e:
+        return e.node
+    except NodeDuplicateError as e:
         response.status_code = status.HTTP_409_CONFLICT
-        return e.artifact
+        return e.node
 
 
-@router.get("/artifacts/{artifact_id}", tags=["artifacts"])
-async def read_artifact(
-    artifact_id: str,
+@router.get("/nodes/{node_id}", tags=["nodes"])
+async def read_node(
+    node_id: str,
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> NodeResponse:
     try:
-        return storage.read_artifact(artifact_id)
+        return storage.read_node(node_id)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"id": e.args[0], "message": "Artifact not found"},
+            detail={"id": e.args[0], "message": "Node not found"},
         ) from e
 
 
-@router.put("/artifacts/{artifact_id}", tags=["artifacts"])
-async def update_artifact(
-    artifact_id: str,
+@router.put("/nodes/{node_id}", tags=["nodes"])
+async def update_node(
+    node_id: str,
     request: NodeRequest,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> NodeResponse:
-    artifact = compose_artifact(request, creator)
+    node = compose_node(request, creator)
 
     try:
-        result = storage.update_artifact(artifact_id, artifact)
+        result = storage.update_node(node_id, node)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"id": e.args[0], "message": "Artifact not found"},
+            detail={"id": e.args[0], "message": "Node not found"},
         ) from e
 
     return result
 
 
-@router.delete("/artifacts/{artifact_id}", tags=["artifacts"])
-async def delete_artifact(
-    artifact_id: str,
+@router.delete("/nodes/{node_id}", tags=["nodes"])
+async def delete_node(
+    node_id: str,
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ):
     try:
-        storage.delete_artifact(artifact_id)
-        return {"detail": "Artifact deleted"}
+        storage.delete_node(node_id)
+        return {"detail": "Node deleted"}
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"id": e.args[0], "message": "Artifact not found"},
+            detail={"id": e.args[0], "message": "Node not found"},
         ) from e

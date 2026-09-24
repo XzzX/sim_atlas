@@ -1,27 +1,28 @@
 import dataclasses
 import json
-from http import HTTPStatus
 from typing import Any, cast
 
 import flowrep as fr
-import httpx2
 import pytest
 from flowrep.api.schemas import WorkflowRecipe
 from flowrep.retrospective.datastructures import DagData
 
-from sim_atlas_toolkit import node_store_api
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.models import (
     ArtifactType,
+    NodeRequest,
+    NodeResponse,
     Reference,
     WfFunctionNode,
     WfInputNode,
     WfOutputNode,
 )
+from sim_atlas_toolkit.node_store import NodeResult, NodeStatus
 from sim_atlas_toolkit.parsers import flowrep_parser
 from sim_atlas_toolkit.parsers.flowrep_parser import flowrep_to_wf_definition, parse
 from sim_atlas_toolkit.settings import ToolkitSettings
 
-from .mock_api import install_mock_node_store
+from .mock_api import MockNodeStore
 
 
 @fr.atomic
@@ -151,10 +152,10 @@ def unsupported_varargs(*args: float) -> float:
     return sum(args)
 
 
-async def test_flowrep_atomic(monkeypatch: pytest.MonkeyPatch) -> None:
-    store = install_mock_node_store(monkeypatch)
-    responses = await parse(ToolkitSettings(), kinetic_energy)
-    assert len(responses) == 1
+async def test_flowrep_atomic() -> None:
+    store = MockNodeStore()
+    results = await parse(ParseContext(ToolkitSettings(), store), kinetic_energy)
+    assert len(results) == 1
     assert len(store.uploaded) == 1
     metadata = store.uploaded[-1]
     assert metadata.artifact_type == ArtifactType.FUNCTION
@@ -179,10 +180,10 @@ async def test_flowrep_atomic(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-async def test_flowrep_workflow(monkeypatch: pytest.MonkeyPatch) -> None:
-    store = install_mock_node_store(monkeypatch)
-    responses = await parse(ToolkitSettings(), linear)
-    assert len(responses) == 1
+async def test_flowrep_workflow() -> None:
+    store = MockNodeStore()
+    results = await parse(ParseContext(ToolkitSettings(), store), linear)
+    assert len(results) == 1
     assert len(store.uploaded) == 3  # noqa: PLR2004
     metadata = store.uploaded[-1]
     assert metadata.artifact_type == ArtifactType.WORKFLOW
@@ -201,19 +202,22 @@ async def test_flowrep_workflow(monkeypatch: pytest.MonkeyPatch) -> None:
     assert metadata.uses[1].label == "add_0"
 
 
-async def test_flowrep_execution_result(monkeypatch: pytest.MonkeyPatch) -> None:
-    store = install_mock_node_store(monkeypatch)
+async def test_flowrep_execution_result() -> None:
+    """Parsing a run returns the workflow node; the execution result is a
+    side effect linked to it via ``artifact_id``."""
+    store = MockNodeStore()
     dag = fr.tools.run_recipe(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         linear.flowrep_recipe,  # pyright: ignore[reportFunctionMemberAccess]
         x=2.0,
         slope=3.0,
         intercept=1.0,
     )
-    responses = await parse(ToolkitSettings(), dag)
-    assert len(responses) == 1
+    results = await parse(ParseContext(ToolkitSettings(), store), dag)
+    assert len(results) == 1
+    assert results[0].node.artifact_type == ArtifactType.WORKFLOW
     assert len(store.uploaded_execution_results) == 1
     execution_result = store.uploaded_execution_results[-1]
-    assert execution_result.artifact_id
+    assert execution_result.artifact_id == results[0].node.id
     inputs = {io.label: io.value for io in execution_result.inputs}
     assert inputs == {"x": 2.0, "slope": 3.0, "intercept": 1.0}
     assert json.loads(execution_result.outputs) == {"result": 7.0}
@@ -291,10 +295,10 @@ def test_flowrep_to_wf_definition_nested_workflow() -> None:
     assert output_node_ids == {"result"}
 
 
-async def test_flowrep_atomic_no_docstring(monkeypatch: pytest.MonkeyPatch) -> None:
-    store = install_mock_node_store(monkeypatch)
-    responses = await parse(ToolkitSettings(), bare)
-    assert len(responses) == 1
+async def test_flowrep_atomic_no_docstring() -> None:
+    store = MockNodeStore()
+    results = await parse(ParseContext(ToolkitSettings(), store), bare)
+    assert len(results) == 1
     metadata = store.uploaded[-1]
     assert metadata.docstring == ""
     assert metadata.brief_description is None
@@ -302,12 +306,10 @@ async def test_flowrep_atomic_no_docstring(monkeypatch: pytest.MonkeyPatch) -> N
     assert metadata.inputs[0].description is None
 
 
-async def test_flowrep_atomic_docstring_mismatch(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    store = install_mock_node_store(monkeypatch)
-    responses = await parse(ToolkitSettings(), documented_mismatch)
-    assert len(responses) == 1
+async def test_flowrep_atomic_docstring_mismatch() -> None:
+    store = MockNodeStore()
+    results = await parse(ParseContext(ToolkitSettings(), store), documented_mismatch)
+    assert len(results) == 1
     metadata = store.uploaded[-1]
     assert metadata.inputs[0].description == "First value."
     assert metadata.inputs[1].description is None
@@ -315,68 +317,60 @@ async def test_flowrep_atomic_docstring_mismatch(
     assert metadata.outputs[0].description == "First return value."
 
 
-async def test_flowrep_atomic_skips_upload_when_already_exists(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    store = install_mock_node_store(monkeypatch)
+async def test_flowrep_atomic_skips_upload_when_already_exists() -> None:
+    store = MockNodeStore()
+    ctx = ParseContext(ToolkitSettings(), store)
+    await parse(ctx, kinetic_energy)  # first pass populates the store
+    store.uploaded.clear()
 
-    async def existing_node(api_url: str, node_id: str) -> httpx2.Response:
-        return httpx2.Response(200, json={"id": node_id})
+    results = await parse(ctx, kinetic_energy)
 
-    monkeypatch.setattr(node_store_api, "read_node", existing_node)
-
-    responses = await parse(ToolkitSettings(), kinetic_energy)
-    assert len(responses) == 1
-    assert responses[0].status_code == HTTPStatus.OK
+    assert len(results) == 1
+    assert results[0].status is NodeStatus.EXISTS
     assert store.uploaded == []
 
 
-async def test_flowrep_workflow_skips_upload_when_already_exists(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    store = install_mock_node_store(monkeypatch)
+async def test_flowrep_workflow_skips_upload_when_already_exists() -> None:
+    store = MockNodeStore()
+    ctx = ParseContext(ToolkitSettings(), store)
+    await parse(ctx, linear)  # first pass populates the store
+    store.uploaded.clear()
 
-    async def existing_node(api_url: str, node_id: str) -> httpx2.Response:
-        return httpx2.Response(200, json={"id": node_id})
+    results = await parse(ctx, linear)
 
-    monkeypatch.setattr(node_store_api, "read_node", existing_node)
-
-    responses = await parse(ToolkitSettings(), linear)
-    assert len(responses) == 1
-    assert responses[0].status_code == HTTPStatus.OK
+    assert len(results) == 1
+    assert results[0].status is NodeStatus.EXISTS
     assert store.uploaded == []
 
 
-async def test_flowrep_workflow_reuses_function_twice(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    store = install_mock_node_store(monkeypatch)
-    responses = await parse(ToolkitSettings(), reused_twice)
-    assert len(responses) == 1
+async def test_flowrep_workflow_reuses_function_twice() -> None:
+    store = MockNodeStore()
+    results = await parse(ParseContext(ToolkitSettings(), store), reused_twice)
+    assert len(results) == 1
     metadata = store.uploaded[-1]
     assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [ref.label for ref in metadata.uses] == ["mul_0", "mul_1"]
-    assert len(store.uploaded) == 3  # noqa: PLR2004
+    assert metadata.uses[0].id == metadata.uses[1].id
+    # `mul` is only actually created once: the second occurrence's read_node
+    # dedup check finds it by hash, so only `mul` and `reused_twice` itself
+    # reach `create_node`.
+    assert len(store.uploaded) == 2  # noqa: PLR2004
 
 
-async def test_flowrep_workflow_output_arity_mismatch(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    store = install_mock_node_store(monkeypatch)
-    responses = await parse(ToolkitSettings(), multi_out)
-    assert len(responses) == 1
+async def test_flowrep_workflow_output_arity_mismatch() -> None:
+    store = MockNodeStore()
+    results = await parse(ParseContext(ToolkitSettings(), store), multi_out)
+    assert len(results) == 1
     metadata = store.uploaded[-1]
     assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [a.label for a in metadata.outputs] == ["a", "b"]
     assert all(a.datatype is None for a in metadata.outputs)
 
 
-async def test_flowrep_workflow_nested_workflow(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    store = install_mock_node_store(monkeypatch)
-    responses = await parse(ToolkitSettings(), outer)
-    assert len(responses) == 1
+async def test_flowrep_workflow_nested_workflow() -> None:
+    store = MockNodeStore()
+    results = await parse(ParseContext(ToolkitSettings(), store), outer)
+    assert len(results) == 1
     assert len(store.uploaded) == 4  # noqa: PLR2004  (mul, add, linear, outer)
     metadata = store.uploaded[-1]
     assert metadata.artifact_type == ArtifactType.WORKFLOW
@@ -388,10 +382,8 @@ async def test_flowrep_workflow_nested_workflow(
     assert nested_node.atlas_id == metadata.uses[0].id
 
 
-async def test_flowrep_execution_result_no_reference(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    install_mock_node_store(monkeypatch)
+async def test_flowrep_execution_result_no_reference() -> None:
+    store = MockNodeStore()
     dag = cast(
         DagData,
         fr.tools.run_recipe(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
@@ -403,8 +395,8 @@ async def test_flowrep_execution_result_no_reference(
     )
     recipe = cast(WorkflowRecipe, cast(Any, dag).recipe)
     dag = dataclasses.replace(dag, recipe=recipe.model_copy(update={"reference": None}))
-    responses = await parse(ToolkitSettings(), dag)
-    assert responses == []
+    results = await parse(ParseContext(ToolkitSettings(), store), dag)
+    assert results == []
 
 
 def _no_import(module: str, qualname: str | None) -> Any | None:
@@ -414,7 +406,7 @@ def _no_import(module: str, qualname: str | None) -> Any | None:
 async def test_flowrep_execution_result_unresolvable_reference(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    install_mock_node_store(monkeypatch)
+    store = MockNodeStore()
     monkeypatch.setattr(flowrep_parser, "try_import", _no_import)
     dag = fr.tools.run_recipe(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         linear.flowrep_recipe,  # pyright: ignore[reportFunctionMemberAccess]
@@ -422,18 +414,16 @@ async def test_flowrep_execution_result_unresolvable_reference(
         slope=3.0,
         intercept=1.0,
     )
-    responses = await parse(ToolkitSettings(), dag)
-    assert responses == []
+    results = await parse(ParseContext(ToolkitSettings(), store), dag)
+    assert results == []
 
 
 async def test_flowrep_execution_result_workflow_upload_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    install_mock_node_store(monkeypatch)
+    store = MockNodeStore()
 
-    async def fake_upload(
-        settings: ToolkitSettings, obj: object
-    ) -> list[httpx2.Response]:
+    async def fake_upload(ctx: ParseContext, obj: object) -> list[NodeResult]:
         return []
 
     monkeypatch.setattr(flowrep_parser, "upload", fake_upload)
@@ -443,91 +433,65 @@ async def test_flowrep_execution_result_workflow_upload_fails(
         slope=3.0,
         intercept=1.0,
     )
-    responses = await parse(ToolkitSettings(), dag)
-    assert responses == []
+    results = await parse(ParseContext(ToolkitSettings(), store), dag)
+    assert results == []
 
 
-def _no_id(response: httpx2.Response) -> str | None:
-    return None
-
-
-async def test_flowrep_execution_result_missing_id(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    install_mock_node_store(monkeypatch)
-    monkeypatch.setattr(flowrep_parser, "extract_id", _no_id)
-    dag = fr.tools.run_recipe(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-        linear.flowrep_recipe,  # pyright: ignore[reportFunctionMemberAccess]
-        x=2.0,
-        slope=3.0,
-        intercept=1.0,
-    )
-    responses = await parse(ToolkitSettings(), dag)
-    assert responses == []
-
-
-async def test_flowrep_execution_result_preserves_non_primitive_outputs(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    store = install_mock_node_store(monkeypatch)
+async def test_flowrep_execution_result_preserves_non_primitive_outputs() -> None:
+    store = MockNodeStore()
     dag = fr.tools.run_recipe(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         mixed_outputs.flowrep_recipe,  # pyright: ignore[reportFunctionMemberAccess]
         x=2.0,
     )
-    responses = await parse(ToolkitSettings(), dag)
-    assert len(responses) == 1
+    results = await parse(ParseContext(ToolkitSettings(), store), dag)
+    assert len(results) == 1
     outputs = json.loads(store.uploaded_execution_results[-1].outputs)
     assert outputs == {"a": None, "b": [2.0, 2.0]}
 
 
-async def test_parse_returns_empty_for_unsupported_object(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    install_mock_node_store(monkeypatch)
+async def test_parse_returns_empty_for_unsupported_object() -> None:
+    store = MockNodeStore()
 
     class NotAFlowrepObject:
         pass
 
-    responses = await parse(ToolkitSettings(), NotAFlowrepObject())
-    assert responses == []
+    results = await parse(ParseContext(ToolkitSettings(), store), NotAFlowrepObject())
+    assert results == []
 
 
-async def test_parse_falls_back_to_auto_parse_for_undecorated_function(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    store = install_mock_node_store(monkeypatch)
-    responses = await parse(ToolkitSettings(), undecorated_add)
-    assert len(responses) == 1
+async def test_parse_falls_back_to_auto_parse_for_undecorated_function() -> None:
+    store = MockNodeStore()
+    results = await parse(ParseContext(ToolkitSettings(), store), undecorated_add)
+    assert len(results) == 1
     assert store.uploaded[-1].name.endswith("undecorated_add")
 
 
-async def test_parse_swallows_auto_parse_failure(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    install_mock_node_store(monkeypatch)
-    responses = await parse(ToolkitSettings(), unsupported_varargs)
-    assert responses == []
+async def test_parse_swallows_auto_parse_failure() -> None:
+    store = MockNodeStore()
+    results = await parse(ParseContext(ToolkitSettings(), store), unsupported_varargs)
+    assert results == []
 
 
-async def test_extract_id_handles_conflict_on_create(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The create-node path treats 409 CONFLICT like a successful create
-    (see `extract_id`), distinct from the (unfixed) duplicate-hash check on
-    `read_node`, which only short-circuits on 200 OK."""
-    store = install_mock_node_store(monkeypatch)
+class _ConflictingStore(MockNodeStore):
+    """Every create collides with an existing node, as the backend's 409 does."""
 
-    async def create_nodes_conflict(
-        api_url: str, api_key: str | None, nodes: list[object]
-    ) -> list[httpx2.Response]:
-        store.uploaded.extend(nodes)  # type: ignore[arg-type]
-        return [httpx2.Response(409, json={"id": "existing-id"}) for _ in nodes]
+    async def create_node(self, node: NodeRequest) -> NodeResult:
+        self.uploaded.append(node)
+        return NodeResult(
+            status=NodeStatus.EXISTS,
+            node=NodeResponse.model_construct(id="existing-id"),
+        )
 
-    monkeypatch.setattr(node_store_api, "create_nodes", create_nodes_conflict)
 
-    responses = await parse(ToolkitSettings(), linear)
-    assert len(responses) == 1
-    assert responses[0].status_code == HTTPStatus.CONFLICT
+async def test_conflict_on_create_still_yields_uses_ids() -> None:
+    """A create that collides with an existing node (backend 409) still
+    yields that node's id for the parent workflow's `uses` references."""
+    store = _ConflictingStore()
+
+    results = await parse(ParseContext(ToolkitSettings(), store), linear)
+
+    assert len(results) == 1
+    assert results[0].status is NodeStatus.EXISTS
     metadata = store.uploaded[-1]
     assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert all(ref.id == "existing-id" for ref in metadata.uses)

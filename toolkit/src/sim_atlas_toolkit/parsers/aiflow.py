@@ -4,10 +4,8 @@ from __future__ import annotations
 import hashlib
 import inspect
 import textwrap
-from http import HTTPStatus
 from typing import Any
 
-import httpx2
 from core import (  # pyright: ignore[reportMissingImports]
     Workflow,  # pyright: ignore[reportMissingImports]
 )
@@ -22,7 +20,7 @@ from core.node import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
     Node,
 )
 
-from sim_atlas_toolkit import node_store_api
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactType,
@@ -33,23 +31,20 @@ from sim_atlas_toolkit.models import (
     WfFunctionNode,
     WfNode,
 )
+from sim_atlas_toolkit.node_store import NodeResult, NodeStatus
 from sim_atlas_toolkit.parsers.ai_enrichment import (
     generate_docstring,
     generate_workflow_docstring,
 )
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
-    extract_id,
     type_to_str,
 )
 from sim_atlas_toolkit.provenance import apply_provenance
-from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
 
-async def parse_function_node(
-    settings: ToolkitSettings, obj: Any
-) -> list[httpx2.Response]:
+async def parse_function_node(ctx: ParseContext, obj: Any) -> list[NodeResult]:
     if type(obj) is type and issubclass(obj, Node):
         obj = obj()
 
@@ -76,9 +71,8 @@ async def parse_function_node(
             pass
 
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
-    response = await node_store_api.read_node(settings.api_url, hash)
-    if response.status_code == HTTPStatus.OK:
-        return [response]
+    if (existing := await ctx.store.read_node(hash)) is not None:
+        return [NodeResult(status=NodeStatus.EXISTS, node=existing)]
 
     metadata.hash = hash
     metadata.id = hash
@@ -97,18 +91,14 @@ async def parse_function_node(
     ]
 
     metadata.docstring = await generate_docstring(
-        settings, metadata.source_code, metadata.docstring or ""
+        ctx, metadata.source_code, metadata.docstring or ""
     )
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return await node_store_api.create_nodes(
-        settings.api_url, settings.api_token, [metadata]
-    )
+    return await ctx.store.create_nodes([metadata])
 
 
-async def parse_group_node(
-    settings: ToolkitSettings, obj: Any
-) -> list[httpx2.Response]:
+async def parse_group_node(ctx: ParseContext, obj: Any) -> list[NodeResult]:
     if isinstance(obj, WorkflowGroupFactory):
         obj = obj()
 
@@ -124,9 +114,8 @@ async def parse_group_node(
     )
 
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
-    response = await node_store_api.read_node(settings.api_url, hash)
-    if response.status_code == HTTPStatus.OK:
-        return [response]
+    if (existing := await ctx.store.read_node(hash)) is not None:
+        return [NodeResult(status=NodeStatus.EXISTS, node=existing)]
 
     metadata.hash = hash
     metadata.id = hash
@@ -153,13 +142,11 @@ async def parse_group_node(
     metadata.outputs = outputs
     metadata.docstring = ""
 
-    return await node_store_api.create_nodes(
-        settings.api_url, settings.api_token, [metadata]
-    )
+    return await ctx.store.create_nodes([metadata])
 
 
 async def to_wf_definition(
-    settings: ToolkitSettings,
+    ctx: ParseContext,
     graph: Any,
     references: list[Reference],
 ) -> WfDefinition:
@@ -167,22 +154,24 @@ async def to_wf_definition(
 
     nodes: list[WfNode] = []
     for node_id, node in graph.nodes.items():
-        node_metadata = await parse(settings, node)
+        node_metadata = await parse(ctx, node)
         if not node_metadata:
             continue
-        if node_metadata[0].status_code in (
-            HTTPStatus.OK,
-            HTTPStatus.CREATED,
-            HTTPStatus.CONFLICT,
-        ):
-            nodes.append(
-                WfFunctionNode(
-                    node_id=node_id,
-                    inputs=node_metadata[0].json().get("inputs", []),
-                    outputs=node_metadata[0].json().get("outputs", []),
-                    atlas_id=reference_dict.get(node_id),
-                )
+        child = node_metadata[0].node
+        nodes.append(
+            WfFunctionNode(
+                node_id=node_id,
+                inputs=[
+                    Annotation(**a.model_dump(exclude={"connections"}))
+                    for a in child.inputs
+                ],
+                outputs=[
+                    Annotation(**a.model_dump(exclude={"connections"}))
+                    for a in child.outputs
+                ],
+                atlas_id=reference_dict.get(node_id),
             )
+        )
 
     edges: list[WfEdge] = []
 
@@ -199,7 +188,7 @@ async def to_wf_definition(
     return WfDefinition(nodes=nodes, edges=edges)
 
 
-async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
+async def parse_workflow(ctx: ParseContext, obj: Any) -> list[NodeResult]:
     if not isinstance(obj, Workflow):
         return []
 
@@ -211,9 +200,8 @@ async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx2.Res
     )
 
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
-    response = await node_store_api.read_node(settings.api_url, hash)
-    if response.status_code == HTTPStatus.OK:
-        return [response]
+    if (existing := await ctx.store.read_node(hash)) is not None:
+        return [NodeResult(status=NodeStatus.EXISTS, node=existing)]
 
     metadata.hash = hash
     metadata.id = hash
@@ -230,21 +218,20 @@ async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx2.Res
     uses_import = [(label, node) for label, node in wf._graph.nodes.items()]
 
     uses_upload = [
-        (label, (await upload(settings, child))[0])
+        (label, (await upload(ctx, child))[0])
         for label, child in uses_import
         if child is not None
     ]
 
     metadata.uses = [
-        Reference(label=label, id=atlas_id, count=1)
-        for label, response in uses_upload
-        if (atlas_id := extract_id(response)) is not None
+        Reference(label=label, id=result.node.id, count=1)
+        for label, result in uses_upload
     ]
 
-    metadata.wf_definition = await to_wf_definition(settings, wf._graph, metadata.uses)
+    metadata.wf_definition = await to_wf_definition(ctx, wf._graph, metadata.uses)
 
     metadata.docstring = await generate_workflow_docstring(
-        settings,
+        ctx,
         metadata.name,
         metadata.source_code,
         metadata.docstring or "",
@@ -252,19 +239,17 @@ async def parse_workflow(settings: ToolkitSettings, obj: Any) -> list[httpx2.Res
     )
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return [
-        await node_store_api.create_node(settings.api_url, settings.api_token, metadata)
-    ]
+    return [await ctx.store.create_node(metadata)]
 
 
-async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
-    if metadata := await parse_workflow(settings, obj):
+async def parse(ctx: ParseContext, obj: Any) -> list[NodeResult]:
+    if metadata := await parse_workflow(ctx, obj):
         return metadata
 
-    if metadata := await parse_group_node(settings, obj):
+    if metadata := await parse_group_node(ctx, obj):
         return metadata
 
-    if metadata := await parse_function_node(settings, obj):
+    if metadata := await parse_function_node(ctx, obj):
         return metadata
 
     return []

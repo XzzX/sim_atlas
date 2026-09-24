@@ -1,13 +1,11 @@
 import hashlib
 import inspect
 import textwrap
-from http import HTTPStatus
 from typing import Any
 
-import httpx2
-
-from sim_atlas_toolkit import node_store_api
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.models import ArtifactType, NodeRequest
+from sim_atlas_toolkit.node_store import NodeResult, NodeStatus
 from sim_atlas_toolkit.parsers.ai_enrichment import generate_docstring
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
@@ -15,10 +13,9 @@ from sim_atlas_toolkit.parsers.metadata import (
     parse_signature,
 )
 from sim_atlas_toolkit.provenance import apply_provenance
-from sim_atlas_toolkit.settings import ToolkitSettings
 
 
-async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
+async def parse(ctx: ParseContext, obj: Any) -> list[NodeResult]:
     if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
         return []
 
@@ -33,9 +30,8 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     metadata.hash = hash
     metadata.id = hash
 
-    response = await node_store_api.read_node(settings.api_url, hash)
-    if response.status_code == HTTPStatus.OK:
-        return [response]
+    if (existing := await ctx.store.read_node(hash)) is not None:
+        return [NodeResult(status=NodeStatus.EXISTS, node=existing)]
 
     metadata.name = f"{obj.__module__}.{obj.__qualname__}"
     metadata.python_import = f"{obj.__module__}.{obj.__qualname__}"
@@ -50,10 +46,8 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     metadata.outputs = parse_return_annotation(sig)
 
     metadata.docstring = await generate_docstring(
-        settings, metadata.source_code, metadata.docstring
+        ctx, metadata.source_code, metadata.docstring
     )
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return await node_store_api.create_nodes(
-        settings.api_url, settings.api_token, [metadata]
-    )
+    return await ctx.store.create_nodes([metadata])

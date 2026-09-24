@@ -3,26 +3,22 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-import httpx2
-
-from sim_atlas_toolkit import node_store_api
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.models import NodeRequest
-from sim_atlas_toolkit.settings import ToolkitSettings
+from sim_atlas_toolkit.node_store import NodeResult
 
 logger = logging.getLogger(__name__)
 
 
 async def upload(
-    settings: ToolkitSettings,
+    ctx: ParseContext,
     obj: Any,
     update_existing: bool = False,
-    parsers: list[Callable[..., Awaitable[list[httpx2.Response]]]] | None = None,
+    parsers: list[Callable[..., Awaitable[list[NodeResult]]]] | None = None,
     **kwargs: dict[str, Any],
-) -> list[httpx2.Response]:
+) -> list[NodeResult]:
     if isinstance(obj, NodeRequest):
-        return await node_store_api.create_nodes(
-            settings.api_url, settings.api_token, [obj]
-        )
+        return await ctx.store.create_nodes([obj])
 
     if inspect.ismodule(obj):
         raise ValueError(
@@ -33,4 +29,4 @@ async def upload(
         get_metadata,  # avoid circular import
     )
 
-    return await get_metadata(settings, obj, parsers)
+    return await get_metadata(ctx, obj, parsers)

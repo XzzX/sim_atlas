@@ -2,23 +2,20 @@ import dataclasses
 import hashlib
 import inspect
 import textwrap
-from http import HTTPStatus
 from typing import Any, get_type_hints
 
-import httpx2
-
-from sim_atlas_toolkit import node_store_api
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactType,
     NodeRequest,
 )
+from sim_atlas_toolkit.node_store import NodeResult, NodeStatus
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
     parse_annotation,
 )
 from sim_atlas_toolkit.provenance import apply_provenance
-from sim_atlas_toolkit.settings import ToolkitSettings
 
 
 def _field_annotations(cls: type) -> list[Annotation]:
@@ -49,7 +46,7 @@ def _field_annotations(cls: type) -> list[Annotation]:
     return result
 
 
-async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
+async def parse(ctx: ParseContext, obj: Any) -> list[NodeResult]:
     if not (dataclasses.is_dataclass(obj) and isinstance(obj, type)):
         return []
 
@@ -77,13 +74,13 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
 
     pack_hash = hashlib.sha256(pack_source.encode("utf-8")).hexdigest()
     unpack_hash = hashlib.sha256(unpack_source.encode("utf-8")).hexdigest()
-    response_pack = await node_store_api.read_node(settings.api_url, pack_hash)
-    response_unpack = await node_store_api.read_node(settings.api_url, unpack_hash)
-    if (
-        response_pack.status_code == HTTPStatus.OK
-        and response_unpack.status_code == HTTPStatus.OK
-    ):
-        return [response_pack, response_unpack]
+    existing_pack = await ctx.store.read_node(pack_hash)
+    existing_unpack = await ctx.store.read_node(unpack_hash)
+    if existing_pack is not None and existing_unpack is not None:
+        return [
+            NodeResult(status=NodeStatus.EXISTS, node=existing_pack),
+            NodeResult(status=NodeStatus.EXISTS, node=existing_unpack),
+        ]
 
     category = module.replace(".", ">")
 
@@ -125,6 +122,4 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
 
     apply_provenance(unpack_metadata, module)
 
-    return await node_store_api.create_nodes(
-        settings.api_url, settings.api_token, [pack_metadata, unpack_metadata]
-    )
+    return await ctx.store.create_nodes([pack_metadata, unpack_metadata])

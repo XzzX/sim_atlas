@@ -3,18 +3,16 @@
 import hashlib
 from typing import Any
 
-import httpx2
-
-from sim_atlas_toolkit import node_store_api
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactType,
     NodeRequest,
 )
-from sim_atlas_toolkit.settings import ToolkitSettings
+from sim_atlas_toolkit.node_store import NodeResult
 
 
-async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
+async def parse(ctx: ParseContext, obj: Any) -> list[NodeResult]:
     try:
         from python_workflow_definition.models import (  # noqa: PLC0415
             PythonWorkflowDefinitionInputNode,
@@ -50,6 +48,4 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     metadata.docstring = ""
     metadata.keywords = ["python_workflow_definition"]
 
-    return await node_store_api.create_nodes(
-        settings.api_url, settings.api_token, [metadata]
-    )
+    return await ctx.store.create_nodes([metadata])

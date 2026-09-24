@@ -3,11 +3,9 @@ import hashlib
 import inspect
 import json
 import logging
-from http import HTTPStatus
 from typing import Any, cast
 
 import flowrep as fr
-import httpx2
 from flowrep.api.schemas import (
     AtomicRecipe,
     InputSource,
@@ -16,7 +14,7 @@ from flowrep.api.schemas import (
 )
 from flowrep.retrospective.datastructures import DagData
 
-from sim_atlas_toolkit import node_store_api
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.models import (
     Annotation,
     ArtifactType,
@@ -31,19 +29,18 @@ from sim_atlas_toolkit.models import (
     WfNode,
     WfOutputNode,
 )
+from sim_atlas_toolkit.node_store import NodeResult, NodeStatus
 from sim_atlas_toolkit.parsers.ai_enrichment import (
     generate_docstring,
     generate_workflow_docstring,
 )
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
-    extract_id,
     parse_return_annotation,
     parse_signature,
     try_import,
 )
 from sim_atlas_toolkit.provenance import apply_provenance
-from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
 logger = logging.getLogger(__name__)
@@ -144,18 +141,17 @@ def flowrep_to_wf_definition(
 
 
 async def parse_atomic_recipe(
-    settings: ToolkitSettings,
+    ctx: ParseContext,
     obj: Any,
     recipe: AtomicRecipe,
-) -> list[httpx2.Response]:
+) -> list[NodeResult]:
     metadata = NodeRequest.model_construct(artifact_type=ArtifactType.FUNCTION)
     metadata.source_code = inspect.getsource(obj) or ""
     metadata.docstring = inspect.getdoc(obj) or ""
 
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
-    response = await node_store_api.read_node(settings.api_url, hash)
-    if response.status_code == HTTPStatus.OK:
-        return [response]
+    if (existing := await ctx.store.read_node(hash)) is not None:
+        return [NodeResult(status=NodeStatus.EXISTS, node=existing)]
     metadata.hash = hash
     metadata.id = hash
 
@@ -205,19 +201,17 @@ async def parse_atomic_recipe(
     apply_provenance(metadata, obj.__module__)
 
     metadata.docstring = await generate_docstring(
-        settings, metadata.source_code, metadata.docstring
+        ctx, metadata.source_code, metadata.docstring
     )
     enrich_from_docstring(metadata.docstring, metadata)
-    return await node_store_api.create_nodes(
-        settings.api_url, settings.api_token, [metadata]
-    )
+    return await ctx.store.create_nodes([metadata])
 
 
 async def parse_workflow_recipe(
-    settings: ToolkitSettings,
+    ctx: ParseContext,
     obj: Any,
     recipe: WorkflowRecipe,
-) -> list[httpx2.Response]:
+) -> list[NodeResult]:
     unreferenced_recipe = recipe.model_copy(update={"reference": None})
     rendered = fr.tools.flowrep2python(unreferenced_recipe)
 
@@ -225,9 +219,8 @@ async def parse_workflow_recipe(
     metadata.source_code = rendered.source
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
 
-    response = await node_store_api.read_node(settings.api_url, hash)
-    if response.status_code == HTTPStatus.OK:
-        return [response]
+    if (existing := await ctx.store.read_node(hash)) is not None:
+        return [NodeResult(status=NodeStatus.EXISTS, node=existing)]
 
     metadata.hash = hash
     metadata.id = hash
@@ -279,15 +272,14 @@ async def parse_workflow_recipe(
     ]
 
     uses_upload = [
-        (label, (await upload(settings, child))[0])
+        (label, (await upload(ctx, child))[0])
         for label, child in uses_import
         if child is not None
     ]
 
     uses = [
-        Reference(label=label, id=atlas_id, count=1)
-        for label, response in uses_upload
-        if (atlas_id := extract_id(response)) is not None
+        Reference(label=label, id=result.node.id, count=1)
+        for label, result in uses_upload
     ]
 
     metadata.name = f"{obj.__module__}.{obj.__qualname__}"
@@ -300,7 +292,7 @@ async def parse_workflow_recipe(
         metadata.wf_definition = flowrep_to_wf_definition(recipe, uses)
 
     metadata.docstring = await generate_workflow_docstring(
-        settings,
+        ctx,
         metadata.name,
         metadata.source_code,
         metadata.docstring or "",
@@ -308,15 +300,13 @@ async def parse_workflow_recipe(
     )
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return await node_store_api.create_nodes(
-        settings.api_url, settings.api_token, [metadata]
-    )
+    return await ctx.store.create_nodes([metadata])
 
 
 async def parse_workflow_instance(
-    settings: ToolkitSettings,
+    ctx: ParseContext,
     wf_instance: DagData,
-) -> list[httpx2.Response]:
+) -> list[NodeResult]:
     logger.debug("parsing workflow instance")
 
     # DagData's generic base (flowrep) doesn't parameterize NodeData[RecipeType],
@@ -327,15 +317,11 @@ async def parse_workflow_instance(
     wf_obj = try_import(recipe.reference.info.module, recipe.reference.info.qualname)
     if wf_obj is None:
         return []
-    wf_responses = await upload(settings, wf_obj)
-    if len(wf_responses) == 0:
+    wf_results = await upload(ctx, wf_obj)
+    if len(wf_results) == 0:
         return []
-    wf_id = extract_id(wf_responses[0])
-    if wf_id is None:
-        return []
-    logger.debug(
-        f"workflow recipe: status_code {wf_responses[0].status_code}, id {wf_id}"
-    )
+    wf_result = wf_results[0]
+    logger.debug(f"workflow recipe: status {wf_result.status}, id {wf_result.node.id}")
 
     inputs = [
         IOValue(label=k, value=v.value)
@@ -353,32 +339,31 @@ async def parse_workflow_instance(
     )
 
     execution_metadata = ExecutionResultRequest(
-        artifact_id=wf_id,
+        artifact_id=wf_result.node.id,
         author_name="Unknown",
         author_email="unknown@example.com",
         inputs=inputs,
         outputs=outputs,
     )
-    return [
-        await node_store_api.create_execution_result(
-            settings.api_url, settings.api_token, execution_metadata
-        )
-    ]
+    # The execution result is a side effect of parsing the instance; the
+    # workflow node this run executed is what the pipeline reports upward.
+    await ctx.store.create_execution_result(execution_metadata)
+    return wf_results
 
 
 async def parse(
-    settings: ToolkitSettings,
+    ctx: ParseContext,
     obj: Any,
-) -> list[httpx2.Response]:
+) -> list[NodeResult]:
     if isinstance(obj, DagData):
-        return await parse_workflow_instance(settings, obj)
+        return await parse_workflow_instance(ctx, obj)
 
     match getattr(obj, "flowrep_recipe", None):
         case AtomicRecipe() as recipe:
-            return await parse_atomic_recipe(settings, obj, recipe)
+            return await parse_atomic_recipe(ctx, obj, recipe)
 
         case WorkflowRecipe() as recipe:
-            return await parse_workflow_recipe(settings, obj, recipe)
+            return await parse_workflow_recipe(ctx, obj, recipe)
 
         case _:
             pass
@@ -386,7 +371,7 @@ async def parse(
     try:
         if inspect.isfunction(obj):
             recipe = fr.parse_atomic(obj)
-            return await parse_atomic_recipe(settings, obj, recipe)
+            return await parse_atomic_recipe(ctx, obj, recipe)
     except Exception:
         return []
 

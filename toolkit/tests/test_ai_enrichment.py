@@ -1,12 +1,11 @@
 from types import SimpleNamespace
 from typing import Any, Literal
 
-import httpx2
 import pytest
 
 openai = pytest.importorskip("openai")
 
-from sim_atlas_toolkit import node_store_api  # noqa: E402
+from sim_atlas_toolkit.context import ParseContext  # noqa: E402
 from sim_atlas_toolkit.models import (  # noqa: E402
     Annotation,
     ArtifactType,
@@ -27,6 +26,8 @@ from sim_atlas_toolkit.parsers.ai_enrichment import (  # noqa: E402
     generate_workflow_docstring,
 )
 from sim_atlas_toolkit.settings import ToolkitSettings  # noqa: E402
+
+from .mock_api import MockNodeStore  # noqa: E402
 
 GENERATED = "Compute a sum."
 
@@ -55,6 +56,10 @@ def _settings(
         llm_key="k",
         llm_model="m",
     )
+
+
+def _ctx(settings: ToolkitSettings | None = None) -> ParseContext:
+    return ParseContext(settings or ToolkitSettings(), MockNodeStore())
 
 
 def test_plain_text_passthrough() -> None:
@@ -95,7 +100,7 @@ def test_single_quote_char_not_overstripped() -> None:
     assert clean_response('"') == '"'
 
 
-def _function_response(name: str, brief_description: str) -> dict[str, Any]:
+def _function_node(name: str, brief_description: str) -> NodeResponse:
     return NodeResponse(
         artifact_type=ArtifactType.FUNCTION,
         id="atlas-1",
@@ -114,19 +119,12 @@ def _function_response(name: str, brief_description: str) -> dict[str, Any]:
         brief_description=brief_description,
         inputs=[],
         outputs=[],
-    ).model_dump(mode="json")
+    )
 
 
-async def test_render_wf_graph_fetches_node_info(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    async def read_node(api_url: str, node_id: str) -> httpx2.Response:
-        assert node_id == "atlas-1"
-        return httpx2.Response(
-            200, json=_function_response("pkg.mod.relax", "Relax a structure.")
-        )
-
-    monkeypatch.setattr(node_store_api, "read_node", read_node)
+async def test_render_wf_graph_fetches_node_info() -> None:
+    store = MockNodeStore()
+    store.preexisting(_function_node("pkg.mod.relax", "Relax a structure."))
 
     wf_definition = WfDefinition(
         nodes=[
@@ -147,7 +145,7 @@ async def test_render_wf_graph_fetches_node_info(
         ],
     )
 
-    graph = await _render_wf_graph("http://api", wf_definition)
+    graph = await _render_wf_graph(store, wf_definition)
 
     assert "pkg.mod.relax" in graph
     assert "Relax a structure." in graph
@@ -155,13 +153,8 @@ async def test_render_wf_graph_fetches_node_info(
     assert "relax.relaxed -> relaxed" in graph
 
 
-async def test_render_wf_graph_degrades_on_missing_node(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    async def read_node(api_url: str, node_id: str) -> httpx2.Response:
-        return httpx2.Response(404)
-
-    monkeypatch.setattr(node_store_api, "read_node", read_node)
+async def test_render_wf_graph_degrades_on_missing_node() -> None:
+    store = MockNodeStore()
 
     wf_definition = WfDefinition(
         nodes=[
@@ -175,7 +168,7 @@ async def test_render_wf_graph_degrades_on_missing_node(
         edges=[],
     )
 
-    graph = await _render_wf_graph("http://api", wf_definition)
+    graph = await _render_wf_graph(store, wf_definition)
 
     assert "missing" in graph
     assert "no description available" in graph
@@ -194,7 +187,7 @@ async def test_render_wf_graph_no_atlas_id() -> None:
         edges=[],
     )
 
-    graph = await _render_wf_graph("http://api", wf_definition)
+    graph = await _render_wf_graph(MockNodeStore(), wf_definition)
 
     assert "local" in graph
     assert "no description available" in graph
@@ -205,7 +198,7 @@ async def test_generate_docstring_disabled_returns_existing(
 ) -> None:
     _install_fake_openai(monkeypatch, GENERATED)
 
-    result = await generate_docstring(ToolkitSettings(), "def f(): ...", "existing")
+    result = await generate_docstring(_ctx(), "def f(): ...", "existing")
 
     assert result == "existing"
 
@@ -215,7 +208,7 @@ async def test_generate_docstring_no_source_code_returns_existing(
 ) -> None:
     _install_fake_openai(monkeypatch, GENERATED)
 
-    result = await generate_docstring(_settings(), "", "existing")
+    result = await generate_docstring(_ctx(_settings()), "", "existing")
 
     assert result == "existing"
 
@@ -225,7 +218,7 @@ async def test_generate_docstring_generates_when_missing(
 ) -> None:
     _install_fake_openai(monkeypatch, GENERATED)
 
-    result = await generate_docstring(_settings(), "def f(): ...", "")
+    result = await generate_docstring(_ctx(_settings()), "def f(): ...", "")
 
     assert result == GENERATED
 
@@ -235,7 +228,7 @@ async def test_generate_docstring_existing_not_overwritten(
 ) -> None:
     _install_fake_openai(monkeypatch, GENERATED)
 
-    result = await generate_docstring(_settings(), "def f(): ...", "existing")
+    result = await generate_docstring(_ctx(_settings()), "def f(): ...", "existing")
 
     assert result == "existing"
 
@@ -246,7 +239,7 @@ async def test_generate_docstring_overwrite_regenerates(
     _install_fake_openai(monkeypatch, GENERATED)
 
     result = await generate_docstring(
-        _settings(llm_docstrings="overwrite"), "def f(): ...", "existing"
+        _ctx(_settings(llm_docstrings="overwrite")), "def f(): ...", "existing"
     )
 
     assert result == GENERATED
@@ -257,7 +250,7 @@ async def test_generate_docstring_empty_completion_falls_back(
 ) -> None:
     _install_fake_openai(monkeypatch, None)
 
-    result = await generate_docstring(_settings(), "def f(): ...", "existing")
+    result = await generate_docstring(_ctx(_settings()), "def f(): ...", "existing")
 
     assert result == "existing"
 
@@ -271,7 +264,7 @@ async def test_generate_docstring_llm_failure_falls_back(
 
     monkeypatch.setattr(openai, "AsyncOpenAI", _BoomAsyncOpenAI)
 
-    result = await generate_docstring(_settings(), "def f(): ...", "existing")
+    result = await generate_docstring(_ctx(_settings()), "def f(): ...", "existing")
 
     assert result == "existing"
 
@@ -283,7 +276,7 @@ async def test_generate_workflow_docstring_disabled_returns_existing(
     wf_definition = WfDefinition(nodes=[], edges=[])
 
     result = await generate_workflow_docstring(
-        ToolkitSettings(), "wf", "def wf(): ...", "existing", wf_definition
+        _ctx(), "wf", "def wf(): ...", "existing", wf_definition
     )
 
     assert result == "existing"
@@ -296,7 +289,7 @@ async def test_generate_workflow_docstring_generates_when_missing(
     wf_definition = WfDefinition(nodes=[], edges=[])
 
     result = await generate_workflow_docstring(
-        _settings(), "wf", "def wf(): ...", "", wf_definition
+        _ctx(_settings()), "wf", "def wf(): ...", "", wf_definition
     )
 
     assert result == GENERATED
@@ -309,7 +302,7 @@ async def test_generate_workflow_docstring_existing_not_overwritten(
     wf_definition = WfDefinition(nodes=[], edges=[])
 
     result = await generate_workflow_docstring(
-        _settings(), "wf", "def wf(): ...", "existing", wf_definition
+        _ctx(_settings()), "wf", "def wf(): ...", "existing", wf_definition
     )
 
     assert result == "existing"
@@ -322,7 +315,7 @@ async def test_generate_workflow_docstring_overwrite_regenerates(
     wf_definition = WfDefinition(nodes=[], edges=[])
 
     result = await generate_workflow_docstring(
-        _settings(llm_docstrings="overwrite"),
+        _ctx(_settings(llm_docstrings="overwrite")),
         "wf",
         "def wf(): ...",
         "existing",
@@ -343,7 +336,7 @@ async def test_generate_workflow_docstring_llm_failure_falls_back(
     wf_definition = WfDefinition(nodes=[], edges=[])
 
     result = await generate_workflow_docstring(
-        _settings(), "wf", "def wf(): ...", "existing", wf_definition
+        _ctx(_settings()), "wf", "def wf(): ...", "existing", wf_definition
     )
 
     assert result == "existing"

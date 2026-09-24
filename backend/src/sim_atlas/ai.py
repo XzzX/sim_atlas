@@ -7,10 +7,9 @@ from sim_atlas.agent._observability import (
 )
 from sim_atlas.exceptions import AINotConfiguredError
 from sim_atlas.models import (
-    FunctionMetadata,
-    StoredArtifact,
+    ArtifactType,
+    NodeMetadata,
     WfFunctionNode,
-    WorkflowMetadata,
 )
 from sim_atlas.settings import load_settings
 from sim_atlas.storage_interface import StorageInterface
@@ -24,7 +23,7 @@ def _strip_think_tags(raw: str) -> str:
     return raw.strip()
 
 
-async def enrich_function_metadata(func: FunctionMetadata) -> None:
+async def enrich_function_metadata(func: NodeMetadata) -> None:
     settings = load_settings()
     if (
         not settings.llm_api_key
@@ -89,12 +88,10 @@ The parsed output port names are (use these exact strings as keys for outputs in
 
 
 async def enrich_workflow_metadata(
-    workflow: WorkflowMetadata, storage: StorageInterface
+    workflow: NodeMetadata, storage: StorageInterface
 ) -> None:
 
-    def _render_workflow_graph_text(
-        v: WorkflowMetadata, storage: StorageInterface
-    ) -> str:
+    def _render_workflow_graph_text(v: NodeMetadata, storage: StorageInterface) -> str:
         """Render a human-readable list of the workflow's constituent nodes.
 
         For each function/pack/unpack node with a resolved atlas_node_id, uses
@@ -110,11 +107,13 @@ async def enrich_workflow_metadata(
                 continue
 
             try:
-                artifact = storage.read_artifact(node.atlas_id)
+                catalog_node = storage.read_node(node.atlas_id)
             except KeyError:
                 continue
 
-            text = artifact.brief_description if artifact.brief_description else ""
+            text = (
+                catalog_node.brief_description if catalog_node.brief_description else ""
+            )
             lines.append(f"- {node.node_id}: {text}")
         return "\n".join(lines) if lines else "(no constituent nodes resolved)"
 
@@ -167,13 +166,9 @@ Constituent nodes:
     workflow.description = result.description
 
 
-async def enrich_artifact_metadata(
-    artifact: StoredArtifact, storage: StorageInterface
-) -> None:
-    match artifact:
-        case FunctionMetadata():
-            await enrich_function_metadata(artifact)
-        case WorkflowMetadata():
-            await enrich_workflow_metadata(artifact, storage)
-        case _:
-            raise ValueError(f"Unexpected artifact type: {type(artifact)}")
+async def enrich_node_metadata(node: NodeMetadata, storage: StorageInterface) -> None:
+    match node.artifact_type:
+        case ArtifactType.FUNCTION:
+            await enrich_function_metadata(node)
+        case ArtifactType.WORKFLOW:
+            await enrich_workflow_metadata(node, storage)

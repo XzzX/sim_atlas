@@ -3,7 +3,7 @@ from typing import Annotated
 
 import pytest
 
-from sim_atlas_toolkit.models import ArtifactRequest, ArtifactType, PackageRef
+from sim_atlas_toolkit.models import ArtifactType, NodeRequest, PackageRef
 from sim_atlas_toolkit.parsers import dataclass_node
 from sim_atlas_toolkit.parsers.dataclass_node import parse
 from sim_atlas_toolkit.settings import ToolkitSettings
@@ -76,10 +76,10 @@ async def test_dataclass_parser(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_parse_attaches_package_provenance_to_both_nodes(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Both the PACK and UNPACK artifacts carry provenance, in separate lists."""
+    """Both the PACK and UNPACK nodes carry provenance, in separate lists."""
     ref = PackageRef(ecosystem="pypi", name="demo", version="1.0")
 
-    def apply(metadata: ArtifactRequest, _module_name: str | None) -> None:
+    def apply(metadata: NodeRequest, _module_name: str | None) -> None:
         metadata.packages = [ref]
 
     monkeypatch.setattr(dataclass_node, "apply_provenance", apply)

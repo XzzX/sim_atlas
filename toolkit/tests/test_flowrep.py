@@ -16,7 +16,6 @@ from sim_atlas_toolkit.models import (
     WfFunctionNode,
     WfInputNode,
     WfOutputNode,
-    WorkflowRequest,
 )
 from sim_atlas_toolkit.parsers import flowrep_parser
 from sim_atlas_toolkit.parsers.flowrep_parser import flowrep_to_wf_definition, parse
@@ -186,7 +185,6 @@ async def test_flowrep_workflow(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(responses) == 1
     assert len(store.uploaded) == 3  # noqa: PLR2004
     metadata = store.uploaded[-1]
-    assert isinstance(metadata, WorkflowRequest)
     assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [a.label for a in metadata.inputs] == ["x", "slope", "intercept"]
     assert all(a.datatype == "float" for a in metadata.inputs)
@@ -322,10 +320,10 @@ async def test_flowrep_atomic_skips_upload_when_already_exists(
 ) -> None:
     store = install_mock_node_store(monkeypatch)
 
-    async def existing_artifact(api_url: str, artifact_id: str) -> httpx2.Response:
-        return httpx2.Response(200, json={"id": artifact_id})
+    async def existing_node(api_url: str, node_id: str) -> httpx2.Response:
+        return httpx2.Response(200, json={"id": node_id})
 
-    monkeypatch.setattr(node_store_api, "read_artifact", existing_artifact)
+    monkeypatch.setattr(node_store_api, "read_node", existing_node)
 
     responses = await parse(ToolkitSettings(), kinetic_energy)
     assert len(responses) == 1
@@ -338,10 +336,10 @@ async def test_flowrep_workflow_skips_upload_when_already_exists(
 ) -> None:
     store = install_mock_node_store(monkeypatch)
 
-    async def existing_artifact(api_url: str, artifact_id: str) -> httpx2.Response:
-        return httpx2.Response(200, json={"id": artifact_id})
+    async def existing_node(api_url: str, node_id: str) -> httpx2.Response:
+        return httpx2.Response(200, json={"id": node_id})
 
-    monkeypatch.setattr(node_store_api, "read_artifact", existing_artifact)
+    monkeypatch.setattr(node_store_api, "read_node", existing_node)
 
     responses = await parse(ToolkitSettings(), linear)
     assert len(responses) == 1
@@ -356,7 +354,7 @@ async def test_flowrep_workflow_reuses_function_twice(
     responses = await parse(ToolkitSettings(), reused_twice)
     assert len(responses) == 1
     metadata = store.uploaded[-1]
-    assert isinstance(metadata, WorkflowRequest)
+    assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [ref.label for ref in metadata.uses] == ["mul_0", "mul_1"]
     assert len(store.uploaded) == 3  # noqa: PLR2004
 
@@ -368,7 +366,7 @@ async def test_flowrep_workflow_output_arity_mismatch(
     responses = await parse(ToolkitSettings(), multi_out)
     assert len(responses) == 1
     metadata = store.uploaded[-1]
-    assert isinstance(metadata, WorkflowRequest)
+    assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [a.label for a in metadata.outputs] == ["a", "b"]
     assert all(a.datatype is None for a in metadata.outputs)
 
@@ -381,7 +379,7 @@ async def test_flowrep_workflow_nested_workflow(
     assert len(responses) == 1
     assert len(store.uploaded) == 4  # noqa: PLR2004  (mul, add, linear, outer)
     metadata = store.uploaded[-1]
-    assert isinstance(metadata, WorkflowRequest)
+    assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert [ref.label for ref in metadata.uses] == ["linear_0"]
     nested_node = next(
         n for n in metadata.wf_definition.nodes if n.node_id == "linear_0"
@@ -514,22 +512,22 @@ async def test_parse_swallows_auto_parse_failure(
 async def test_extract_id_handles_conflict_on_create(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The create-artifact path treats 409 CONFLICT like a successful create
+    """The create-node path treats 409 CONFLICT like a successful create
     (see `extract_id`), distinct from the (unfixed) duplicate-hash check on
-    `read_artifact`, which only short-circuits on 200 OK."""
+    `read_node`, which only short-circuits on 200 OK."""
     store = install_mock_node_store(monkeypatch)
 
-    async def create_artifacts_conflict(
-        api_url: str, api_key: str | None, artifacts: list[object]
+    async def create_nodes_conflict(
+        api_url: str, api_key: str | None, nodes: list[object]
     ) -> list[httpx2.Response]:
-        store.uploaded.extend(artifacts)  # type: ignore[arg-type]
-        return [httpx2.Response(409, json={"id": "existing-id"}) for _ in artifacts]
+        store.uploaded.extend(nodes)  # type: ignore[arg-type]
+        return [httpx2.Response(409, json={"id": "existing-id"}) for _ in nodes]
 
-    monkeypatch.setattr(node_store_api, "create_artifacts", create_artifacts_conflict)
+    monkeypatch.setattr(node_store_api, "create_nodes", create_nodes_conflict)
 
     responses = await parse(ToolkitSettings(), linear)
     assert len(responses) == 1
     assert responses[0].status_code == HTTPStatus.CONFLICT
     metadata = store.uploaded[-1]
-    assert isinstance(metadata, WorkflowRequest)
+    assert metadata.artifact_type == ArtifactType.WORKFLOW
     assert all(ref.id == "existing-id" for ref in metadata.uses)

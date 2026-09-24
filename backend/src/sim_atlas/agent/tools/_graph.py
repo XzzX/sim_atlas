@@ -7,7 +7,7 @@ from sim_atlas.agent.tools._errors import ToolError
 from sim_atlas.agent.tools._search import PortMetadata, format_port
 from sim_atlas.models import (
     AnnotationResponse,
-    FunctionMetadata,
+    ArtifactType,
     GraphEdgeContext,
     GraphNodeContext,
 )
@@ -140,8 +140,8 @@ async def execute_add_function_node(
 ) -> str:
     if not storage.exists(args.atlas_node_id):
         raise ToolError(f"Node '{args.atlas_node_id}' not found in catalog.")
-    node = storage.read_artifact(args.atlas_node_id)
-    if not isinstance(node, FunctionMetadata):
+    node = storage.read_node(args.atlas_node_id)
+    if node.artifact_type != ArtifactType.FUNCTION:
         raise ToolError(f"Node '{args.atlas_node_id}' is not a function node.")
     graph_id = scratch.new_graph_id(args.label)
     scratch.nodes[graph_id] = GraphNodeContext(

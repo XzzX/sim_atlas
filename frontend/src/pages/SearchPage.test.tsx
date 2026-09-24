@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route, useLocation } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "../test/msw/server";
-import { linearWorkflow, suggestions } from "../test/fixtures/artifacts";
+import { linearWorkflow, suggestions } from "../test/fixtures/nodes";
 import type { ScoredSearchResponse } from "../types/index";
 import { SearchPage } from "./SearchPage";
 

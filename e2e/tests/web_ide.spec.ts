@@ -87,7 +87,7 @@ test("web IDE loads linear workflow and add-node dialog shows 4 function nodes",
   const dialog = page.locator(".fixed.inset-0");
   await expect(dialog.getByText("Add Node")).toBeVisible();
 
-  // All 4 function artifacts should appear (workflow is excluded by default filter)
+  // All 4 function nodes should appear (workflow is excluded by default filter)
   await expect(dialog.getByText("dummy_module.functions.add")).toBeVisible();
   await expect(dialog.getByText("dummy_module.functions.mul")).toBeVisible();
   await expect(dialog.getByText("dummy_module.flowrep.add")).toBeVisible();

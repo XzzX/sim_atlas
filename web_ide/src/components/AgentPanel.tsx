@@ -41,8 +41,7 @@ import type {
   CapabilitiesResponse,
   GraphEdgeContext,
   GraphNodeContext,
-  FunctionResponse,
-  WorkflowResponse,
+  NodeResponse,
 } from "../interfaces/BackendSchema";
 import type { WorkflowNode } from "../nodes/nodes";
 import type { NodeData } from "../nodes/FunctionNode";
@@ -358,9 +357,9 @@ async function convertAgentGraph(
     agentNodes.map(async (n) => {
       const pos = { x: 0, y: 0 };
       if (n.atlas_node_id != null) {
-        let metadata: FunctionResponse | WorkflowResponse | undefined;
+        let metadata: NodeResponse | undefined;
         try {
-          metadata = await simAtlasAPI.getArtifact(n.atlas_node_id);
+          metadata = await simAtlasAPI.getNode(n.atlas_node_id);
         } catch {
           // fall back to minimal shape so the graph still renders
           metadata = {

@@ -1,7 +1,7 @@
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Discriminator, Tag, TypeAdapter
+from pydantic import BaseModel, Discriminator, TypeAdapter
 
 
 class ArtifactType(StrEnum):
@@ -38,70 +38,12 @@ class Reference(BaseModel):
     count: int
 
 
-class FunctionRequest(BaseModel):
-    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
-
-    id: str | None = None
-    hash: str | None = None
-    name: str
-    category: str
-    keywords: list[str]
-
-    author_name: str = "unknown"
-    author_email: str = "unknown"
-
-    homepage_url: str | None = None
-    documentation_url: str | None = None
-    source_url: str | None = None
-
-    python_import: str
-    dependencies: list[str] | None = None
-    packages: list[PackageRef] = []
-
-    source_code: str
-
-    docstring: str
-    brief_description: str | None = None
-    description: str | None = None
-    inputs: list[Annotation]
-    outputs: list[Annotation]
-
-    see_also: list[Reference] = []
-
-
-class FunctionResponse(BaseModel):
-    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
-
-    id: str
-    hash: str
-    name: str
-    category: str
-    keywords: list[str]
-
-    author_name: str
-    author_email: str
-
-    creator_name: str
-    creator_email: str
-    creation_timestamp: str
-
-    homepage_url: str | None = None
-    documentation_url: str | None = None
-    source_url: str | None = None
-
-    python_import: str
-    dependencies: list[str] | None = None
-    packages: list[PackageRef] = []
-
-    source_code: str
-
-    docstring: str
-    brief_description: str | None = None
-    description: str | None = None
-    inputs: list[Annotation]
-    outputs: list[Annotation]
-
-    see_also: list[Reference] = []
+# --- Workflow internal-structure models ---
+#
+# A node is either a plain Python function or a workflow; the two differ only
+# in that a workflow additionally records its internal dataflow graph
+# (``uses``/``wf_definition``) — see ADR-0021. ``WfDefinition`` describes that
+# graph and is shared by both request/response variants below.
 
 
 class WfInputNode(BaseModel):
@@ -142,16 +84,17 @@ class WfDefinition(BaseModel):
     edges: list[WfEdge]
 
 
-class WorkflowRequest(BaseModel):
-    author_name: str = "unknown"
-    author_email: str = "unknown"
+class NodeRequest(BaseModel):
+    artifact_type: ArtifactType
 
     id: str | None = None
     hash: str | None = None
     name: str
-    artifact_type: Literal[ArtifactType.WORKFLOW] = ArtifactType.WORKFLOW
     category: str
     keywords: list[str]
+
+    author_name: str = "unknown"
+    author_email: str = "unknown"
 
     homepage_url: str | None = None
     documentation_url: str | None = None
@@ -162,10 +105,10 @@ class WorkflowRequest(BaseModel):
     packages: list[PackageRef] = []
 
     source_code: str
+
     docstring: str | None = None
     brief_description: str | None = None
     description: str | None = None
-
     inputs: list[Annotation]
     outputs: list[Annotation]
 
@@ -175,7 +118,15 @@ class WorkflowRequest(BaseModel):
     wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 
 
-class WorkflowResponse(BaseModel):
+class NodeResponse(BaseModel):
+    artifact_type: ArtifactType
+
+    id: str
+    hash: str
+    name: str
+    category: str
+    keywords: list[str]
+
     author_name: str
     author_email: str
 
@@ -183,13 +134,6 @@ class WorkflowResponse(BaseModel):
     creator_email: str
     creation_timestamp: str
 
-    id: str
-    hash: str
-    name: str
-    artifact_type: Literal[ArtifactType.WORKFLOW] = ArtifactType.WORKFLOW
-    category: str
-    keywords: list[str]
-
     homepage_url: str | None = None
     documentation_url: str | None = None
     source_url: str | None = None
@@ -199,8 +143,8 @@ class WorkflowResponse(BaseModel):
     packages: list[PackageRef] = []
 
     source_code: str
-    docstring: str | None = None
 
+    docstring: str | None = None
     brief_description: str | None = None
     description: str | None = None
     inputs: list[Annotation]
@@ -212,25 +156,9 @@ class WorkflowResponse(BaseModel):
     wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 
 
-ArtifactRequest = Annotated[
-    Annotated[FunctionRequest, Tag("function")]
-    | Annotated[WorkflowRequest, Tag("workflow")],
-    Discriminator("artifact_type"),
-]
+node_request_adapter: TypeAdapter[NodeRequest] = TypeAdapter(NodeRequest)
 
-artifact_request_adapter: TypeAdapter[FunctionRequest | WorkflowRequest] = TypeAdapter(
-    ArtifactRequest
-)
-
-ArtifactResponse = Annotated[
-    Annotated[FunctionResponse, Tag("function")]
-    | Annotated[WorkflowResponse, Tag("workflow")],
-    Discriminator("artifact_type"),
-]
-
-artifact_response_adapter: TypeAdapter[FunctionResponse | WorkflowResponse] = (
-    TypeAdapter(ArtifactResponse)
-)
+node_response_adapter: TypeAdapter[NodeResponse] = TypeAdapter(NodeResponse)
 
 
 class IOValue(BaseModel):

@@ -6,10 +6,7 @@ from typing import Any
 import httpx2
 
 from sim_atlas_toolkit import node_store_api
-from sim_atlas_toolkit.models import (
-    FunctionRequest,
-    WorkflowRequest,
-)
+from sim_atlas_toolkit.models import NodeRequest
 from sim_atlas_toolkit.settings import ToolkitSettings
 
 logger = logging.getLogger(__name__)
@@ -22,8 +19,8 @@ async def upload(
     parsers: list[Callable[..., Awaitable[list[httpx2.Response]]]] | None = None,
     **kwargs: dict[str, Any],
 ) -> list[httpx2.Response]:
-    if isinstance(obj, (FunctionRequest, WorkflowRequest)):
-        return await node_store_api.create_artifacts(
+    if isinstance(obj, NodeRequest):
+        return await node_store_api.create_nodes(
             settings.api_url, settings.api_token, [obj]
         )
 

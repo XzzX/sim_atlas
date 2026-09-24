@@ -34,7 +34,7 @@ const handleDownload = (filename: string, content: string) => {
   URL.revokeObjectURL(url);
 };
 
-interface ArtifactHeaderProps {
+interface NodeHeaderProps {
   name: string;
   id: string;
   artifact_type: string;
@@ -46,7 +46,7 @@ interface ArtifactHeaderProps {
   download?: string;
 }
 
-export const ArtifactHeader: React.FC<ArtifactHeaderProps> = ({
+export const NodeHeader: React.FC<NodeHeaderProps> = ({
   name,
   id,
   artifact_type,

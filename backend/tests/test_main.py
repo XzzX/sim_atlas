@@ -12,25 +12,24 @@ from typing import Any, Protocol, cast
 import httpx2
 import numpy as np
 import pytest
-from fastapi import HTTPException, status
+from fastapi import status
 from fastapi.testclient import TestClient
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
-from sim_atlas.api.artifacts import compose_artifact
+from sim_atlas.api.nodes import compose_node
 from sim_atlas.file_system_storage import FileSystemStorage
 from sim_atlas.main import app, mcp
 from sim_atlas.models import (
     AnnotationRequest,
     ArtifactType,
-    FunctionRequest,
+    NodeRequest,
     ScoredSearchResponse,
     SearchResults,
     WfDefinition,
     WfEdge,
     WfInputNode,
     WfOutputNode,
-    WorkflowRequest,
 )
 from sim_atlas.security import Creator, get_current_user
 from sim_atlas.static_files import is_asset_path
@@ -57,7 +56,7 @@ class ApiClient(Protocol):
 
 
 def make_function_request_body(**kwargs: Any) -> dict[str, Any]:
-    """Return a JSON-serialisable dict for a FunctionRequest with sensible defaults."""
+    """Return a JSON-serialisable dict for a function NodeRequest with sensible defaults."""
     defaults: dict[str, Any] = {
         "artifact_type": "function",
         "author_name": "Alice",
@@ -76,7 +75,7 @@ def make_function_request_body(**kwargs: Any) -> dict[str, Any]:
 
 
 def make_workflow_request_body(**kwargs: Any) -> dict[str, Any]:
-    """Return a JSON-serialisable dict for a WorkflowRequest with sensible defaults."""
+    """Return a JSON-serialisable dict for a workflow NodeRequest with sensible defaults."""
     defaults: dict[str, Any] = {
         "artifact_type": "workflow",
         "author_name": "Bob",
@@ -196,123 +195,120 @@ def test_agent_stream_with_a_key_but_no_server_provider_returns_503(
 
 
 # ---------------------------------------------------------------------------
-# Artifact CRUD — create
+# Node CRUD — create
 # ---------------------------------------------------------------------------
 
 
-def test_create_function_artifact_returns_201(client: ApiClient) -> None:
-    response = client.post("/api/v1/artifacts", json=make_function_request_body())
+def test_create_function_node_returns_201(client: ApiClient) -> None:
+    response = client.post("/api/v1/nodes", json=make_function_request_body())
     assert response.status_code == status.HTTP_201_CREATED
-    artifact_id = response.json()["id"]
-    assert isinstance(artifact_id, str)
-    assert len(artifact_id) > 0
+    node_id = response.json()["id"]
+    assert isinstance(node_id, str)
+    assert len(node_id) > 0
 
 
-def test_create_workflow_artifact_returns_201(client: ApiClient) -> None:
-    response = client.post("/api/v1/artifacts", json=make_workflow_request_body())
+def test_create_workflow_node_returns_201(client: ApiClient) -> None:
+    response = client.post("/api/v1/nodes", json=make_workflow_request_body())
     assert response.status_code == status.HTTP_201_CREATED
-    artifact_id = response.json()["id"]
-    assert isinstance(artifact_id, str)
+    node_id = response.json()["id"]
+    assert isinstance(node_id, str)
 
 
-def test_create_duplicate_artifact_returns_409(client: ApiClient) -> None:
+def test_create_duplicate_node_returns_409(client: ApiClient) -> None:
     body = make_function_request_body()
-    client.post("/api/v1/artifacts", json=body)
-    response = client.post("/api/v1/artifacts", json=body)
+    client.post("/api/v1/nodes", json=body)
+    response = client.post("/api/v1/nodes", json=body)
     assert response.status_code == status.HTTP_409_CONFLICT
 
 
-def test_create_artifact_unauthenticated_returns_401(
+def test_create_node_unauthenticated_returns_401(
     unauthed_client: ApiClient,
 ) -> None:
-    response = unauthed_client.post(
-        "/api/v1/artifacts", json=make_function_request_body()
-    )
+    response = unauthed_client.post("/api/v1/nodes", json=make_function_request_body())
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 # ---------------------------------------------------------------------------
-# Artifact CRUD — read
+# Node CRUD — read
 # ---------------------------------------------------------------------------
 
 
-def test_read_artifact_returns_200(client: ApiClient) -> None:
-    artifact_id = client.post(
-        "/api/v1/artifacts", json=make_function_request_body()
-    ).json()["id"]
-    response = client.get(f"/api/v1/artifacts/{artifact_id}")
+def test_read_node_returns_200(client: ApiClient) -> None:
+    node_id = client.post("/api/v1/nodes", json=make_function_request_body()).json()[
+        "id"
+    ]
+    response = client.get(f"/api/v1/nodes/{node_id}")
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
     assert body["name"] == "add_numbers"
     assert body["artifact_type"] == ArtifactType.FUNCTION
 
 
-def test_read_artifact_not_found_returns_404(client: ApiClient) -> None:
-    response = client.get("/api/v1/artifacts/does-not-exist")
+def test_read_node_not_found_returns_404(client: ApiClient) -> None:
+    response = client.get("/api/v1/nodes/does-not-exist")
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 # ---------------------------------------------------------------------------
-# Artifact CRUD — update
+# Node CRUD — update
 # ---------------------------------------------------------------------------
 
 
-def test_update_artifact_returns_updated_data(client: ApiClient) -> None:
-    artifact_id = client.post(
-        "/api/v1/artifacts", json=make_function_request_body()
-    ).json()["id"]
+def test_update_node_returns_updated_data(client: ApiClient) -> None:
+    node_id = client.post("/api/v1/nodes", json=make_function_request_body()).json()[
+        "id"
+    ]
     updated_body = make_function_request_body(
         name="updated_function",
         source_code="def updated_function(): pass",
     )
-    response = client.put(f"/api/v1/artifacts/{artifact_id}", json=updated_body)
+    response = client.put(f"/api/v1/nodes/{node_id}", json=updated_body)
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["name"] == "updated_function"
 
 
-def test_update_artifact_not_found_returns_404(client: ApiClient) -> None:
+def test_update_node_not_found_returns_404(client: ApiClient) -> None:
     response = client.put(
-        "/api/v1/artifacts/does-not-exist", json=make_function_request_body()
+        "/api/v1/nodes/does-not-exist", json=make_function_request_body()
     )
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_update_artifact_unauthenticated_returns_401(
+def test_update_node_unauthenticated_returns_401(
     unauthed_client: ApiClient,
 ) -> None:
     response = unauthed_client.put(
-        "/api/v1/artifacts/some-id", json=make_function_request_body()
+        "/api/v1/nodes/some-id", json=make_function_request_body()
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 # ---------------------------------------------------------------------------
-# Artifact CRUD — delete
+# Node CRUD — delete
 # ---------------------------------------------------------------------------
 
 
-def test_delete_artifact_returns_200_and_removes_artifact(client: ApiClient) -> None:
-    artifact_id = client.post(
-        "/api/v1/artifacts", json=make_function_request_body()
-    ).json()["id"]
-    response = client.delete(f"/api/v1/artifacts/{artifact_id}")
+def test_delete_node_returns_200_and_removes_node(client: ApiClient) -> None:
+    node_id = client.post("/api/v1/nodes", json=make_function_request_body()).json()[
+        "id"
+    ]
+    response = client.delete(f"/api/v1/nodes/{node_id}")
     assert response.status_code == status.HTTP_200_OK
     assert "deleted" in response.json()["detail"].lower()
     assert (
-        client.get(f"/api/v1/artifacts/{artifact_id}").status_code
-        == status.HTTP_404_NOT_FOUND
+        client.get(f"/api/v1/nodes/{node_id}").status_code == status.HTTP_404_NOT_FOUND
     )
 
 
-def test_delete_artifact_not_found_returns_404(client: ApiClient) -> None:
-    response = client.delete("/api/v1/artifacts/does-not-exist")
+def test_delete_node_not_found_returns_404(client: ApiClient) -> None:
+    response = client.delete("/api/v1/nodes/does-not-exist")
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_delete_artifact_unauthenticated_returns_401(
+def test_delete_node_unauthenticated_returns_401(
     unauthed_client: ApiClient,
 ) -> None:
-    response = unauthed_client.delete("/api/v1/artifacts/some-id")
+    response = unauthed_client.delete("/api/v1/nodes/some-id")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -329,9 +325,9 @@ def test_filter_options_empty_storage(client: ApiClient) -> None:
     assert body["keywords"] == []
 
 
-def test_filter_options_populated_after_creating_artifact(client: ApiClient) -> None:
+def test_filter_options_populated_after_creating_node(client: ApiClient) -> None:
     client.post(
-        "/api/v1/artifacts",
+        "/api/v1/nodes",
         json=make_function_request_body(
             keywords=["unique-kw"], author_name="UniqueAuthor"
         ),
@@ -354,8 +350,8 @@ def test_search_with_no_query_returns_200(client: ApiClient) -> None:
     assert "results" in response.json()
 
 
-def test_search_with_query_finds_matching_artifact(client: ApiClient) -> None:
-    client.post("/api/v1/artifacts", json=make_function_request_body(name="special_fn"))
+def test_search_with_query_finds_matching_node(client: ApiClient) -> None:
+    client.post("/api/v1/nodes", json=make_function_request_body(name="special_fn"))
     response = client.post("/api/v1/search", json={"query": "special_fn"})
     assert response.status_code == status.HTTP_200_OK
     names = [item["node"]["name"] for item in response.json()["results"]["data"]]
@@ -364,7 +360,7 @@ def test_search_with_query_finds_matching_artifact(client: ApiClient) -> None:
 
 def test_search_with_filter_returns_filtered_results(client: ApiClient) -> None:
     client.post(
-        "/api/v1/artifacts",
+        "/api/v1/nodes",
         json=make_function_request_body(category="unique-cat"),
     )
     response = client.post(
@@ -376,10 +372,10 @@ def test_search_with_filter_returns_filtered_results(client: ApiClient) -> None:
 
 def test_search_pagination_fields_are_correct(client: ApiClient) -> None:
     page_size = 2
-    total_artifacts = 3
-    for i in range(total_artifacts):
+    total_nodes = 3
+    for i in range(total_nodes):
         client.post(
-            "/api/v1/artifacts",
+            "/api/v1/nodes",
             json=make_function_request_body(
                 name=f"fn_{i}",
                 source_code=f"def fn_{i}(): pass",
@@ -390,8 +386,8 @@ def test_search_pagination_fields_are_correct(client: ApiClient) -> None:
     results = response.json()["results"]
     assert results["page"] == 1
     assert results["limit"] == page_size
-    assert results["total_items"] == total_artifacts
-    assert results["total_pages"] == ceil(total_artifacts / page_size)
+    assert results["total_items"] == total_nodes
+    assert results["total_pages"] == ceil(total_nodes / page_size)
     assert len(results["data"]) == page_size
 
 
@@ -403,9 +399,9 @@ def test_search_limit_above_cap_returns_422(client: ApiClient) -> None:
 def test_search_does_not_leak_embedding(
     client: ApiClient, storage: FileSystemStorage, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Search items hold the stored artifacts; the response model must strip embeddings."""
+    """Search items hold the stored nodes; the response model must strip embeddings."""
     dim = 16
-    storage.create_artifact(
+    storage.create_node(
         make_node(
             name="embedded_fn",
             source_code="def embedded_fn(): pass",
@@ -434,7 +430,7 @@ def test_search_does_not_leak_embedding(
 def test_search_matches_a_partial_word(client: ApiClient) -> None:
     """The keyword-only path must already match mid-word, not just whole tokens."""
     client.post(
-        "/api/v1/artifacts", json=make_function_request_body(name="get_temperature")
+        "/api/v1/nodes", json=make_function_request_body(name="get_temperature")
     )
     response = client.post("/api/v1/search", json={"query": "temp"})
     assert response.status_code == status.HTTP_200_OK
@@ -449,23 +445,23 @@ def test_search_matches_a_partial_word(client: ApiClient) -> None:
 
 def test_suggest_returns_matching_names_with_ids(client: ApiClient) -> None:
     response = client.post(
-        "/api/v1/artifacts", json=make_function_request_body(name="special_fn")
+        "/api/v1/nodes", json=make_function_request_body(name="special_fn")
     )
-    artifact_id = response.json()["id"]
+    node_id = response.json()["id"]
 
     response = client.post("/api/v1/suggest", json={"query": "spec"})
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
     assert len(body) == 1
-    assert body[0]["id"] == artifact_id
+    assert body[0]["id"] == node_id
     assert body[0]["name"] == "special_fn"
 
 
 def test_suggest_matches_a_partial_word(client: ApiClient) -> None:
     """The reported regression, end to end: 'temp' must find 'get_temperature'."""
     client.post(
-        "/api/v1/artifacts", json=make_function_request_body(name="get_temperature")
+        "/api/v1/nodes", json=make_function_request_body(name="get_temperature")
     )
     response = client.post("/api/v1/suggest", json={"query": "temp"})
     assert response.status_code == status.HTTP_200_OK
@@ -475,11 +471,11 @@ def test_suggest_matches_a_partial_word(client: ApiClient) -> None:
 
 def test_suggest_honours_filter(client: ApiClient) -> None:
     client.post(
-        "/api/v1/artifacts",
+        "/api/v1/nodes",
         json=make_function_request_body(name="calc_physics", category="physics"),
     )
     client.post(
-        "/api/v1/artifacts",
+        "/api/v1/nodes",
         json=make_function_request_body(
             name="calc_chemistry",
             category="chemistry",
@@ -498,7 +494,7 @@ def test_suggest_honours_filter(client: ApiClient) -> None:
 def test_suggest_honours_limit(client: ApiClient) -> None:
     for i in range(3):
         client.post(
-            "/api/v1/artifacts",
+            "/api/v1/nodes",
             json=make_function_request_body(
                 name=f"calc_{i}", source_code=f"def calc_{i}(): pass"
             ),
@@ -519,7 +515,7 @@ def test_suggest_missing_query_returns_422(client: ApiClient) -> None:
 
 
 def test_suggest_empty_query_returns_empty(client: ApiClient) -> None:
-    client.post("/api/v1/artifacts", json=make_function_request_body(name="special_fn"))
+    client.post("/api/v1/nodes", json=make_function_request_body(name="special_fn"))
     response = client.post("/api/v1/suggest", json={"query": "   "})
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == []
@@ -532,7 +528,7 @@ def test_suggest_is_public(unauthed_client: ApiClient) -> None:
 
 def test_suggest_returns_only_the_suggestion_fields(client: ApiClient) -> None:
     """The response model must strip everything but the type-ahead fields."""
-    client.post("/api/v1/artifacts", json=make_function_request_body(name="special_fn"))
+    client.post("/api/v1/nodes", json=make_function_request_body(name="special_fn"))
     response = client.post("/api/v1/suggest", json={"query": "special"})
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
@@ -610,16 +606,12 @@ def _call_mcp(name: str, args: dict[str, Any]) -> str:
 
 
 def _seed_function(client: ApiClient, **kwargs: Any) -> str:
-    response = client.post(
-        "/api/v1/artifacts", json=make_function_request_body(**kwargs)
-    )
+    response = client.post("/api/v1/nodes", json=make_function_request_body(**kwargs))
     return cast(str, response.json()["id"])
 
 
 def _seed_workflow(client: ApiClient, **kwargs: Any) -> str:
-    response = client.post(
-        "/api/v1/artifacts", json=make_workflow_request_body(**kwargs)
-    )
+    response = client.post("/api/v1/nodes", json=make_workflow_request_body(**kwargs))
     return cast(str, response.json()["id"])
 
 
@@ -834,13 +826,13 @@ def test_mcp_find_by_signature_query_ranks_but_never_excludes(
 def test_mcp_get_function_returns_full_docstring_and_parameters(
     client: ApiClient,
 ) -> None:
-    artifact_id = _seed_function(
+    node_id = _seed_function(
         client,
         docstring="Adds two numbers.\n\nWith a longer explanation.",
         inputs=[{"label": "a", "datatype": "float"}],
     )
 
-    text = _call_mcp("get_function", {"id": artifact_id})
+    text = _call_mcp("get_function", {"id": node_id})
 
     assert "With a longer explanation." in text
     assert "Parameters:" in text
@@ -855,13 +847,13 @@ def test_mcp_get_function_with_unknown_id_raises(client: ApiClient) -> None:
 
 
 def test_mcp_get_workflow_source_returns_stored_python(client: ApiClient) -> None:
-    artifact_id = _seed_workflow(
+    node_id = _seed_workflow(
         client,
         python_import="mylib.flows.linear",
         source_code="def linear(x):\n    return 2 * x\n",
     )
 
-    text = _call_mcp("get_workflow_source", {"id": artifact_id})
+    text = _call_mcp("get_workflow_source", {"id": node_id})
 
     assert "return 2 * x" in text
     assert "from mylib.flows import linear" in text
@@ -870,18 +862,18 @@ def test_mcp_get_workflow_source_returns_stored_python(client: ApiClient) -> Non
 def test_mcp_get_workflow_source_labels_a_json_workflow_definition(
     client: ApiClient,
 ) -> None:
-    artifact_id = _seed_workflow(client, source_code='{"nodes": [], "edges": []}')
+    node_id = _seed_workflow(client, source_code='{"nodes": [], "edges": []}')
 
-    text = _call_mcp("get_workflow_source", {"id": artifact_id})
+    text = _call_mcp("get_workflow_source", {"id": node_id})
 
     assert "not executable Python" in text
 
 
 def test_mcp_get_workflow_source_rejects_a_function_id(client: ApiClient) -> None:
-    artifact_id = _seed_function(client)
+    node_id = _seed_function(client)
 
     with pytest.raises(ToolError) as exc:
-        _call_mcp("get_workflow_source", {"id": artifact_id})
+        _call_mcp("get_workflow_source", {"id": node_id})
 
     assert "get_function" in str(exc.value)
 
@@ -896,7 +888,7 @@ def test_mcp_tools_never_leak_embeddings(
         source_code="def embedded_fn(): pass",
         embedding=np.arange(dim, dtype=np.float32),
     )
-    storage.create_artifact(node)
+    storage.create_node(node)
 
     async def _fake_embed(
         documents: list[str], input_type: str = "document"
@@ -937,12 +929,13 @@ def test_mcp_install_hint_uses_recorded_packages(client: ApiClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# compose_artifact unit tests
+# compose_node unit tests
 # ---------------------------------------------------------------------------
 
 
-def test_compose_artifact_function_sets_expected_fields() -> None:
-    request = FunctionRequest(
+def test_compose_node_function_sets_expected_fields() -> None:
+    request = NodeRequest(
+        artifact_type=ArtifactType.FUNCTION,
         author_name="Alice",
         author_email="alice@example.com",
         name="my_fn",
@@ -956,17 +949,17 @@ def test_compose_artifact_function_sets_expected_fields() -> None:
     )
     creator = Creator(name="Dev", email="dev@example.com")
 
-    artifact = compose_artifact(request, creator)
+    node = compose_node(request, creator)
 
-    assert artifact.creator_name == "Dev"
-    assert artifact.creator_email == "dev@example.com"
-    assert len(artifact.id) > 0
-    assert artifact.creation_timestamp != ""
+    assert node.creator_name == "Dev"
+    assert node.creator_email == "dev@example.com"
+    assert len(node.id) > 0
+    assert node.creation_timestamp != ""
     expected_hash = hashlib.sha256(request.source_code.encode()).hexdigest()
-    assert artifact.hash == expected_hash
+    assert node.hash == expected_hash
 
 
-def test_compose_artifact_workflow_sets_expected_fields() -> None:
+def test_compose_node_workflow_sets_expected_fields() -> None:
     wf_definition = WfDefinition(
         nodes=[
             WfInputNode(node_id="i1", outputs=[AnnotationRequest(label="i1")]),
@@ -974,7 +967,8 @@ def test_compose_artifact_workflow_sets_expected_fields() -> None:
         ],
         edges=[WfEdge(source_node="i1", target_node="o1")],
     )
-    request = WorkflowRequest(
+    request = NodeRequest(
+        artifact_type=ArtifactType.WORKFLOW,
         name="my_wf",
         category="pipeline",
         keywords=["wf"],
@@ -986,23 +980,25 @@ def test_compose_artifact_workflow_sets_expected_fields() -> None:
     )
     creator = Creator(name="Dev", email="dev@example.com")
 
-    artifact = compose_artifact(request, creator)
+    node = compose_node(request, creator)
 
-    assert artifact.creator_name == "Dev"
-    assert len(artifact.id) > 0
+    assert node.creator_name == "Dev"
+    assert len(node.id) > 0
     expected_hash = hashlib.sha256(
         request.wf_definition.model_dump_json(by_alias=False).encode()
     ).hexdigest()
-    assert artifact.hash == expected_hash
+    assert node.hash == expected_hash
 
 
-def test_compose_artifact_invalid_type_raises_400() -> None:
-    class _BadRequest:
-        pass
-
-    with pytest.raises(HTTPException) as exc_info:
-        compose_artifact(_BadRequest(), TEST_CREATOR)  # type: ignore[arg-type]
-    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+def test_create_node_with_invalid_artifact_type_returns_422(
+    client: ApiClient,
+) -> None:
+    """An unrecognised ``artifact_type`` is rejected by request validation,
+    before ``compose_node`` ever sees it — there is only one node schema
+    now, so it's the ``artifact_type`` enum itself that gatekeeps this."""
+    body = make_function_request_body(artifact_type="not-a-real-type")
+    response = client.post("/api/v1/nodes", json=body)
+    assert response.status_code == 422  # noqa: PLR2004
 
 
 # ---------------------------------------------------------------------------
@@ -1141,11 +1137,11 @@ def test_delete_execution_result_unauthenticated_returns_401(
 
 
 # ---------------------------------------------------------------------------
-# Execution Results — list by artifact
+# Execution Results — list by node
 # ---------------------------------------------------------------------------
 
 
-def test_list_execution_results_by_artifact_returns_matching_results(
+def test_list_execution_results_by_node_returns_matching_results(
     client: ApiClient,
 ) -> None:
     client.post(
@@ -1158,17 +1154,17 @@ def test_list_execution_results_by_artifact_returns_matching_results(
             artifact_id="artifact-b", inputs=[{"label": "x", "value": 5}]
         ),
     )
-    response = client.get("/api/v1/artifacts/artifact-a/execution_results")
+    response = client.get("/api/v1/nodes/artifact-a/execution_results")
     assert response.status_code == status.HTTP_200_OK
     results = response.json()
     assert len(results) == 1
     assert results[0]["artifact_id"] == "artifact-a"
 
 
-def test_list_execution_results_by_artifact_returns_empty_for_unknown(
+def test_list_execution_results_by_node_returns_empty_for_unknown(
     client: ApiClient,
 ) -> None:
-    response = client.get("/api/v1/artifacts/unknown-artifact/execution_results")
+    response = client.get("/api/v1/nodes/unknown-artifact/execution_results")
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == []
 

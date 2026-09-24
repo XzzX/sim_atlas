@@ -1,22 +1,21 @@
-"""Render catalog artifacts as Python, for a CLI coding agent (ADR-0019).
+"""Render catalog nodes as Python, for a CLI coding agent (ADR-0019).
 
 Every result block leads with a reconstructed call signature and an import
 statement; everything else is commented out, so the only line an agent can lift
 into a script is the import. Pure functions only — no storage, no I/O.
 """
 
-from sim_atlas.artifact_text import short_description
 from sim_atlas.models import (
     AnnotationResponse,
     ArtifactType,
-    FunctionResponse,
+    NodeResponse,
     PackageRef,
     Reference,
     ScoredSearchResponse,
-    WorkflowResponse,
 )
+from sim_atlas.node_text import short_description
 
-Artifact = FunctionResponse | WorkflowResponse
+Node = NodeResponse
 
 MAX_RESULTS = 5
 MAX_DESCRIPTION_CHARS = 240
@@ -38,17 +37,17 @@ def _truncate(text: str, limit: int) -> str:
     return text[:limit].rsplit(" ", 1)[0] + "…"
 
 
-def _is_workflow(artifact: Artifact) -> bool:
-    return artifact.artifact_type == ArtifactType.WORKFLOW
+def _is_workflow(node: Node) -> bool:
+    return node.artifact_type == ArtifactType.WORKFLOW
 
 
-def _callable_name(artifact: Artifact) -> str | None:
+def _callable_name(node: Node) -> str | None:
     """The bare callable name.
 
-    ``python_import`` is ``module.qualname``; for flowrep artifacts ``name`` is
+    ``python_import`` is ``module.qualname``; for flowrep nodes ``name`` is
     dotted too, so both are reduced to their last segment.
     """
-    for candidate in (artifact.python_import, artifact.name):
+    for candidate in (node.python_import, node.name):
         if candidate:
             last = candidate.rsplit(".", 1)[-1]
             if last:
@@ -81,21 +80,21 @@ def _return_annotation(outputs: list[AnnotationResponse]) -> str:
     return f" -> tuple[{inner}]"
 
 
-def render_signature(artifact: Artifact) -> str:
-    name = _callable_name(artifact)
+def render_signature(node: Node) -> str:
+    name = _callable_name(node)
     if name is None:
         return "# <signature unavailable>"
-    params = _parameters(artifact.inputs)
-    return f"def {name}({params}){_return_annotation(artifact.outputs)}"
+    params = _parameters(node.inputs)
+    return f"def {name}({params}){_return_annotation(node.outputs)}"
 
 
-def render_import(artifact: Artifact) -> str:
-    python_import = artifact.python_import or ""
+def render_import(node: Node) -> str:
+    python_import = node.python_import or ""
     if not python_import:
-        if _is_workflow(artifact):
+        if _is_workflow(node):
             return (
                 "# no import path recorded — this workflow is stored as a graph; "
-                f'call get_workflow_source("{artifact.id}") for its definition'
+                f'call get_workflow_source("{node.id}") for its definition'
             )
         return _NO_IMPORT_FUNCTION
     module, separator, qualname = python_import.rpartition(".")
@@ -113,21 +112,21 @@ def _install_line(package: PackageRef) -> str:
     return f"# install: pip install {spec}"
 
 
-def render_install(artifact: Artifact) -> list[str]:
+def render_install(node: Node) -> list[str]:
     """Install hints, degrading to the import root when nothing was recorded.
 
     These describe what an uploader's environment contained (ADR-0012); they are
     suggestions for the user to confirm, never authoritative commands.
     """
-    shown = artifact.packages[:MAX_PACKAGES]
+    shown = node.packages[:MAX_PACKAGES]
     lines = [_install_line(package) for package in shown]
-    remaining = len(artifact.packages) - len(shown)
+    remaining = len(node.packages) - len(shown)
     if remaining > 0:
         lines.append(f"# …and {remaining} more package(s)")
     if lines:
         return lines
 
-    root = (artifact.python_import or "").split(".")[0]
+    root = (node.python_import or "").split(".")[0]
     if root:
         return [
             "# install: not recorded; the callable lives in the "
@@ -158,14 +157,14 @@ def _output_label(port: AnnotationResponse, total: int, index: int) -> str:
     return f"returns.{port.label or index}"
 
 
-def _port_notes(artifact: Artifact) -> list[str]:
+def _port_notes(node: Node) -> list[str]:
     notes: list[str] = []
-    for index, port in enumerate(artifact.inputs):
+    for index, port in enumerate(node.inputs):
         note = _port_note(port.label or f"arg{index}", port)
         if note:
             notes.append(note)
-    total = len(artifact.outputs)
-    for index, port in enumerate(artifact.outputs):
+    total = len(node.outputs)
+    for index, port in enumerate(node.outputs):
         note = _port_note(_output_label(port, total, index), port)
         if note:
             notes.append(note)
@@ -174,24 +173,24 @@ def _port_notes(artifact: Artifact) -> list[str]:
     hidden = len(notes) - MAX_PORT_NOTES
     return [
         *notes[:MAX_PORT_NOTES],
-        f'# …{hidden} more annotated port(s), see get_function("{artifact.id}")',
+        f'# …{hidden} more annotated port(s), see get_function("{node.id}")',
     ]
 
 
-def render_hit(artifact: Artifact) -> str:
-    kind = "workflow" if _is_workflow(artifact) else "function"
+def render_hit(node: Node) -> str:
+    kind = "workflow" if _is_workflow(node) else "function"
     lines = [
-        render_signature(artifact),
-        render_import(artifact),
-        *render_install(artifact),
-        f"# id: {artifact.id} ({kind})",
+        render_signature(node),
+        render_import(node),
+        *render_install(node),
+        f"# id: {node.id} ({kind})",
     ]
-    summary = short_description(artifact.brief_description, artifact.docstring)
+    summary = short_description(node.brief_description, node.docstring)
     if summary:
         lines.append(f"# {_truncate(summary, MAX_DESCRIPTION_CHARS)}")
-    lines.extend(_port_notes(artifact))
-    if _is_workflow(artifact):
-        lines.append(f'# get_workflow_source("{artifact.id}") for the full pipeline.')
+    lines.extend(_port_notes(node))
+    if _is_workflow(node):
+        lines.append(f'# get_workflow_source("{node.id}") for the full pipeline.')
     return "\n".join(lines)
 
 
@@ -256,20 +255,20 @@ def _render_ports(heading: str, ports: list[AnnotationResponse]) -> list[str]:
     return lines
 
 
-def render_detail(artifact: Artifact) -> str:
-    kind = "workflow" if _is_workflow(artifact) else "function"
+def render_detail(node: Node) -> str:
+    kind = "workflow" if _is_workflow(node) else "function"
     lines = [
-        render_signature(artifact),
-        render_import(artifact),
-        *render_install(artifact),
-        f"# id: {artifact.id} ({kind})",
+        render_signature(node),
+        render_import(node),
+        *render_install(node),
+        f"# id: {node.id} ({kind})",
         "",
-        f"name: {artifact.name}",
-        f"category: {artifact.category} | keywords: {', '.join(artifact.keywords)} "
-        f"| author: {artifact.author_name}",
+        f"name: {node.name}",
+        f"category: {node.category} | keywords: {', '.join(node.keywords)} "
+        f"| author: {node.author_name}",
     ]
 
-    docstring = (artifact.docstring or "").strip()
+    docstring = (node.docstring or "").strip()
     if docstring:
         lines.extend(["", "Docstring:"])
         if len(docstring) > MAX_DOCSTRING_CHARS:
@@ -278,45 +277,44 @@ def render_detail(artifact: Artifact) -> str:
             lines.append(docstring)
 
     ports = [
-        *_render_ports("Parameters:", artifact.inputs),
-        *_render_ports("Returns:", artifact.outputs),
+        *_render_ports("Parameters:", node.inputs),
+        *_render_ports("Returns:", node.outputs),
     ]
     if ports:
         lines.extend(["", *ports])
 
-    used_by = artifact.used_by if isinstance(artifact, FunctionResponse) else None
     references = [
-        *_render_references("Used by", used_by),
-        *_render_references("See also", artifact.see_also),
+        *_render_references("Used by", node.used_by),
+        *_render_references("See also", node.see_also),
     ]
     if references:
         lines.extend(["", *references])
 
     links = [
-        f"docs {artifact.documentation_url}" if artifact.documentation_url else "",
-        f"source {artifact.source_url}" if artifact.source_url else "",
-        f"homepage {artifact.homepage_url}" if artifact.homepage_url else "",
+        f"docs {node.documentation_url}" if node.documentation_url else "",
+        f"source {node.source_url}" if node.source_url else "",
+        f"homepage {node.homepage_url}" if node.homepage_url else "",
     ]
     present_links = [link for link in links if link]
     if present_links:
         lines.extend(["", f"Links: {' | '.join(present_links)}"])
 
-    if _is_workflow(artifact):
+    if _is_workflow(node):
         lines.extend(
             [
                 "",
-                f'Source: call get_workflow_source("{artifact.id}") for this '
+                f'Source: call get_workflow_source("{node.id}") for this '
                 "workflow's executable Python.",
             ]
         )
     return "\n".join(lines)
 
 
-def render_source(artifact: Artifact) -> str:
-    source = artifact.source_code or ""
+def render_source(node: Node) -> str:
+    source = node.source_code or ""
     if not source.strip():
         return (
-            f"# No source code is stored for workflow '{artifact.id}'. "
+            f"# No source code is stored for workflow '{node.id}'. "
             "It is registered by graph definition only."
         )
 
@@ -334,10 +332,10 @@ def render_source(artifact: Artifact) -> str:
         )
 
     header = [
-        f"# workflow: {artifact.name}",
-        f"# id: {artifact.id}",
-        render_import(artifact),
-        *render_install(artifact),
+        f"# workflow: {node.name}",
+        f"# id: {node.id}",
+        render_import(node),
+        *render_install(node),
         note,
     ]
 
@@ -354,7 +352,7 @@ def render_source(artifact: Artifact) -> str:
     parts = ["\n".join(header), body]
     if truncated:
         total = len(source.splitlines())
-        where = artifact.source_url or "the catalog UI"
+        where = node.source_url or "the catalog UI"
         parts.append(
             f"# [truncated: showing the first {len(lines)} of {total} lines — "
             f"the full source is at {where}]"

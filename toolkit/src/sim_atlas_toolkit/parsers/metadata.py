@@ -20,7 +20,7 @@ from griffe import (
 
 from sim_atlas_toolkit.models import (
     Annotation,
-    ArtifactRequest,
+    NodeRequest,
 )
 
 
@@ -63,8 +63,8 @@ _SILENCE: PerStyleOptions = {
 
 def enrich_from_docstring(
     docstring: str,
-    metadata: ArtifactRequest,
-) -> ArtifactRequest:
+    metadata: NodeRequest,
+) -> NodeRequest:
     """Fill Annotation.description from a parsed docstring; existing values are not overwritten."""
     if not docstring:
         return metadata

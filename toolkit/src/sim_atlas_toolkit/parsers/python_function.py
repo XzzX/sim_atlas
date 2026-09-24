@@ -7,7 +7,7 @@ from typing import Any
 import httpx2
 
 from sim_atlas_toolkit import node_store_api
-from sim_atlas_toolkit.models import FunctionRequest
+from sim_atlas_toolkit.models import ArtifactType, NodeRequest
 from sim_atlas_toolkit.parsers.ai_enrichment import generate_docstring
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
@@ -22,7 +22,7 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
         return []
 
-    metadata = FunctionRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.FUNCTION)
 
     if inspect.isbuiltin(obj):
         source_code = f"{obj.__name__}{inspect.signature(obj)}"
@@ -33,7 +33,7 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     metadata.hash = hash
     metadata.id = hash
 
-    response = await node_store_api.read_artifact(settings.api_url, hash)
+    response = await node_store_api.read_node(settings.api_url, hash)
     if response.status_code == HTTPStatus.OK:
         return [response]
 
@@ -54,6 +54,6 @@ async def parse(settings: ToolkitSettings, obj: Any) -> list[httpx2.Response]:
     )
     enrich_from_docstring(metadata.docstring, metadata)
 
-    return await node_store_api.create_artifacts(
+    return await node_store_api.create_nodes(
         settings.api_url, settings.api_token, [metadata]
     )

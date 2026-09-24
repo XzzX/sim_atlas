@@ -55,3 +55,4 @@ A decision that affects multiple components lists all values, e.g. `scope: [back
 | [0018](0018-single-hybrid-search-endpoint.md) | Single auto-hybrid search endpoint with keyword fallback | accepted | backend |
 | [0019](0019-mcp-python-tool-surface.md) | MCP as an independent, Python-shaped interface for CLI coding agents | accepted | backend, toolkit |
 | [0020](0020-type-ahead-suggest-endpoint.md) | A separate, cheap type-ahead suggest endpoint | accepted | backend, frontend |
+| [0021](0021-merge-function-workflow-models.md) | Merge Function\*/Workflow\* artifact models into a single Node\* model | accepted | backend, toolkit, frontend, web-ide |

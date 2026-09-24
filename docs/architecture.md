@@ -58,7 +58,7 @@ flowchart TD
 
     subgraph SRV["Server"]
         B["FastAPI Backend<br/>· JWT auth for write endpoints<br/>· CRUD for nodes<br/>· Keyword & semantic search<br/>· On-demand AI enrichment endpoint<br/>· Read-only MCP tool surface<br/>· Serves frontend & web_ide SPAs"]
-        FS["FileSystemStorage<br/>· In-memory dict[id→StoredArtifact]<br/>· Persisted as artifacts.json<br/>· Embeddings: gzip+base64 numpy array"]
+        FS["FileSystemStorage<br/>· In-memory dict[id→NodeMetadata]<br/>· Persisted as artifacts.json<br/>· Embeddings: gzip+base64 numpy array"]
         subgraph AI["External AI Services"]
             V["VoyageAI<br/>voyage-code-3<br/>(embeddings)"]
             L["OpenAI-compatible LLM<br/>(configurable URL)<br/>(docstring refinement)"]
@@ -69,7 +69,7 @@ flowchart TD
     W["Web IDE  /ide<br/>· Drag-drop canvas<br/>· ReactFlow + dagre<br/>· Import/export<br/>  PythonWorkflowDefinition JSON"]
     C["CLI coding agent<br/>(Claude Code)<br/>· search_functions<br/>· find_by_signature<br/>· get_function<br/>· get_workflow_source"]
 
-    T -->|"POST /api/v1/artifacts  (JWT)"| B
+    T -->|"POST /api/v1/nodes  (JWT)"| B
     B --> FS
     B -->|"REST API"| F
     B -->|"REST API"| W
@@ -97,10 +97,10 @@ sequenceDiagram
     participant S as FileSystemStorage
 
     R->>T: upload(obj) / upload_modules(modules)
-    T->>T: inspect obj → parser picks FunctionRequest<br/>or WorkflowRequest, computes<br/>hash = SHA-256(source_code)
-    T->>B: GET /api/v1/artifacts/{hash}
-    alt artifact already exists
-        B-->>T: 200 OK (existing artifact)
+    T->>T: inspect obj → parser builds a NodeRequest<br/>(function or workflow), computes<br/>hash = SHA-256(source_code)
+    T->>B: GET /api/v1/nodes/{hash}
+    alt node already exists
+        B-->>T: 200 OK (existing node)
         Note over T: most parsers stop here,<br/>skipping LLM + upload
     else not found
         B-->>T: 404 Not Found
@@ -108,20 +108,20 @@ sequenceDiagram
             T->>L: generate/refine docstring from source (+ dataflow graph for workflows)
             L-->>T: docstring
         end
-        T->>B: POST /api/v1/artifacts (x-api-key: JWT)
+        T->>B: POST /api/v1/nodes (x-api-key: JWT)
         B->>B: validate JWT → extract creator
-        B->>B: compose_artifact: id = request.id or<br/>SHA-256(source_code)
-        B->>S: create_artifact(StoredArtifact)
+        B->>B: compose_node: id = request.id or<br/>SHA-256(source_code)
+        B->>S: create_node(NodeMetadata)
         alt id already exists
-            S-->>B: raise ArtifactAlreadyExistsError
-            B-->>T: 409 Conflict (existing artifact)
+            S-->>B: raise NodeAlreadyExistsError
+            B-->>T: 409 Conflict (existing node)
         else hash already exists (different id)
-            S-->>B: raise ArtifactDuplicateError
-            B-->>T: 409 Conflict (existing artifact)
-        else new artifact
+            S-->>B: raise NodeDuplicateError
+            B-->>T: 409 Conflict (existing node)
+        else new node
             S->>S: update in-memory dict
             S->>S: flush to artifacts.json
-            B-->>T: 201 Created (ArtifactResponse)
+            B-->>T: 201 Created (NodeResponse)
         end
     end
 ```

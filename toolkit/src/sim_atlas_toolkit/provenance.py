@@ -20,7 +20,7 @@ from typing import Any, NamedTuple, cast
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
-from sim_atlas_toolkit.models import ArtifactRequest, PackageRef
+from sim_atlas_toolkit.models import NodeRequest, PackageRef
 
 logger = logging.getLogger(__name__)
 
@@ -363,7 +363,7 @@ def _first_author(core: dict[str, Any]) -> tuple[str | None, str | None]:
     return name, email
 
 
-def _fill_from_distribution(metadata: ArtifactRequest, dist_name: str) -> None:
+def _fill_from_distribution(metadata: NodeRequest, dist_name: str) -> None:
     if requires := importlib.metadata.requires(dist_name):
         metadata.dependencies = requires
 
@@ -397,7 +397,7 @@ def _fill_from_distribution(metadata: ArtifactRequest, dist_name: str) -> None:
         metadata.homepage_url = home_page
 
 
-def apply_provenance(metadata: ArtifactRequest, module_name: str | None) -> None:
+def apply_provenance(metadata: NodeRequest, module_name: str | None) -> None:
     """Populate ``packages`` plus author/URL/dependency metadata on a request.
 
     Call this from a parser once the module of origin is known. Never raises.

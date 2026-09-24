@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { simAtlasAPI } from "../services/api";
-import type { ArtifactResponse } from "../types/index";
+import type { NodeResponse } from "../types/index";
 import { NodeDetailPage } from "../components/node-detail";
 import { Alert } from "@/components/ui/alert";
 import { Toaster } from "@/components/ui/sonner";
 
 export const NodePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [node, setNode] = useState<ArtifactResponse | null>(null);
+  const [node, setNode] = useState<NodeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

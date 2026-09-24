@@ -82,6 +82,7 @@ jobs:
 
       - name: Install dependencies (Lowest vs Highest)
         run: |
+          echo $(pwd)
           if [ "${{ matrix.resolution }}" = "lowest" ]; then
             uv pip install . --resolution lowest --all-extras
           else

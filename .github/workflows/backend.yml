@@ -85,9 +85,14 @@ jobs:
           echo $(pwd)
           ls -alh $(pwd)
           if [ "${{ matrix.resolution }}" = "lowest" ]; then
-            uv pip install . --resolution lowest --all-extras
+            # 1. Regenerate uv.lock using lowest direct dependency bounds
+            uv lock --resolution lowest-direct
+            # 2. Sync the environment based on that minimized lockfile
+            uv sync --all-extras
           else
-            uv pip install . --all-extras
+            # For highest, refresh the lock to latest PyPI versions, then sync
+            uv lock --upgrade
+            uv sync --all-extras
           fi
         working-directory: ./backend
 

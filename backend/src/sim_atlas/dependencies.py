@@ -1,4 +1,4 @@
-from sim_atlas.storage_interface import StorageInterface
+from sim_atlas.storage.storage_interface import StorageInterface
 
 
 class _StorageHolder:

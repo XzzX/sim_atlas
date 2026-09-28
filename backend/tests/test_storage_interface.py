@@ -46,7 +46,7 @@ from sim_atlas.models import (
     WfInputNode,
     WfOutputNode,
 )
-from sim_atlas.storage_interface import (
+from sim_atlas.storage.storage_interface import (
     NodeAlreadyExistsError,
     NodeDuplicateError,
     StorageInterface,

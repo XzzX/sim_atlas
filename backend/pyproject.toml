@@ -1,7 +1,7 @@
 [project]
 name = "sim-atlas"
 version = "0.0.16"
-description = "Search and discovery platform for simulation nodes — Python functions, workflow definitions, and pyiron nodes used in scientific computing."
+description = "Search and discovery platform for simulation nodes — Python functions and workflow definitions used in scientific computing."
 authors = [
   { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},
 ]
@@ -34,14 +34,10 @@ dependencies = [
     "openai>=2.8.1",
     "pydantic-settings[toml]>=2.13.1",
     "pyjwt>=2.12.1",
-    "python-workflow-definition>=0.1.2",
     "fastembed>=0.4",
     "tqdm>=4.67.3",
     "voyageai>=0.3.7",
 ]
-
-[project.optional-dependencies]
-langfuse = ["langfuse>=4.6.1"]
 
 [dependency-groups]
 dev = [

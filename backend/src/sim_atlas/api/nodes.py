@@ -12,7 +12,7 @@ from sim_atlas.models import (
     NodeResponse,
 )
 from sim_atlas.security import Creator, get_current_user
-from sim_atlas.storage_interface import (
+from sim_atlas.storage.storage_interface import (
     NodeAlreadyExistsError,
     NodeDuplicateError,
     StorageInterface,

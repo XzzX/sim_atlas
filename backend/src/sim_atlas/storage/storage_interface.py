@@ -210,7 +210,7 @@ def get_storage_backend() -> StorageInterface:
         ValueError: If the configured backend is not supported
     """
 
-    from sim_atlas.file_system_storage import FileSystemStorage  # noqa: PLC0415
     from sim_atlas.settings import load_settings  # noqa: PLC0415
+    from sim_atlas.storage.file_system_storage import FileSystemStorage  # noqa: PLC0415
 
     return FileSystemStorage(path=load_settings().config_dir)

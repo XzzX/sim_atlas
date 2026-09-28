@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
@@ -10,10 +9,8 @@ from pathlib import Path
 
 import numpy as np
 from pydantic import BaseModel
-from tqdm.asyncio import tqdm as atqdm
 
 from sim_atlas import keyword_search
-from sim_atlas.ai import enrich_node_metadata
 from sim_atlas.embedding import create_embedding
 from sim_atlas.models import (
     AnnotationResponse,
@@ -32,7 +29,7 @@ from sim_atlas.models import (
 )
 from sim_atlas.node_text import short_description
 from sim_atlas.settings import load_settings
-from sim_atlas.storage_interface import (
+from sim_atlas.storage.storage_interface import (
     ExecutionResultAlreadyExistsError,
     ExecutionResultDuplicateError,
     NodeAlreadyExistsError,
@@ -662,27 +659,11 @@ class FileSystemStorage(StorageInterface):
         return [r for r in self._execution_results.values() if r.artifact_id == node_id]
 
     async def enrich(self, only_ids: list[str] | None = None) -> None:
-        sem = asyncio.Semaphore(load_settings().llm_concurrency)
         nodes_to_enrich = (
             [node for node in self._nodes.values() if node.id in only_ids]
             if only_ids
             else [node for node in self._nodes.values() if node.embedding is None]
         )
-
-        async def _enrich_one(v: NodeMetadata) -> None:
-            async with sem:
-                try:
-                    await enrich_node_metadata(v, self)
-                except Exception:
-                    logger.exception("Failed to enrich node %s", v.id)
-
-        await atqdm.gather(  # pyright: ignore[reportUnknownMemberType]
-            *[_enrich_one(v) for v in nodes_to_enrich],
-            desc="generating ai descriptions",
-            total=len(nodes_to_enrich),
-        )
-        self._save_nodes_to_disk()
-
         nodes_to_embed = [node for node in nodes_to_enrich if node.description]
         documents = [self._embedding_text(node) for node in nodes_to_embed]
         if not documents:

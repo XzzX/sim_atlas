@@ -10,7 +10,7 @@ from sim_atlas.models import (
     Suggestion,
     SuggestRequest,
 )
-from sim_atlas.storage_interface import StorageInterface
+from sim_atlas.storage.storage_interface import StorageInterface
 
 router = APIRouter()
 

@@ -10,8 +10,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-import sim_atlas.file_system_storage as fss
-from sim_atlas.file_system_storage import FileSystemStorage
+import sim_atlas.storage.file_system_storage as fss
 from sim_atlas.models import (
     AnnotationRequest,
     AnnotationResponse,
@@ -25,6 +24,7 @@ from sim_atlas.models import (
     WfEdge,
     WfFunctionNode,
 )
+from sim_atlas.storage.file_system_storage import FileSystemStorage
 
 from .test_storage_interface import StorageContractTests, make_node, make_workflow
 

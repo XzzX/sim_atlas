@@ -270,51 +270,6 @@ class SuggestRequest(BaseModel):
     limit: int = Field(default=10, ge=1, le=25)
 
 
-# --- Agent models ---
-
-
-class GraphNodeContext(BaseModel):
-    """Compact representation of a node already placed in the graph."""
-
-    graph_id: str
-    node_kind: Literal["function", "input", "output"]
-    atlas_node_id: str | None = None  # None for InputNode / OutputNode
-    name: str
-    short_description: str | None = None
-    inputs: list[AnnotationResponse]
-    outputs: list[AnnotationResponse]
-
-
-class GraphEdgeContext(BaseModel):
-    source_graph_id: str
-    source_handle: str
-    target_graph_id: str
-    target_handle: str
-
-
-class HistoryMessage(BaseModel):
-    role: Literal["user", "assistant"]
-    content: str
-
-
-class AgentRequest(BaseModel):
-    query: str
-    nodes: list[GraphNodeContext]
-    edges: list[GraphEdgeContext]
-    history: list[HistoryMessage] = []
-    session_id: str | None = None
-    user_id: str = "default"
-    # Caller-supplied API key; overrides the server configuration for this request
-    # only and is never stored. The base URL and model stay server-side.
-    llm_api_key: str | None = None
-
-
-class AgentResponse(BaseModel):
-    nodes: list[GraphNodeContext]
-    edges: list[GraphEdgeContext]
-    message: str
-
-
 class IOValue(BaseModel):
     label: str
     value: str | int | float | bool

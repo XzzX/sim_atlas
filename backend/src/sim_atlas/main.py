@@ -8,7 +8,7 @@ from sim_atlas.dependencies import set_storage
 from sim_atlas.exceptions import AINotConfiguredError
 from sim_atlas.mcp_server import mcp, mcp_app
 from sim_atlas.static_files import mount_spas
-from sim_atlas.storage_interface import get_storage_backend
+from sim_atlas.storage.storage_interface import get_storage_backend
 
 # `mcp` is re-exported here (in addition to `app`) because tests import it from
 # `sim_atlas.main`; `__all__` marks it as an intentional re-export.

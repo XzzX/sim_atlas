@@ -18,6 +18,7 @@ from sim_atlas.models import (
     ExecutionResultMetadata,
     Filter,
     IOValue,
+    NodeMetadata,
     Reference,
     ScoredSearchResponse,
     WfDefinition,
@@ -422,7 +423,7 @@ def test_fill_connections_populates_workflow_ports() -> None:
 def test_suggest_does_not_enrich_or_touch_the_graph(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """suggest must not go through _used_by/_fill_connections at all.
+    """suggest must not go through the used_by/connections hydration at all.
 
     This is the regression guard against someone "simplifying" suggest into a
     call to search: those enrichment steps are O(N·(V+E)) per port and are
@@ -432,8 +433,7 @@ def test_suggest_does_not_enrich_or_touch_the_graph(
     def _boom(*_args: Any, **_kwargs: Any) -> None:
         raise AssertionError("suggest must not call this")
 
-    monkeypatch.setattr(FileSystemStorage, "_used_by", _boom)
-    monkeypatch.setattr(FileSystemStorage, "_fill_connections", _boom)
+    monkeypatch.setattr(FileSystemStorage, "_hydrate", _boom)
 
     storage = FileSystemStorage(path=None)
     storage.create_node(make_node(name="get_temperature", source_code="def a(): pass"))
@@ -443,13 +443,7 @@ def test_suggest_does_not_enrich_or_touch_the_graph(
 
 
 def test_suggest_does_not_mutate_stored_nodes() -> None:
-    """suggest must not stamp used_by/connections onto the stored objects.
-
-    ScoredSearchItem.node aliases the same object as the one held in storage,
-    which is why the search paths' enrichment loops mutate stored state.
-    suggest reads fields and builds a fresh Suggestion, so the stored node
-    must come back untouched.
-    """
+    """suggest must not stamp used_by/connections onto the stored objects."""
     storage = FileSystemStorage(path=None)
     fn = make_node(
         name="get_temperature",
@@ -471,6 +465,131 @@ def test_suggest_does_not_mutate_stored_nodes() -> None:
     assert stored.artifact_type == ArtifactType.FUNCTION
     assert stored.used_by is None
     assert stored.inputs[0].connections is None
+
+
+def _wired_catalog(
+    storage: FileSystemStorage,
+) -> tuple[NodeMetadata, NodeMetadata, NodeMetadata]:
+    """Store fn_a -> fn_b wired inside a workflow; return (fn_a, fn_b, wf)."""
+    fn_a = make_node(
+        name="fn_a",
+        source_code="def fn_a(): pass",
+        outputs=[AnnotationResponse(label="out")],
+    )
+    fn_b = make_node(
+        name="fn_b",
+        source_code="def fn_b(): pass",
+        inputs=[AnnotationResponse(label="in")],
+    )
+    wf = make_workflow(
+        name="wf",
+        uses=[
+            Reference(label="fn_a", id=fn_a.id, count=1),
+            Reference(label="fn_b", id=fn_b.id, count=1),
+        ],
+        wf_definition=WfDefinition(
+            nodes=[
+                WfFunctionNode(
+                    node_id="a1",
+                    atlas_id=fn_a.id,
+                    inputs=[],
+                    outputs=[AnnotationRequest(label="out")],
+                ),
+                WfFunctionNode(
+                    node_id="b1",
+                    atlas_id=fn_b.id,
+                    inputs=[AnnotationRequest(label="in")],
+                    outputs=[],
+                ),
+            ],
+            edges=[
+                WfEdge(
+                    source_node="a1",
+                    source_port="out",
+                    target_node="b1",
+                    target_port="in",
+                )
+            ],
+        ),
+    )
+    for node in (fn_a, fn_b, wf):
+        storage.create_node(node)
+    return fn_a, fn_b, wf
+
+
+def _assert_no_derived_fields(storage: FileSystemStorage) -> None:
+    for item in storage.filter(Filter()):
+        assert item.node.used_by is None
+        for port in item.node.inputs + item.node.outputs:
+            assert port.connections is None
+
+
+def test_read_paths_do_not_mutate_stored_nodes() -> None:
+    """read_node and search hand out hydrated copies; stored nodes stay bare."""
+    storage = FileSystemStorage(path=None)
+    fn_a, fn_b, _ = _wired_catalog(storage)
+
+    assert storage.read_node(fn_a.id).used_by is not None
+    hits = storage.search("fn_b").results.data
+    assert any(i.node.id == fn_b.id and i.node.used_by for i in hits)
+
+    _assert_no_derived_fields(storage)
+
+
+def test_read_node_returns_an_independent_copy() -> None:
+    """Mutating one read's result must not leak into the next read."""
+    storage = FileSystemStorage(path=None)
+    fn_a, fn_b, _ = _wired_catalog(storage)
+
+    first = storage.read_node(fn_a.id)
+    first.used_by = None
+    first.outputs[0].connections = None
+
+    second = storage.read_node(fn_a.id)
+    assert second is not first
+    assert second.used_by is not None
+    connections = second.outputs[0].connections
+    assert connections is not None
+    assert [c.id for c in connections] == [fn_b.id]
+
+
+def test_derived_fields_are_not_persisted(tmp_path: Path) -> None:
+    """Reads followed by a write never put used_by/connections on disk."""
+    storage = FileSystemStorage(path=tmp_path)
+    fn_a, _, _ = _wired_catalog(storage)
+    storage.read_node(fn_a.id)
+    storage.search("fn")
+    storage.create_node(make_node(name="later", source_code="def later(): pass"))
+
+    data = json.loads((tmp_path / FileSystemStorage.NODES_FILENAME).read_text())
+    for node in data.values():
+        assert node["used_by"] is None
+        for port in node["inputs"] + node["outputs"]:
+            assert port["connections"] is None
+
+
+def test_stale_derived_fields_on_disk_are_dropped_on_load(tmp_path: Path) -> None:
+    """Files written before the fix may carry used_by; it must not be trusted."""
+    storage = FileSystemStorage(path=tmp_path)
+    fn = make_node(
+        name="orphan",
+        source_code="def orphan(): pass",
+        inputs=[AnnotationResponse(label="x")],
+    )
+    storage.create_node(fn)
+
+    nodes_file = tmp_path / FileSystemStorage.NODES_FILENAME
+    data = json.loads(nodes_file.read_text())
+    stale = {"label": "gone_wf", "id": "gone", "count": 1}
+    data[fn.id]["used_by"] = [stale]
+    data[fn.id]["inputs"][0]["connections"] = [stale]
+    nodes_file.write_text(json.dumps(data))
+
+    reloaded = FileSystemStorage(path=tmp_path)
+    _assert_no_derived_fields(reloaded)
+    node = reloaded.read_node(fn.id)
+    assert node.used_by is None
+    assert node.inputs[0].connections is None
 
 
 # ---------------------------------------------------------------------------
@@ -813,7 +932,7 @@ def test_search_semantic_populates_used_by_and_connections(
 def test_search_semantic_does_not_return_stale_used_by(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Search results alias the stored nodes, so derived fields must be refreshed."""
+    """Derived fields reflect the catalog at read time, not an earlier read."""
     storage = FileSystemStorage(path=None)
     fn = make_node(
         name="child_fn",
@@ -826,7 +945,6 @@ def test_search_semantic_does_not_return_stale_used_by(
     )
     storage.create_node(wf)
 
-    # stamps used_by onto the stored node
     storage.search("child_fn")
     storage.delete_node(wf.id)
 

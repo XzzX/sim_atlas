@@ -133,31 +133,29 @@ sequenceDiagram
     actor U as User
     participant F as React Frontend
     participant B as Backend (FastAPI)
-    participant S as FileSystemStorage
+    participant C as Catalog
+    participant S as StorageInterface
     participant E as Embedding Provider<br/>(fastembed local, or<br/>OpenAI/VoyageAI API)
 
     U->>F: enter query + set facet filters
     F->>B: POST /api/v1/search {query, filter, semantic, page, limit}
     alt semantic == false
-        B->>S: search(): apply NodeFilter → keyword score
-        Note right of S: score 1.0 if query in name+python_import<br/>score 0.8 if query in brief_description<br/>score 0.5 if query in docstring
-        S-->>B: sorted, paginated SearchResults
+        B->>C: search()
+        C->>S: nodes()
+        C->>C: apply NodeFilter → BM25 keyword rank
+        C-->>B: sorted, paginated, hydrated SearchResults
     else semantic (default) → search_hybrid()
         alt no query, or embeddings_enabled == false
-            B->>S: fall back to search() (keyword-only, same scoring as above)
-            S-->>B: sorted, paginated SearchResults
-        else query tokenizes to nothing ≥3 chars
-            B->>E: create_embedding(query, input_type="query")
-            E-->>B: query vector
-            B->>S: search_semantic(): apply NodeFilter → cosine similarity only
-            S-->>B: sorted, paginated SearchResults
+            B->>C: fall back to search() (keyword-only, as above)
+            C-->>B: sorted, paginated, hydrated SearchResults
         else
-            B->>E: create_embedding(query, input_type="query")
-            E-->>B: query vector
-            B->>S: apply NodeFilter once, then rank two ways
-            Note right of S: semantic rank: cosine similarity<br/>(nodes with an embedding only)<br/>keyword rank: token hit-count<br/>(tokens ≥3 chars, all filtered nodes)
-            S->>S: RRF merge: score = 1/(60+sem_rank) + 1/(60+kw_rank)<br/>(0 for a side a node is absent from)
-            S-->>B: sorted, paginated SearchResults
+            C->>E: create_embedding(query, input_type="query")
+            E-->>C: query vector
+            C->>S: nodes()
+            C->>C: apply NodeFilter once, then rank two ways
+            Note right of C: semantic rank: cosine similarity<br/>(nodes with an embedding only)<br/>keyword rank: BM25<br/>(all filtered nodes)
+            C->>C: RRF merge: score = 1/(60+sem_rank) + 1/(60+kw_rank)<br/>(0 for a side a node is absent from)
+            C-->>B: sorted, paginated, hydrated SearchResults
         end
     end
     B-->>F: ScoredSearchResponse (ScoredSearchItem[])

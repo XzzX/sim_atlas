@@ -7,9 +7,6 @@ To add contract tests for a new implementation, create a subclass of
 does not collect it directly) and override the ``storage`` fixture to yield a
 freshly connected, empty instance of the implementation under test.
 
-To enable the semantic search tests override ``semantic_search_mock`` fixture in
-the subclass and apply the appropriate monkeypatch for the embedding backend.
-
 Example::
 
     class TestMyStorage(StorageContractTests):
@@ -19,10 +16,6 @@ Example::
             s.connect()
             yield s
             s.close()
-
-        @pytest.fixture
-        def semantic_search_mock(self, monkeypatch):
-            monkeypatch.setattr("mymodule.create_embedding", lambda q: [0.0])
 """
 
 from __future__ import annotations
@@ -37,10 +30,7 @@ from sim_atlas.models import (
     AnnotationRequest,
     AnnotationResponse,
     ArtifactType,
-    Filter,
-    FilterOptions,
     NodeMetadata,
-    ScoredSearchResponse,
     WfDefinition,
     WfEdge,
     WfInputNode,
@@ -232,379 +222,33 @@ class StorageContractTests:
         with pytest.raises(NodeAlreadyExistsError):
             storage.create_node(make_node(id=fixed_id))  # same id
 
-    # -----------------------------------------------------------------------
-    # get_filter_options
-    # -----------------------------------------------------------------------
-
-    def test_get_filter_options_on_empty_storage_returns_empty(
+    def test_nodes_returns_every_stored_node_in_insertion_order(
         self, storage: StorageInterface
     ) -> None:
-        options = storage.get_filter_options()
-        assert isinstance(options, FilterOptions)
-        assert options.artifact_type == []
-        assert options.author == []
-        assert options.keywords == []
-        assert options.datatypes == []
-        assert options.units == []
-        assert options.quantities == []
+        first = storage.create_node(make_node(source_code="def a(): pass"))
+        second = storage.create_node(make_workflow())
+        assert [n.id for n in storage.nodes()] == [first.id, second.id]
 
-    def test_get_filter_options_includes_node_type(
+    def test_update_nodes_replaces_each_node_by_id(
         self, storage: StorageInterface
     ) -> None:
-        storage.create_node(make_node())
-        options = storage.get_filter_options()
-        assert ArtifactType.FUNCTION in options.artifact_type
+        a = storage.create_node(make_node(name="a", source_code="def a(): pass"))
+        b = storage.create_node(make_node(name="b", source_code="def b(): pass"))
+        storage.update_nodes(
+            [a.model_copy(update={"name": "a2"}), b.model_copy(update={"name": "b2"})]
+        )
+        assert storage.read_node(a.id).name == "a2"
+        assert storage.read_node(b.id).name == "b2"
 
-    def test_get_filter_options_includes_author(
+    def test_update_nodes_with_a_missing_node_writes_nothing(
         self, storage: StorageInterface
     ) -> None:
-        storage.create_node(make_node(author_name="Alice"))
-        options = storage.get_filter_options()
-        assert "Alice" in options.author
-
-    def test_get_filter_options_includes_keywords(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(make_node(keywords=["energy", "force"]))
-        options = storage.get_filter_options()
-        assert "energy" in options.keywords
-        assert "force" in options.keywords
-
-    def test_get_filter_options_includes_category(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(make_node(category="physics>mechanics"))
-        options = storage.get_filter_options()
-        assert "physics" in options.category
-
-    def test_get_filter_options_includes_input_datatypes(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(make_node(inputs=[AnnotationResponse(datatype="float")]))
-        options = storage.get_filter_options()
-        assert "float" in options.datatypes
-
-    def test_get_filter_options_includes_output_datatypes(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(make_node(outputs=[AnnotationResponse(datatype="int")]))
-        options = storage.get_filter_options()
-        assert "int" in options.datatypes
-
-    def test_get_filter_options_includes_units(self, storage: StorageInterface) -> None:
-        storage.create_node(make_node(inputs=[AnnotationResponse(unit="m/s")]))
-        options = storage.get_filter_options()
-        assert "m/s" in options.units
-
-    def test_get_filter_options_includes_quantities(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(make_node(inputs=[AnnotationResponse(quantity="velocity")]))
-        options = storage.get_filter_options()
-        assert "velocity" in options.quantities
-
-    def test_get_filter_options_merges_multiple_nodes(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                author_name="Alice",
-                source_code="def alice(): pass",
+        a = storage.create_node(make_node(name="a", source_code="def a(): pass"))
+        with pytest.raises(KeyError):
+            storage.update_nodes(
+                [a.model_copy(update={"name": "a2"}), make_node(id="missing")]
             )
-        )
-        storage.create_node(
-            make_node(
-                author_name="Bob",
-                source_code="def bob(): pass",
-            )
-        )
-        options = storage.get_filter_options()
-        assert "Alice" in options.author
-        assert "Bob" in options.author
-        assert ArtifactType.FUNCTION in options.artifact_type
-
-    # -----------------------------------------------------------------------
-    # search
-    # -----------------------------------------------------------------------
-
-    def test_search_empty_storage_returns_empty_response(
-        self, storage: StorageInterface
-    ) -> None:
-        result = storage.search(None)
-        assert isinstance(result, ScoredSearchResponse)
-        assert result.results.total_items == 0
-        assert result.results.data == []
-
-    def test_search_no_query_returns_all_nodes(self, storage: StorageInterface) -> None:
-        storage.create_node(make_node(name="a", source_code="def a(): pass"))
-        storage.create_node(make_node(name="b", source_code="def b(): pass"))
-        result = storage.search(None)
-        assert result.results.total_items == 2  # noqa: PLR2004
-
-    def test_search_result_has_correct_structure(
-        self, storage: StorageInterface
-    ) -> None:
-        page_limit = 10
-        storage.create_node(make_node(name="a"))
-        result = storage.search(None, limit=page_limit)
-        assert result.results.page == 1
-        assert result.results.limit == page_limit
-        assert len(result.results.data) == 1
-        item = result.results.data[0]
-        assert item.score >= 0.0
-        assert item.node.name == "a"
-
-    def test_search_with_query_finds_matching_nodes(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                python_import="mypackage.mymodule", source_code="def match(): pass"
-            )
-        )
-        storage.create_node(
-            make_node(
-                python_import="other.stuff",
-                docstring="xyz",
-                source_code="def other(): pass",
-            )
-        )
-        result = storage.search("mypackage")
-        imports = [
-            item.node.python_import
-            for item in result.results.data
-            if item.node.artifact_type == ArtifactType.FUNCTION
-        ]
-        assert "mypackage.mymodule" in imports
-
-    def test_search_filter_by_category(self, storage: StorageInterface) -> None:
-        storage.create_node(
-            make_node(
-                name="physics_node",
-                category="physics",
-                source_code="def physics(): pass",
-            )
-        )
-        storage.create_node(
-            make_node(name="math_node", category="math", source_code="def math(): pass")
-        )
-        result = storage.search(None, Filter(category="physics"))
-        assert result.results.total_items == 1
-        assert result.results.data[0].node.category == "physics"
-
-    def test_search_filter_by_type(self, storage: StorageInterface) -> None:
-        storage.create_node(make_node(source_code="def func(): pass"))
-        result = storage.search(None, Filter(artifact_type=[ArtifactType.FUNCTION]))
-        assert result.results.total_items == 1
-        assert result.results.data[0].node.artifact_type == ArtifactType.FUNCTION
-
-    def test_search_filter_by_author(self, storage: StorageInterface) -> None:
-        storage.create_node(
-            make_node(author_name="Alice", source_code="def alice(): pass")
-        )
-        storage.create_node(make_node(author_name="Bob", source_code="def bob(): pass"))
-        result = storage.search(None, Filter(author=["Alice"]))
-        assert result.results.total_items == 1
-        assert result.results.data[0].node.author_name == "Alice"
-
-    def test_search_filter_by_keywords(self, storage: StorageInterface) -> None:
-        storage.create_node(
-            make_node(keywords=["simulation", "physics"], source_code="def a(): pass")
-        )
-        storage.create_node(
-            make_node(keywords=["chemistry"], source_code="def b(): pass")
-        )
-        result = storage.search(None, Filter(keywords=["physics"]))
-        assert result.results.total_items == 1
-
-    def test_search_pagination_splits_results(self, storage: StorageInterface) -> None:
-        limit_per_page = 2
-        total_items = 5
-        for i in range(total_items):
-            storage.create_node(
-                make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass")
-            )
-        page1 = storage.search(None, page=1, limit=limit_per_page)
-        page2 = storage.search(None, page=2, limit=limit_per_page)
-        assert len(page1.results.data) == limit_per_page
-        assert len(page2.results.data) == limit_per_page
-        assert page1.results.total_items == total_items
-        assert page1.results.total_pages == 3  # noqa: PLR2004
-        assert page1.results.page == 1
-        assert page2.results.page == 2  # noqa: PLR2004
-
-    def test_search_pagination_last_page_is_partial(
-        self, storage: StorageInterface
-    ) -> None:
-        for i in range(5):
-            storage.create_node(
-                make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass")
-            )
-        last_page = storage.search(None, page=3, limit=2)
-        assert len(last_page.results.data) == 1
-
-    def test_search_pagination_beyond_last_page_returns_empty(
-        self, storage: StorageInterface
-    ) -> None:
-        for i in range(3):
-            storage.create_node(
-                make_node(name=f"node_{i}", source_code=f"def node_{i}(): pass")
-            )
-        beyond = storage.search(None, page=10, limit=5)
-        assert len(beyond.results.data) == 0
-        assert beyond.results.total_items == 3  # noqa: PLR2004
-
-    def test_search_filter_port_type_inputs_matches_input_datatype(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                name="input_float",
-                inputs=[AnnotationResponse(datatype="float")],
-                outputs=[AnnotationResponse(datatype="int")],
-                source_code="def a(): pass",
-            )
-        )
-        storage.create_node(
-            make_node(
-                name="output_float",
-                inputs=[AnnotationResponse(datatype="int")],
-                outputs=[AnnotationResponse(datatype="float")],
-                source_code="def b(): pass",
-            )
-        )
-        result = storage.search(None, Filter(datatypes=["float"], port_type="inputs"))
-        assert result.results.total_items == 1
-        assert result.results.data[0].node.name == "input_float"
-
-    def test_search_filter_port_type_outputs_matches_output_datatype(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                name="input_float",
-                inputs=[AnnotationResponse(datatype="float")],
-                outputs=[AnnotationResponse(datatype="int")],
-                source_code="def a(): pass",
-            )
-        )
-        storage.create_node(
-            make_node(
-                name="output_float",
-                inputs=[AnnotationResponse(datatype="int")],
-                outputs=[AnnotationResponse(datatype="float")],
-                source_code="def b(): pass",
-            )
-        )
-        result = storage.search(None, Filter(datatypes=["float"], port_type="outputs"))
-        assert result.results.total_items == 1
-        assert result.results.data[0].node.name == "output_float"
-
-    def test_search_filter_port_type_both_matches_either(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                name="input_float",
-                inputs=[AnnotationResponse(datatype="float")],
-                outputs=[AnnotationResponse(datatype="int")],
-                source_code="def a(): pass",
-            )
-        )
-        storage.create_node(
-            make_node(
-                name="output_float",
-                inputs=[AnnotationResponse(datatype="int")],
-                outputs=[AnnotationResponse(datatype="float")],
-                source_code="def b(): pass",
-            )
-        )
-        result = storage.search(None, Filter(datatypes=["float"], port_type="both"))
-        assert result.results.total_items == 2  # noqa: PLR2004
-
-    # --- Option A: union decomposition in filter options ---
-
-    def test_get_filter_options_decomposes_union_datatypes(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                inputs=[AnnotationResponse(datatype="int | float")],
-                source_code="def a(): pass",
-            )
-        )
-        options = storage.get_filter_options()
-        assert "int" in options.datatypes
-        assert "float" in options.datatypes
-        assert "int | float" not in options.datatypes
-
-    def test_get_filter_options_keeps_generic_whole(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                inputs=[AnnotationResponse(datatype="list[int]")],
-                source_code="def a(): pass",
-            )
-        )
-        options = storage.get_filter_options()
-        assert "list[int]" in options.datatypes
-
-    # --- Option C: structural matching in search filter ---
-
-    def test_search_filter_union_member_matches_union_port(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                name="union_node",
-                inputs=[AnnotationResponse(datatype="int | float")],
-                source_code="def a(): pass",
-            )
-        )
-        result = storage.search(None, Filter(datatypes=["int"]))
-        assert result.results.total_items == 1
-        assert result.results.data[0].node.name == "union_node"
-
-    def test_search_filter_bare_generic_matches_parameterised(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                name="list_node",
-                inputs=[AnnotationResponse(datatype="list[int]")],
-                source_code="def a(): pass",
-            )
-        )
-        result = storage.search(None, Filter(datatypes=["list"]))
-        assert result.results.total_items == 1
-        assert result.results.data[0].node.name == "list_node"
-
-    def test_search_filter_parameterised_no_match_different_arg(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                inputs=[AnnotationResponse(datatype="list[float]")],
-                source_code="def a(): pass",
-            )
-        )
-        result = storage.search(None, Filter(datatypes=["list[int]"]))
-        assert result.results.total_items == 0
-
-    def test_search_filter_exact_match_regression(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                name="float_node",
-                inputs=[AnnotationResponse(datatype="float")],
-                source_code="def a(): pass",
-            )
-        )
-        result = storage.search(None, Filter(datatypes=["float"]))
-        assert result.results.total_items == 1
-        assert result.results.data[0].node.name == "float_node"
+        assert storage.read_node(a.id).name == "a"
 
     # --- hash duplicate detection ---
 
@@ -632,140 +276,6 @@ class StorageContractTests:
         assert storage.count() == 2  # noqa: PLR2004
 
     # -----------------------------------------------------------------------
-    # suggest: cheap type-ahead lookup
-    # -----------------------------------------------------------------------
-
-    def test_suggest_matches_a_name_prefix(self, storage: StorageInterface) -> None:
-        storage.create_node(
-            make_node(name="calculate_energy", source_code="def a(): pass")
-        )
-        results = storage.suggest("calc")
-        assert [s.name for s in results] == ["calculate_energy"]
-
-    def test_suggest_matches_a_partial_word_inside_the_name(
-        self, storage: StorageInterface
-    ) -> None:
-        """The reported regression: 'temp' must already find 'get_temperature'."""
-        storage.create_node(
-            make_node(name="get_temperature", source_code="def a(): pass")
-        )
-        results = storage.suggest("temp")
-        assert [s.name for s in results] == ["get_temperature"]
-
-    def test_suggest_matches_the_python_import(self, storage: StorageInterface) -> None:
-        storage.create_node(
-            make_node(
-                name="unrelated_name",
-                python_import="ase.md.get_temperature",
-                source_code="def a(): pass",
-            )
-        )
-        results = storage.suggest("get_temperature")
-        assert [s.name for s in results] == ["unrelated_name"]
-
-    def test_suggest_is_case_insensitive(self, storage: StorageInterface) -> None:
-        storage.create_node(
-            make_node(name="calculate_energy", source_code="def a(): pass")
-        )
-        results = storage.suggest("CALC")
-        assert [s.name for s in results] == ["calculate_energy"]
-
-    def test_suggest_returns_the_node_id(self, storage: StorageInterface) -> None:
-        created = storage.create_node(
-            make_node(name="calculate_energy", source_code="def a(): pass")
-        )
-        results = storage.suggest("calc")
-        assert results[0].id == created.id
-
-    def test_suggest_ranks_a_name_prefix_above_a_name_substring(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(make_node(name="attempt_calc", source_code="def a(): pass"))
-        storage.create_node(
-            make_node(name="calculate_energy", source_code="def b(): pass")
-        )
-        results = storage.suggest("calc")
-        assert [s.name for s in results] == ["calculate_energy", "attempt_calc"]
-
-    def test_suggest_ranks_name_matches_above_import_matches(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                name="unrelated_name",
-                python_import="lib.calculate_energy",
-                source_code="def a(): pass",
-            )
-        )
-        storage.create_node(
-            make_node(name="calculate_energy", source_code="def b(): pass")
-        )
-        results = storage.suggest("calc")
-        assert [s.name for s in results] == ["calculate_energy", "unrelated_name"]
-
-    def test_suggest_ignores_docstrings_and_descriptions(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(
-                name="unrelated_name",
-                python_import="lib.unrelated",
-                docstring="Computes the calculation of interest.",
-                brief_description="A calculation helper.",
-                source_code="def a(): pass",
-            )
-        )
-        assert storage.suggest("calc") == []
-
-    def test_suggest_honours_limit(self, storage: StorageInterface) -> None:
-        for i in range(5):
-            storage.create_node(
-                make_node(name=f"calc_{i}", source_code=f"def f{i}(): pass")
-            )
-        results = storage.suggest("calc", limit=2)
-        assert len(results) == 2  # noqa: PLR2004
-
-    def test_suggest_honours_filter(self, storage: StorageInterface) -> None:
-        storage.create_node(
-            make_node(
-                name="calc_physics",
-                category="physics",
-                source_code="def a(): pass",
-            )
-        )
-        storage.create_node(
-            make_node(
-                name="calc_chemistry",
-                category="chemistry",
-                source_code="def b(): pass",
-            )
-        )
-        results = storage.suggest("calc", Filter(category="physics"))
-        assert [s.name for s in results] == ["calc_physics"]
-
-    def test_suggest_blank_query_returns_nothing(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(
-            make_node(name="calculate_energy", source_code="def a(): pass")
-        )
-        assert storage.suggest("") == []
-        assert storage.suggest("   ") == []
-
-    def test_suggest_empty_storage_returns_nothing(
-        self, storage: StorageInterface
-    ) -> None:
-        assert storage.suggest("anything") == []
-
-    def test_suggest_finds_workflows(self, storage: StorageInterface) -> None:
-        wf = make_workflow(name="temperature_pipeline")
-        storage.create_node(wf)
-        results = storage.suggest("temperature")
-        assert [s.name for s in results] == ["temperature_pipeline"]
-        assert results[0].python_import is None
-        assert results[0].artifact_type == ArtifactType.WORKFLOW
-
-    # -----------------------------------------------------------------------
     # Workflow node contract tests
     # -----------------------------------------------------------------------
 
@@ -777,37 +287,3 @@ class StorageContractTests:
         assert created == wf
         result = storage.read_node(wf.id)
         assert result == wf
-
-    def test_search_workflow_by_name(self, storage: StorageInterface) -> None:
-        wf = make_workflow(name="my_pipeline")
-        storage.create_node(wf)
-        result = storage.search("my_pipeline")
-        assert result.results.total_items == 1
-        assert result.results.data[0].node.name == "my_pipeline"
-
-    def test_filter_node_type_function_excludes_workflow(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(make_node(source_code="def f(): pass"))
-        storage.create_node(make_workflow())
-        result = storage.search(None, Filter(artifact_type=[ArtifactType.FUNCTION]))
-        assert result.results.total_items == 1
-        assert result.results.data[0].node.artifact_type == ArtifactType.FUNCTION
-
-    def test_filter_node_type_workflow_excludes_function(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(make_node(source_code="def f(): pass"))
-        storage.create_node(make_workflow())
-        result = storage.search(None, Filter(artifact_type=[ArtifactType.WORKFLOW]))
-        assert result.results.total_items == 1
-        assert result.results.data[0].node.artifact_type == ArtifactType.WORKFLOW
-
-    def test_get_filter_options_includes_both_node_types(
-        self, storage: StorageInterface
-    ) -> None:
-        storage.create_node(make_node(source_code="def f(): pass"))
-        storage.create_node(make_workflow())
-        options = storage.get_filter_options()
-        assert ArtifactType.FUNCTION in options.artifact_type
-        assert ArtifactType.WORKFLOW in options.artifact_type

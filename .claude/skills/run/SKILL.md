@@ -98,7 +98,7 @@ cd e2e && npm ci && npx playwright install --with-deps chromium && npx playwrigh
   Harness-tracked background tasks instead fail loudly (`<task-notification
   status="failed"/"stopped">`) and can be cleanly stopped with `TaskStop`.
 - Re-seeding an already-populated backend is safe — see step 2 (no-ops as conflicts, exit 0).
-- `search_hybrid` ([`file_system_storage.py`](../../../backend/src/sim_atlas/file_system_storage.py))
+- `search_hybrid` ([`catalog/_catalog.py`](../../../backend/src/sim_atlas/catalog/_catalog.py))
   silently falls back to keyword-only ranking when no embedding provider is configured —
   expected, not a bug.
 - `chromium-cli` may not be preinstalled in a given container; the Playwright fallback above

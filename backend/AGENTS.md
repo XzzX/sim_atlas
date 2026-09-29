@@ -14,8 +14,9 @@ uv run pyright                          # type-check (strict mode)
 
 ## Key Patterns
 
-- **Storage**: always interact via `storage_interface.py` (`StorageInterface`), never directly via `file_system_storage.py`; use `get_storage_backend()` (also in `storage_interface.py`) to instantiate the backend
-- **Dependency injection**: use `Depends()` for storage (`get_storage` in `main.py`) and auth (`get_current_user` in `security.py`); settings are NOT injected via `Depends()` — call `load_settings()` directly (it is `lru_cache`-cached)
+- **Storage**: persistence only; always interact via `storage_interface.py` (`StorageInterface`), never directly via `file_system_storage.py`; use `get_storage_backend()` (also in `storage_interface.py`) to instantiate the backend
+- **Catalog**: all discovery lives in `catalog/` (`Catalog`): hydrated `read_node`, keyword `search`, `search_hybrid`, `suggest`, filter options, embedding; it reads through `StorageInterface` and never mutates stored nodes. Read paths use `Catalog`, write paths use `StorageInterface` (ADR-0023)
+- **Dependency injection**: use `Depends()` for storage (`get_storage`), the catalog (`get_catalog`, both in `dependencies.py`) and auth (`get_current_user` in `security.py`); settings are NOT injected via `Depends()` — call `load_settings()` directly (it is `lru_cache`-cached)
 - **Models**: Pydantic v2; all schemas in `models.py`; three distinct types: `NodeRequest` (API write input), `NodeMetadata` (internal storage schema), `NodeResponse` (API read output); `NdArray` is a custom Pydantic type for gzip-compressed numpy arrays (embeddings)
 - **Auth**: JWT tokens carried in `x-api-key` header; `get_current_user` dependency enforces auth on write routes; read routes are public
 - **MCP**: served via FastMCP from the `mcp_server/` package, mounted at `/mcp` in `main.py`; a curated, read-only surface of four Python-vocabulary tools (`search_functions`, `find_by_signature`, `get_function`, `get_workflow_source`) aimed at CLI coding agents, decoupled from the REST routes rather than auto-derived from them (ADR-0019). Output is Python-shaped — a call signature, an import line and an install hint — rendered by `mcp_server/_format.py`; never add a write tool. `mcp_server/` must not import from `agent/`: the two AI surfaces are independent, sharing only `node_text.short_description`

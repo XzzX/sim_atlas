@@ -2,14 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from sim_atlas.models import (
-    ExecutionResultMetadata,
-    Filter,
-    FilterOptions,
-    NodeMetadata,
-    ScoredSearchResponse,
-    Suggestion,
-)
+from sim_atlas.models import ExecutionResultMetadata, NodeMetadata
 
 
 class NodeAlreadyExistsError(Exception):
@@ -97,59 +90,20 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def get_filter_options(self) -> FilterOptions:
-        pass
+    def nodes(self) -> list[NodeMetadata]:
+        """Every stored node, in insertion order.
 
-    @abstractmethod
-    def search(
-        self,
-        query: str | None,
-        filter: Filter | None = None,
-        page: int = 1,
-        limit: int = 10,
-        drop_unmatched: bool = True,
-    ) -> ScoredSearchResponse:
-        """Keyword search over the stored nodes.
-
-        When ``drop_unmatched`` is False the query only ranks the nodes the
-        filters selected, instead of also excluding the ones it does not match.
+        The returned nodes are the stored objects themselves, not copies:
+        callers must treat them as read-only.
         """
         pass
 
     @abstractmethod
-    def suggest(
-        self, query: str, filter: Filter | None = None, limit: int = 10
-    ) -> list[Suggestion]:
-        """Cheap type-ahead lookup: name/import matches only, best-first.
+    def update_nodes(self, values: list[NodeMetadata]) -> None:
+        """Replace several existing nodes, keyed by their ``id``, in one write.
 
-        Unlike ``search``, this never touches docstrings, descriptions or
-        embeddings, and never runs the ``used_by``/connections enrichment —
-        it exists to be fast. Returns ``[]`` for a blank query.
+        Raises KeyError, and writes nothing, if any of them is not stored.
         """
-        pass
-
-    @abstractmethod
-    async def search_semantic(
-        self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
-    ) -> ScoredSearchResponse:
-        pass
-
-    @abstractmethod
-    async def search_hybrid(
-        self,
-        query: str | None,
-        filter: Filter | None = None,
-        page: int = 1,
-        limit: int = 10,
-    ) -> ScoredSearchResponse:
-        pass
-
-    @abstractmethod
-    async def enrich(self, only_ids: list[str] | None = None) -> None:
-        pass
-
-    @abstractmethod
-    async def embed_missing(self) -> None:
         pass
 
     @abstractmethod

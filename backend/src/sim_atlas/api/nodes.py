@@ -4,8 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from sim_atlas.catalog import Catalog
-from sim_atlas.dependencies import get_catalog, get_storage
+from sim_atlas.dependencies import get_storage
 from sim_atlas.models import (
     AnnotationResponse,
     NodeMetadata,
@@ -79,10 +78,10 @@ async def create_node(
 @router.get("/nodes/{node_id}", tags=["nodes"])
 async def read_node(
     node_id: str,
-    catalog: Annotated[Catalog, Depends(get_catalog)],
+    storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> NodeResponse:
     try:
-        return catalog.read_node(node_id)
+        return storage.read_node(node_id)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

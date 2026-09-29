@@ -57,4 +57,4 @@ A decision that affects multiple components lists all values, e.g. `scope: [back
 | [0020](0020-type-ahead-suggest-endpoint.md) | A separate, cheap type-ahead suggest endpoint | accepted | backend, frontend |
 | [0021](0021-merge-function-workflow-models.md) | Merge Function\*/Workflow\* artifact models into a single Node\* model | accepted | backend, toolkit, frontend, web-ide |
 | [0022](0022-toolkit-node-store-abstraction.md) | NodeStore abstraction decouples the toolkit's parser pipeline from HTTP | accepted | toolkit |
-| [0023](0023-catalog-over-narrow-storage.md) | Catalog module for discovery over a persistence-only StorageInterface | accepted | backend |
+| [0023](0023-storage-interface-is-the-discovery-seam.md) | StorageInterface is the discovery seam; backend-independent policy sits above it | accepted | backend |

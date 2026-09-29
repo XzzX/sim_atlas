@@ -12,7 +12,8 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
 
-from sim_atlas.dependencies import get_catalog
+from sim_atlas import discovery
+from sim_atlas.dependencies import get_storage
 from sim_atlas.mcp_server import _format
 from sim_atlas.models import ArtifactType, Filter
 
@@ -101,8 +102,8 @@ async def search_functions(
     Follow up with get_function(id) for the full docstring, or
     get_workflow_source(id) for a workflow's executable Python.
     """
-    catalog = get_catalog()
-    response = await catalog.search_hybrid(
+    response = await discovery.search(
+        get_storage(),
         query,
         Filter(artifact_type=_KIND_TO_TYPES[kind]),
         page=1,
@@ -170,7 +171,7 @@ async def find_by_signature(
             "Use search_functions(query=...) for intent-based discovery."
         )
 
-    catalog = get_catalog()
+    storage = get_storage()
     node_filter = Filter(
         artifact_type=[ArtifactType.FUNCTION],
         datatypes=[datatype] if datatype else None,
@@ -183,7 +184,7 @@ async def find_by_signature(
     # is used even where embeddings are configured: semantic ranking silently
     # skips nodes that have no embedding yet, which would turn this tool's
     # tie-breaker back into a filter.
-    response = catalog.search(
+    response = storage.search(
         query=query,
         filter=node_filter,
         limit=_format.MAX_RESULTS,
@@ -214,9 +215,9 @@ async def get_function(
     the function rather than copying it. For a workflow's executable Python, call
     get_workflow_source(id).
     """
-    catalog = get_catalog()
+    storage = get_storage()
     try:
-        node = catalog.read_node(id)
+        node = storage.read_node(id)
     except KeyError as exc:
         raise ToolError(
             f"No catalog entry with id '{id}'. Ids come from the '# id:' line of "
@@ -247,9 +248,9 @@ async def get_workflow_source(
     Only valid for workflow ids; for a single function, get_function(id) plus the
     import line is all you need.
     """
-    catalog = get_catalog()
+    storage = get_storage()
     try:
-        node = catalog.read_node(id)
+        node = storage.read_node(id)
     except KeyError as exc:
         raise ToolError(
             f"No catalog entry with id '{id}'. Ids come from the '# id:' line of "

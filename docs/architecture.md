@@ -133,31 +133,25 @@ sequenceDiagram
     actor U as User
     participant F as React Frontend
     participant B as Backend (FastAPI)
-    participant C as Catalog
+    participant D as discovery.search
     participant S as StorageInterface
     participant E as Embedding Provider<br/>(fastembed local, or<br/>OpenAI/VoyageAI API)
 
     U->>F: enter query + set facet filters
     F->>B: POST /api/v1/search {query, filter, semantic, page, limit}
-    alt semantic == false
-        B->>C: search()
-        C->>S: nodes()
-        C->>C: apply NodeFilter → BM25 keyword rank
-        C-->>B: sorted, paginated, hydrated SearchResults
-    else semantic (default) → search_hybrid()
-        alt no query, or embeddings_enabled == false
-            B->>C: fall back to search() (keyword-only, as above)
-            C-->>B: sorted, paginated, hydrated SearchResults
-        else
-            C->>E: create_embedding(query, input_type="query")
-            E-->>C: query vector
-            C->>S: nodes()
-            C->>C: apply NodeFilter once, then rank two ways
-            Note right of C: semantic rank: cosine similarity<br/>(nodes with an embedding only)<br/>keyword rank: BM25<br/>(all filtered nodes)
-            C->>C: RRF merge: score = 1/(60+sem_rank) + 1/(60+kw_rank)<br/>(0 for a side a node is absent from)
-            C-->>B: sorted, paginated, hydrated SearchResults
-        end
+    B->>D: search(storage, query, filter, semantic)
+    alt semantic == false, no query, or embeddings_enabled == false
+        D->>S: search(query, filter)
+        Note right of S: FileSystemStorage: NodeFilter → BM25 keyword rank
+        S-->>D: sorted, paginated, hydrated SearchResults
+    else
+        D->>E: create_embedding(query, input_type="query")
+        E-->>D: query vector
+        D->>S: search_hybrid(query, query_vector, filter)
+        Note right of S: FileSystemStorage: NodeFilter once, then<br/>semantic rank: cosine similarity (embedded nodes only)<br/>keyword rank: BM25 (all filtered nodes)<br/>RRF merge: 1/(60+sem_rank) + 1/(60+kw_rank)
+        S-->>D: sorted, paginated, hydrated SearchResults
     end
+    D-->>B: ScoredSearchResponse
     B-->>F: ScoredSearchResponse (ScoredSearchItem[])
     F->>U: render NodeCard components
 ```

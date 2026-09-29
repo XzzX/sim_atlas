@@ -18,7 +18,6 @@ from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
 from sim_atlas.api.nodes import compose_node
-from sim_atlas.catalog import Catalog
 from sim_atlas.main import app, mcp
 from sim_atlas.models import (
     AnnotationRequest,
@@ -354,7 +353,7 @@ def test_search_limit_above_cap_returns_422(client: ApiClient) -> None:
 def test_search_does_not_leak_embedding(
     client: ApiClient, storage: FileSystemStorage, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The response model must strip embeddings from search items."""
+    """Search items hold the stored nodes; the response model must strip embeddings."""
     dim = 16
     storage.create_node(
         make_node(
@@ -370,10 +369,10 @@ def test_search_does_not_leak_embedding(
         return np.ones((len(documents), dim), dtype=np.float32)
 
     monkeypatch.setattr(
-        "sim_atlas.catalog._catalog.load_settings",
+        "sim_atlas.discovery.load_settings",
         lambda: SimpleNamespace(embeddings_enabled=True),
     )
-    monkeypatch.setattr("sim_atlas.catalog._catalog.create_embedding", _fake_embed)
+    monkeypatch.setattr("sim_atlas.discovery.create_embedding", _fake_embed)
 
     response = client.post("/api/v1/search", json={"query": "embedded_fn"})
 
@@ -498,7 +497,7 @@ def test_suggest_returns_only_the_suggestion_fields(client: ApiClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Hybrid vs. forced-keyword routing (Catalog.search_hybrid monkeypatched)
+# Hybrid vs. forced-keyword routing (storage.search_hybrid monkeypatched)
 # ---------------------------------------------------------------------------
 
 
@@ -515,12 +514,22 @@ def test_search_with_query_uses_hybrid(
 ) -> None:
     called = False
 
-    async def mock_search_hybrid(*args: Any, **kwargs: Any) -> ScoredSearchResponse:
+    def mock_search_hybrid(*args: Any, **kwargs: Any) -> ScoredSearchResponse:
         nonlocal called
         called = True
         return _empty_search_response()
 
-    monkeypatch.setattr(Catalog, "search_hybrid", mock_search_hybrid)
+    async def _fake_embed(
+        documents: list[str], input_type: str = "document"
+    ) -> np.ndarray:
+        return np.ones((len(documents), 3), dtype=np.float32)
+
+    monkeypatch.setattr(
+        "sim_atlas.discovery.load_settings",
+        lambda: SimpleNamespace(embeddings_enabled=True),
+    )
+    monkeypatch.setattr("sim_atlas.discovery.create_embedding", _fake_embed)
+    monkeypatch.setattr(storage, "search_hybrid", mock_search_hybrid)
     response = client.post("/api/v1/search", json={"query": "test"})
     assert response.status_code == status.HTTP_200_OK
     assert called
@@ -531,10 +540,14 @@ def test_search_semantic_false_forces_keyword(
     storage: FileSystemStorage,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def boom(*args: Any, **kwargs: Any) -> ScoredSearchResponse:
+    def boom(*args: Any, **kwargs: Any) -> ScoredSearchResponse:
         raise AssertionError("search_hybrid must not run when semantic=false")
 
-    monkeypatch.setattr(Catalog, "search_hybrid", boom)
+    monkeypatch.setattr(
+        "sim_atlas.discovery.load_settings",
+        lambda: SimpleNamespace(embeddings_enabled=True),
+    )
+    monkeypatch.setattr(storage, "search_hybrid", boom)
     response = client.post("/api/v1/search", json={"query": "test", "semantic": False})
     assert response.status_code == status.HTTP_200_OK
     assert "results" in response.json()
@@ -851,10 +864,10 @@ def test_mcp_tools_never_leak_embeddings(
         return np.ones((len(documents), dim), dtype=np.float32)
 
     monkeypatch.setattr(
-        "sim_atlas.catalog._catalog.load_settings",
+        "sim_atlas.discovery.load_settings",
         lambda: SimpleNamespace(embeddings_enabled=True),
     )
-    monkeypatch.setattr("sim_atlas.catalog._catalog.create_embedding", _fake_embed)
+    monkeypatch.setattr("sim_atlas.discovery.create_embedding", _fake_embed)
 
     search_text = _call_mcp("search_functions", {"query": "embedded_fn"})
     detail_text = _call_mcp("get_function", {"id": node.id})

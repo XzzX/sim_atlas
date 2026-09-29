@@ -2,9 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from sim_atlas.catalog import Catalog
-from sim_atlas.dependencies import get_catalog
+from sim_atlas import discovery
+from sim_atlas.dependencies import get_storage
 from sim_atlas.security import Creator, get_current_user
+from sim_atlas.storage.storage_interface import StorageInterface
 
 router = APIRouter()
 
@@ -14,11 +15,11 @@ router = APIRouter()
     tags=["ai"],
 )
 async def enrich(
-    catalog: Annotated[Catalog, Depends(get_catalog)],
+    storage: Annotated[StorageInterface, Depends(get_storage)],
     _: Annotated[Creator, Depends(get_current_user)],
     only_ids: list[str] | None = None,
 ) -> None:
-    await catalog.enrich(only_ids=only_ids)
+    await discovery.enrich(storage, only_ids=only_ids)
 
 
 @router.post(
@@ -26,7 +27,7 @@ async def enrich(
     tags=["ai"],
 )
 async def embed(
-    catalog: Annotated[Catalog, Depends(get_catalog)],
+    storage: Annotated[StorageInterface, Depends(get_storage)],
     _: Annotated[Creator, Depends(get_current_user)],
 ) -> None:
-    await catalog.embed_missing()
+    await discovery.embed_missing(storage)

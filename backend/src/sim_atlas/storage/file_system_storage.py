@@ -20,12 +20,10 @@ from sim_atlas.models import (
     FilterOptions,
     NodeMetadata,
     NodeResponse,
-    Reference,
     ScoredSearchItem,
     ScoredSearchResponse,
     SearchResults,
     Suggestion,
-    WfFunctionNode,
 )
 from sim_atlas.node_text import short_description
 from sim_atlas.settings import load_settings
@@ -36,13 +34,25 @@ from sim_atlas.storage.storage_interface import (
     NodeDuplicateError,
     StorageInterface,
 )
+from sim_atlas.storage.workflow_graph import WorkflowGraph
 from sim_atlas.type_utils import collect_datatypes, datatype_matches
 
 logger = logging.getLogger(__name__)
 
 
 def _deserialize_node(data: dict[str, object]) -> NodeMetadata:
-    return NodeMetadata.model_validate(data)
+    node = NodeMetadata.model_validate(data)
+    # Files written before WorkflowGraph may still carry derived references;
+    # stored nodes must not, so drop them rather than trusting stale values.
+    return node.model_copy(
+        update={
+            "used_by": None,
+            "inputs": [a.model_copy(update={"connections": None}) for a in node.inputs],
+            "outputs": [
+                a.model_copy(update={"connections": None}) for a in node.outputs
+            ],
+        }
+    )
 
 
 def _write_json_atomically(target: Path, payload: dict[str, object]) -> None:
@@ -150,6 +160,7 @@ class FileSystemStorage(StorageInterface):
         self._execution_results: dict[str, ExecutionResultMetadata] = {}
         self._path = path
         self._connected = False
+        self._graph: WorkflowGraph | None = None
 
         if self._path is not None:
             nodes_file = self._path / self.NODES_FILENAME
@@ -169,6 +180,21 @@ class FileSystemStorage(StorageInterface):
 
         print(f"FileSystemStorage initialized with {len(self._nodes)} items.")
         self._connected = True
+
+    def _nodes_changed(self) -> None:
+        self._graph = None
+        self._save_nodes_to_disk()
+
+    def _hydrate[N: NodeResponse](self, node: N) -> N:
+        """A copy of *node* with its derived workflow references filled in."""
+        if self._graph is None:
+            self._graph = WorkflowGraph(self._nodes)
+        return self._graph.hydrate(node)
+
+    def _hydrate_page(self, response: ScoredSearchResponse) -> ScoredSearchResponse:
+        for item in response.results.data:
+            item.node = self._hydrate(item.node)
+        return response
 
     def _save_nodes_to_disk(self) -> None:
         if self._path is None:
@@ -197,29 +223,26 @@ class FileSystemStorage(StorageInterface):
                 if node.hash == value.hash:
                     raise NodeDuplicateError(node)
         self._nodes[id] = value
-        self._save_nodes_to_disk()
+        self._nodes_changed()
         return value
 
     def read_node(self, id: str) -> NodeMetadata:
         if id not in self._nodes:
             raise KeyError(id)
-        node = self._nodes[id]
-        node.used_by = self._used_by(node.id)
-        self._fill_connections(node)
-        return node
+        return self._hydrate(self._nodes[id])
 
     def update_node(self, id: str, value: NodeMetadata) -> NodeMetadata:
         if id not in self._nodes:
             raise KeyError(id)
         self._nodes[id] = value
-        self._save_nodes_to_disk()
+        self._nodes_changed()
         return value
 
     def delete_node(self, id: str) -> None:
         if id not in self._nodes:
             raise KeyError(id)
         del self._nodes[id]
-        self._save_nodes_to_disk()
+        self._nodes_changed()
 
     def exists(self, id: str) -> bool:
         return id in self._nodes
@@ -364,13 +387,7 @@ class FileSystemStorage(StorageInterface):
 
         sorted_items = sorted(scored_items, key=lambda x: x.score, reverse=True)
 
-        paginated_items = self._paginate(sorted_items, page=page, limit=limit)
-
-        for item in paginated_items.results.data:
-            item.node.used_by = self._used_by(item.node.id)
-            self._fill_connections(item.node)
-
-        return paginated_items
+        return self._hydrate_page(self._paginate(sorted_items, page=page, limit=limit))
 
     def suggest(
         self, query: str, filter: Filter | None = None, limit: int = 10
@@ -380,8 +397,8 @@ class FileSystemStorage(StorageInterface):
         Matches first, then filters the survivors — ``NodeFilter`` allocates
         ``inputs + outputs`` per node even with no port filter set, so
         matching first keeps the cost proportional to the match count instead
-        of to the catalog size. No enrichment (``_used_by``/connections) and
-        no mutation of stored nodes: this path exists to be fast.
+        of to the catalog size. No ``used_by``/connections hydration:
+        this path exists to be fast.
         """
         needle = query.strip().lower()
         if not needle:
@@ -432,77 +449,6 @@ class FileSystemStorage(StorageInterface):
             short_description=short_description(node.brief_description, node.docstring),
         )
 
-    def _used_by(self, node_id: str) -> list[Reference] | None:
-        """Workflows whose uses reference the given function node."""
-        return [
-            Reference(
-                label=n.name,
-                id=n.id,
-                count=sum(c.count for c in n.uses if c.id == node_id),
-                artifact_type=n.artifact_type,
-            )
-            for n in self._nodes.values()
-            if n.artifact_type == ArtifactType.WORKFLOW
-            and any(c.id == node_id for c in n.uses)
-        ] or None
-
-    def _connections(
-        self, atlas_id: str, port_label: str, is_output: bool
-    ) -> list[Reference] | None:
-        """Other nodes whose port is directly wired to this port."""
-        counts: dict[str, int] = {}
-        for wf in self._nodes.values():
-            if wf.artifact_type != ArtifactType.WORKFLOW:
-                continue
-            nodes_by_id = {n.node_id: n for n in wf.wf_definition.nodes}
-            own_node_ids = {
-                node_id
-                for node_id, n in nodes_by_id.items()
-                if isinstance(n, WfFunctionNode) and n.atlas_id == atlas_id
-            }
-            if not own_node_ids:
-                continue
-            for edge in wf.wf_definition.edges:
-                if is_output:
-                    if (
-                        edge.source_node not in own_node_ids
-                        or edge.source_port != port_label
-                    ):
-                        continue
-                    other = nodes_by_id.get(edge.target_node)
-                else:
-                    if (
-                        edge.target_node not in own_node_ids
-                        or edge.target_port != port_label
-                    ):
-                        continue
-                    other = nodes_by_id.get(edge.source_node)
-                if isinstance(other, WfFunctionNode) and other.atlas_id in self._nodes:
-                    counts[other.atlas_id] = counts.get(other.atlas_id, 0) + 1
-
-        references = [
-            Reference(
-                label=self._nodes[other_id].name,
-                id=other_id,
-                count=count,
-                artifact_type=self._nodes[other_id].artifact_type,
-            )
-            for other_id, count in counts.items()
-        ]
-        return sorted(references, key=lambda r: (-r.count, r.label, r.id)) or None
-
-    def _fill_connections(self, node: NodeResponse) -> None:
-        for annotation in node.inputs:
-            if annotation.label:
-                annotation.connections = self._connections(
-                    node.id, annotation.label, is_output=False
-                )
-        for annotation in node.outputs:
-            if annotation.label:
-                annotation.connections = self._connections(
-                    node.id, annotation.label, is_output=True
-                )
-
     async def search_semantic(
         self, query: str, filter: Filter | None = None, page: int = 1, limit: int = 10
     ) -> ScoredSearchResponse:
@@ -532,13 +478,7 @@ class FileSystemStorage(StorageInterface):
         # Sort by similarity (descending) and limit results
         similarities.sort(key=lambda x: x.score, reverse=True)
 
-        paginated_items = self._paginate(similarities, page=page, limit=limit)
-
-        for item in paginated_items.results.data:
-            item.node.used_by = self._used_by(item.node.id)
-            self._fill_connections(item.node)
-
-        return paginated_items
+        return self._hydrate_page(self._paginate(similarities, page=page, limit=limit))
 
     async def search_hybrid(
         self,
@@ -599,13 +539,7 @@ class FileSystemStorage(StorageInterface):
         ]
         scored.sort(key=lambda x: x.score, reverse=True)
 
-        paginated_items = self._paginate(scored, page=page, limit=limit)
-
-        for item in paginated_items.results.data:
-            item.node.used_by = self._used_by(item.node.id)
-            self._fill_connections(item.node)
-
-        return paginated_items
+        return self._hydrate_page(self._paginate(scored, page=page, limit=limit))
 
     @staticmethod
     def _embedding_text(node: NodeMetadata) -> str:

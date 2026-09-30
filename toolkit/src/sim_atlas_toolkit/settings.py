@@ -30,3 +30,6 @@ class ToolkitSettings(BaseSettings):
 
     embed: bool = True
     """Master switch for triggering backend embedding after upload; on by default."""
+
+    self_contained_source: bool = False
+    """Upload a self-contained source snippet (inlining same-module helper defs/imports) instead of the bare function body. The LLM docstring is still generated from the plain function source either way."""

@@ -11,6 +11,7 @@ from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
     parse_return_annotation,
     parse_signature,
+    self_contain_source,
 )
 from sim_atlas_toolkit.provenance import apply_provenance
 
@@ -49,5 +50,6 @@ async def parse(ctx: ParseContext, obj: Any) -> list[NodeResult]:
         ctx, metadata.source_code, metadata.docstring
     )
     enrich_from_docstring(metadata.docstring, metadata)
+    metadata.source_code = self_contain_source(ctx.settings, obj, metadata.source_code)
 
     return await ctx.store.create_nodes([metadata])

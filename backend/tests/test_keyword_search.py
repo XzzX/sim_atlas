@@ -32,16 +32,16 @@ _CORPUS = [_GRADIENT, _TEMPERATURE]
 
 
 def _order(query: str) -> list[str]:
-    """Artifact names ranked best-first."""
+    """Node names ranked best-first."""
     scores = keyword_search.rank(query, _CORPUS)
-    by_id = {artifact.id: artifact.name for artifact in _CORPUS}
+    by_id = {node.id: node.name for node in _CORPUS}
     return [
         by_id[key]
         for key, _ in sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
     ]
 
 
-def test_sentence_shaped_query_ranks_the_right_artifact_first() -> None:
+def test_sentence_shaped_query_ranks_the_right_node_first() -> None:
     """The regression: a full sentence must match, and match the better entry."""
     ranked = _order("compute the gradient of a temperature field on a mesh")
     assert ranked[0] == "gradient_on_mesh"
@@ -75,7 +75,7 @@ def test_short_identifier_queries_survive_the_length_filter() -> None:
     assert node.id in keyword_search.rank("fn_a", [node])
 
 
-def test_unmatched_artifacts_are_absent_rather_than_zero_scored() -> None:
+def test_unmatched_nodes_are_absent_rather_than_zero_scored() -> None:
     scores = keyword_search.rank("crystallography", _CORPUS)
     assert scores == {}
 

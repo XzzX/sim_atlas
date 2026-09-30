@@ -1,5 +1,5 @@
 import React from "react";
-import { type ArtifactResponse } from "../../types/index";
+import { type NodeResponse } from "../../types/index";
 import { Calendar, BookAIcon, FilePlusCornerIcon } from "lucide-react";
 import { CardFooter } from "@/components/ui/card";
 
@@ -11,11 +11,11 @@ const formatDate = (dateString: string) => {
   });
 };
 
-interface ArtifactFooterProps {
-  node: ArtifactResponse;
+interface NodeFooterProps {
+  node: NodeResponse;
 }
 
-export const ArtifactFooter: React.FC<ArtifactFooterProps> = ({ node }) => {
+export const NodeFooter: React.FC<NodeFooterProps> = ({ node }) => {
   return (
     <CardFooter className="grid grid-cols-3 gap-2 bg-chart-1">
       <div className="flex items-center">

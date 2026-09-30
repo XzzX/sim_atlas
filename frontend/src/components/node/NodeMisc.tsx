@@ -2,11 +2,11 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
 
-interface ArtifactMiscProps {
+interface NodeMiscProps {
   keywords?: string[];
 }
 
-export const ArtifactMisc: React.FC<ArtifactMiscProps> = ({ keywords }) => {
+export const NodeMisc: React.FC<NodeMiscProps> = ({ keywords }) => {
   return (
     <>
       <CardContent>

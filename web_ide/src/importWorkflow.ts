@@ -6,18 +6,18 @@ import {
 } from "./interfaces/PythonWorkflowDefinitionSchema";
 import type { Edge } from "@xyflow/react";
 import { simAtlasAPI } from "./services/api";
-import type { NodeType as ArtifactType, WfDefinition } from "./interfaces/BackendSchema";
+import type { NodeType, WfDefinition } from "./interfaces/BackendSchema";
 
 async function convertToNode(
   n: PythonWorkflowDefinitionNode,
 ): Promise<WorkflowNode | null> {
   if (n.type === "function" || n.type === "pack" || n.type === "unpack") {
-    const nodeTypeFilter: ArtifactType | undefined = undefined;
+    const nodeTypeFilter: NodeType | undefined = undefined;
 
     // Prefer direct lookup by atlas_node_id; fall back to keyword search
     let meta =
       n.atlas_node_id != null
-        ? (await simAtlasAPI.getArtifact(n.atlas_node_id).catch(() => null))
+        ? (await simAtlasAPI.getNode(n.atlas_node_id).catch(() => null))
         : null;
 
     if (!meta) {
@@ -102,7 +102,7 @@ export async function convertWfDefinition(
       wfDef.nodes.map(async (n): Promise<WorkflowNode | null> => {
         if (n.type === "function") {
           if (!n.atlas_id) return null;
-          const meta = await simAtlasAPI.getArtifact(n.atlas_id).catch(() => null);
+          const meta = await simAtlasAPI.getNode(n.atlas_id).catch(() => null);
           if (!meta) return null;
           return {
             id: n.node_id,

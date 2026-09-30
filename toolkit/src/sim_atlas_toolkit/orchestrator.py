@@ -1,18 +1,35 @@
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
-from http import HTTPStatus
+from dataclasses import dataclass
 from typing import Any, Literal
 
-import httpx2
 from tqdm.asyncio import tqdm as atqdm
 
-from sim_atlas_toolkit import node_store_api
 from sim_atlas_toolkit.collector import collect_objects
+from sim_atlas_toolkit.context import ParseContext
+from sim_atlas_toolkit.http_node_store import HttpNodeStore
+from sim_atlas_toolkit.node_store import (
+    EmbeddingNotConfiguredError,
+    NodeResult,
+    NodeStatus,
+    NodeStore,
+    NodeStoreError,
+)
 from sim_atlas_toolkit.settings import ToolkitSettings
 from sim_atlas_toolkit.uploader import upload
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class ModuleUploadResult:
+    """Per-module outcome of `upload_modules`."""
+
+    module: str
+    created: int
+    existing: int
+    errors: int
 
 
 async def _upload_modules_async(  # noqa: PLR0913
@@ -20,20 +37,25 @@ async def _upload_modules_async(  # noqa: PLR0913
     modules: list[str],
     recursive: Literal["no", "import", "filesystem"] = "no",
     update_existing: bool = False,
-    parsers: list[Callable[..., Awaitable[list[httpx2.Response]]]] | None = None,
+    parsers: list[Callable[..., Awaitable[list[NodeResult]]]] | None = None,
     module_allowlist: list[str] | None = None,
     concurrency: int = 10,
+    store: NodeStore | None = None,
     **kwargs: dict[str, Any],
-) -> None:
+) -> list[ModuleUploadResult]:
     if concurrency < 1:
         raise ValueError("concurrency must be >= 1")
     semaphore = asyncio.Semaphore(concurrency)
+    ctx = ParseContext(
+        settings=settings,
+        store=store or HttpNodeStore(settings.api_url, settings.api_token),
+    )
 
     async def upload_object(obj: Any) -> tuple[int, int, int]:
         async with semaphore:
             try:
-                responses = await upload(
-                    settings,
+                node_results = await upload(
+                    ctx,
                     obj,
                     update_existing=update_existing,
                     parsers=parsers,
@@ -43,23 +65,16 @@ async def _upload_modules_async(  # noqa: PLR0913
                 logger.exception("Failed to upload object %s", obj)
                 return 0, 0, 1
 
-            if not responses:
-                logger.warning(f"No responses received for object {obj}")
+            if not node_results:
+                logger.warning(f"No results received for object {obj}")
                 return 0, 0, 1
 
-            object_created = 0
-            object_conflicts = 0
-            object_errors = 0
-            for response in responses:
-                if response.status_code == HTTPStatus.CREATED:
-                    object_created += 1
-                elif response.status_code == HTTPStatus.CONFLICT:
-                    object_conflicts += 1
-                else:
-                    object_errors += 1
+            created = sum(
+                1 for result in node_results if result.status is NodeStatus.CREATED
+            )
+            return created, len(node_results) - created, 0
 
-            return object_created, object_conflicts, object_errors
-
+    summaries: list[ModuleUploadResult] = []
     for module_name in modules:
         collected_objects = collect_objects(
             module_name,
@@ -76,30 +91,32 @@ async def _upload_modules_async(  # noqa: PLR0913
         )
 
         created = sum(r[0] for r in results)
-        conflicts = sum(r[1] for r in results)
+        existing = sum(r[1] for r in results)
         errors = sum(r[2] for r in results)
 
         logger.info(
-            f"Upload summary for {module_name}: {created} created, {conflicts} conflicts, {errors} errors"
+            f"Upload summary for {module_name}: {created} created, {existing} existing, {errors} errors"
+        )
+        summaries.append(
+            ModuleUploadResult(
+                module=module_name, created=created, existing=existing, errors=errors
+            )
         )
 
     if settings.embed:
         try:
-            response = await node_store_api.trigger_embed(
-                settings.api_url, settings.api_token
+            await ctx.store.trigger_embed()
+            logger.info("Triggered embedding of newly uploaded nodes")
+        except EmbeddingNotConfiguredError:
+            logger.warning(
+                "Skipped embedding: backend has no embedding provider configured"
             )
-            if response.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
-                logger.warning(
-                    "Skipped embedding: backend has no embedding provider configured"
-                )
-            elif response.is_error:
-                logger.warning(
-                    f"Embedding request failed with status {response.status_code}"
-                )
-            else:
-                logger.info("Triggered embedding of newly uploaded nodes")
+        except NodeStoreError as exc:
+            logger.warning(f"Embedding request failed: {exc}")
         except Exception:
             logger.exception("Failed to trigger embedding")
+
+    return summaries
 
 
 def upload_modules(  # noqa: PLR0913
@@ -107,12 +124,13 @@ def upload_modules(  # noqa: PLR0913
     modules: list[str],
     recursive: Literal["no", "import", "filesystem"] = "no",
     update_existing: bool = False,
-    parsers: list[Callable[..., Awaitable[list[httpx2.Response]]]] | None = None,
+    parsers: list[Callable[..., Awaitable[list[NodeResult]]]] | None = None,
     module_allowlist: list[str] | None = None,
     concurrency: int = 10,
+    store: NodeStore | None = None,
     **kwargs: dict[str, Any],
-) -> None:
-    asyncio.run(
+) -> list[ModuleUploadResult]:
+    return asyncio.run(
         _upload_modules_async(
             settings,
             modules=modules,
@@ -121,6 +139,7 @@ def upload_modules(  # noqa: PLR0913
             parsers=parsers,
             module_allowlist=module_allowlist,
             concurrency=concurrency,
+            store=store,
             **kwargs,
         )
     )

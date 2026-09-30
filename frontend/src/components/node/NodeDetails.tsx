@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TabsContent, TabsList, Tabs, TabsTrigger } from "@/components/ui/tabs";
 
-interface ArtifactDetailsProps {
+interface NodeDetailsProps {
   inputs?: Annotation[];
   outputs?: Annotation[];
   dependencies?: string[];
@@ -17,7 +17,7 @@ interface ArtifactDetailsProps {
   onReferenceClick?: (id: string) => void;
 }
 
-export const ArtifactDetails: React.FC<ArtifactDetailsProps> = ({
+export const NodeDetails: React.FC<NodeDetailsProps> = ({
   inputs,
   outputs,
   dependencies,

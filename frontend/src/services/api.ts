@@ -1,7 +1,7 @@
 import axios from "axios";
 import {
-  type ArtifactResponse,
-  ArtifactResponseSchema,
+  type NodeResponse,
+  NodeResponseSchema,
   type ScoredSearchResponse,
   ScoredSearchResponseSchema,
   type Filter,
@@ -23,9 +23,9 @@ const api = axios.create({
 });
 
 export const simAtlasAPI = {
-  getNode: async (nodeHash: string): Promise<ArtifactResponse> => {
-    const response = await api.get(`/artifacts/${nodeHash}`);
-    return ArtifactResponseSchema.parse(response.data);
+  getNode: async (nodeHash: string): Promise<NodeResponse> => {
+    const response = await api.get(`/nodes/${nodeHash}`);
+    return NodeResponseSchema.parse(response.data);
   },
 
   getFilterOptions: async (): Promise<FilterOptions> => {
@@ -33,8 +33,8 @@ export const simAtlasAPI = {
     return FilterOptionsSchema.parse(response.data);
   },
 
-  getExecutionResults: async (artifactId: string): Promise<ExecutionResultMetadata[]> => {
-    const response = await api.get(`/artifacts/${artifactId}/execution_results`);
+  getExecutionResults: async (nodeId: string): Promise<ExecutionResultMetadata[]> => {
+    const response = await api.get(`/nodes/${nodeId}/execution_results`);
     return ExecutionResultListSchema.parse(response.data);
   },
 

@@ -16,9 +16,10 @@ import pytest
 
 from sim_atlas_toolkit import provenance
 from sim_atlas_toolkit.models import (
-    FunctionRequest,
+    ArtifactType,
+    NodeRequest,
     PackageRef,
-    artifact_request_adapter,
+    node_request_adapter,
 )
 from sim_atlas_toolkit.provenance import (
     _channel,  # pyright: ignore[reportPrivateUsage]
@@ -279,7 +280,7 @@ def test_results_are_cached_and_immutable() -> None:
 
 
 def test_apply_provenance_populates_packages_and_distribution_metadata() -> None:
-    metadata = FunctionRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.FUNCTION)
 
     apply_provenance(metadata, "pydantic.fields")
 
@@ -290,7 +291,7 @@ def test_apply_provenance_populates_packages_and_distribution_metadata() -> None
 
 
 def test_apply_provenance_is_a_no_op_for_stdlib_modules() -> None:
-    metadata = FunctionRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.FUNCTION)
 
     apply_provenance(metadata, "json")
 
@@ -303,7 +304,7 @@ def test_apply_provenance_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
         raise RuntimeError("provenance exploded")
 
     monkeypatch.setattr(provenance, "_resolve", boom)
-    metadata = FunctionRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.FUNCTION)
 
     apply_provenance(metadata, "pydantic")
 
@@ -311,7 +312,8 @@ def test_apply_provenance_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_packages_survive_the_upload_serialization_round_trip() -> None:
-    request = FunctionRequest.model_construct(
+    request = NodeRequest.model_construct(
+        artifact_type=ArtifactType.FUNCTION,
         name="x",
         category="c",
         keywords=[],
@@ -327,6 +329,6 @@ def test_packages_survive_the_upload_serialization_round_trip() -> None:
         )
     ]
 
-    restored = artifact_request_adapter.validate_python(request.model_dump())
+    restored = node_request_adapter.validate_python(request.model_dump())
 
     assert restored.packages == request.packages

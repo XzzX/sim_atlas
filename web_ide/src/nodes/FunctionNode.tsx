@@ -14,8 +14,7 @@ import {
 } from "@xyflow/react";
 import type {
   Annotation,
-  FunctionResponse,
-  WorkflowResponse,
+  NodeResponse,
 } from "../interfaces/BackendSchema";
 import { useHighlight } from "@/highlight/useHighlight";
 import {
@@ -81,7 +80,7 @@ const OutputHandle = (props: OutputHandleProps) => {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type NodeData = {
   label: string;
-  metadata: FunctionResponse | WorkflowResponse;
+  metadata: NodeResponse;
 };
 export type FunctionNodeType = Node<NodeData>;
 export function FunctionNode({ id, data }: NodeProps<FunctionNodeType>) {

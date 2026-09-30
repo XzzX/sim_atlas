@@ -9,7 +9,7 @@ import { simAtlasAPI } from "@/services/api";
 import { TypeChip } from "./TypeChip";
 import { ExecutionsTab } from "./ExecutionsTab";
 import { OverviewTab } from "./OverviewTab";
-import type { ArtifactResponse, ExecutionResultMetadata } from "../../types/index";
+import type { NodeResponse, ExecutionResultMetadata } from "../../types/index";
 
 type TabValue = "overview" | "executions";
 
@@ -18,7 +18,7 @@ function isTabValue(value: string | null): value is TabValue {
 }
 
 interface NodeDetailPageProps {
-  node: ArtifactResponse;
+  node: NodeResponse;
 }
 
 export const NodeDetailPage: React.FC<NodeDetailPageProps> = ({ node }) => {
@@ -64,7 +64,7 @@ export const NodeDetailPage: React.FC<NodeDetailPageProps> = ({ node }) => {
   };
 
   const { label, modulePath } = splitName(node.name);
-  const pythonImport = "python_import" in node ? (node.python_import ?? undefined) : undefined;
+  const pythonImport = node.python_import ?? undefined;
 
   const copyId = () => {
     void navigator.clipboard.writeText(node.id);

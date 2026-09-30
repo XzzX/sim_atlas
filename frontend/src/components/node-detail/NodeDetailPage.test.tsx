@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { NodeDetailPage } from "./NodeDetailPage";
-import { linearWorkflow } from "@/test/fixtures/artifacts";
+import { linearWorkflow } from "@/test/fixtures/nodes";
 
 describe("NodeDetailPage", () => {
   it("loads execution results from the (mocked) API and renders them", async () => {

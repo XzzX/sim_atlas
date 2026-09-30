@@ -1,4 +1,4 @@
-"""BM25 keyword ranking over catalog artifacts.
+"""BM25 keyword ranking over catalog nodes.
 
 Keyword search is the leg that always runs: it needs no embedding provider, and
 it keeps the exact identifier matches that a vector index blurs away. Queries
@@ -16,7 +16,7 @@ import re
 from collections.abc import Iterable
 from math import log
 
-from sim_atlas.models import StoredArtifact
+from sim_atlas.models import NodeMetadata
 
 # Identifiers are the point: splitting on every non-alphanumeric turns
 # "ase.md.get_temperature" into the tokens a sentence-shaped query contains.
@@ -62,28 +62,28 @@ def query_tokens(query: str) -> list[str]:
     return long_tokens or tokens
 
 
-def _weighted_fields(artifact: StoredArtifact) -> list[tuple[float, str]]:
+def _weighted_fields(node: NodeMetadata) -> list[tuple[float, str]]:
     port_text = " ".join(
         part
-        for port in artifact.inputs + artifact.outputs
+        for port in node.inputs + node.outputs
         for part in (port.label, port.unit, port.quantity, port.description)
         if part
     )
     return [
-        (_NAME_WEIGHT, artifact.name),
-        (_IMPORT_WEIGHT, artifact.python_import or ""),
-        (_KEYWORD_WEIGHT, " ".join(artifact.keywords)),
-        (_BRIEF_WEIGHT, artifact.brief_description or ""),
-        (_DOCSTRING_WEIGHT, artifact.docstring or ""),
-        (_CATEGORY_WEIGHT, artifact.category),
+        (_NAME_WEIGHT, node.name),
+        (_IMPORT_WEIGHT, node.python_import or ""),
+        (_KEYWORD_WEIGHT, " ".join(node.keywords)),
+        (_BRIEF_WEIGHT, node.brief_description or ""),
+        (_DOCSTRING_WEIGHT, node.docstring or ""),
+        (_CATEGORY_WEIGHT, node.category),
         (_PORT_WEIGHT, port_text),
     ]
 
 
-def _term_frequencies(artifact: StoredArtifact) -> dict[str, float]:
-    """Weighted term frequencies for one artifact, fields folded into one bag."""
+def _term_frequencies(node: NodeMetadata) -> dict[str, float]:
+    """Weighted term frequencies for one node, fields folded into one bag."""
     frequencies: dict[str, float] = {}
-    for weight, text in _weighted_fields(artifact):
+    for weight, text in _weighted_fields(node):
         for token in tokenize(text):
             frequencies[token] = frequencies.get(token, 0.0) + weight
     return frequencies
@@ -108,12 +108,12 @@ def _term_frequency(
     )
 
 
-def rank(query: str, artifacts: Iterable[StoredArtifact]) -> dict[str, float]:
-    """Score *artifacts* against *query*, as ``{artifact id: score}``.
+def rank(query: str, nodes: Iterable[NodeMetadata]) -> dict[str, float]:
+    """Score *nodes* against *query*, as ``{node id: score}``.
 
-    Only artifacts that at least one query token touches are present; the rest
+    Only nodes that at least one query token touches are present; the rest
     are absent rather than scored zero. Scores are comparable within one call
-    only — IDF is computed over the artifacts passed in.
+    only — IDF is computed over the nodes passed in.
 
     The query's trailing token is matched as a prefix rather than a whole word,
     since it may still be mid-word ("compute the temp" should already surface
@@ -130,7 +130,7 @@ def rank(query: str, artifacts: Iterable[StoredArtifact]) -> dict[str, float]:
     exact_terms = set(query_terms[:-1]) - {prefix_term}
     terms = [(term, False) for term in exact_terms] + [(prefix_term, True)]
 
-    frequencies = {artifact.id: _term_frequencies(artifact) for artifact in artifacts}
+    frequencies = {node.id: _term_frequencies(node) for node in nodes}
     if not frequencies:
         return {}
 

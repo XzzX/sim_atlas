@@ -6,13 +6,12 @@ from functools import cache
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
-import httpx2
-
-from sim_atlas_toolkit import node_store_api
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.models import (
     ArtifactType,
-    FunctionRequest,
+    NodeRequest,
 )
+from sim_atlas_toolkit.node_store import NodeResult
 from sim_atlas_toolkit.parsers.ai_enrichment import generate_docstring
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
@@ -20,7 +19,6 @@ from sim_atlas_toolkit.parsers.metadata import (
     self_contain_source,
 )
 from sim_atlas_toolkit.provenance import apply_provenance
-from sim_atlas_toolkit.settings import ToolkitSettings
 
 # The legacy node API (``Function``, ``NOT_DATA``) moved under ``pyiron_workflow._legacy``
 # in 0.18; from there on nodes are flowrep recipes and are handled by ``flowrep_parser``.
@@ -45,7 +43,7 @@ def _legacy_api_available() -> bool:
     return supports_legacy_api(installed)
 
 
-async def parse(settings: ToolkitSettings, node: Any) -> list[httpx2.Response]:
+async def parse(ctx: ParseContext, node: Any) -> list[NodeResult]:
     if not isinstance(node, type):
         return []
 
@@ -67,7 +65,7 @@ async def parse(settings: ToolkitSettings, node: Any) -> list[httpx2.Response]:
     if not issubclass(node, Function):
         return []
 
-    metadata = FunctionRequest.model_construct()
+    metadata = NodeRequest.model_construct(artifact_type=ArtifactType.FUNCTION)
 
     metadata.source_code = inspect.getsource(node.node_function)
     hash = hashlib.sha256(metadata.source_code.encode("utf-8")).hexdigest()
@@ -87,7 +85,6 @@ async def parse(settings: ToolkitSettings, node: Any) -> list[httpx2.Response]:
         metadata.outputs.append(ann)
 
     metadata.name = f"{node.node_function.__module__}.{node.node_function.__qualname__}"
-    metadata.artifact_type = ArtifactType.FUNCTION
     metadata.python_import = (
         f"{node.node_function.__module__}.{node.node_function.__qualname__}"
     )
@@ -97,13 +94,11 @@ async def parse(settings: ToolkitSettings, node: Any) -> list[httpx2.Response]:
     apply_provenance(metadata, node.node_function.__module__)
 
     metadata.docstring = await generate_docstring(
-        settings, metadata.source_code, metadata.docstring
+        ctx, metadata.source_code, metadata.docstring
     )
     enrich_from_docstring(metadata.docstring, metadata)
     metadata.source_code = self_contain_source(
         settings, node.node_function, metadata.source_code
     )
 
-    return await node_store_api.create_artifacts(
-        settings.api_url, settings.api_token, [metadata]
-    )
+    return await ctx.store.create_nodes([metadata])

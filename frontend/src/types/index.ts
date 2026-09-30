@@ -23,72 +23,11 @@ export const AnnotationSchema = z.object({
 });
 export type Annotation = z.infer<typeof AnnotationSchema>;
 
-export const FunctionRequestSchema = z.object({
-  author_name: z.string(),
-  author_email: z.string(),
-
-  name: z.string(),
-  artifact_type: ArtifactTypeSchema,
-  category: z.string(),
-
-  keywords: z.array(z.string()),
-
-  homepage_url: z.string().nullish(),
-  documentation_url: z.string().nullish(),
-  source_url: z.string().nullish(),
-
-  python_import: z.string(),
-  dependencies: z.array(z.string()).nullish(),
-
-  source_code: z.string(),
-
-  docstring: z.string(),
-  inputs: z.array(AnnotationSchema),
-  outputs: z.array(AnnotationSchema),
-
-  brief_description: z.string().nullish(),
-  description: z.string().nullish(),
-  see_also: z.array(ReferenceSchema).optional().default([]),
-});
-export type FunctionRequest = z.infer<typeof FunctionRequestSchema>;
-
-export const FunctionResponseSchema = z.object({
-  author_name: z.string(),
-  author_email: z.string(),
-
-  creator_name: z.string(),
-  creator_email: z.string(),
-  creation_timestamp: z.string(),
-
-  id: z.string(),
-  name: z.string(),
-  artifact_type: ArtifactTypeSchema,
-  category: z.string(),
-
-  keywords: z.array(z.string()),
-
-  homepage_url: z.string().nullish(),
-  documentation_url: z.string().nullish(),
-  source_url: z.string().nullish(),
-
-  python_import: z.string(),
-  dependencies: z.array(z.string()).nullish(),
-
-  source_code: z.string(),
-
-  docstring: z.string(),
-  brief_description: z.string().nullish(),
-  description: z.string().nullish(),
-
-  inputs: z.array(AnnotationSchema),
-  outputs: z.array(AnnotationSchema),
-
-  see_also: z.array(ReferenceSchema).optional().default([]),
-  used_by: z.array(ReferenceSchema).nullish(),
-});
-export type FunctionResponse = z.infer<typeof FunctionResponseSchema>;
-
-// --- Workflow schemas ---
+// --- Workflow internal-structure schemas ---
+//
+// A node is either a plain Python function or a workflow; the two differ
+// only in that a workflow additionally records its internal dataflow graph
+// (`uses`/`wf_definition`) — see ADR-0021.
 
 const WfInputNodeSchema = z.object({
   type: z.literal("input"),
@@ -129,7 +68,41 @@ export const WorkflowDefinitionSchema = z.object({
 });
 export type WorkflowDefinition = z.infer<typeof WorkflowDefinitionSchema>;
 
-export const WorkflowResponseSchema = z.object({
+export const NodeRequestSchema = z.object({
+  artifact_type: ArtifactTypeSchema,
+
+  author_name: z.string(),
+  author_email: z.string(),
+
+  name: z.string(),
+  category: z.string(),
+  keywords: z.array(z.string()),
+
+  homepage_url: z.string().nullish(),
+  documentation_url: z.string().nullish(),
+  source_url: z.string().nullish(),
+
+  python_import: z.string().nullish(),
+  dependencies: z.array(z.string()).nullish(),
+
+  source_code: z.string(),
+
+  docstring: z.string().nullish(),
+  inputs: z.array(AnnotationSchema),
+  outputs: z.array(AnnotationSchema),
+
+  brief_description: z.string().nullish(),
+  description: z.string().nullish(),
+  see_also: z.array(ReferenceSchema).optional().default([]),
+  uses: z.array(ReferenceSchema).optional().default([]),
+
+  wf_definition: WorkflowDefinitionSchema.optional(),
+});
+export type NodeRequest = z.infer<typeof NodeRequestSchema>;
+
+export const NodeResponseSchema = z.object({
+  artifact_type: ArtifactTypeSchema,
+
   author_name: z.string(),
   author_email: z.string(),
 
@@ -139,7 +112,6 @@ export const WorkflowResponseSchema = z.object({
 
   id: z.string(),
   name: z.string(),
-  artifact_type: z.literal("workflow"),
   category: z.string(),
   keywords: z.array(z.string()),
 
@@ -152,28 +124,23 @@ export const WorkflowResponseSchema = z.object({
 
   source_code: z.string(),
   docstring: z.string().nullish(),
-
   brief_description: z.string().nullish(),
   description: z.string().nullish(),
+
   inputs: z.array(AnnotationSchema),
   outputs: z.array(AnnotationSchema),
 
   see_also: z.array(ReferenceSchema).optional().default([]),
   uses: z.array(ReferenceSchema).optional().default([]),
+  used_by: z.array(ReferenceSchema).nullish(),
 
-  wf_definition: WorkflowDefinitionSchema,
+  wf_definition: WorkflowDefinitionSchema.optional(),
 });
-export type WorkflowResponse = z.infer<typeof WorkflowResponseSchema>;
-
-export const ArtifactResponseSchema = z.discriminatedUnion("artifact_type", [
-  FunctionResponseSchema.extend({ artifact_type: z.literal("function") }),
-  WorkflowResponseSchema,
-]);
-export type ArtifactResponse = z.infer<typeof ArtifactResponseSchema>;
+export type NodeResponse = z.infer<typeof NodeResponseSchema>;
 
 export const ScoredSearchItemSchema = z.object({
   score: z.number(),
-  node: ArtifactResponseSchema,
+  node: NodeResponseSchema,
 });
 export type ScoredSearchItem = z.infer<typeof ScoredSearchItemSchema>;
 
@@ -194,10 +161,10 @@ export const ScoredSearchResponseSchema = z.object({
 });
 export type ScoredSearchResponse = z.infer<typeof ScoredSearchResponseSchema>;
 
-export const FunctionMetadataSchema = FunctionResponseSchema.extend({
+export const NodeMetadataSchema = NodeResponseSchema.extend({
   embedding: z.array(z.number()).nullish(),
 });
-export type FunctionMetadata = z.infer<typeof FunctionMetadataSchema>;
+export type NodeMetadata = z.infer<typeof NodeMetadataSchema>;
 
 export const FilterSchema = z.object({
   category: z.string().nullish(),

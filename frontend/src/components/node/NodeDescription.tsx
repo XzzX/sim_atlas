@@ -3,12 +3,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TabsContent, TabsList, Tabs, TabsTrigger } from "@/components/ui/tabs";
 import { Zap } from "lucide-react";
 
-interface ArtifactDescriptionProps {
+interface NodeDescriptionProps {
   docstring?: string;
   description?: string;
 }
 
-export const ArtifactDescription: React.FC<ArtifactDescriptionProps> = ({ docstring, description }) => {
+export const NodeDescription: React.FC<NodeDescriptionProps> = ({ docstring, description }) => {
   return (
     <>
       <CardContent className="space-y-4">

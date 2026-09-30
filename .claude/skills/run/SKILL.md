@@ -25,7 +25,7 @@ cd backend && uv run sim-atlas   # run_in_background
 [`.github/workflows/e2e.yml`](../../../.github/workflows/e2e.yml) is CI's own recipe for
 populating a fresh backend: mint a JWT, then upload
 [`e2e/dummy_module`](../../../e2e/dummy_module) through the real toolkit CLI. This exercises
-the actual ingestion pipeline and produces 5 real artifacts across two real categories
+the actual ingestion pipeline and produces 5 real nodes across two real categories
 (`dummy_module>functions`, `dummy_module>flowrep`) — including a workflow with 3 execution
 results.
 
@@ -42,7 +42,7 @@ uv run sim-atlas-upload dummy_module dummy_module.flowrep \
 ```
 
 Re-running this against an already-seeded backend is safe — the toolkit reports each
-already-present artifact as a conflict (`0 created, N conflicts`) and exits 0 rather than
+already-present node as a conflict (`0 created, N conflicts`) and exits 0 rather than
 erroring. Pass `--update-existing` if you actually want to overwrite existing nodes.
 
 ## 3. Frontend

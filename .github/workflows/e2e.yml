@@ -177,7 +177,7 @@ jobs:
           print(matches[0])
           ")
 
-          curl -sf "http://127.0.0.1:8000/api/v1/artifacts/$WF_ID/execution_results" | \
+          curl -sf "http://127.0.0.1:8000/api/v1/nodes/$WF_ID/execution_results" | \
             python3 -c "
           import sys, json
           results = json.load(sys.stdin)

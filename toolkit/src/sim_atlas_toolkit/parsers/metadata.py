@@ -2,10 +2,8 @@ import importlib
 import inspect
 import logging
 import types
-from http import HTTPStatus
 from typing import Annotated, Any, Union, get_args, get_origin
 
-import httpx2
 from griffe import (
     Docstring,
     DocstringSectionAttributes,
@@ -21,7 +19,7 @@ from griffe import (
 
 from sim_atlas_toolkit.models import (
     Annotation,
-    ArtifactRequest,
+    NodeRequest,
 )
 from sim_atlas_toolkit.parsers.self_contained_source_code import (
     ExtractionError,
@@ -71,8 +69,8 @@ _SILENCE: PerStyleOptions = {
 
 def enrich_from_docstring(
     docstring: str,
-    metadata: ArtifactRequest,
-) -> ArtifactRequest:
+    metadata: NodeRequest,
+) -> NodeRequest:
     """Fill Annotation.description from a parsed docstring; existing values are not overwritten."""
     if not docstring:
         return metadata

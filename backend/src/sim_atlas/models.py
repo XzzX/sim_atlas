@@ -11,7 +11,6 @@ from pydantic import (
     Discriminator,
     Field,
     PlainSerializer,
-    Tag,
 )
 
 
@@ -83,80 +82,12 @@ class AnnotationResponse(BaseModel):
     connections: list[Reference] | None = None
 
 
-class FunctionRequest(BaseModel):
-    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
-
-    id: str | None = None
-    hash: str | None = None
-    name: str
-    category: str
-    keywords: list[str]
-
-    author_name: str = "unknown"
-    author_email: str = "unknown"
-
-    homepage_url: str | None = None
-    documentation_url: str | None = None
-    source_url: str | None = None
-
-    python_import: str
-    dependencies: list[str] | None = None
-    packages: list[PackageRef] = []
-
-    source_code: str
-
-    docstring: str
-    brief_description: str | None = None
-    description: str | None = None
-    inputs: list[AnnotationRequest]
-    outputs: list[AnnotationRequest]
-
-    see_also: list[Reference] = []
-
-
-class FunctionResponse(BaseModel):
-    artifact_type: Literal[ArtifactType.FUNCTION] = ArtifactType.FUNCTION
-
-    id: str
-    hash: str
-    name: str
-    category: str
-    keywords: list[str]
-
-    author_name: str
-    author_email: str
-
-    creator_name: str
-    creator_email: str
-    creation_timestamp: str
-
-    homepage_url: str | None = None
-    documentation_url: str | None = None
-    source_url: str | None = None
-
-    python_import: str
-    dependencies: list[str] | None = None
-    packages: list[PackageRef] = []
-
-    source_code: str
-
-    docstring: str
-    brief_description: str | None = None
-    description: str | None = None
-    inputs: list[AnnotationResponse]
-    outputs: list[AnnotationResponse]
-
-    see_also: list[Reference] = []
-    used_by: list[Reference] | None = None
-
-
-class FunctionMetadata(FunctionResponse):
-    embedding: NdArray | None = None
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-
-# --- Workflow models ---
+# --- Workflow internal-structure models ---
+#
+# A node is either a plain Python function or a workflow; the two differ only
+# in that a workflow additionally records its internal dataflow graph
+# (``uses``/``wf_definition``) — see ADR-0021. ``WfDefinition`` describes that
+# graph and is shared by both request/response/metadata variants below.
 
 
 class WfInputNode(BaseModel):
@@ -197,16 +128,17 @@ class WfDefinition(BaseModel):
     edges: list[WfEdge]
 
 
-class WorkflowRequest(BaseModel):
-    author_name: str = "unknown"
-    author_email: str = "unknown"
+class NodeRequest(BaseModel):
+    artifact_type: ArtifactType
 
     id: str | None = None
     hash: str | None = None
     name: str
-    artifact_type: Literal[ArtifactType.WORKFLOW] = ArtifactType.WORKFLOW
     category: str
     keywords: list[str]
+
+    author_name: str = "unknown"
+    author_email: str = "unknown"
 
     homepage_url: str | None = None
     documentation_url: str | None = None
@@ -217,10 +149,10 @@ class WorkflowRequest(BaseModel):
     packages: list[PackageRef] = []
 
     source_code: str
+
     docstring: str | None = None
     brief_description: str | None = None
     description: str | None = None
-
     inputs: list[AnnotationRequest]
     outputs: list[AnnotationRequest]
 
@@ -230,20 +162,21 @@ class WorkflowRequest(BaseModel):
     wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 
 
-class WorkflowResponse(BaseModel):
+class NodeResponse(BaseModel):
+    artifact_type: ArtifactType
+
+    id: str
+    hash: str
+    name: str
+    category: str
+    keywords: list[str]
+
     author_name: str
     author_email: str
 
     creator_name: str
     creator_email: str
     creation_timestamp: str
-
-    id: str
-    hash: str
-    name: str
-    artifact_type: Literal[ArtifactType.WORKFLOW] = ArtifactType.WORKFLOW
-    category: str
-    keywords: list[str]
 
     homepage_url: str | None = None
     documentation_url: str | None = None
@@ -254,8 +187,8 @@ class WorkflowResponse(BaseModel):
     packages: list[PackageRef] = []
 
     source_code: str
-    docstring: str | None = None
 
+    docstring: str | None = None
     brief_description: str | None = None
     description: str | None = None
     inputs: list[AnnotationResponse]
@@ -263,33 +196,15 @@ class WorkflowResponse(BaseModel):
 
     see_also: list[Reference] = []
     uses: list[Reference] = []
+    used_by: list[Reference] | None = None
 
     wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 
 
-class WorkflowMetadata(WorkflowResponse):
+class NodeMetadata(NodeResponse):
     embedding: NdArray | None = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
-
-StoredArtifact = Annotated[
-    Annotated[FunctionMetadata, Tag("function")]
-    | Annotated[WorkflowMetadata, Tag("workflow")],
-    Discriminator("artifact_type"),
-]
-
-ArtifactRequest = Annotated[
-    Annotated[FunctionRequest, Tag("function")]
-    | Annotated[WorkflowRequest, Tag("workflow")],
-    Discriminator("artifact_type"),
-]
-
-ArtifactResponse = Annotated[
-    Annotated[FunctionResponse, Tag("function")]
-    | Annotated[WorkflowResponse, Tag("workflow")],
-    Discriminator("artifact_type"),
-]
 
 
 class Filter(BaseModel):
@@ -315,7 +230,7 @@ class FilterOptions(BaseModel):
 
 class ScoredSearchItem(BaseModel):
     score: float
-    node: FunctionResponse | WorkflowResponse
+    node: NodeResponse
 
 
 class SearchResults(BaseModel):
@@ -353,51 +268,6 @@ class SuggestRequest(BaseModel):
     query: str
     filter: Filter | None = None
     limit: int = Field(default=10, ge=1, le=25)
-
-
-# --- Agent models ---
-
-
-class GraphNodeContext(BaseModel):
-    """Compact representation of a node already placed in the graph."""
-
-    graph_id: str
-    node_kind: Literal["function", "input", "output"]
-    atlas_node_id: str | None = None  # None for InputNode / OutputNode
-    name: str
-    short_description: str | None = None
-    inputs: list[AnnotationResponse]
-    outputs: list[AnnotationResponse]
-
-
-class GraphEdgeContext(BaseModel):
-    source_graph_id: str
-    source_handle: str
-    target_graph_id: str
-    target_handle: str
-
-
-class HistoryMessage(BaseModel):
-    role: Literal["user", "assistant"]
-    content: str
-
-
-class AgentRequest(BaseModel):
-    query: str
-    nodes: list[GraphNodeContext]
-    edges: list[GraphEdgeContext]
-    history: list[HistoryMessage] = []
-    session_id: str | None = None
-    user_id: str = "default"
-    # Caller-supplied API key; overrides the server configuration for this request
-    # only and is never stored. The base URL and model stay server-side.
-    llm_api_key: str | None = None
-
-
-class AgentResponse(BaseModel):
-    nodes: list[GraphNodeContext]
-    edges: list[GraphEdgeContext]
-    message: str
 
 
 class IOValue(BaseModel):

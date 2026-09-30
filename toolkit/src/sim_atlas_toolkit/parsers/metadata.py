@@ -2,8 +2,10 @@ import importlib
 import inspect
 import logging
 import types
+from http import HTTPStatus
 from typing import Annotated, Any, Union, get_args, get_origin
 
+import httpx2
 from griffe import (
     Docstring,
     DocstringSectionAttributes,

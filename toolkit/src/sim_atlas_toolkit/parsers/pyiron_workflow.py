@@ -98,7 +98,7 @@ async def parse(ctx: ParseContext, node: Any) -> list[NodeResult]:
     )
     enrich_from_docstring(metadata.docstring, metadata)
     metadata.source_code = self_contain_source(
-        settings, node.node_function, metadata.source_code
+        ctx.settings, node.node_function, metadata.source_code
     )
 
     return await ctx.store.create_nodes([metadata])

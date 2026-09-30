@@ -81,12 +81,11 @@ def references_missing_name(x: int) -> int:
 
 
 async def test_parse_self_contained_source_inlines_helper(
-    monkeypatch: pytest.MonkeyPatch,
 ):
-    store = install_mock_node_store(monkeypatch)
+    store = MockNodeStore()
     settings = ToolkitSettings(self_contained_source=True)
 
-    await parse(settings, calls_helper)
+    await parse(ParseContext(settings, store), calls_helper)
 
     artifact = store.uploaded[0]
     assert "def _double" in artifact.source_code
@@ -96,12 +95,11 @@ async def test_parse_self_contained_source_inlines_helper(
 
 
 async def test_parse_self_contained_source_falls_back_when_incomplete(
-    monkeypatch: pytest.MonkeyPatch,
 ):
-    store = install_mock_node_store(monkeypatch)
+    store = MockNodeStore()
     settings = ToolkitSettings(self_contained_source=True)
 
-    await parse(settings, references_missing_name)
+    await parse(ParseContext(settings, store), references_missing_name)
 
     artifact = store.uploaded[0]
     # Falls back to the plain function source rather than emitting incomplete code.

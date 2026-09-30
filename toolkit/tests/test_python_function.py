@@ -80,8 +80,7 @@ def references_missing_name(x: int) -> int:
     return x + undefined_global  # noqa: F821  # pyright: ignore[reportUndefinedVariable, reportUnknownVariableType] -- deliberately unresolved, to exercise the extractor's fallback
 
 
-async def test_parse_self_contained_source_inlines_helper(
-):
+async def test_parse_self_contained_source_inlines_helper():
     store = MockNodeStore()
     settings = ToolkitSettings(self_contained_source=True)
 
@@ -94,8 +93,7 @@ async def test_parse_self_contained_source_inlines_helper(
     assert artifact.brief_description == "Calls a module-level helper."
 
 
-async def test_parse_self_contained_source_falls_back_when_incomplete(
-):
+async def test_parse_self_contained_source_falls_back_when_incomplete():
     store = MockNodeStore()
     settings = ToolkitSettings(self_contained_source=True)
 

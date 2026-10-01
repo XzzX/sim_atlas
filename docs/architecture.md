@@ -139,7 +139,7 @@ sequenceDiagram
     U->>F: enter query + set facet filters
     F->>B: POST /api/v1/search {query, filter, semantic, page, limit}
     alt semantic == false
-        B->>S: search(): apply NodeFilter → keyword score
+        B->>S: search(): apply NodeFilter → keyword score (typo-tolerant)
         Note right of S: score 1.0 if query in name+python_import<br/>score 0.8 if query in brief_description<br/>score 0.5 if query in docstring
         S-->>B: sorted, paginated SearchResults
     else semantic (default) → search_hybrid()
@@ -155,7 +155,7 @@ sequenceDiagram
             B->>E: create_embedding(query, input_type="query")
             E-->>B: query vector
             B->>S: apply NodeFilter once, then rank two ways
-            Note right of S: semantic rank: cosine similarity<br/>(nodes with an embedding only)<br/>keyword rank: token hit-count<br/>(tokens ≥3 chars, all filtered nodes)
+            Note right of S: semantic rank: cosine similarity<br/>(nodes with an embedding only)<br/>keyword rank: best-field score per term<br/>(exact, prefix and near-spelling matches, all filtered nodes)
             S->>S: RRF merge: score = 1/(60+sem_rank) + 1/(60+kw_rank)<br/>(0 for a side a node is absent from)
             S-->>B: sorted, paginated SearchResults
         end

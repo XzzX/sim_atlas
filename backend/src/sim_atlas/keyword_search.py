@@ -1,19 +1,28 @@
-"""BM25 keyword ranking over catalog nodes.
+"""Typo-tolerant keyword ranking over catalog nodes.
 
 Keyword search is the leg that always runs: it needs no embedding provider, and
 it keeps the exact identifier matches that a vector index blurs away. Queries
 reaching the catalog are sentence-shaped ("compute the gradient of a temperature
-field"), so matching has to be per-token — a whole-query substring test finds
-nothing. The query's trailing token is additionally treated as a prefix (the
-user may still be typing it), so "compute the gradient of a temp" matches
-"temperature" before the word is finished. Pure functions only: no storage, no
-I/O.
+field") and typed by people, so matching is per-token and forgiving:
+
+* every query token also matches catalog tokens that are close in spelling
+  (trigram similarity), so "temprature" finds "temperature";
+* the query's trailing token additionally matches as a prefix (the user may
+  still be typing it), so "compute the gradient of a temp" already matches
+  "temperature".
+
+Scoring is "best field per term": each query term counts once per node, at
+the weight of the most important field it hits, scaled by match quality and
+IDF. Taking the best field rather than summing over fields keeps text that a
+node repeats (its name is usually also its import path and often a keyword)
+from being counted several times. Pure functions only: no storage, no I/O.
 """
 
 from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from functools import lru_cache
 from math import log
 
 from sim_atlas.models import NodeMetadata
@@ -24,9 +33,17 @@ _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 
 MIN_QUERY_TOKEN_LEN = 3
 
-# Standard BM25 term-saturation and length-normalisation constants.
-_K1 = 1.5
-_B = 0.75
+# Shorter tokens have too few trigrams for similarity to tell a typo from a
+# different word ("fcc" vs "bcc").
+MIN_FUZZY_TOKEN_LEN = 4
+# Jaccard similarity of padded trigram sets. "temprature"/"temperature" is
+# 0.64 and "gradiant"/"gradient" 0.5, while "mesh"/"mess" is 0.43.
+FUZZY_THRESHOLD = 0.45
+
+# Match quality: an exact hit counts fully; a completion of the trailing
+# token or a near spelling counts less, so the exact word always ranks first.
+_PREFIX_QUALITY = 0.9
+_FUZZY_QUALITY = 0.8  # multiplied by the trigram similarity
 
 # A hit in the callable's name says far more than one buried in a docstring.
 _NAME_WEIGHT = 3.0
@@ -62,6 +79,46 @@ def query_tokens(query: str) -> list[str]:
     return long_tokens or tokens
 
 
+@lru_cache(maxsize=65536)
+def _trigrams(token: str) -> frozenset[str]:
+    # Padding as pg_trgm does lets word boundaries carry weight, so a shared
+    # start of word counts for more than a shared middle.
+    padded = f"  {token} "
+    return frozenset(padded[i : i + 3] for i in range(len(padded) - 2))
+
+
+def trigram_similarity(a: str, b: str) -> float:
+    """Jaccard similarity of the padded trigram sets of *a* and *b*."""
+    trigrams_a, trigrams_b = _trigrams(a), _trigrams(b)
+    return len(trigrams_a & trigrams_b) / len(trigrams_a | trigrams_b)
+
+
+def _could_be_similar(a: str, b: str) -> bool:
+    """Cheap length bound: Jaccard can never exceed the size ratio of the sets."""
+    shorter, longer = sorted((len(a) + 1, len(b) + 1))
+    return shorter >= FUZZY_THRESHOLD * longer
+
+
+def _expand(term: str, is_prefix: bool, vocabulary: set[str]) -> dict[str, float]:
+    """The catalog tokens *term* matches, mapped to their match quality."""
+    matches: dict[str, float] = {}
+    fuzzy = len(term) >= MIN_FUZZY_TOKEN_LEN
+    for token in vocabulary:
+        if token == term:
+            quality = 1.0
+        elif is_prefix and token.startswith(term):
+            quality = _PREFIX_QUALITY
+        elif fuzzy and _could_be_similar(term, token):
+            similarity = trigram_similarity(term, token)
+            if similarity < FUZZY_THRESHOLD:
+                continue
+            quality = _FUZZY_QUALITY * similarity
+        else:
+            continue
+        matches[token] = quality
+    return matches
+
+
 def _weighted_fields(node: NodeMetadata) -> list[tuple[float, str]]:
     port_text = " ".join(
         part
@@ -80,32 +137,23 @@ def _weighted_fields(node: NodeMetadata) -> list[tuple[float, str]]:
     ]
 
 
-def _term_frequencies(node: NodeMetadata) -> dict[str, float]:
-    """Weighted term frequencies for one node, fields folded into one bag."""
-    frequencies: dict[str, float] = {}
+def _token_weights(node: NodeMetadata) -> dict[str, float]:
+    """Each token of *node* mapped to the weight of the best field holding it."""
+    weights: dict[str, float] = {}
     for weight, text in _weighted_fields(node):
         for token in tokenize(text):
-            frequencies[token] = frequencies.get(token, 0.0) + weight
-    return frequencies
+            weights[token] = max(weights.get(token, 0.0), weight)
+    return weights
 
 
-def _term_frequency(
-    term_frequencies: dict[str, float], term: str, is_prefix: bool
-) -> float:
-    """The weighted frequency of *term* in one document's term-frequency bag.
-
-    A prefix term is treated as a single synthetic term: its frequency is the
-    sum across every token in the bag that starts with it, so a document
-    containing "temperature" scores as if it contained the fragment "temp"
-    once, not once per matching token.
-    """
-    if not is_prefix:
-        return term_frequencies.get(term, 0.0)
-    return sum(
-        frequency
-        for token, frequency in term_frequencies.items()
-        if token.startswith(term)
-    )
+def _best_hit(weights: dict[str, float], matches: dict[str, float]) -> float:
+    """The best ``field weight × match quality`` of one term in one node."""
+    # Walk the smaller side: a short prefix can match thousands of tokens.
+    if len(matches) < len(weights):
+        pairs = ((weights.get(t, 0.0), q) for t, q in matches.items())
+    else:
+        pairs = ((w, matches.get(t, 0.0)) for t, w in weights.items())
+    return max((w * q for w, q in pairs), default=0.0)
 
 
 def rank(query: str, nodes: Iterable[NodeMetadata]) -> dict[str, float]:
@@ -115,9 +163,9 @@ def rank(query: str, nodes: Iterable[NodeMetadata]) -> dict[str, float]:
     are absent rather than scored zero. Scores are comparable within one call
     only — IDF is computed over the nodes passed in.
 
-    The query's trailing token is matched as a prefix rather than a whole word,
-    since it may still be mid-word ("compute the temp" should already surface
-    "temperature"). Earlier tokens are matched exactly.
+    A node's score sums, over the query terms, ``idf × field weight × match
+    quality`` for the best hit of that term in the node. Repeating a word, or
+    holding it in several fields, adds nothing beyond its best occurrence.
     """
     query_terms = query_tokens(query)
     if not query_terms:
@@ -130,28 +178,27 @@ def rank(query: str, nodes: Iterable[NodeMetadata]) -> dict[str, float]:
     exact_terms = set(query_terms[:-1]) - {prefix_term}
     terms = [(term, False) for term in exact_terms] + [(prefix_term, True)]
 
-    frequencies = {node.id: _term_frequencies(node) for node in nodes}
-    if not frequencies:
+    token_weights = {node.id: _token_weights(node) for node in nodes}
+    if not token_weights:
         return {}
 
-    lengths = {key: sum(value.values()) for key, value in frequencies.items()}
-    average_length = (sum(lengths.values()) / len(lengths)) or 1.0
-    total = len(frequencies)
+    vocabulary = {token for weights in token_weights.values() for token in weights}
+    total = len(token_weights)
 
     scores: dict[str, float] = {}
     for term, is_prefix in terms:
-        term_frequency_by_doc = {
-            key: _term_frequency(value, term, is_prefix)
-            for key, value in frequencies.items()
-        }
-        matching = [key for key, tf in term_frequency_by_doc.items() if tf > 0.0]
-        if not matching:
+        matches = _expand(term, is_prefix, vocabulary)
+        if not matches:
             continue
-        idf = log(1 + (total - len(matching) + 0.5) / (len(matching) + 0.5))
-        for key in matching:
-            frequency = term_frequency_by_doc[key]
-            normalisation = 1 - _B + _B * lengths[key] / average_length
-            scores[key] = scores.get(key, 0.0) + idf * (frequency * (_K1 + 1)) / (
-                frequency + _K1 * normalisation
-            )
+        best_by_node: dict[str, float] = {}
+        for key, weights in token_weights.items():
+            best = _best_hit(weights, matches)
+            if best > 0.0:
+                best_by_node[key] = best
+        if not best_by_node:
+            continue
+        matching = len(best_by_node)
+        idf = log(1 + (total - matching + 0.5) / (matching + 0.5))
+        for key, best in best_by_node.items():
+            scores[key] = scores.get(key, 0.0) + idf * best
     return scores

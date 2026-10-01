@@ -1,4 +1,4 @@
-"""Unit tests for BM25 keyword ranking.
+"""Unit tests for typo-tolerant keyword ranking.
 
 Every query here is sentence-shaped, because that is what the MCP tool
 descriptions instruct agents to send and what whole-query substring matching
@@ -126,8 +126,11 @@ def test_partial_prefix_of_a_name_token_matches(prefix: str) -> None:
 
 
 def test_only_the_trailing_token_is_prefix_expanded() -> None:
-    """An earlier, complete-looking token is matched exactly, not as a prefix."""
-    assert _TEMPERATURE.id not in keyword_search.rank("temperat gradient", _CORPUS)
+    """An earlier fragment gets no prefix completion, only near-spelling matching.
+
+    "temp" is too far from "temperature" to count as a typo of it.
+    """
+    assert _TEMPERATURE.id not in keyword_search.rank("temp gradient", _CORPUS)
 
 
 def test_prefix_expansion_keeps_the_exact_match_ranked_first() -> None:
@@ -137,3 +140,110 @@ def test_prefix_expansion_keeps_the_exact_match_ranked_first() -> None:
 
 def test_an_unmatched_prefix_scores_nothing() -> None:
     assert keyword_search.rank("crystall", _CORPUS) == {}
+
+
+# ---------------------------------------------------------------------------
+# Typo tolerance (every token also matches near spellings)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "temprature of an atomic structure",  # dropped letter
+        "temperatrue of an atomic structure",  # swapped letters
+        "atomic temperatures",  # plural
+        "kinetik energy",  # wrong letter, docstring only
+    ],
+)
+def test_misspelled_query_finds_the_node(query: str) -> None:
+    assert _order(query)[0] == "get_temperature"
+
+
+def test_typo_in_a_non_trailing_token_still_matches() -> None:
+    """Fuzzy matching is not limited to the token being typed."""
+    assert _GRADIENT.id in keyword_search.rank("gradiant on a mesh", _CORPUS)
+
+
+def test_exact_spelling_outranks_a_near_spelling() -> None:
+    exact = make_node(name="mesh_refine", source_code="def mesh_refine(): pass")
+    near = make_node(name="meshes_refine", source_code="def meshes_refine(): pass")
+    scores = keyword_search.rank("mesh refine", [exact, near])
+    assert scores[exact.id] > scores[near.id]
+
+
+def test_different_short_words_are_not_treated_as_typos() -> None:
+    """Three letters are too few to tell a typo from another word."""
+    bcc = make_node(name="bcc_lattice", source_code="def bcc_lattice(): pass")
+    assert keyword_search.rank("fcc", [bcc]) == {}
+
+
+def test_unrelated_words_sharing_some_letters_do_not_match() -> None:
+    mess = make_node(name="mess_cleanup", source_code="def mess_cleanup(): pass")
+    assert keyword_search.rank("mesh grid", [mess]) == {}
+
+
+def test_trigram_similarity_is_symmetric_and_one_for_identical_tokens() -> None:
+    assert keyword_search.trigram_similarity("lammps", "lammps") == 1.0
+    assert keyword_search.trigram_similarity(
+        "lamps", "lammps"
+    ) == keyword_search.trigram_similarity("lammps", "lamps")
+
+
+# ---------------------------------------------------------------------------
+# Best-field scoring
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("better", "worse"),
+    [
+        ({"name": "diffusion"}, {"brief_description": "diffusion"}),
+        ({"brief_description": "diffusion"}, {"docstring": "diffusion"}),
+    ],
+)
+def test_field_order_name_then_brief_then_docstring(
+    better: dict[str, str], worse: dict[str, str]
+) -> None:
+    defaults = {"name": "unrelated", "docstring": "unrelated"}
+    a = make_node(**{**defaults, **better, "source_code": "def a(): pass"})
+    b = make_node(**{**defaults, **worse, "source_code": "def b(): pass"})
+    scores = keyword_search.rank("diffusion", [a, b])
+    assert scores[a.id] > scores[b.id]
+
+
+def test_repeating_a_term_across_fields_adds_nothing() -> None:
+    """A name echoed in the import path and keywords counts once, at name weight."""
+    plain = make_node(
+        name="diffusion",
+        python_import="lib.other",
+        keywords=[],
+        source_code="def a(): pass",
+    )
+    echoed = make_node(
+        name="diffusion",
+        python_import="lib.diffusion",
+        keywords=["diffusion"],
+        docstring="diffusion diffusion diffusion",
+        source_code="def b(): pass",
+    )
+    scores = keyword_search.rank("diffusion", [plain, echoed])
+    assert scores[plain.id] == pytest.approx(scores[echoed.id])
+
+
+def test_more_matched_terms_beat_a_single_name_hit() -> None:
+    """Rare terms in prose outweigh one common word in the name."""
+    common_in_name = make_node(name="compute", source_code="def a(): pass")
+    terms_in_docstring = make_node(
+        name="opaque",
+        docstring="Gradient of the temperature field.",
+        source_code="def b(): pass",
+    )
+    filler = [
+        make_node(name="compute_x", source_code=f"def f{i}(): pass") for i in range(3)
+    ]
+    scores = keyword_search.rank(
+        "compute the gradient of a temperature field",
+        [common_in_name, terms_in_docstring, *filler],
+    )
+    assert scores[terms_in_docstring.id] > scores[common_in_name.id]

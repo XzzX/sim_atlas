@@ -957,3 +957,20 @@ def test_search_semantic_does_not_return_stale_used_by(
         if i.node.artifact_type == ArtifactType.FUNCTION and i.node.name == "child_fn"
     )
     assert node.used_by is None
+
+
+def test_search_substring_populates_used_by() -> None:
+    """Parity with the other search paths (ADR-0018): pages are hydrated."""
+    storage = FileSystemStorage(path=None)
+    fn = make_node(name="child_fn", source_code="def child_fn(): pass")
+    storage.create_node(fn)
+    wf = make_workflow(
+        name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
+    )
+    storage.create_node(wf)
+
+    response = storage.search_substring("child")
+
+    node = response.results.data[0].node
+    assert node.used_by is not None
+    assert [ref.id for ref in node.used_by] == [wf.id]

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from sim_atlas import keyword_search, semantic_search
+from sim_atlas import keyword_search, semantic_search, substring_search
 from sim_atlas.embedding import create_embedding
 from sim_atlas.models import (
     AnnotationResponse,
@@ -385,55 +385,52 @@ class FileSystemStorage(StorageInterface):
 
         return self._ranked_page(scored_items, page, limit)
 
-    def suggest(
-        self, query: str, filter: Filter | None = None, limit: int = 10
-    ) -> list[Suggestion]:
-        """Cheap type-ahead lookup: name/import matches only, tiered and sorted.
+    def _substring_hits(
+        self, query: str, filter: Filter | None
+    ) -> list[tuple[float, NodeMetadata]]:
+        """Substring-leg hits that pass *filter*, best-first.
 
         Matches first, then filters the survivors — ``NodeFilter`` allocates
         ``inputs + outputs`` per node even with no port filter set, so
         matching first keeps the cost proportional to the match count instead
-        of to the catalog size. No ``used_by``/connections hydration:
-        this path exists to be fast.
+        of to the catalog size. Ties are broken by name, then id.
         """
-        needle = query.strip().lower()
-        if not needle:
-            return []
-
-        tiered: list[tuple[int, NodeMetadata]] = []
-        for node in self._nodes.values():
-            tier = self._suggest_tier(node, needle)
-            if tier is not None:
-                tiered.append((tier, node))
-
+        scores = substring_search.rank(query, self._nodes.values())
         item_filter = NodeFilter(filter or Filter())
-        matching = [(tier, a) for tier, a in tiered if item_filter(a)]
-        matching.sort(
-            key=lambda pair: (
-                pair[0],
-                len(pair[1].name),
-                pair[1].name.lower(),
-                pair[1].id,
-            )
-        )
+        hits = [
+            (score, self._nodes[node_id])
+            for node_id, score in scores.items()
+            if item_filter(self._nodes[node_id])
+        ]
+        hits.sort(key=lambda hit: (-hit[0], hit[1].name.lower(), hit[1].id))
+        return hits
 
-        return [self._to_suggestion(node) for _, node in matching[:limit]]
+    def search_substring(
+        self,
+        query: str | None,
+        filter: Filter | None = None,
+        page: int = 1,
+        limit: int = 10,
+    ) -> ScoredSearchResponse:
+        """Substring search over node names and import paths."""
+        if not query or not query.strip():
+            return self.search(query, filter, page=page, limit=limit)
 
-    @staticmethod
-    def _suggest_tier(node: NodeMetadata, needle: str) -> int | None:
-        """The best-matching tier for *needle* against *node*, or None."""
-        name = node.name.lower()
-        if name.startswith(needle):
-            return 0
-        if any(
-            token.startswith(needle) for token in keyword_search.tokenize(node.name)
-        ):
-            return 1
-        if needle in name:
-            return 2
-        if needle in (node.python_import or "").lower():
-            return 3
-        return None
+        items = [
+            ScoredSearchItem(score=score, node=node)
+            for score, node in self._substring_hits(query, filter)
+        ]
+        return self._hydrate_page(self._paginate(items, page=page, limit=limit))
+
+    def suggest(
+        self, query: str, filter: Filter | None = None, limit: int = 10
+    ) -> list[Suggestion]:
+        """Cheap type-ahead lookup: the substring leg, projected to suggestions.
+
+        No ``used_by``/connections hydration: this path exists to be fast.
+        """
+        hits = self._substring_hits(query, filter)
+        return [self._to_suggestion(node) for _, node in hits[:limit]]
 
     @staticmethod
     def _to_suggestion(node: NodeMetadata) -> Suggestion:

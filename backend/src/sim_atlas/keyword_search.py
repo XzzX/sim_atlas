@@ -75,6 +75,15 @@ def tokenize(text: str) -> list[str]:
     return tokens
 
 
+def token_starts(text: str) -> set[int]:
+    """The offsets in *text* at which a ``tokenize`` token begins."""
+    return {
+        part.start()
+        for word in _WORD_PATTERN.finditer(text)
+        for part in _CAMEL_PART_PATTERN.finditer(text, word.start(), word.end())
+    }
+
+
 def query_tokens(query: str) -> list[str]:
     """The tokens of *query* worth matching on, in order.
 

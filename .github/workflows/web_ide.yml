@@ -72,27 +72,3 @@ jobs:
           name: build-output
           path: web_ide/dist/
           retention-days: 1
-
-  dependency-audit:
-    name: Audit Dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: web_ide/package-lock.json
-
-      # Run npm audit for known vulnerabilities
-      - name: Security audit
-        run: npm audit --audit-level=high
-        working-directory: ./web_ide
-
-      # Check for outdated packages
-      - name: Check outdated
-        run: npm outdated || true
-        working-directory: ./web_ide

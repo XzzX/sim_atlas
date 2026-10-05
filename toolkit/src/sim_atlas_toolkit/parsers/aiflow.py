@@ -145,7 +145,9 @@ async def parse_group_node(ctx: ParseContext, obj: Any) -> list[NodeResult]:
     apply_provenance(metadata, module)
     metadata.inputs = inputs
     metadata.outputs = outputs
-    metadata.docstring = ""
+
+    metadata.docstring = await generate_docstring(ctx, metadata.source_code, "")
+    enrich_from_docstring(metadata.docstring, metadata)
 
     return await ctx.store.create_nodes([metadata])
 

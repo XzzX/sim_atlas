@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from sim_atlas import keyword_search, semantic_search, substring_search
+from sim_atlas import fusion, keyword_search, semantic_search, substring_search
 from sim_atlas.embedding import create_embedding
 from sim_atlas.models import (
     AnnotationResponse,
@@ -470,55 +470,36 @@ class FileSystemStorage(StorageInterface):
         page: int = 1,
         limit: int = 10,
     ) -> ScoredSearchResponse:
-        """Hybrid search combining semantic (cosine) and keyword ranking via RRF.
+        """Hybrid search: weighted RRF of the substring, keyword and semantic legs.
 
-        Falls back to keyword-only search when there is no query to embed or no
-        embedding provider is configured, so search always works even without AI.
+        Without an embedding provider the semantic leg is skipped and the
+        other two are fused, so search always works even without AI. A blank
+        query has nothing to rank and returns the filtered set.
 
-        Both legs see every filtered node: unenriched nodes that have no
-        embedding can still surface through the BM25 keyword rank, and nodes
-        whose wording misses the query entirely can still surface through the
+        Every leg sees every filtered node: unenriched nodes that have no
+        embedding can still surface through the lexical legs, and nodes whose
+        wording misses the query entirely can still surface through the
         semantic rank.
         """
-        if not query or not query.strip() or not load_settings().embeddings_enabled:
+        if not query or not query.strip():
             return self.search(query, filter, page=page, limit=limit)
 
         filtered_nodes = self._filtered_nodes(filter)
-
-        # --- semantic rank (only nodes with embeddings) ---
-        query_embedding = (await create_embedding([query], input_type="query"))[0]
-        sem_scores = sorted(
-            semantic_search.rank(query_embedding, filtered_nodes).items(),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        sem_rank: dict[str, int] = {
-            node_id: r + 1 for r, (node_id, _) in enumerate(sem_scores)
-        }
-
-        # --- keyword rank (all filtered nodes) ---
-        kw_scores = sorted(
-            keyword_search.rank(query, filtered_nodes).items(),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        kw_rank: dict[str, int] = {
-            node_id: r + 1 for r, (node_id, _) in enumerate(kw_scores)
-        }
-
-        # --- RRF merge ---
-        k = 60
-        candidate_ids = set(sem_rank) | set(kw_rank)
-        node_lookup: dict[str, NodeMetadata] = {n.id: n for n in filtered_nodes}
-        scored: list[ScoredSearchItem] = [
-            ScoredSearchItem(
-                score=(1 / (k + sem_rank[nid]) if nid in sem_rank else 0.0)
-                + (1 / (k + kw_rank[nid]) if nid in kw_rank else 0.0),
-                node=node_lookup[nid],
-            )
-            for nid in candidate_ids
+        legs = [
+            (fusion.SUBSTRING_WEIGHT, substring_search.rank(query, filtered_nodes)),
+            (fusion.KEYWORD_WEIGHT, keyword_search.rank(query, filtered_nodes)),
         ]
-        return self._ranked_page(scored, page, limit)
+        if load_settings().embeddings_enabled:
+            query_embedding = (await create_embedding([query], input_type="query"))[0]
+            legs.append(
+                (
+                    fusion.SEMANTIC_WEIGHT,
+                    semantic_search.rank(query_embedding, filtered_nodes),
+                )
+            )
+
+        fused = fusion.reciprocal_rank_fusion(legs)
+        return self._ranked_page(self._scored(filtered_nodes, fused), page, limit)
 
     @staticmethod
     def _embedding_text(node: NodeMetadata) -> str:

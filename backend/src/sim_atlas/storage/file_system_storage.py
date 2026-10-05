@@ -486,15 +486,20 @@ class FileSystemStorage(StorageInterface):
 
         filtered_nodes = self._filtered_nodes(filter)
         legs = [
-            (fusion.SUBSTRING_WEIGHT, substring_search.rank(query, filtered_nodes)),
-            (fusion.KEYWORD_WEIGHT, keyword_search.rank(query, filtered_nodes)),
+            fusion.Leg(
+                fusion.SUBSTRING_WEIGHT, substring_search.rank(query, filtered_nodes)
+            ),
+            fusion.Leg(
+                fusion.KEYWORD_WEIGHT, keyword_search.rank(query, filtered_nodes)
+            ),
         ]
         if load_settings().embeddings_enabled:
             query_embedding = (await create_embedding([query], input_type="query"))[0]
             legs.append(
-                (
+                fusion.Leg(
                     fusion.SEMANTIC_WEIGHT,
                     semantic_search.rank(query_embedding, filtered_nodes),
+                    partial=True,
                 )
             )
 

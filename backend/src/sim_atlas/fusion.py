@@ -9,6 +9,7 @@ no I/O.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import NamedTuple
 
 # Substring and keyword are both lexical over the same identifiers and agree
 # often, so equal weights would make the fused result two-thirds lexical by
@@ -20,28 +21,57 @@ SEMANTIC_WEIGHT = 1.0
 RRF_K = 60
 
 
-def reciprocal_rank_fusion(
-    legs: Sequence[tuple[float, dict[str, float]]],
-    k: int = RRF_K,
-) -> dict[str, float]:
-    """Fuse ``(weight, {node id: score})`` legs into ``{node id: fused score}``.
+class Leg(NamedTuple):
+    """One leg's ``{node id: score}`` and how much it counts in the fusion.
 
-    A node contributes ``weight / (k + rank)`` from every leg that scored it
-    and nothing from a leg that did not: absent is not the same as ranked
-    last. Ranks are 1-based and ties keep the leg's insertion order.
-
-    Weights are renormalised over the legs passed in, so pass only the legs
-    that actually ran (e.g. omit semantic without an embedding provider). That
-    keeps fused scores on the same scale whichever legs ran.
+    A *partial* leg can only score some nodes — semantic ranking cannot score
+    a node without an embedding — so a node's absence from it means "no
+    opinion" rather than "no match". Absence from a full leg is a miss.
     """
-    total_weight = sum(weight for weight, _ in legs)
-    if total_weight <= 0.0:
-        return {}
 
-    fused: dict[str, float] = {}
-    for weight, scores in legs:
-        ranked = sorted(scores, key=lambda node_id: scores[node_id], reverse=True)
-        for rank, node_id in enumerate(ranked, start=1):
-            contribution = (weight / total_weight) / (k + rank)
-            fused[node_id] = fused.get(node_id, 0.0) + contribution
-    return fused
+    weight: float
+    scores: dict[str, float]
+    partial: bool = False
+
+
+def _ranks(scores: dict[str, float]) -> dict[str, int]:
+    """1-based competition ranks: tied scores share a rank."""
+    ranks: dict[str, int] = {}
+    previous: float | None = None
+    rank = 0
+    ordered = sorted(scores, key=lambda node_id: scores[node_id], reverse=True)
+    for position, node_id in enumerate(ordered, start=1):
+        if scores[node_id] != previous:
+            rank, previous = position, scores[node_id]
+        ranks[node_id] = rank
+    return ranks
+
+
+def reciprocal_rank_fusion(legs: Sequence[Leg], k: int = RRF_K) -> dict[str, float]:
+    """Fuse *legs* into ``{node id: fused score}``.
+
+    A node gains ``weight / (k + rank)`` from every leg that ranked it. Ties
+    within a leg share a rank, so insertion order never decides between
+    nodes a leg cannot tell apart.
+
+    Weights are renormalised per node over the legs that could have scored
+    it: every full leg, plus each partial leg that holds it. Pass only the
+    legs that actually ran (e.g. omit semantic without an embedding
+    provider), and a node the semantic leg cannot see — an unenriched node —
+    is fused as if that leg had not run instead of losing its share.
+    """
+    full_weight = sum(leg.weight for leg in legs if not leg.partial)
+    weighted: dict[str, float] = {}
+    eligible_weight: dict[str, float] = {}
+    for leg in legs:
+        for node_id, rank in _ranks(leg.scores).items():
+            weighted[node_id] = weighted.get(node_id, 0.0) + leg.weight / (k + rank)
+            if leg.partial:
+                eligible_weight[node_id] = (
+                    eligible_weight.get(node_id, 0.0) + leg.weight
+                )
+
+    return {
+        node_id: score / (full_weight + eligible_weight.get(node_id, 0.0))
+        for node_id, score in weighted.items()
+    }

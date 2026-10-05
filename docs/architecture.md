@@ -137,26 +137,31 @@ sequenceDiagram
     participant E as Embedding Provider<br/>(fastembed local, or<br/>OpenAI/VoyageAI API)
 
     U->>F: enter query + set facet filters
-    F->>B: POST /api/v1/search {query, filter, semantic, page, limit}
-    alt semantic == false
-        B->>S: search(): apply NodeFilter → keyword score (typo-tolerant)
-        Note right of S: score 1.0 if query in name+python_import<br/>score 0.8 if query in brief_description<br/>score 0.5 if query in docstring
+    F->>B: POST /api/v1/search {query, filter, mode, semantic, page, limit}
+    Note over B: mode defaults to hybrid,<br/>or keyword when semantic == false
+    alt mode == keyword
+        B->>S: search(): apply NodeFilter → keyword leg
         S-->>B: sorted, paginated SearchResults
-    else semantic (default) → search_hybrid()
-        alt no query, or embeddings_enabled == false
-            B->>S: fall back to search() (keyword-only, same scoring as above)
-            S-->>B: sorted, paginated SearchResults
-        else query tokenizes to nothing ≥3 chars
-            B->>E: create_embedding(query, input_type="query")
-            E-->>B: query vector
-            B->>S: search_semantic(): apply NodeFilter → cosine similarity only
-            S-->>B: sorted, paginated SearchResults
+    else mode == substring
+        B->>S: search_substring(): substring leg → apply NodeFilter
+        S-->>B: sorted, paginated SearchResults
+    else mode == semantic
+        B->>E: create_embedding(query, input_type="query")
+        E-->>B: query vector
+        B->>S: search_semantic(): apply NodeFilter → semantic leg
+        S-->>B: sorted, paginated SearchResults
+    else mode == hybrid → search_hybrid()
+        alt no query
+            B->>S: fall back to search() (filtered set, unranked)
+            S-->>B: paginated SearchResults
         else
-            B->>E: create_embedding(query, input_type="query")
-            E-->>B: query vector
-            B->>S: apply NodeFilter once, then rank two ways
-            Note right of S: semantic rank: cosine similarity<br/>(nodes with an embedding only)<br/>keyword rank: best-field score per term<br/>(exact, prefix and near-spelling matches, all filtered nodes)
-            S->>S: RRF merge: score = 1/(60+sem_rank) + 1/(60+kw_rank)<br/>(0 for a side a node is absent from)
+            opt embeddings_enabled
+                B->>E: create_embedding(query, input_type="query")
+                E-->>B: query vector
+            end
+            B->>S: apply NodeFilter once, then rank with every leg that runs
+            Note right of S: substring leg: name/import substring,<br/>tier (prefix > word start > inside name > import)<br/>then coverage<br/>keyword leg: best-field score per term<br/>(exact, prefix and near-spelling matches)<br/>semantic leg: cosine similarity<br/>(nodes with an embedding only)
+            S->>S: weighted RRF (fusion.py): Σ w·1/(60+rank)<br/>ties share a rank; weights renormalised per node,<br/>so an unembedded node is fused as if<br/>the semantic leg had not run
             S-->>B: sorted, paginated SearchResults
         end
     end

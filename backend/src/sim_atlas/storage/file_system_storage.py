@@ -94,7 +94,7 @@ class NodeFilter:
         return node.inputs + node.outputs
 
     def __call__(self, node: NodeMetadata) -> bool:  # noqa: PLR0911
-        if self.category and not node.category.startswith(self.category):
+        if self.category and not node.category.lower().startswith(self.category):
             return False
 
         if self.type and node.artifact_type not in self.type:

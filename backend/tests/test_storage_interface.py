@@ -392,6 +392,30 @@ class StorageContractTests:
         assert result.results.total_items == 1
         assert result.results.data[0].node.category == "physics"
 
+    def test_search_filter_by_a_camel_case_category(
+        self, storage: StorageInterface
+    ) -> None:
+        """Categories built from import paths keep CamelCase; matching ignores case."""
+        storage.create_node(
+            make_node(
+                name="grain_boundary",
+                category="pyiron_nodes>structure>BuildMgGrainBoundary",
+                source_code="def a(): pass",
+            )
+        )
+        storage.create_node(
+            make_node(
+                name="other", category="pyiron_nodes>calc", source_code="def b(): 1"
+            )
+        )
+        for category in (
+            "pyiron_nodes>structure>BuildMgGrainBoundary",
+            "pyiron_nodes>structure>buildmg",
+            "PYIRON_NODES>STRUCTURE",
+        ):
+            result = storage.search(None, Filter(category=category))
+            assert [i.node.name for i in result.results.data] == ["grain_boundary"]
+
     def test_search_filter_by_type(self, storage: StorageInterface) -> None:
         storage.create_node(make_node(source_code="def func(): pass"))
         result = storage.search(None, Filter(artifact_type=[ArtifactType.FUNCTION]))

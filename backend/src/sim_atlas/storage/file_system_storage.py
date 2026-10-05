@@ -7,10 +7,9 @@ from functools import reduce
 from math import ceil
 from pathlib import Path
 
-import numpy as np
 from pydantic import BaseModel
 
-from sim_atlas import keyword_search
+from sim_atlas import keyword_search, semantic_search
 from sim_atlas.embedding import create_embedding
 from sim_atlas.models import (
     AnnotationResponse,
@@ -68,28 +67,6 @@ def _write_json_atomically(target: Path, payload: dict[str, object]) -> None:
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, target)
-
-
-def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
-    """Compute the cosine similarity between two vectors.
-
-    Args:
-        vec1 (np.ndarray): The first vector.
-        vec2 (np.ndarray): The second vector.
-
-    Returns:
-        float: The cosine similarity between the two vectors.
-    """
-    # Compute cosine similarity
-    dot_product = np.dot(vec1, vec2)
-    norm1 = np.linalg.norm(vec1)
-    norm2 = np.linalg.norm(vec2)
-
-    if norm1 == 0 or norm2 == 0:
-        return 0.0
-
-    similarity = dot_product / (norm1 * norm2)
-    return similarity
 
 
 class NodeFilter:
@@ -467,13 +444,15 @@ class FileSystemStorage(StorageInterface):
         query_embedding = (await create_embedding([query], input_type="query"))[0]
 
         item_filter = NodeFilter(filter or Filter())
-
-        # Calculate similarities
-        similarities: list[ScoredSearchItem] = []
-        for _node_hash, node in self._nodes.items():
-            if node.embedding is not None and item_filter(node):
-                similarity = cosine_similarity(query_embedding, node.embedding)
-                similarities.append(ScoredSearchItem(score=similarity, node=node))
+        filtered_nodes = [
+            n
+            for n in self._nodes.values()
+            if n.embedding is not None and item_filter(n)
+        ]
+        scores = semantic_search.rank(query_embedding, filtered_nodes)
+        similarities = [
+            ScoredSearchItem(score=scores[n.id], node=n) for n in filtered_nodes
+        ]
 
         # Sort by similarity (descending) and limit results
         similarities.sort(key=lambda x: x.score, reverse=True)
@@ -505,12 +484,11 @@ class FileSystemStorage(StorageInterface):
 
         # --- semantic rank (only nodes with embeddings) ---
         query_embedding = (await create_embedding([query], input_type="query"))[0]
-        sem_scores: list[tuple[str, float]] = [
-            (node.id, cosine_similarity(query_embedding, node.embedding))
-            for node in filtered_nodes
-            if node.embedding is not None
-        ]
-        sem_scores.sort(key=lambda x: x[1], reverse=True)
+        sem_scores = sorted(
+            semantic_search.rank(query_embedding, filtered_nodes).items(),
+            key=lambda x: x[1],
+            reverse=True,
+        )
         sem_rank: dict[str, int] = {
             node_id: r + 1 for r, (node_id, _) in enumerate(sem_scores)
         }

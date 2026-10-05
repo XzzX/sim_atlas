@@ -7,10 +7,8 @@ from functools import reduce
 from math import ceil
 from pathlib import Path
 
-import numpy as np
 from pydantic import BaseModel
 
-from sim_atlas import keyword_search
 from sim_atlas.embedding import create_embedding
 from sim_atlas.models import (
     AnnotationResponse,
@@ -26,6 +24,7 @@ from sim_atlas.models import (
     Suggestion,
 )
 from sim_atlas.node_text import short_description
+from sim_atlas.search import fusion, keyword, semantic, substring
 from sim_atlas.settings import load_settings
 from sim_atlas.storage.storage_interface import (
     ExecutionResultAlreadyExistsError,
@@ -70,28 +69,6 @@ def _write_json_atomically(target: Path, payload: dict[str, object]) -> None:
     os.replace(tmp, target)
 
 
-def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
-    """Compute the cosine similarity between two vectors.
-
-    Args:
-        vec1 (np.ndarray): The first vector.
-        vec2 (np.ndarray): The second vector.
-
-    Returns:
-        float: The cosine similarity between the two vectors.
-    """
-    # Compute cosine similarity
-    dot_product = np.dot(vec1, vec2)
-    norm1 = np.linalg.norm(vec1)
-    norm2 = np.linalg.norm(vec2)
-
-    if norm1 == 0 or norm2 == 0:
-        return 0.0
-
-    similarity = dot_product / (norm1 * norm2)
-    return similarity
-
-
 class NodeFilter:
     def __init__(self, filter_options: Filter) -> None:
         self.category = (
@@ -117,7 +94,7 @@ class NodeFilter:
         return node.inputs + node.outputs
 
     def __call__(self, node: NodeMetadata) -> bool:  # noqa: PLR0911
-        if self.category and not node.category.startswith(self.category):
+        if self.category and not node.category.lower().startswith(self.category):
             return False
 
         if self.type and node.artifact_type not in self.type:
@@ -355,6 +332,28 @@ class FileSystemStorage(StorageInterface):
             if item_filter(item)
         ]
 
+    def _filtered_nodes(self, filter: Filter | None) -> list[NodeMetadata]:
+        item_filter = NodeFilter(filter or Filter())
+        return [node for node in self._nodes.values() if item_filter(node)]
+
+    @staticmethod
+    def _scored(
+        nodes: list[NodeMetadata], scores: dict[str, float]
+    ) -> list[ScoredSearchItem]:
+        """*nodes* that *scores* ranked, in their original order."""
+        return [
+            ScoredSearchItem(score=scores[node.id], node=node)
+            for node in nodes
+            if node.id in scores
+        ]
+
+    def _ranked_page(
+        self, items: list[ScoredSearchItem], page: int, limit: int
+    ) -> ScoredSearchResponse:
+        """Sort *items* best-first (ties keep their order), paginate, hydrate."""
+        items = sorted(items, key=lambda x: x.score, reverse=True)
+        return self._hydrate_page(self._paginate(items, page=page, limit=limit))
+
     def search(
         self,
         query: str | None,
@@ -370,74 +369,68 @@ class FileSystemStorage(StorageInterface):
         the filters alone decide membership and the query only orders what they
         returned, so adding a query can never shrink the result set.
         """
-        item_filter: NodeFilter = NodeFilter(filter or Filter())
-        filtered_items = [item for item in self._nodes.values() if item_filter(item)]
+        filtered_items = self._filtered_nodes(filter)
 
         if not query or not query.strip():
             scored_items = [
                 ScoredSearchItem(score=1.0, node=item) for item in filtered_items
             ]
         else:
-            scores = keyword_search.rank(query, filtered_items)
+            scores = keyword.rank(query, filtered_items)
             scored_items = [
                 ScoredSearchItem(score=scores.get(item.id, 0.0), node=item)
                 for item in filtered_items
                 if not drop_unmatched or scores.get(item.id, 0.0) > 0.0
             ]
 
-        sorted_items = sorted(scored_items, key=lambda x: x.score, reverse=True)
+        return self._ranked_page(scored_items, page, limit)
 
-        return self._hydrate_page(self._paginate(sorted_items, page=page, limit=limit))
-
-    def suggest(
-        self, query: str, filter: Filter | None = None, limit: int = 10
-    ) -> list[Suggestion]:
-        """Cheap type-ahead lookup: name/import matches only, tiered and sorted.
+    def _substring_hits(
+        self, query: str, filter: Filter | None
+    ) -> list[tuple[float, NodeMetadata]]:
+        """Substring-leg hits that pass *filter*, best-first.
 
         Matches first, then filters the survivors — ``NodeFilter`` allocates
         ``inputs + outputs`` per node even with no port filter set, so
         matching first keeps the cost proportional to the match count instead
-        of to the catalog size. No ``used_by``/connections hydration:
-        this path exists to be fast.
+        of to the catalog size. Ties are broken by name, then id.
         """
-        needle = query.strip().lower()
-        if not needle:
-            return []
-
-        tiered: list[tuple[int, NodeMetadata]] = []
-        for node in self._nodes.values():
-            tier = self._suggest_tier(node, needle)
-            if tier is not None:
-                tiered.append((tier, node))
-
+        scores = substring.rank(query, self._nodes.values())
         item_filter = NodeFilter(filter or Filter())
-        matching = [(tier, a) for tier, a in tiered if item_filter(a)]
-        matching.sort(
-            key=lambda pair: (
-                pair[0],
-                len(pair[1].name),
-                pair[1].name.lower(),
-                pair[1].id,
-            )
-        )
+        hits = [
+            (score, self._nodes[node_id])
+            for node_id, score in scores.items()
+            if item_filter(self._nodes[node_id])
+        ]
+        hits.sort(key=lambda hit: (-hit[0], hit[1].name.lower(), hit[1].id))
+        return hits
 
-        return [self._to_suggestion(node) for _, node in matching[:limit]]
+    def search_substring(
+        self,
+        query: str | None,
+        filter: Filter | None = None,
+        page: int = 1,
+        limit: int = 10,
+    ) -> ScoredSearchResponse:
+        """Substring search over node names and import paths."""
+        if not query or not query.strip():
+            return self.search(query, filter, page=page, limit=limit)
 
-    @staticmethod
-    def _suggest_tier(node: NodeMetadata, needle: str) -> int | None:
-        """The best-matching tier for *needle* against *node*, or None."""
-        name = node.name.lower()
-        if name.startswith(needle):
-            return 0
-        if any(
-            token.startswith(needle) for token in keyword_search.tokenize(node.name)
-        ):
-            return 1
-        if needle in name:
-            return 2
-        if needle in (node.python_import or "").lower():
-            return 3
-        return None
+        items = [
+            ScoredSearchItem(score=score, node=node)
+            for score, node in self._substring_hits(query, filter)
+        ]
+        return self._hydrate_page(self._paginate(items, page=page, limit=limit))
+
+    def suggest(
+        self, query: str, filter: Filter | None = None, limit: int = 10
+    ) -> list[Suggestion]:
+        """Cheap type-ahead lookup: the substring leg, projected to suggestions.
+
+        No ``used_by``/connections hydration: this path exists to be fast.
+        """
+        hits = self._substring_hits(query, filter)
+        return [self._to_suggestion(node) for _, node in hits[:limit]]
 
     @staticmethod
     def _to_suggestion(node: NodeMetadata) -> Suggestion:
@@ -447,6 +440,7 @@ class FileSystemStorage(StorageInterface):
             python_import=node.python_import,
             artifact_type=node.artifact_type,
             short_description=short_description(node.brief_description, node.docstring),
+            keywords=node.keywords,
         )
 
     async def search_semantic(
@@ -466,19 +460,9 @@ class FileSystemStorage(StorageInterface):
         # Generate embedding for the query
         query_embedding = (await create_embedding([query], input_type="query"))[0]
 
-        item_filter = NodeFilter(filter or Filter())
-
-        # Calculate similarities
-        similarities: list[ScoredSearchItem] = []
-        for _node_hash, node in self._nodes.items():
-            if node.embedding is not None and item_filter(node):
-                similarity = cosine_similarity(query_embedding, node.embedding)
-                similarities.append(ScoredSearchItem(score=similarity, node=node))
-
-        # Sort by similarity (descending) and limit results
-        similarities.sort(key=lambda x: x.score, reverse=True)
-
-        return self._hydrate_page(self._paginate(similarities, page=page, limit=limit))
+        filtered_nodes = self._filtered_nodes(filter)
+        scores = semantic.rank(query_embedding, filtered_nodes)
+        return self._ranked_page(self._scored(filtered_nodes, scores), page, limit)
 
     async def search_hybrid(
         self,
@@ -487,59 +471,37 @@ class FileSystemStorage(StorageInterface):
         page: int = 1,
         limit: int = 10,
     ) -> ScoredSearchResponse:
-        """Hybrid search combining semantic (cosine) and keyword ranking via RRF.
+        """Hybrid search: weighted RRF of the substring, keyword and semantic legs.
 
-        Falls back to keyword-only search when there is no query to embed or no
-        embedding provider is configured, so search always works even without AI.
+        Without an embedding provider the semantic leg is skipped and the
+        other two are fused, so search always works even without AI. A blank
+        query has nothing to rank and returns the filtered set.
 
-        Both legs see every filtered node: unenriched nodes that have no
-        embedding can still surface through the BM25 keyword rank, and nodes
-        whose wording misses the query entirely can still surface through the
+        Every leg sees every filtered node: unenriched nodes that have no
+        embedding can still surface through the lexical legs, and nodes whose
+        wording misses the query entirely can still surface through the
         semantic rank.
         """
-        if not query or not query.strip() or not load_settings().embeddings_enabled:
+        if not query or not query.strip():
             return self.search(query, filter, page=page, limit=limit)
 
-        item_filter = NodeFilter(filter or Filter())
-        filtered_nodes = [n for n in self._nodes.values() if item_filter(n)]
-
-        # --- semantic rank (only nodes with embeddings) ---
-        query_embedding = (await create_embedding([query], input_type="query"))[0]
-        sem_scores: list[tuple[str, float]] = [
-            (node.id, cosine_similarity(query_embedding, node.embedding))
-            for node in filtered_nodes
-            if node.embedding is not None
+        filtered_nodes = self._filtered_nodes(filter)
+        legs = [
+            fusion.Leg(fusion.SUBSTRING_WEIGHT, substring.rank(query, filtered_nodes)),
+            fusion.Leg(fusion.KEYWORD_WEIGHT, keyword.rank(query, filtered_nodes)),
         ]
-        sem_scores.sort(key=lambda x: x[1], reverse=True)
-        sem_rank: dict[str, int] = {
-            node_id: r + 1 for r, (node_id, _) in enumerate(sem_scores)
-        }
-
-        # --- keyword rank (all filtered nodes) ---
-        kw_scores = sorted(
-            keyword_search.rank(query, filtered_nodes).items(),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        kw_rank: dict[str, int] = {
-            node_id: r + 1 for r, (node_id, _) in enumerate(kw_scores)
-        }
-
-        # --- RRF merge ---
-        k = 60
-        candidate_ids = set(sem_rank) | set(kw_rank)
-        node_lookup: dict[str, NodeMetadata] = {n.id: n for n in filtered_nodes}
-        scored: list[ScoredSearchItem] = [
-            ScoredSearchItem(
-                score=(1 / (k + sem_rank[nid]) if nid in sem_rank else 0.0)
-                + (1 / (k + kw_rank[nid]) if nid in kw_rank else 0.0),
-                node=node_lookup[nid],
+        if load_settings().embeddings_enabled:
+            query_embedding = (await create_embedding([query], input_type="query"))[0]
+            legs.append(
+                fusion.Leg(
+                    fusion.SEMANTIC_WEIGHT,
+                    semantic.rank(query_embedding, filtered_nodes),
+                    partial=True,
+                )
             )
-            for nid in candidate_ids
-        ]
-        scored.sort(key=lambda x: x.score, reverse=True)
 
-        return self._hydrate_page(self._paginate(scored, page=page, limit=limit))
+        fused = fusion.reciprocal_rank_fusion(legs)
+        return self._ranked_page(self._scored(filtered_nodes, fused), page, limit)
 
     @staticmethod
     def _embedding_text(node: NodeMetadata) -> str:

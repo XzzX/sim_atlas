@@ -117,6 +117,24 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
+    def search_substring(
+        self,
+        query: str | None,
+        filter: Filter | None = None,
+        page: int = 1,
+        limit: int = 10,
+    ) -> ScoredSearchResponse:
+        """Substring search over node names and import paths.
+
+        The query is matched literally (case-insensitively) and ranked by
+        match position, then by how much of the field it covers. Unlike
+        ``suggest`` this returns full, hydrated nodes and paginates, so it
+        serves list and tree views. A blank query returns the filtered set,
+        as ``search`` does.
+        """
+        pass
+
+    @abstractmethod
     def suggest(
         self, query: str, filter: Filter | None = None, limit: int = 10
     ) -> list[Suggestion]:

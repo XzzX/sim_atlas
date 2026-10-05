@@ -29,7 +29,10 @@ from sim_atlas.models import NodeMetadata
 
 # Identifiers are the point: splitting on every non-alphanumeric turns
 # "ase.md.get_temperature" into the tokens a sentence-shaped query contains.
-_TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
+_WORD_PATTERN = re.compile(r"[A-Za-z0-9]+")
+# CamelCase parts of one word: "HTTPServerNode" -> "HTTP", "Server", "Node".
+# The first branch keeps an acronym together up to the next capitalised part.
+_CAMEL_PART_PATTERN = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+")
 
 MIN_QUERY_TOKEN_LEN = 3
 
@@ -56,8 +59,29 @@ _PORT_WEIGHT = 1.0
 
 
 def tokenize(text: str) -> list[str]:
-    """Split *text* into lowercase alphanumeric tokens."""
-    return _TOKEN_PATTERN.findall(text.lower())
+    """Split *text* into lowercase alphanumeric tokens, CamelCase included.
+
+    A CamelCase word yields its parts followed by the whole word, so
+    "BuildMgGrainBoundary" is found by "grain" while "buildmg" still matches
+    the whole word as a prefix. The whole word comes last because ``rank``
+    prefix-expands a query's trailing token.
+    """
+    tokens: list[str] = []
+    for word in _WORD_PATTERN.findall(text):
+        parts = [part.lower() for part in _CAMEL_PART_PATTERN.findall(word)]
+        tokens.extend(parts)
+        if len(parts) > 1:
+            tokens.append(word.lower())
+    return tokens
+
+
+def token_starts(text: str) -> set[int]:
+    """The offsets in *text* at which a ``tokenize`` token begins."""
+    return {
+        part.start()
+        for word in _WORD_PATTERN.finditer(text)
+        for part in _CAMEL_PART_PATTERN.finditer(text, word.start(), word.end())
+    }
 
 
 def query_tokens(query: str) -> list[str]:

@@ -392,6 +392,30 @@ class StorageContractTests:
         assert result.results.total_items == 1
         assert result.results.data[0].node.category == "physics"
 
+    def test_search_filter_by_a_camel_case_category(
+        self, storage: StorageInterface
+    ) -> None:
+        """Categories built from import paths keep CamelCase; matching ignores case."""
+        storage.create_node(
+            make_node(
+                name="grain_boundary",
+                category="pyiron_nodes>structure>BuildMgGrainBoundary",
+                source_code="def a(): pass",
+            )
+        )
+        storage.create_node(
+            make_node(
+                name="other", category="pyiron_nodes>calc", source_code="def b(): 1"
+            )
+        )
+        for category in (
+            "pyiron_nodes>structure>BuildMgGrainBoundary",
+            "pyiron_nodes>structure>buildmg",
+            "PYIRON_NODES>STRUCTURE",
+        ):
+            result = storage.search(None, Filter(category=category))
+            assert [i.node.name for i in result.results.data] == ["grain_boundary"]
+
     def test_search_filter_by_type(self, storage: StorageInterface) -> None:
         storage.create_node(make_node(source_code="def func(): pass"))
         result = storage.search(None, Filter(artifact_type=[ArtifactType.FUNCTION]))
@@ -632,6 +656,78 @@ class StorageContractTests:
         assert storage.count() == 2  # noqa: PLR2004
 
     # -----------------------------------------------------------------------
+    # search_substring: the substring leg as a full, paginated search
+    # -----------------------------------------------------------------------
+
+    def test_search_substring_ranks_like_suggest(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create_node(make_node(name="attempt_calc", source_code="def a(): pass"))
+        storage.create_node(
+            make_node(name="calculate_energy", source_code="def b(): pass")
+        )
+        response = storage.search_substring("calc")
+        assert [i.node.name for i in response.results.data] == [
+            "calculate_energy",
+            "attempt_calc",
+        ]
+
+    def test_search_substring_returns_keywords(self, storage: StorageInterface) -> None:
+        """Full nodes, so a list/tree UI can tell node kinds apart."""
+        storage.create_node(
+            make_node(
+                name="calc",
+                keywords=["aiflow", "group_node"],
+                source_code="def a(): pass",
+            )
+        )
+        response = storage.search_substring("calc")
+        assert response.results.data[0].node.keywords == ["aiflow", "group_node"]
+
+    def test_search_substring_paginates_after_ranking(
+        self, storage: StorageInterface
+    ) -> None:
+        for i in range(5):
+            storage.create_node(
+                make_node(name=f"calc_{i}", source_code=f"def f{i}(): pass")
+            )
+        page = storage.search_substring("calc", page=2, limit=2)
+        assert page.results.total_items == 5  # noqa: PLR2004
+        assert page.results.total_pages == 3  # noqa: PLR2004
+        assert [i.node.name for i in page.results.data] == ["calc_2", "calc_3"]
+
+    def test_search_substring_honours_filter(self, storage: StorageInterface) -> None:
+        storage.create_node(
+            make_node(name="calc_physics", category="physics", source_code="def a(): 1")
+        )
+        storage.create_node(
+            make_node(
+                name="calc_chemistry", category="chemistry", source_code="def b(): 1"
+            )
+        )
+        response = storage.search_substring("calc", Filter(category="physics"))
+        assert [i.node.name for i in response.results.data] == ["calc_physics"]
+
+    def test_search_substring_ignores_prose(self, storage: StorageInterface) -> None:
+        storage.create_node(
+            make_node(
+                name="unrelated_name",
+                python_import="lib.unrelated",
+                docstring="Computes the calculation of interest.",
+                source_code="def a(): pass",
+            )
+        )
+        assert storage.search_substring("calc").results.total_items == 0
+
+    def test_search_substring_blank_query_returns_filtered(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create_node(make_node(name="a_fn", source_code="def a(): pass"))
+        storage.create_node(make_node(name="b_fn", source_code="def b(): pass"))
+        assert storage.search_substring(None).results.total_items == 2  # noqa: PLR2004
+        assert storage.search_substring("  ").results.total_items == 2  # noqa: PLR2004
+
+    # -----------------------------------------------------------------------
     # suggest: cheap type-ahead lookup
     # -----------------------------------------------------------------------
 
@@ -686,6 +782,54 @@ class StorageContractTests:
         )
         results = storage.suggest("calc")
         assert [s.name for s in results] == ["calculate_energy", "attempt_calc"]
+
+    def test_suggest_ranks_a_word_start_above_a_name_substring(
+        self, storage: StorageInterface
+    ) -> None:
+        """A shorter name does not lift a mid-word hit over a word-start hit."""
+        storage.create_node(make_node(name="attempt", source_code="def a(): pass"))
+        storage.create_node(
+            make_node(name="get_temperature", source_code="def b(): pass")
+        )
+        results = storage.suggest("temp")
+        assert [s.name for s in results] == ["get_temperature", "attempt"]
+
+    def test_suggest_never_lets_a_short_substring_hit_beat_a_long_prefix_hit(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create_node(make_node(name="padd", source_code="def a(): pass"))
+        storage.create_node(
+            make_node(name="AddCationAdatoms", source_code="def b(): pass")
+        )
+        results = storage.suggest("add")
+        assert [s.name for s in results] == ["AddCationAdatoms", "padd"]
+
+    def test_suggest_ranks_the_shorter_name_first_within_a_tier(
+        self, storage: StorageInterface
+    ) -> None:
+        storage.create_node(
+            make_node(name="AddCationAdatoms", source_code="def a(): pass")
+        )
+        storage.create_node(make_node(name="Add", source_code="def b(): pass"))
+        results = storage.suggest("add")
+        assert [s.name for s in results] == ["Add", "AddCationAdatoms"]
+
+    def test_suggest_breaks_exact_ties_by_name(self, storage: StorageInterface) -> None:
+        storage.create_node(make_node(name="calc_b", source_code="def a(): pass"))
+        storage.create_node(make_node(name="calc_a", source_code="def b(): pass"))
+        results = storage.suggest("calc")
+        assert [s.name for s in results] == ["calc_a", "calc_b"]
+
+    def test_suggest_treats_a_camel_case_part_as_a_word_start(
+        self, storage: StorageInterface
+    ) -> None:
+        """'grain' starts a word in BuildMgGrainBoundary, but not in 'agrain'."""
+        storage.create_node(make_node(name="agrain_x", source_code="def a(): pass"))
+        storage.create_node(
+            make_node(name="BuildMgGrainBoundary", source_code="def b(): pass")
+        )
+        results = storage.suggest("grain")
+        assert [s.name for s in results] == ["BuildMgGrainBoundary", "agrain_x"]
 
     def test_suggest_ranks_name_matches_above_import_matches(
         self, storage: StorageInterface

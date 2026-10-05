@@ -105,6 +105,57 @@ def test_search_hybrid_without_embeddings_matches_a_sentence_shaped_query(
     assert [item.node.name for item in response.results.data][0] == "gradient_on_mesh"
 
 
+def test_search_hybrid_without_embeddings_fuses_the_substring_leg(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A mid-token fragment only the substring leg can find still surfaces."""
+    storage = FileSystemStorage(path=None)
+    storage.create_node(
+        make_node(
+            name="buildmggrainboundary",
+            python_import="lib.buildmggrainboundary",
+            source_code="def a(): pass",
+        )
+    )
+    storage.create_node(make_node(name="unrelated", source_code="def b(): pass"))
+
+    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=False))
+
+    assert storage.search("grain").results.total_items == 0
+    response = asyncio.run(storage.search_hybrid("grain"))
+    assert [i.node.name for i in response.results.data] == ["buildmggrainboundary"]
+
+
+def test_search_hybrid_prefers_a_node_several_legs_agree_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Lexical and semantic agreement beats the semantic leg's top spot alone."""
+    storage = FileSystemStorage(path=None)
+    storage.create_node(
+        make_node(
+            name="semantic_only",
+            source_code="def a(): pass",
+            embedding=np.array([1.0, 0.0, 0.0], dtype=np.float32),
+        )
+    )
+    storage.create_node(
+        make_node(
+            name="get_temperature",
+            source_code="def b(): pass",
+            embedding=np.array([0.7, 0.7, 0.0], dtype=np.float32),
+        )
+    )
+
+    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=True))
+    monkeypatch.setattr(fss, "create_embedding", _embed_as([1.0, 0.0, 0.0]))
+
+    response = asyncio.run(storage.search_hybrid("temperature"))
+    assert [i.node.name for i in response.results.data] == [
+        "get_temperature",
+        "semantic_only",
+    ]
+
+
 def test_search_drop_unmatched_false_ranks_without_excluding() -> None:
     """A query must only order the filtered set, never shrink it.
 
@@ -957,3 +1008,20 @@ def test_search_semantic_does_not_return_stale_used_by(
         if i.node.artifact_type == ArtifactType.FUNCTION and i.node.name == "child_fn"
     )
     assert node.used_by is None
+
+
+def test_search_substring_populates_used_by() -> None:
+    """Parity with the other search paths (ADR-0018): pages are hydrated."""
+    storage = FileSystemStorage(path=None)
+    fn = make_node(name="child_fn", source_code="def child_fn(): pass")
+    storage.create_node(fn)
+    wf = make_workflow(
+        name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
+    )
+    storage.create_node(wf)
+
+    response = storage.search_substring("child")
+
+    node = response.results.data[0].node
+    assert node.used_by is not None
+    assert [ref.id for ref in node.used_by] == [wf.id]

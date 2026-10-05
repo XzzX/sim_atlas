@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from sim_atlas.dependencies import get_storage
 from sim_atlas.models import (
@@ -34,17 +34,33 @@ async def search_nodes(
 ):
     """Search the node catalog.
 
-    Performs hybrid (semantic + keyword) search when embeddings are configured
-    and falls back to keyword-only otherwise. Set ``semantic=false`` to force
-    keyword-only search even when AI is available.
+    ``mode`` picks the ranking: ``hybrid`` (the default) fuses substring,
+    keyword and — when embeddings are configured — semantic ranking;
+    ``keyword``, ``substring`` and ``semantic`` run one leg alone.
+    ``semantic`` needs a query and an embedding provider. Without ``mode``,
+    ``semantic=false`` still forces keyword-only search.
     """
-    if request.semantic is False:
-        return storage.search(
-            request.query, request.filter, page=request.page, limit=request.limit
-        )
-    return await storage.search_hybrid(
-        request.query, request.filter, page=request.page, limit=request.limit
+    mode = request.mode or ("keyword" if request.semantic is False else "hybrid")
+    query, filter, page, limit = (
+        request.query,
+        request.filter,
+        request.page,
+        request.limit,
     )
+    match mode:
+        case "keyword":
+            return storage.search(query, filter, page=page, limit=limit)
+        case "substring":
+            return storage.search_substring(query, filter, page=page, limit=limit)
+        case "semantic":
+            if not query or not query.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="semantic search needs a query",
+                )
+            return await storage.search_semantic(query, filter, page=page, limit=limit)
+        case "hybrid":
+            return await storage.search_hybrid(query, filter, page=page, limit=limit)
 
 
 @router.post("/suggest", response_model=list[Suggestion], tags=["search"])

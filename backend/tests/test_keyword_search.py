@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from sim_atlas import keyword_search
-from sim_atlas.models import AnnotationResponse
+from sim_atlas.models import AnnotationResponse, NodeMetadata
 
 from .test_storage_interface import make_node
 
@@ -247,3 +247,58 @@ def test_more_matched_terms_beat_a_single_name_hit() -> None:
         [common_in_name, terms_in_docstring, *filler],
     )
     assert scores[terms_in_docstring.id] > scores[common_in_name.id]
+
+
+# ---------------------------------------------------------------------------
+# CamelCase identifiers
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "tokens"),
+    [
+        (
+            "BuildMgGrainBoundary",
+            ["build", "mg", "grain", "boundary", "buildmggrainboundary"],
+        ),
+        ("HTTPServerNode", ["http", "server", "node", "httpservernode"]),
+        ("CalcMD", ["calc", "md", "calcmd"]),
+        ("get_temperature", ["get", "temperature"]),
+        ("ase.md.Add", ["ase", "md", "add"]),
+    ],
+)
+def test_tokenize_splits_camel_case_and_keeps_the_whole_word(
+    text: str, tokens: list[str]
+) -> None:
+    assert keyword_search.tokenize(text) == tokens
+
+
+_GRAIN_BOUNDARY = make_node(
+    name="BuildMgGrainBoundary",
+    python_import="structures.BuildMgGrainBoundary",
+    source_code="class BuildMgGrainBoundary: pass",
+)
+_CALC_MD = make_node(
+    name="CalcMD",
+    python_import="sim.CalcMD",
+    source_code="class CalcMD: pass",
+)
+_CAMEL_CORPUS = [*_CORPUS, _GRAIN_BOUNDARY, _CALC_MD]
+
+
+@pytest.mark.parametrize(
+    ("query", "node"),
+    [
+        ("grain", _GRAIN_BOUNDARY),
+        ("boundary", _GRAIN_BOUNDARY),
+        ("md", _CALC_MD),
+    ],
+)
+def test_a_camel_case_part_finds_the_node(query: str, node: NodeMetadata) -> None:
+    assert node.id in keyword_search.rank(query, _CAMEL_CORPUS)
+
+
+@pytest.mark.parametrize("query", ["buildmg", "BuildMgGrain", "BuildMgGrainBoundary"])
+def test_the_whole_camel_case_word_still_matches(query: str) -> None:
+    scores = keyword_search.rank(query, _CAMEL_CORPUS)
+    assert max(scores, key=lambda key: scores[key]) == _GRAIN_BOUNDARY.id

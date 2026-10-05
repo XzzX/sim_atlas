@@ -687,6 +687,17 @@ class StorageContractTests:
         results = storage.suggest("calc")
         assert [s.name for s in results] == ["calculate_energy", "attempt_calc"]
 
+    def test_suggest_treats_a_camel_case_part_as_a_word_start(
+        self, storage: StorageInterface
+    ) -> None:
+        """'grain' starts a word in BuildMgGrainBoundary, but not in 'agrain'."""
+        storage.create_node(make_node(name="agrain_x", source_code="def a(): pass"))
+        storage.create_node(
+            make_node(name="BuildMgGrainBoundary", source_code="def b(): pass")
+        )
+        results = storage.suggest("grain")
+        assert [s.name for s in results] == ["BuildMgGrainBoundary", "agrain_x"]
+
     def test_suggest_ranks_name_matches_above_import_matches(
         self, storage: StorageInterface
     ) -> None:

@@ -332,6 +332,28 @@ class FileSystemStorage(StorageInterface):
             if item_filter(item)
         ]
 
+    def _filtered_nodes(self, filter: Filter | None) -> list[NodeMetadata]:
+        item_filter = NodeFilter(filter or Filter())
+        return [node for node in self._nodes.values() if item_filter(node)]
+
+    @staticmethod
+    def _scored(
+        nodes: list[NodeMetadata], scores: dict[str, float]
+    ) -> list[ScoredSearchItem]:
+        """*nodes* that *scores* ranked, in their original order."""
+        return [
+            ScoredSearchItem(score=scores[node.id], node=node)
+            for node in nodes
+            if node.id in scores
+        ]
+
+    def _ranked_page(
+        self, items: list[ScoredSearchItem], page: int, limit: int
+    ) -> ScoredSearchResponse:
+        """Sort *items* best-first (ties keep their order), paginate, hydrate."""
+        items = sorted(items, key=lambda x: x.score, reverse=True)
+        return self._hydrate_page(self._paginate(items, page=page, limit=limit))
+
     def search(
         self,
         query: str | None,
@@ -347,8 +369,7 @@ class FileSystemStorage(StorageInterface):
         the filters alone decide membership and the query only orders what they
         returned, so adding a query can never shrink the result set.
         """
-        item_filter: NodeFilter = NodeFilter(filter or Filter())
-        filtered_items = [item for item in self._nodes.values() if item_filter(item)]
+        filtered_items = self._filtered_nodes(filter)
 
         if not query or not query.strip():
             scored_items = [
@@ -362,9 +383,7 @@ class FileSystemStorage(StorageInterface):
                 if not drop_unmatched or scores.get(item.id, 0.0) > 0.0
             ]
 
-        sorted_items = sorted(scored_items, key=lambda x: x.score, reverse=True)
-
-        return self._hydrate_page(self._paginate(sorted_items, page=page, limit=limit))
+        return self._ranked_page(scored_items, page, limit)
 
     def suggest(
         self, query: str, filter: Filter | None = None, limit: int = 10
@@ -443,21 +462,9 @@ class FileSystemStorage(StorageInterface):
         # Generate embedding for the query
         query_embedding = (await create_embedding([query], input_type="query"))[0]
 
-        item_filter = NodeFilter(filter or Filter())
-        filtered_nodes = [
-            n
-            for n in self._nodes.values()
-            if n.embedding is not None and item_filter(n)
-        ]
+        filtered_nodes = self._filtered_nodes(filter)
         scores = semantic_search.rank(query_embedding, filtered_nodes)
-        similarities = [
-            ScoredSearchItem(score=scores[n.id], node=n) for n in filtered_nodes
-        ]
-
-        # Sort by similarity (descending) and limit results
-        similarities.sort(key=lambda x: x.score, reverse=True)
-
-        return self._hydrate_page(self._paginate(similarities, page=page, limit=limit))
+        return self._ranked_page(self._scored(filtered_nodes, scores), page, limit)
 
     async def search_hybrid(
         self,
@@ -479,8 +486,7 @@ class FileSystemStorage(StorageInterface):
         if not query or not query.strip() or not load_settings().embeddings_enabled:
             return self.search(query, filter, page=page, limit=limit)
 
-        item_filter = NodeFilter(filter or Filter())
-        filtered_nodes = [n for n in self._nodes.values() if item_filter(n)]
+        filtered_nodes = self._filtered_nodes(filter)
 
         # --- semantic rank (only nodes with embeddings) ---
         query_embedding = (await create_embedding([query], input_type="query"))[0]
@@ -515,9 +521,7 @@ class FileSystemStorage(StorageInterface):
             )
             for nid in candidate_ids
         ]
-        scored.sort(key=lambda x: x.score, reverse=True)
-
-        return self._hydrate_page(self._paginate(scored, page=page, limit=limit))
+        return self._ranked_page(scored, page, limit)
 
     @staticmethod
     def _embedding_text(node: NodeMetadata) -> str:

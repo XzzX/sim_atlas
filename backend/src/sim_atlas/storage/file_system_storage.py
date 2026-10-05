@@ -440,6 +440,7 @@ class FileSystemStorage(StorageInterface):
             python_import=node.python_import,
             artifact_type=node.artifact_type,
             short_description=short_description(node.brief_description, node.docstring),
+            keywords=node.keywords,
         )
 
     async def search_semantic(

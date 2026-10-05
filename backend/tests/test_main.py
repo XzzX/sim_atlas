@@ -495,6 +495,7 @@ def test_suggest_returns_only_the_suggestion_fields(client: ApiClient) -> None:
         "python_import",
         "artifact_type",
         "short_description",
+        "keywords",
     }
 
 
@@ -539,6 +540,68 @@ def test_search_semantic_false_forces_keyword(
     response = client.post("/api/v1/search", json={"query": "test", "semantic": False})
     assert response.status_code == status.HTTP_200_OK
     assert "results" in response.json()
+
+
+def test_search_mode_overrides_semantic_flag(
+    client: ApiClient,
+    storage: FileSystemStorage,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def boom(*args: Any, **kwargs: Any) -> ScoredSearchResponse:
+        raise AssertionError("search_hybrid must not run for mode=keyword")
+
+    monkeypatch.setattr(storage, "search_hybrid", boom)
+    response = client.post(
+        "/api/v1/search", json={"query": "test", "semantic": True, "mode": "keyword"}
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+
+def test_search_mode_substring_matches_a_mid_token_fragment(
+    client: ApiClient,
+) -> None:
+    client.post(
+        "/api/v1/nodes", json=make_function_request_body(name="buildgrainboundary")
+    )
+    keyword = client.post(
+        "/api/v1/search", json={"query": "grain", "mode": "keyword"}
+    ).json()
+    substring = client.post(
+        "/api/v1/search", json={"query": "grain", "mode": "substring"}
+    ).json()
+    assert keyword["results"]["total_items"] == 0
+    assert [i["node"]["name"] for i in substring["results"]["data"]] == [
+        "buildgrainboundary"
+    ]
+    assert substring["results"]["data"][0]["node"]["keywords"] == ["add", "math"]
+
+
+def test_search_mode_semantic_routes_to_search_semantic(
+    client: ApiClient,
+    storage: FileSystemStorage,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called = False
+
+    async def mock_search_semantic(*args: Any, **kwargs: Any) -> ScoredSearchResponse:
+        nonlocal called
+        called = True
+        return _empty_search_response()
+
+    monkeypatch.setattr(storage, "search_semantic", mock_search_semantic)
+    response = client.post("/api/v1/search", json={"query": "q", "mode": "semantic"})
+    assert response.status_code == status.HTTP_200_OK
+    assert called
+
+
+def test_search_mode_semantic_without_query_returns_422(client: ApiClient) -> None:
+    response = client.post("/api/v1/search", json={"mode": "semantic"})
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+def test_search_unknown_mode_returns_422(client: ApiClient) -> None:
+    response = client.post("/api/v1/search", json={"query": "q", "mode": "fuzzy"})
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 # ---------------------------------------------------------------------------

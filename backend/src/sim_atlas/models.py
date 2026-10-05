@@ -246,10 +246,16 @@ class ScoredSearchResponse(BaseModel):
     aggregations: dict[str, dict[str, int]] | None = None
 
 
+type SearchMode = Literal["keyword", "substring", "semantic", "hybrid"]
+
+
 class SearchRequest(BaseModel):
     query: str | None = None
     filter: Filter | None = None
     semantic: bool | None = None
+    # Takes precedence over ``semantic``. When omitted, ``semantic=false``
+    # means keyword and anything else means hybrid.
+    mode: SearchMode | None = None
     page: int = Field(default=1, ge=1)
     limit: int = Field(default=10, ge=1, le=100)
 
@@ -262,6 +268,7 @@ class Suggestion(BaseModel):
     python_import: str | None = None
     artifact_type: ArtifactType
     short_description: str | None = None
+    keywords: list[str]
 
 
 class SuggestRequest(BaseModel):

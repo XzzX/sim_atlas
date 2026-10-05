@@ -719,6 +719,13 @@ class StorageContractTests:
         )
         assert storage.search_substring("calc").results.total_items == 0
 
+    def test_search_substring_case_sensitive(self, storage: StorageInterface) -> None:
+        storage.create_node(make_node(name="run_MD", source_code="def a(): pass"))
+        storage.create_node(make_node(name="run_md", source_code="def b(): pass"))
+        assert storage.search_substring("MD").results.total_items == 2  # noqa: PLR2004
+        response = storage.search_substring("MD", case_sensitive=True)
+        assert [i.node.name for i in response.results.data] == ["run_MD"]
+
     def test_search_substring_blank_query_returns_filtered(
         self, storage: StorageInterface
     ) -> None:

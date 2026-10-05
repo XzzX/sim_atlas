@@ -386,7 +386,7 @@ class FileSystemStorage(StorageInterface):
         return self._ranked_page(scored_items, page, limit)
 
     def _substring_hits(
-        self, query: str, filter: Filter | None
+        self, query: str, filter: Filter | None, *, case_sensitive: bool = False
     ) -> list[tuple[float, NodeMetadata]]:
         """Substring-leg hits that pass *filter*, best-first.
 
@@ -395,7 +395,9 @@ class FileSystemStorage(StorageInterface):
         matching first keeps the cost proportional to the match count instead
         of to the catalog size. Ties are broken by name, then id.
         """
-        scores = substring.rank(query, self._nodes.values())
+        scores = substring.rank(
+            query, self._nodes.values(), case_sensitive=case_sensitive
+        )
         item_filter = NodeFilter(filter or Filter())
         hits = [
             (score, self._nodes[node_id])
@@ -411,6 +413,7 @@ class FileSystemStorage(StorageInterface):
         filter: Filter | None = None,
         page: int = 1,
         limit: int = 10,
+        case_sensitive: bool = False,
     ) -> ScoredSearchResponse:
         """Substring search over node names and import paths."""
         if not query or not query.strip():
@@ -418,7 +421,9 @@ class FileSystemStorage(StorageInterface):
 
         items = [
             ScoredSearchItem(score=score, node=node)
-            for score, node in self._substring_hits(query, filter)
+            for score, node in self._substring_hits(
+                query, filter, case_sensitive=case_sensitive
+            )
         ]
         return self._hydrate_page(self._paginate(items, page=page, limit=limit))
 

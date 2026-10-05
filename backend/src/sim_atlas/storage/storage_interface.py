@@ -123,11 +123,13 @@ class StorageInterface(ABC):
         filter: Filter | None = None,
         page: int = 1,
         limit: int = 10,
+        case_sensitive: bool = False,
     ) -> ScoredSearchResponse:
         """Substring search over node names and import paths.
 
-        The query is matched literally (case-insensitively) and ranked by
-        match position, then by how much of the field it covers. Unlike
+        The query is matched literally — case-insensitively unless
+        ``case_sensitive`` is set — and ranked by match position, then by
+        how much of the field it covers. Unlike
         ``suggest`` this returns full, hydrated nodes and paginates, so it
         serves list and tree views. A blank query returns the filtered set,
         as ``search`` does.

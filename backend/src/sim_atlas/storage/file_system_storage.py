@@ -363,7 +363,7 @@ class FileSystemStorage(StorageInterface):
         limit: int = 10,
         drop_unmatched: bool = True,
     ) -> ScoredSearchResponse:
-        """Keyword search: BM25 over the filtered nodes.
+        """Keyword search: typo-tolerant ranking over the filtered nodes.
 
         With ``drop_unmatched`` (the default) the query is a constraint and
         nodes it does not touch are excluded. With ``drop_unmatched=False``

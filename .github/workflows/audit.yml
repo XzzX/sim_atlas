@@ -1,0 +1,75 @@
+name: dependency-audit
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "**/package-lock.json"
+      - "**/uv.lock"
+      - ".github/workflows/audit.yml"
+
+# Cancel in-progress runs when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  npm-audit:
+    name: npm audit (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [frontend, web_ide, e2e]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+
+      # Install dependencies so `npm outdated` can compare against installed versions
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./${{ matrix.project }}
+
+      # Run npm audit for known vulnerabilities
+      - name: Security audit
+        run: npm audit --audit-level=high
+        working-directory: ./${{ matrix.project }}
+
+      # Check for outdated packages
+      - name: Check outdated
+        run: npm outdated || true
+        working-directory: ./${{ matrix.project }}
+
+  uv-audit:
+    name: uv audit (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [backend, toolkit]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      # Audit locked dependencies (incl. extras and groups) against the OSV database
+      - name: Security audit
+        run: uv audit --locked --preview-features audit-command
+        working-directory: ./${{ matrix.project }}
+
+      # Check for outdated packages
+      - name: Check outdated
+        run: uv tree --outdated --depth 1 || true
+        working-directory: ./${{ matrix.project }}

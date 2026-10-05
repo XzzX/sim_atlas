@@ -77,27 +77,3 @@ jobs:
           name: build-output
           path: frontend/dist/
           retention-days: 1
-
-  dependency-audit:
-    name: Audit Dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      # Run npm audit for known vulnerabilities
-      - name: Security audit
-        run: npm audit --audit-level=high
-        working-directory: ./frontend
-
-      # Check for outdated packages
-      - name: Check outdated
-        run: npm outdated || true
-        working-directory: ./frontend

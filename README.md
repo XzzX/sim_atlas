@@ -8,6 +8,7 @@
 [![toolkit](https://github.com/XzzX/sim_atlas/actions/workflows/toolkit.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/toolkit.yml)
 [![web-ide](https://github.com/XzzX/sim_atlas/actions/workflows/web_ide.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/web_ide.yml)
 [![e2e](https://github.com/XzzX/sim_atlas/actions/workflows/e2e.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/e2e.yml)
+[![dependency-audit](https://github.com/XzzX/sim_atlas/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/audit.yml)
 
 # Sim Atlas
 

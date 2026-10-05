@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from sim_atlas import substring_search
 from sim_atlas.models import NodeMetadata
+from sim_atlas.search import substring
 
 from .test_storage_interface import make_node
 
@@ -18,7 +18,7 @@ def _node(name: str, python_import: str | None = None, **kwargs: str) -> NodeMet
 
 
 def _order(query: str, nodes: list[NodeMetadata]) -> list[str]:
-    scores = substring_search.rank(query, nodes)
+    scores = substring.rank(query, nodes)
     by_id = {node.id: node.name for node in nodes}
     return [by_id[key] for key in sorted(scores, key=lambda k: scores[k], reverse=True)]
 
@@ -46,7 +46,7 @@ def test_a_camel_case_part_counts_as_a_word_start() -> None:
 
 def test_an_exact_name_scores_highest() -> None:
     exact = _node("Add")
-    scores = substring_search.rank("add", [exact])
+    scores = substring.rank("add", [exact])
     assert scores[exact.id] == 4.0  # noqa: PLR2004
 
 
@@ -58,24 +58,24 @@ def test_import_coverage_is_against_the_import_path() -> None:
 
 def test_case_insensitive_by_default() -> None:
     node = _node("CalcMD")
-    assert node.id in substring_search.rank("calcmd", [node])
-    assert node.id in substring_search.rank("CALCMD", [node])
+    assert node.id in substring.rank("calcmd", [node])
+    assert node.id in substring.rank("CALCMD", [node])
 
 
 def test_case_sensitive_matching() -> None:
     node = _node("CalcMD")
-    assert node.id in substring_search.rank("MD", [node], case_sensitive=True)
-    assert substring_search.rank("md", [node], case_sensitive=True) == {}
+    assert node.id in substring.rank("MD", [node], case_sensitive=True)
+    assert substring.rank("md", [node], case_sensitive=True) == {}
 
 
 def test_query_is_stripped() -> None:
     node = _node("calculate_energy")
-    assert node.id in substring_search.rank("  calc  ", [node])
+    assert node.id in substring.rank("  calc  ", [node])
 
 
 def test_non_matches_are_absent_rather_than_zero_scored() -> None:
     hit, miss = _node("calc"), _node("other")
-    assert set(substring_search.rank("calc", [hit, miss])) == {hit.id}
+    assert set(substring.rank("calc", [hit, miss])) == {hit.id}
 
 
 def test_prose_fields_are_never_matched() -> None:
@@ -85,23 +85,23 @@ def test_prose_fields_are_never_matched() -> None:
         brief_description="An added helper.",
         description="Addition.",
     )
-    assert substring_search.rank("add", [node]) == {}
+    assert substring.rank("add", [node]) == {}
 
 
 def test_a_fragment_inside_a_token_matches() -> None:
     """What the token-based keyword leg cannot do."""
     node = _node("buildmggrainboundary")
-    assert node.id in substring_search.rank("grain", [node])
+    assert node.id in substring.rank("grain", [node])
 
 
 def test_a_query_spanning_separators_matches() -> None:
     node = _node("get_temperature")
-    assert node.id in substring_search.rank("t_temp", [node])
+    assert node.id in substring.rank("t_temp", [node])
 
 
 def test_blank_query_matches_nothing() -> None:
-    assert substring_search.rank("   ", [_node("calc")]) == {}
+    assert substring.rank("   ", [_node("calc")]) == {}
 
 
 def test_empty_corpus_matches_nothing() -> None:
-    assert substring_search.rank("calc", []) == {}
+    assert substring.rank("calc", []) == {}

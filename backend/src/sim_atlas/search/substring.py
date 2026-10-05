@@ -23,8 +23,8 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 
-from sim_atlas.keyword_search import token_starts
 from sim_atlas.models import NodeMetadata
+from sim_atlas.search.keyword import token_starts
 
 _NAME_PREFIX_BAND = 3.0
 _NAME_WORD_START_BAND = 2.0

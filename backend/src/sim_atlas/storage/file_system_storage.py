@@ -9,7 +9,6 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from sim_atlas import fusion, keyword_search, semantic_search, substring_search
 from sim_atlas.embedding import create_embedding
 from sim_atlas.models import (
     AnnotationResponse,
@@ -25,6 +24,7 @@ from sim_atlas.models import (
     Suggestion,
 )
 from sim_atlas.node_text import short_description
+from sim_atlas.search import fusion, keyword, semantic, substring
 from sim_atlas.settings import load_settings
 from sim_atlas.storage.storage_interface import (
     ExecutionResultAlreadyExistsError,
@@ -376,7 +376,7 @@ class FileSystemStorage(StorageInterface):
                 ScoredSearchItem(score=1.0, node=item) for item in filtered_items
             ]
         else:
-            scores = keyword_search.rank(query, filtered_items)
+            scores = keyword.rank(query, filtered_items)
             scored_items = [
                 ScoredSearchItem(score=scores.get(item.id, 0.0), node=item)
                 for item in filtered_items
@@ -395,7 +395,7 @@ class FileSystemStorage(StorageInterface):
         matching first keeps the cost proportional to the match count instead
         of to the catalog size. Ties are broken by name, then id.
         """
-        scores = substring_search.rank(query, self._nodes.values())
+        scores = substring.rank(query, self._nodes.values())
         item_filter = NodeFilter(filter or Filter())
         hits = [
             (score, self._nodes[node_id])
@@ -461,7 +461,7 @@ class FileSystemStorage(StorageInterface):
         query_embedding = (await create_embedding([query], input_type="query"))[0]
 
         filtered_nodes = self._filtered_nodes(filter)
-        scores = semantic_search.rank(query_embedding, filtered_nodes)
+        scores = semantic.rank(query_embedding, filtered_nodes)
         return self._ranked_page(self._scored(filtered_nodes, scores), page, limit)
 
     async def search_hybrid(
@@ -487,19 +487,15 @@ class FileSystemStorage(StorageInterface):
 
         filtered_nodes = self._filtered_nodes(filter)
         legs = [
-            fusion.Leg(
-                fusion.SUBSTRING_WEIGHT, substring_search.rank(query, filtered_nodes)
-            ),
-            fusion.Leg(
-                fusion.KEYWORD_WEIGHT, keyword_search.rank(query, filtered_nodes)
-            ),
+            fusion.Leg(fusion.SUBSTRING_WEIGHT, substring.rank(query, filtered_nodes)),
+            fusion.Leg(fusion.KEYWORD_WEIGHT, keyword.rank(query, filtered_nodes)),
         ]
         if load_settings().embeddings_enabled:
             query_embedding = (await create_embedding([query], input_type="query"))[0]
             legs.append(
                 fusion.Leg(
                     fusion.SEMANTIC_WEIGHT,
-                    semantic_search.rank(query_embedding, filtered_nodes),
+                    semantic.rank(query_embedding, filtered_nodes),
                     partial=True,
                 )
             )

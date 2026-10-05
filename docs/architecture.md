@@ -161,7 +161,7 @@ sequenceDiagram
             end
             B->>S: apply NodeFilter once, then rank with every leg that runs
             Note right of S: substring leg: name/import substring,<br/>tier (prefix > word start > inside name > import)<br/>then coverage<br/>keyword leg: best-field score per term<br/>(exact, prefix and near-spelling matches)<br/>semantic leg: cosine similarity<br/>(nodes with an embedding only)
-            S->>S: weighted RRF (fusion.py): Σ w·1/(60+rank)<br/>ties share a rank; weights renormalised per node,<br/>so an unembedded node is fused as if<br/>the semantic leg had not run
+            S->>S: weighted RRF (search/fusion.py): Σ w·1/(60+rank)<br/>ties share a rank; weights renormalised per node,<br/>so an unembedded node is fused as if<br/>the semantic leg had not run
             S-->>B: sorted, paginated SearchResults
         end
     end

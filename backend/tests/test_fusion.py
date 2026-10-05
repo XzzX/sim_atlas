@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from sim_atlas.fusion import Leg, reciprocal_rank_fusion
+from sim_atlas.search.fusion import Leg, reciprocal_rank_fusion
 
 
 def _order(fused: dict[str, float]) -> list[str]:

@@ -17,6 +17,9 @@ permissions:
   pull-requests: read
   actions: read
 
+checkout:
+  fetch-depth: 0
+
 env:
   TARGET_REPOSITORY: ${{ vars.TARGET_REPOSITORY || github.repository }}
 
@@ -33,7 +36,7 @@ tools:
   github:
     lockdown: false
     min-integrity: none
-    toolsets: [default]
+    toolsets: [default, actions]
     allowed-repos: all
 
 safe-outputs:
@@ -67,6 +70,13 @@ Use GitHub tools to gather data for the **past 30 days** from `${{ env.TARGET_RE
 4. **Commits** — Recent commits on the default branch with author info and co-author trailers
 5. **Workflow runs** — CI/CD workflow run results (success, failure, duration)
 6. **Releases/tags** — Recent releases or deployment-tagged events
+
+For workflow runs, use the Actions `list_workflow_runs` tool for each workflow and
+include runs created in the analysis period. For every PR used in review metrics,
+retrieve its review data with `get_pull_request_reviews`. For PR-size metrics, retrieve
+the changed files with `get_pull_request_files` and sum their additions and deletions;
+the PR list may not include line counts. Do not mark a dataset unavailable merely
+because it is absent from a list response—call the relevant detail tool first.
 
 Collect enough data to compute weekly trends for the past 4 weeks.
 
@@ -390,6 +400,7 @@ Create a single comprehensive GitHub issue with the title format:
 ## Important Notes
 
 - Be thorough but handle missing data gracefully — if a metric can't be computed, explain why and skip it
+- Include a data-limitations warning only for datasets that remain inaccessible after using the relevant tools; do not call the workspace shallow when full history is available
 - Use ↑ ↓ → arrows for trend indicators
 - Use emoji sparingly but consistently for section headers
 - Keep tables aligned and readable

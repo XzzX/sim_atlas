@@ -1,6 +1,6 @@
 [project]
 name = "sim-atlas"
-version = "0.0.16"
+version = "0.0.17"
 description = "Search and discovery platform for simulation nodes — Python functions and workflow definitions used in scientific computing."
 authors = [
   { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},

@@ -12,6 +12,7 @@ coding agents. Every script can be run from any directory.
 | `scripts/server --static` | Runs `build`, then serves the API and both web apps from the backend on :8000, as in production. |
 | `scripts/build` | Builds `frontend/` and `web_ide/` into `backend/src/sim_atlas/static/`. Run it before `uv build` so the backend package includes both web apps. |
 | `scripts/seed` | Uploads the `e2e/dummy_module` fixture to a running backend through the real toolkit CLI (5 nodes, including a workflow with execution results). Extra arguments go to `sim-atlas-upload`; `SIM_ATLAS_API_URL` overrides the default `http://127.0.0.1:8000/api/v1`. |
+| `scripts/upgrade` | Upgrades all dependencies within the ranges in `pyproject.toml`/`package.json` (`uv lock --upgrade`, `npm update`, `npm audit fix`), reinstalls, then runs `uv audit` and `npm audit`. Exits 1 if vulnerabilities remain; those need a major-version bump, which is left to you. Review the lock files, run the tests, and commit. |
 | `scripts/release <patch\|minor\|major\|X.Y.Z>` | Bumps both Python packages to the same version, commits, tags `vX.Y.Z` and, after you confirm, pushes. The tag triggers [`release.yml`](../.github/workflows/release.yml), which builds and publishes both packages to PyPI and creates a GitHub release. Requires a clean `main` that matches `origin/main`. |
 
 ## Getting started

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Upgrade all dependencies within the version ranges allowed by pyproject.toml and
+# package.json, reinstall, and report remaining vulnerabilities.
+# Review the lock file changes, run the tests, then commit.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+for d in backend toolkit; do
+  echo "==> uv lock --upgrade ($d)"
+  (cd "$d" && uv lock --upgrade)
+done
+
+for d in frontend web_ide e2e; do
+  echo "==> npm update + audit fix ($d)"
+  # audit fix exits non-zero when some issues are left; those are reported below.
+  (cd "$d" && npm update && { npm audit fix || true; })
+done
+
+scripts/bootstrap
+
+# Anything still reported needs a major-version change, which is left for a human to
+# review (`npm audit fix --force` can also "fix" by downgrading).
+status=0
+for d in backend toolkit; do
+  echo "==> uv audit ($d)"
+  (cd "$d" && uv audit --locked --preview-features audit-command) || status=1
+done
+for d in frontend web_ide e2e; do
+  echo "==> npm audit ($d)"
+  (cd "$d" && npm audit) || status=1
+done
+
+if [ "$status" -ne 0 ]; then
+  echo "Dependencies upgraded, but vulnerabilities remain (see above)." >&2
+fi
+exit "$status"

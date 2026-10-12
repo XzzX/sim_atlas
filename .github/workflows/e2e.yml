@@ -31,13 +31,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Install backend
-        run: uv sync
-        working-directory: ./backend
+      - name: Install dependencies
+        run: scripts/bootstrap
 
-      - name: Install static files
-        run: ./update_static_data
-        working-directory: ./backend
+      - name: Build static files
+        run: scripts/build
 
       - name: Start backend server
         run: |
@@ -57,28 +55,8 @@ jobs:
           echo "Server failed to start within 30 seconds"
           exit 1
 
-      - name: Generate access token
-        run: |
-          TOKEN=$(uv run sim-atlas-access-token "CI Bot" "ci@example.com")
-          echo "SIM_ATLAS_API_TOKEN=$TOKEN" >> "$GITHUB_ENV"
-        working-directory: ./backend
-
-      - name: Init upload venv
-        run: uv venv --python=3.12
-        working-directory: ./e2e
-
-      - name: Install dummy-module and upload script into venv
-        run: uv pip install dummy_module/. ../toolkit/.
-        working-directory: ./e2e
-
       - name: Upload dummy module
-        run: |
-          uv run sim-atlas-upload dummy_module dummy_module.flowrep \
-            --api-url http://127.0.0.1:8000/api/v1 \
-            --api-token "$SIM_ATLAS_API_TOKEN" \
-            --allowed-modules flowrep \
-            --log-level debug
-        working-directory: ./e2e
+        run: scripts/seed --log-level debug
 
       - name: Verify flowrep artifacts
         run: |
@@ -201,10 +179,6 @@ jobs:
               assert abs(outputs['result'] - expected_result) < 1e-6, f'x={exp[\"x\"]}: expected result {expected_result}, got {outputs}'
               print(f'OK — run x={ins[\"x\"]}, slope={ins[\"slope\"]}, intercept={ins[\"intercept\"]} -> {outputs}')
           "
-
-      - name: Install Playwright dependencies
-        run: npm ci
-        working-directory: ./e2e
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

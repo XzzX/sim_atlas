@@ -68,6 +68,18 @@ uv run sim-atlas-upload --recursive filesystem mypackage.mymodule
 Head over to the webinterface and explore the nodes you uploaded:  
 http://localhost:8000
 
+## Development
+
+To work on Sim Atlas from a checkout (requires `uv` and `npm`):
+
+```bash
+scripts/setup    # install all dependencies, create the backend config
+scripts/server   # backend on :8000, frontend dev server on http://localhost:5173
+scripts/seed     # optional: upload sample nodes to the running backend
+```
+
+See [scripts/README.md](scripts/README.md) for all scripts.
+
 ## Use from Claude Code
 
 Sim Atlas exposes a read-only MCP tool surface aimed at CLI coding agents, so you

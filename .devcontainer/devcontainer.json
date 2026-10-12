@@ -22,7 +22,7 @@
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// PATH is exported explicitly here because remoteEnv is not guaranteed to be applied
 	// to the shell that runs this command.
-	"postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.local/bin:$PATH\" && cd backend && uv sync && cd ../toolkit && uv sync && cd ../frontend && npm install && cd ../web_ide && npm install",
+	"postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.local/bin:$PATH\" && scripts/setup",
 
 	// Configure tool-specific properties.
 	"customizations": {

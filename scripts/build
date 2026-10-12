@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Build frontend and web_ide into the backend's static directory (needed before `uv build`).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+static=backend/src/sim_atlas/static
+
+build() {
+  local src=$1 dest=$2
+  echo "==> build $src"
+  (cd "$src" && rm -rf dist && npm run build)
+  rm -rf "${static:?}/$dest"
+  mkdir -p "$static/$dest"
+  cp -r "$src/dist/." "$static/$dest/"
+}
+
+build frontend frontend
+build web_ide ide

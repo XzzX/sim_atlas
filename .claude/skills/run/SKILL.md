@@ -47,7 +47,7 @@ verify the exact built bundle, not while iterating on source.
 scripts/seed
 ```
 
-Does what CI's [`e2e.yml`](../../../.github/workflows/e2e.yml) does: mints a JWT and uploads
+Does what CI's the `e2e` job in [`ci.yml`](../../../.github/workflows/ci.yml) does: mints a JWT and uploads
 [`e2e/dummy_module`](../../../e2e/dummy_module) through the real toolkit CLI (reinstalling the
 current toolkit source first). Produces 5 real nodes across two categories
 (`dummy_module>functions`, `dummy_module>flowrep`), including a workflow with 3 execution

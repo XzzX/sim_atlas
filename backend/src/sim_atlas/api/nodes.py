@@ -96,17 +96,41 @@ async def update_node(
     creator: Annotated[Creator, Depends(get_current_user)],
     storage: Annotated[StorageInterface, Depends(get_storage)],
 ) -> NodeResponse:
-    node = compose_node(request, creator)
-
     try:
-        result = storage.update_node(node_id, node)
+        existing = storage.read_node(node_id)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"id": e.args[0], "message": "Node not found"},
         ) from e
 
-    return result
+    # Updates only change metadata. A different id or different content is a
+    # different node and has to be uploaded with POST, so links to this id survive.
+    if request.id is not None and request.id != node_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"id": node_id, "message": "The id of a node cannot be changed"},
+        )
+    node = compose_node(request, creator)
+    if node.source_code != existing.source_code or node.hash != existing.hash:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "id": node_id,
+                "message": "The source code differs from the stored node. "
+                "Updates can only change metadata; upload a new node with POST /nodes.",
+            },
+        )
+
+    node = node.model_copy(
+        update={
+            "id": existing.id,
+            "creator_name": existing.creator_name,
+            "creator_email": existing.creator_email,
+            "creation_timestamp": existing.creation_timestamp,
+        }
+    )
+    return storage.update_node(node_id, node)
 
 
 @router.delete("/nodes/{node_id}", tags=["nodes"])

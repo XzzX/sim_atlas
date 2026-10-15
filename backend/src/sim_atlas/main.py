@@ -17,10 +17,14 @@ __all__ = ["app", "mcp"]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    set_storage(get_storage_backend())
-    async with mcp_app.lifespan(app):
-        yield
-    set_storage(None)
+    storage = get_storage_backend()
+    set_storage(storage)
+    try:
+        async with mcp_app.lifespan(app):
+            yield
+    finally:
+        set_storage(None)
+        storage.close()
 
 
 app = FastAPI(

@@ -338,3 +338,6 @@ pyrightconfig.json
 *.json
 *.toml
 backend/src/sim_atlas/static
+
+# sim-atlas single-process data dir lock
+.sim_atlas.lock

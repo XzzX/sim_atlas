@@ -21,9 +21,6 @@ def parse_args():
         "--reload", action="store_true", help="Enable auto-reload for development"
     )
     parser.add_argument(
-        "--workers", type=int, default=1, help="Number of worker processes (default: 1)"
-    )
-    parser.add_argument(
         "--root-path",
         type=str,
         default="",
@@ -45,7 +42,7 @@ def main():
         host=args.host,
         port=args.port,
         reload=args.reload,
-        workers=args.workers,
+        workers=1,  # storage is single-process; see ADR-0004/0011
         root_path=args.root_path,
         forwarded_allow_ips=args.forwarded_allow_ips,
     )

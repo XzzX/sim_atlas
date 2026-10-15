@@ -1,3 +1,4 @@
+import os
 import secrets
 import sys
 from functools import lru_cache
@@ -143,7 +144,10 @@ def load_settings() -> Settings:
                 # Write config to working directory
                 config_path = _CONFIG_FILES[2]  # .sim_atlas_config.toml
                 config_path.parent.mkdir(parents=True, exist_ok=True)
-                config_path.write_text(config_content)
+                # Owner-only: the file contains the JWT secret
+                fd = os.open(config_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, "w") as f:
+                    f.write(config_content)
 
                 # Inform the user
                 print(

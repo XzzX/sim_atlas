@@ -8,7 +8,7 @@ import {
   type FinalConnectionState,
   Panel,
 } from "@xyflow/react";
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 
 import type {
   OnNodesChange,
@@ -38,7 +38,6 @@ interface ReactFlowEditor {
   edges: Edge[];
   setEdges: Dispatch<SetStateAction<Edge[]>>;
   onEdgesChange: OnEdgesChange;
-  layoutRef?: MutableRefObject<() => void>;
 }
 
 interface PendingConnection {
@@ -55,7 +54,6 @@ export const ReactFlowEditor = ({
   edges,
   setEdges,
   onEdgesChange,
-  layoutRef,
 }: ReactFlowEditor) => {
   const _layoutRef = useRef<(() => void) | null>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance<
@@ -129,8 +127,7 @@ export const ReactFlowEditor = ({
 
   useEffect(() => {
     _layoutRef.current = layoutGraph;
-    if (layoutRef) layoutRef.current = layoutGraph;
-  }, [layoutGraph, layoutRef]);
+  }, [layoutGraph]);
   useEffect(() => {
     if (rfInstance) {
       layoutGraph();

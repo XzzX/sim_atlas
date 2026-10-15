@@ -143,6 +143,12 @@ def test_me_returns_creator(client: ApiClient) -> None:
     assert body["email"] == TEST_CREATOR.email
 
 
+def test_capabilities_reports_only_embeddings(client: ApiClient) -> None:
+    response = client.get("/api/v1/capabilities")
+    assert response.status_code == status.HTTP_200_OK
+    assert set(response.json()) == {"embeddings_enabled"}
+
+
 def test_me_unauthenticated_returns_401(unauthed_client: ApiClient) -> None:
     response = unauthed_client.get("/api/v1/me")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED

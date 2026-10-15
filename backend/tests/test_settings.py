@@ -7,9 +7,9 @@ import pytest
 
 from sim_atlas import settings as settings_module
 from sim_atlas.exceptions import MissingConfigError
-from sim_atlas.settings import CONFIG_TEMPLATE, Settings, load_settings
+from sim_atlas.settings import CONFIG_TEMPLATE, load_settings
 
-MIN_COMMENT_LINES = 20
+MIN_COMMENT_LINES = 15
 OWNER_ONLY_MODE = 0o600
 
 
@@ -27,24 +27,14 @@ def test_config_template_structure():
     """Test that the template has all required sections and keys."""
     assert "=== REQUIRED SETTINGS ===" in CONFIG_TEMPLATE
     assert "=== OPTIONAL: JWT SETTINGS ===" in CONFIG_TEMPLATE
-    assert "=== OPTIONAL: LLM / AI ENRICHMENT ===" in CONFIG_TEMPLATE
     assert "=== OPTIONAL: EMBEDDINGS ===" in CONFIG_TEMPLATE
-    assert "=== OPTIONAL: LANGFUSE OBSERVABILITY ===" in CONFIG_TEMPLATE
 
     # Check all fields are documented
     assert "jwt_secret" in CONFIG_TEMPLATE
     assert "jwt_algorithm" in CONFIG_TEMPLATE
-    assert "llm_api_key" in CONFIG_TEMPLATE
-    assert "llm_base_url" in CONFIG_TEMPLATE
     assert "embedding_provider" in CONFIG_TEMPLATE
     assert "embedding_model" in CONFIG_TEMPLATE
     assert "embedding_api_key" in CONFIG_TEMPLATE
-    assert "llm_chat_model" in CONFIG_TEMPLATE
-    assert "llm_api" in CONFIG_TEMPLATE
-    assert "llm_reasoning_effort" in CONFIG_TEMPLATE
-    assert "langfuse_public_key" in CONFIG_TEMPLATE
-    assert "langfuse_secret_key" in CONFIG_TEMPLATE
-    assert "langfuse_host" in CONFIG_TEMPLATE
 
     # Check that template has verbose comments
     comment_lines = [
@@ -73,10 +63,7 @@ def test_load_settings_caching():
 def test_template_has_examples_and_hints():
     """Test that the template includes practical examples and generation hints."""
     assert "python -c" in CONFIG_TEMPLATE  # Secret generation hint
-    assert "sk-" in CONFIG_TEMPLATE  # OpenAI key example
     assert "pa-" in CONFIG_TEMPLATE  # VoyageAI key example
-    assert "http://localhost:11434/v1" in CONFIG_TEMPLATE  # Ollama example
-    assert "qwen3.5-27b" in CONFIG_TEMPLATE  # Model examples
 
 
 def test_template_has_all_fields_explained():
@@ -85,15 +72,9 @@ def test_template_has_all_fields_explained():
     fields = [
         "jwt_secret",
         "jwt_algorithm",
-        "llm_api_key",
-        "llm_base_url",
-        "llm_chat_model",
         "embedding_provider",
         "embedding_model",
         "embedding_api_key",
-        "langfuse_public_key",
-        "langfuse_secret_key",
-        "langfuse_host",
     ]
 
     for field in fields:
@@ -125,7 +106,7 @@ def test_settings_can_be_loaded_from_env(monkeypatch: pytest.MonkeyPatch) -> Non
     # Should have at least the required fields
     assert hasattr(settings, "jwt_secret")
     assert hasattr(settings, "jwt_algorithm")
-    assert hasattr(settings, "llm_api_key")
+    assert hasattr(settings, "embedding_model")
     assert hasattr(settings, "embedding_provider")
 
 
@@ -144,16 +125,6 @@ def test_template_mentions_deployment_scenarios():
 
     # Should mention it's optional to use AI features
     assert "leave commented out" in CONFIG_TEMPLATE.lower()
-
-
-def test_settings_expose_langfuse_fields():
-    settings = Settings(jwt_secret="x", jwt_algorithm="HS256")
-
-    assert settings.langfuse_public_key is None
-    assert settings.langfuse_secret_key is None
-    assert settings.langfuse_host is None
-    assert settings.langfuse_environment is None
-    assert settings.langfuse_enabled is False
 
 
 def test_first_run_config_is_owner_only(

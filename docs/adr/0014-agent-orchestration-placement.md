@@ -1,9 +1,11 @@
 ---
-status: accepted
+status: deprecated
 date: 2026-04-27
 deciders: Sebastian Eibl
 scope: cross-cutting
 ---
+
+> **Deprecated:** Agent removed in `076ddcd`; to be reimplemented later.
 
 # Agent Orchestration Placement
 

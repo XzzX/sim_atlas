@@ -17,7 +17,7 @@ sim_atlas/
 
 - `toolkit` parses locally installed Python packages and pushes metadata to `backend`
 - `frontend` and `web_ide` are built as static assets and served by `backend` at `/` and `/ide` respectively
-- `backend` depends on `python-workflow-definition` (shared schema, also used by `toolkit`)
+- `toolkit` depends on `python-workflow-definition` (shared workflow schema)
 
 ## Architecture & Design Decisions
 

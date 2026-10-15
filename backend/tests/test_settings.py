@@ -1,11 +1,16 @@
 """Tests for settings initialization and config file creation."""
 
+import stat
+from pathlib import Path
+
 import pytest
 
+from sim_atlas import settings as settings_module
 from sim_atlas.exceptions import MissingConfigError
 from sim_atlas.settings import CONFIG_TEMPLATE, Settings, load_settings
 
 MIN_COMMENT_LINES = 20
+OWNER_ONLY_MODE = 0o600
 
 
 def test_load_settings_returns_valid_instance():
@@ -149,3 +154,25 @@ def test_settings_expose_langfuse_fields():
     assert settings.langfuse_host is None
     assert settings.langfuse_environment is None
     assert settings.langfuse_enabled is False
+
+
+def test_first_run_config_is_owner_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The generated config holds the JWT secret, so only the owner may read it."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("SIM_ATLAS_JWT_SECRET", raising=False)
+    monkeypatch.setattr(
+        settings_module,
+        "_CONFIG_FILES",
+        [tmp_path / "etc.toml", tmp_path / "home.toml", Path(".sim_atlas_config.toml")],
+    )
+    load_settings.cache_clear()
+    try:
+        generated = load_settings()
+        config_file = tmp_path / ".sim_atlas_config.toml"
+
+        assert generated.jwt_secret != "replace-with-strong-secret-key-min-32-chars"
+        assert stat.S_IMODE(config_file.stat().st_mode) == OWNER_ONLY_MODE
+    finally:
+        load_settings.cache_clear()

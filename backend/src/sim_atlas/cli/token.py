@@ -2,7 +2,6 @@ import argparse
 
 import jwt
 
-from sim_atlas.exceptions import MissingConfigError
 from sim_atlas.settings import load_settings
 
 
@@ -22,10 +21,7 @@ def main() -> None:
     parser.add_argument("email", help="Creator e-mail address")
     args = parser.parse_args()
 
-    try:
-        settings = load_settings()
-    except MissingConfigError:
-        return
+    settings = load_settings()
 
     print(
         create_access_token(

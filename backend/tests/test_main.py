@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from collections.abc import Generator
+from importlib.metadata import version
 from math import ceil
 from types import SimpleNamespace
 from typing import Any, Protocol, cast
@@ -1253,3 +1254,8 @@ def test_missing_asset_404s_instead_of_serving_the_app_shell(
     response = client.get("/favicon.ico")
     assert response.status_code == status.HTTP_404_NOT_FOUND
     assert "text/html" not in response.headers.get("content-type", "")
+
+
+def test_openapi_version_matches_installed_package(client: ApiClient) -> None:
+    response = client.get("/openapi.json")
+    assert response.json()["info"]["version"] == version("sim-atlas")

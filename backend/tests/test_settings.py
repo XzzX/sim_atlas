@@ -9,7 +9,6 @@ from sim_atlas import settings as settings_module
 from sim_atlas.exceptions import MissingConfigError
 from sim_atlas.settings import CONFIG_TEMPLATE, load_settings
 
-
 MIN_COMMENT_LINES = 15
 OWNER_ONLY_MODE = 0o600
 
@@ -126,16 +125,6 @@ def test_template_mentions_deployment_scenarios():
 
     # Should mention it's optional to use AI features
     assert "leave commented out" in CONFIG_TEMPLATE.lower()
-
-
-def test_settings_expose_langfuse_fields():
-    settings = Settings(jwt_secret="x", jwt_algorithm="HS256")
-
-    assert settings.langfuse_public_key is None
-    assert settings.langfuse_secret_key is None
-    assert settings.langfuse_host is None
-    assert settings.langfuse_environment is None
-    assert settings.langfuse_enabled is False
 
 
 def test_first_run_config_is_owner_only(

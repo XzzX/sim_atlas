@@ -3,11 +3,7 @@
 ![PyPI - toolkit](https://img.shields.io/pypi/v/sim-atlas-toolkit?label=toolkit)
 
 
-[![backend](https://github.com/XzzX/sim_atlas/actions/workflows/backend.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/backend.yml)
-[![frontend](https://github.com/XzzX/sim_atlas/actions/workflows/frontend.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/frontend.yml)
-[![toolkit](https://github.com/XzzX/sim_atlas/actions/workflows/toolkit.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/toolkit.yml)
-[![web-ide](https://github.com/XzzX/sim_atlas/actions/workflows/web_ide.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/web_ide.yml)
-[![e2e](https://github.com/XzzX/sim_atlas/actions/workflows/e2e.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/e2e.yml)
+[![ci](https://github.com/XzzX/sim_atlas/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/ci.yml)
 [![dependency-audit](https://github.com/XzzX/sim_atlas/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/audit.yml)
 
 # Sim Atlas

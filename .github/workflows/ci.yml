@@ -1,10 +1,9 @@
-name: e2e
+name: ci
 
 on:
   push:
-    branches: ["*"]
+    branches: [main]
   pull_request:
-    branches: ["*"]
 
 # Cancel in-progress runs when a new commit is pushed
 concurrency:
@@ -12,7 +11,152 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  e2e-upload:
+  # Decide which areas a change touches so unrelated jobs are skipped.
+  # Any failure to compute the diff (new branch, force push, ...) runs everything.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.diff.outputs.python }}
+      node: ${{ steps.diff.outputs.node }}
+      e2e: ${{ steps.diff.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed areas
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            range="$PR_BASE...$PR_HEAD"
+          else
+            range="$PUSH_BEFORE...$PUSH_AFTER"
+          fi
+
+          if files=$(git diff --name-only "$range" 2>/dev/null); then
+            all=false
+          else
+            echo "Could not diff $range; running everything"
+            files=""
+            all=true
+          fi
+          echo "Changed files:"
+          echo "$files"
+
+          # Changes here can affect every area.
+          shared='^(scripts/|\.github/workflows/ci\.yml$)'
+
+          changed() {
+            [ "$all" = true ] || echo "$files" | grep -qE "$1|$shared"
+          }
+
+          # JSON array of the projects in $2.. whose directory changed
+          matrix() {
+            local out="" sep=""
+            for p in "$@"; do
+              if changed "^$p/"; then out="$out$sep\"$p\""; sep=","; fi
+            done
+            echo "[$out]"
+          }
+
+          {
+            echo "python=$(matrix backend toolkit)"
+            echo "node=$(matrix frontend web_ide)"
+            # e2e exercises backend + toolkit + both UIs together
+            if changed '^(backend|toolkit|frontend|web_ide|e2e)/'; then
+              echo "e2e=true"
+            else
+              echo "e2e=false"
+            fi
+          } >> "$GITHUB_OUTPUT"
+
+  python:
+    name: ${{ matrix.project }}
+    needs: changes
+    if: needs.changes.outputs.python != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.changes.outputs.python) }}
+    env:
+      SIM_ATLAS_JWT_SECRET: test-secret-key-for-ci-testing-only
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --all-extras --all-groups
+
+      - name: Run ruff check
+        run: uv run ruff check .
+
+      - name: Run ruff format (check)
+        run: uv run ruff format --check .
+
+      - name: Run pyright
+        run: uv run pyright
+
+      - name: Run pytest
+        run: uv run pytest
+
+  node:
+    name: ${{ matrix.project }}
+    needs: changes
+    if: needs.changes.outputs.node != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.changes.outputs.node) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Run tests
+        run: npm test --if-present
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    needs: [changes, python, node]
+    # Skipped dependencies are fine; failed or cancelled ones are not.
+    if: ${{ !cancelled() && needs.changes.outputs.e2e == 'true' && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -191,3 +335,19 @@ jobs:
       - name: Stop backend server
         if: always()
         run: kill "$SERVER_PID"
+
+  # Single required status check for branch protection: passes when every
+  # job either succeeded or was skipped because its area did not change.
+  ci-ok:
+    if: always()
+    needs: [changes, python, node, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -qE 'failure|cancelled'; then
+            exit 1
+          fi

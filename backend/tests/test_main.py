@@ -208,17 +208,46 @@ def test_read_node_not_found_returns_404(client: ApiClient) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_update_node_returns_updated_data(client: ApiClient) -> None:
-    node_id = client.post("/api/v1/nodes", json=make_function_request_body()).json()[
-        "id"
-    ]
+def test_update_node_changes_metadata_and_keeps_id(client: ApiClient) -> None:
+    created = client.post("/api/v1/nodes", json=make_function_request_body()).json()
+    node_id = created["id"]
     updated_body = make_function_request_body(
-        name="updated_function",
-        source_code="def updated_function(): pass",
+        name="renamed_function", description="Better description."
     )
     response = client.put(f"/api/v1/nodes/{node_id}", json=updated_body)
     assert response.status_code == status.HTTP_200_OK
-    assert response.json()["name"] == "updated_function"
+    assert response.json()["id"] == node_id
+    assert response.json()["creation_timestamp"] == created["creation_timestamp"]
+    fetched = client.get(f"/api/v1/nodes/{node_id}")
+    assert fetched.status_code == status.HTTP_200_OK
+    assert fetched.json()["id"] == node_id
+    assert fetched.json()["name"] == "renamed_function"
+    assert fetched.json()["description"] == "Better description."
+
+
+def test_update_node_with_changed_source_returns_422(client: ApiClient) -> None:
+    created = client.post("/api/v1/nodes", json=make_function_request_body()).json()
+    node_id = created["id"]
+    response = client.put(
+        f"/api/v1/nodes/{node_id}",
+        json=make_function_request_body(source_code="def other(): pass"),
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert client.get(f"/api/v1/nodes/{node_id}").json() == created
+
+
+def test_update_node_with_different_id_returns_422(client: ApiClient) -> None:
+    node_id = client.post("/api/v1/nodes", json=make_function_request_body()).json()[
+        "id"
+    ]
+    response = client.put(
+        f"/api/v1/nodes/{node_id}",
+        json=make_function_request_body(id="another-id"),
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert (
+        client.get("/api/v1/nodes/another-id").status_code == status.HTTP_404_NOT_FOUND
+    )
 
 
 def test_update_node_not_found_returns_404(client: ApiClient) -> None:

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from importlib.metadata import version
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,14 +32,13 @@ app = FastAPI(
     lifespan=lifespan,
     title="Simulation Atlas",
     description="One place to store all your simulation knowledge. Upload your functions, search for existing ones, and let AI enrich your documentation.",
-    version="0.0.0",
+    version=version("sim-atlas"),
 )
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Modify this in production
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

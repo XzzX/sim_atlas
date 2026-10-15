@@ -1,8 +1,10 @@
+import os
 from functools import lru_cache
 
 import numpy as np
 import voyageai  # pyright: ignore[reportMissingTypeStubs]
 from fastembed import TextEmbedding
+from huggingface_hub.constants import HF_HUB_CACHE
 from openai import AsyncOpenAI
 from tqdm import tqdm
 
@@ -17,7 +19,12 @@ from sim_atlas.settings import load_settings
 
 @lru_cache(maxsize=1)
 def _fastembed_model(model_name: str) -> TextEmbedding:
-    return TextEmbedding(model_name=model_name)
+    # fastembed defaults to <tmp>/fastembed_cache, which is wiped on reboot or
+    # container rebuild and forces a re-download. Use the standard Hugging Face
+    # hub cache (honours HF_HOME / HF_HUB_CACHE) so models persist and are shared
+    # with other HF-based tools. FASTEMBED_CACHE_PATH still takes precedence.
+    cache_dir = os.getenv("FASTEMBED_CACHE_PATH") or HF_HUB_CACHE
+    return TextEmbedding(model_name=model_name, cache_dir=cache_dir)
 
 
 @lru_cache(maxsize=1)

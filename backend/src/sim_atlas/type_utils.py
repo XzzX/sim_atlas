@@ -5,6 +5,10 @@ The canonical format is produced by the toolkit's ``type_to_str`` function:
   - generics:     ``"list[int]"``, ``"dict[str, float]"``
   - unions:       ``"int | float"``, ``"int | None"``
 
+Whitespace is never significant and is ignored on input.  A string that does
+not parse (for example ``"Literal['a', 'b']"``) is treated as a single opaque
+name, so it is compared by exact string rather than being silently truncated.
+
 Two public functions are provided:
 
 ``collect_datatypes(s)``
@@ -52,6 +56,10 @@ TypeNode = SimpleNode | GenericNode | UnionNode
 # ---------------------------------------------------------------------------
 
 
+class _TypeParseError(ValueError):
+    pass
+
+
 @dataclass
 class _ParseCtx:
     src: str
@@ -59,13 +67,21 @@ class _ParseCtx:
 
 
 def _parse_type(s: str) -> TypeNode:
-    return _parse_union(_ParseCtx(src=s.strip()))
+    src = "".join(s.split())
+    ctx = _ParseCtx(src=src)
+    try:
+        node = _parse_union(ctx)
+        if ctx.pos != len(src):
+            raise _TypeParseError(src)
+    except _TypeParseError:
+        return SimpleNode(name=src)
+    return node
 
 
 def _parse_union(ctx: _ParseCtx) -> TypeNode:
     members: list[TypeNode] = [_parse_generic(ctx)]
-    while ctx.src.startswith(" | ", ctx.pos):
-        ctx.pos += 3  # consume " | "
+    while ctx.src.startswith("|", ctx.pos):
+        ctx.pos += 1  # consume "|"
         members.append(_parse_generic(ctx))
     return members[0] if len(members) == 1 else UnionNode(members=members)
 
@@ -73,14 +89,16 @@ def _parse_union(ctx: _ParseCtx) -> TypeNode:
 def _parse_generic(ctx: _ParseCtx) -> TypeNode:
     name = _parse_name(ctx)
     if ctx.pos >= len(ctx.src) or ctx.src[ctx.pos] != "[":
+        if not name:
+            raise _TypeParseError(ctx.src)
         return SimpleNode(name=name)
     ctx.pos += 1  # consume "["
     args: list[TypeNode] = [_parse_union(ctx)]
     while ctx.pos < len(ctx.src) and ctx.src[ctx.pos] == ",":
         ctx.pos += 1  # consume ","
-        if ctx.pos < len(ctx.src) and ctx.src[ctx.pos] == " ":
-            ctx.pos += 1  # consume optional space
         args.append(_parse_union(ctx))
+    if ctx.pos >= len(ctx.src) or ctx.src[ctx.pos] != "]":
+        raise _TypeParseError(ctx.src)
     ctx.pos += 1  # consume "]"
     return GenericNode(name=name, args=args)
 

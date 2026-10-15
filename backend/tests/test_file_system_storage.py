@@ -636,6 +636,7 @@ def test_stale_derived_fields_on_disk_are_dropped_on_load(tmp_path: Path) -> Non
     data[fn.id]["inputs"][0]["connections"] = [stale]
     nodes_file.write_text(json.dumps(data))
 
+    storage.close()
     reloaded = FileSystemStorage(path=tmp_path)
     _assert_no_derived_fields(reloaded)
     node = reloaded.read_node(fn.id)
@@ -845,6 +846,7 @@ def test_persistence_round_trip(tmp_path: Path) -> None:
     storage.create_node(embedded)
     storage.create_execution_result(_execution_result(artifact_id=fn.id))
 
+    storage.close()
     reloaded = FileSystemStorage(path=tmp_path)
 
     assert reloaded.count() == 3  # noqa: PLR2004
@@ -891,6 +893,7 @@ def test_interrupted_write_leaves_previous_file_intact(
         storage.create_node(make_node(name="doomed", source_code="def doomed(): pass"))
 
     assert nodes_file.read_bytes() == before
+    storage.close()
     reloaded = FileSystemStorage(path=tmp_path)
     assert reloaded.count() == 1
     assert reloaded.exists(keeper.id)
@@ -1025,3 +1028,13 @@ def test_search_substring_populates_used_by() -> None:
     node = response.results.data[0].node
     assert node.used_by is not None
     assert [ref.id for ref in node.used_by] == [wf.id]
+
+
+def test_second_instance_on_same_dir_is_refused(tmp_path: Path) -> None:
+    """Only one process may own the data dir (single-worker constraint)."""
+    first = FileSystemStorage(path=tmp_path)
+    with pytest.raises(RuntimeError, match="single worker"):
+        FileSystemStorage(path=tmp_path)
+
+    first.close()
+    FileSystemStorage(path=tmp_path).close()

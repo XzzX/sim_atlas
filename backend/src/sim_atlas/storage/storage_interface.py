@@ -49,6 +49,9 @@ class ExecutionResultDuplicateError(Exception):
 
 
 class StorageInterface(ABC):
+    def close(self) -> None:  # noqa: B027
+        """Release any resources held by the backend."""
+
     @abstractmethod
     def create_node(
         self, value: NodeMetadata, check_source_hash: bool = True

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
 import os
 from functools import reduce
 from math import ceil
 from pathlib import Path
+from typing import IO
 
 from pydantic import BaseModel
 
@@ -131,6 +133,7 @@ class FileSystemStorage(StorageInterface):
 
     NODES_FILENAME = "artifacts.json"
     EXECUTION_RESULTS_FILENAME = "execution_results.json"
+    LOCK_FILENAME = ".sim_atlas.lock"
 
     def __init__(self, path: Path | None = None) -> None:
         self._nodes: dict[str, NodeMetadata] = {}
@@ -138,8 +141,10 @@ class FileSystemStorage(StorageInterface):
         self._path = path
         self._connected = False
         self._graph: WorkflowGraph | None = None
+        self._lock_file: IO[bytes] | None = None
 
         if self._path is not None:
+            self._acquire_lock(self._path)
             nodes_file = self._path / self.NODES_FILENAME
             if nodes_file.exists():
                 with open(nodes_file) as f:
@@ -157,6 +162,29 @@ class FileSystemStorage(StorageInterface):
 
         print(f"FileSystemStorage initialized with {len(self._nodes)} items.")
         self._connected = True
+
+    def _acquire_lock(self, path: Path) -> None:
+        """Hold an exclusive lock on the data dir: one process may own it.
+
+        The catalog is held in memory and rewritten whole on every write, so a
+        second process (e.g. ``--workers > 1``) would silently lose writes.
+        """
+        lock_file = open(path / self.LOCK_FILENAME, "wb")  # noqa: SIM115
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            lock_file.close()
+            raise RuntimeError(
+                f"Another sim-atlas process is already using '{path}'. sim-atlas "
+                "supports only a single worker process; do not use more than one "
+                "worker or start a second server on the same data directory."
+            ) from None
+        self._lock_file = lock_file
+
+    def close(self) -> None:
+        if self._lock_file is not None:
+            self._lock_file.close()  # closing releases the flock
+            self._lock_file = None
 
     def _nodes_changed(self) -> None:
         self._graph = None

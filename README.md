@@ -84,8 +84,8 @@ See [scripts/README.md](scripts/README.md) for all scripts.
 
 Sim Atlas exposes a read-only MCP tool surface aimed at CLI coding agents, so you
 can write plain Python against the catalog without leaving the terminal (see
-[ADR-0019](docs/adr/0019-mcp-python-tool-surface.md)). It is independent of the
-Web IDE's agent — no LLM key is needed on the server for this path.
+[ADR-0019](docs/adr/0019-mcp-python-tool-surface.md)). No LLM key is needed on the
+server for this path.
 
 ### 1. Register the server
 

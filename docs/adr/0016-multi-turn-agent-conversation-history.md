@@ -1,9 +1,11 @@
 ---
-status: accepted
+status: deprecated
 date: 2026-04-27
 deciders: Sebastian Eibl
 scope: [backend, web-ide]
 ---
+
+> **Deprecated:** Agent removed in `076ddcd`; to be reimplemented later.
 
 # Multi-turn agent conversation via client-carried history
 

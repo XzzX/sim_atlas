@@ -4,8 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from openai.types.shared.reasoning_effort import ReasoningEffort
-from pydantic import Field, ValidationError
+from pydantic import ValidationError
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -43,97 +42,25 @@ jwt_secret = "replace-with-strong-secret-key-min-32-chars"
 # Common values: HS256 (HMAC with SHA-256), HS512 (HMAC with SHA-512)
 # jwt_algorithm = "HS256"
 
-# === OPTIONAL: LLM / AI ENRICHMENT ===
-# Leave commented out if you don't use AI features (semantic search, docstring enrichment).
-# If any of these are configured, AI endpoints will be enabled in the API.
-
-# OpenAI-compatible LLM API Key
-# Used for generating refined docstrings and AI agent features.
-# Examples: OpenAI (sk-...), LocalAI, Ollama via OpenAI-compatible endpoint
-# llm_api_key = "sk-..."
-
-# OpenAI-compatible LLM API Base URL
-# Base URL of the OpenAI-compatible API server.
-# Examples: https://chat-ai.academiccloud.de/v1/ (GWDG)
-#           http://localhost:11434/v1 (Ollama local)
-# Must be a valid HTTP(S) URL.
-# llm_base_url = "https://chat-ai.academiccloud.de/v1/"
-
-# LLM Chat Model Name
-# Name of the model to use for conversational docstring refinement.
-# llm_chat_model = "qwen3.5-27b"
-
-# LLM API Endpoint (workflow agent only)
-# Which OpenAI-compatible endpoint the agent calls.
-# "chat"      -> /v1/chat/completions (default; the only endpoint GWDG serves)
-# "responses" -> /v1/responses (needed by gateways that refuse function tools on
-#                /v1/chat/completions when a reasoning effort is applied)
-# llm_api = "chat"
-
-# LLM Reasoning Effort (workflow agent only)
-# Reasoning budget for the agent. Omit to send no reasoning parameter at all,
-# which is what gateways that do not know the parameter expect.
-# Set to "none" to disable reasoning on a gateway that applies a default effort
-# and then rejects function tools on /v1/chat/completions.
-# Values: none | minimal | low | medium | high (model-dependent)
-# llm_reasoning_effort = "none"
-
-# LLM Concurrency
-# Maximum number of simultaneous LLM requests.
-# Lower values reduce API load; higher values speed up large batches.
-# llm_concurrency = 5
-
 # === OPTIONAL: EMBEDDINGS ===
+# Leave commented out if you don't use semantic search (keyword search still works).
 # Configure the embedding provider for semantic search.
 embedding_provider = "fastembed"                    # fastembed | openai | voyageai
 embedding_model = "nomic-ai/nomic-embed-text-v1.5"  # model name
 # embedding_api_key = "pa-..."                      # API key (voyageai or openai; omit for fastembed)
 # embedding_base_url = "https://..."                # base URL for openai-compatible endpoint (openai provider only)
 embedding_batch_size = 8                            # number of documents per embedding batch
-
-# === OPTIONAL: LANGFUSE OBSERVABILITY ===
-# Enable this only if you want to export agent traces to Langfuse.
-# Tracing is enabled when all of the fields below are set.
-# Install the optional dependency with: uv sync --extra langfuse
-
-# Langfuse Public Key
-# Used to authenticate trace writes to Langfuse.
-# langfuse_public_key = "pk-lf-..."
-
-# Langfuse Secret Key
-# Used with the public key to sign trace writes.
-# langfuse_secret_key = "sk-lf-..."
-
-# Langfuse Host URL
-# Base URL for your Langfuse deployment.
-# Examples: https://cloud.langfuse.com, http://localhost:3000
-# langfuse_host = "https://cloud.langfuse.com"
-
-# Langfuse Environment
-# Optional environment label shown in Langfuse.
-# langfuse_environment = "development"
 """
 
 
 class Settings(BaseSettings):
     jwt_secret: str
     jwt_algorithm: str = "HS256"
-    llm_api_key: str | None = None
-    llm_base_url: str | None = None
-    llm_chat_model: str | None = None
-    llm_api: Literal["chat", "responses"] = "chat"
-    llm_reasoning_effort: ReasoningEffort = None
-    llm_concurrency: int = 5
-    agent_max_iterations: int = Field(default=10, ge=1)
     embedding_provider: Literal["fastembed", "openai", "voyageai"] | None = None
     embedding_model: str | None = None
     embedding_api_key: str | None = None
     embedding_base_url: str | None = None
     embedding_batch_size: int = 8
-    langfuse_public_key: str | None = None
-    langfuse_secret_key: str | None = None
-    langfuse_host: str | None = None
-    langfuse_environment: str | None = None
 
     model_config = SettingsConfigDict(
         toml_file=_get_config_files(),
@@ -165,16 +92,6 @@ class Settings(BaseSettings):
             if path.exists():
                 return path.parent
         return Path(".")
-
-    @property
-    def langfuse_enabled(self) -> bool:
-        return bool(
-            self.langfuse_public_key and self.langfuse_secret_key and self.langfuse_host
-        )
-
-    @property
-    def agent_enabled(self) -> bool:
-        return bool(self.llm_api_key and self.llm_base_url and self.llm_chat_model)
 
     @property
     def embeddings_enabled(self) -> bool:

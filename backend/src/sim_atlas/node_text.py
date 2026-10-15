@@ -1,8 +1,8 @@
 """Small text helpers shared by every node-rendering surface.
 
-Deliberately tiny: the Web IDE agent and the MCP tool surface render nodes
-very differently (port listings versus Python signatures), and only the pieces
-that are genuinely identical belong here. See ADR-0019.
+Deliberately tiny: node-rendering surfaces such as the MCP tool surface render
+nodes in their own way, and only the pieces that are genuinely identical belong
+here. See ADR-0019.
 """
 
 

@@ -3,15 +3,10 @@ import {
   NodeResponseSchema,
   ScoredSearchResponseSchema,
   FilterOptionsSchema,
-  AgentSSEEventSchema,
-  CapabilitiesResponseSchema,
   type NodeResponse,
   type ScoredSearchResponse,
   type Filter,
   type FilterOptions,
-  type AgentRequest,
-  type AgentSSEEvent,
-  type CapabilitiesResponse,
 } from "../interfaces/BackendSchema";
 
 const API_BASE_URL = "/api/v1";
@@ -47,48 +42,6 @@ export const simAtlasAPI = {
       limit,
     });
     return ScoredSearchResponseSchema.parse(response.data);
-  },
-
-  getCapabilities: async (): Promise<CapabilitiesResponse> => {
-    const response = await api.get("/capabilities");
-    return CapabilitiesResponseSchema.parse(response.data);
-  },
-
-  agentStream: async (
-    request: AgentRequest,
-    onEvent: (event: AgentSSEEvent) => void,
-    signal?: AbortSignal,
-  ): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/agent/stream`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-      signal,
-    });
-    if (!response.ok) {
-      throw new Error(`Agent stream error: ${response.status}`);
-    }
-    const reader = response.body?.getReader();
-    if (!reader) return;
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const parts = buffer.split("\n\n");
-      buffer = parts.pop() ?? "";
-      for (const part of parts) {
-        const line = part.trim();
-        if (!line.startsWith("data: ")) continue;
-        try {
-          const parsed = AgentSSEEventSchema.parse(JSON.parse(line.slice(6)));
-          onEvent(parsed);
-        } catch {
-          console.error("Failed to parse SSE event:", line);
-        }
-      }
-    }
   },
 };
 

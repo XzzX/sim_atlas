@@ -1,7 +1,6 @@
 """The read-only MCP tool surface for CLI coding agents (ADR-0019).
 
-Independent of ``sim_atlas.agent``: the Web IDE agent builds React Flow graphs,
-this surface hands Python to an agent that already has its own model. Tool
+This surface hands Python to an agent that already has its own model. Tool
 descriptions here are prompt text — they decide whether the catalog is consulted
 at all, so edit them with that in mind.
 """

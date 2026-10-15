@@ -1,6 +1,6 @@
 # backend
 
-FastAPI REST API with MCP tool exposure and AI integration.
+FastAPI REST API with MCP tool exposure and embeddings.
 
 ## Commands
 
@@ -19,7 +19,7 @@ uv run pyright                          # type-check (strict mode)
 - **Models**: Pydantic v2; all schemas in `models.py`; three distinct types: `NodeRequest` (API write input), `NodeMetadata` (internal storage schema), `NodeResponse` (API read output); `NdArray` is a custom Pydantic type for gzip-compressed numpy arrays (embeddings)
 - **Auth**: JWT tokens carried in `x-api-key` header; `get_current_user` dependency enforces auth on write routes; read routes are public
 - **MCP**: served via FastMCP from the `mcp_server/` package, mounted at `/mcp` in `main.py`; a curated, read-only surface of four Python-vocabulary tools (`search_functions`, `find_by_signature`, `get_function`, `get_workflow_source`) aimed at CLI coding agents, decoupled from the REST routes rather than auto-derived from them (ADR-0019). Output is Python-shaped — a call signature, an import line and an install hint — rendered by `mcp_server/_format.py`; never add a write tool.
-- **AI**: docstring enrichment via OpenAI-compatible API (`ai.py`); embeddings via VoyageAI (`voyage_ai.py`); all AI features raise `AINotConfiguredError` (from `exceptions.py`) when the required settings are absent
+- **Embeddings**: `embedding.py` (providers: fastembed, openai, voyageai); raises `AINotConfiguredError` (from `exceptions.py`) when the required settings are absent
 - **Config**: all settings via `settings.py` (`pydantic-settings`); loaded from TOML files at `/etc/sim_atlas_config.toml`, `~/.sim_atlas_config.toml`, or `.sim_atlas_config.toml`; never hardcode secrets or URLs
 - **CLI**: entry points live in `cli/` (`server.py` starts the server, `token.py` issues JWT tokens)
 
@@ -27,7 +27,6 @@ uv run pyright                          # type-check (strict mode)
 
 - **pydantic**: [Documentation](https://pydantic.dev/docs/validation/latest/llms.txt)
 - **pydantic-settings**: [Documentation](https://pydantic.dev/docs/validation/latest/llms.txt)
-- **langfuse**: [Documentation](https://langfuse.com/llms-docs.txt)
 
 ## Think Before Coding
 

@@ -28,6 +28,10 @@ intentional: an operator can choose to enrich all nodes, a subset, or none at al
 
 The endpoint is idempotent — calling it multiple times simply regenerates the metadata.
 
+> **Update 2026-10-15:** docstring generation moved client-side into the toolkit, so the backend
+> endpoint is now `POST /embed`. It only computes embeddings for nodes that lack one and skips nodes
+> without description text. The former `POST /enrich` (and its `only_ids` subset option) was removed.
+
 ### Consequences
 
 * Good, because node registration never fails due to LLM API downtime.

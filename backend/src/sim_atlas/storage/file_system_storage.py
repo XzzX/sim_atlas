@@ -587,32 +587,20 @@ class FileSystemStorage(StorageInterface):
     ) -> list[ExecutionResultMetadata]:
         return [r for r in self._execution_results.values() if r.artifact_id == node_id]
 
-    async def enrich(self, only_ids: list[str] | None = None) -> None:
-        nodes_to_enrich = (
-            [node for node in self._nodes.values() if node.id in only_ids]
-            if only_ids
-            else [node for node in self._nodes.values() if node.embedding is None]
-        )
-        nodes_to_embed = [node for node in nodes_to_enrich if node.description]
-        documents = [self._embedding_text(node) for node in nodes_to_embed]
-        if not documents:
-            return
-        embeddings = await create_embedding(documents, input_type="document")
-        for emb, item in zip(embeddings, nodes_to_embed, strict=True):
-            item.embedding = emb
-
-        self._save_nodes_to_disk()
-
     async def embed_missing(self) -> None:
-        nodes_to_embed = [
-            node for node in self._nodes.values() if node.embedding is None
+        pending = [
+            (node, self._embedding_text(node))
+            for node in self._nodes.values()
+            if node.embedding is None
         ]
-
-        documents = [self._embedding_text(node) for node in nodes_to_embed]
-        if not documents:
+        # Nodes without any text stay unembedded; hosted providers may reject "".
+        pending = [(node, text) for node, text in pending if text]
+        if not pending:
             return
-        embeddings = await create_embedding(documents, input_type="document")
-        for emb, item in zip(embeddings, nodes_to_embed, strict=True):
-            item.embedding = emb
+        embeddings = await create_embedding(
+            [text for _, text in pending], input_type="document"
+        )
+        for emb, (node, _) in zip(embeddings, pending, strict=True):
+            node.embedding = emb
 
         self._save_nodes_to_disk()

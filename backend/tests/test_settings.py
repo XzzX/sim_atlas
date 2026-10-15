@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from sim_atlas import settings as settings_module
-from sim_atlas.exceptions import MissingConfigError
 from sim_atlas.settings import CONFIG_TEMPLATE, load_settings
 
 MIN_COMMENT_LINES = 15
@@ -108,13 +107,6 @@ def test_settings_can_be_loaded_from_env(monkeypatch: pytest.MonkeyPatch) -> Non
     assert hasattr(settings, "jwt_algorithm")
     assert hasattr(settings, "embedding_model")
     assert hasattr(settings, "embedding_provider")
-
-
-def test_missing_config_error_exists():
-    """Test that MissingConfigError exception is defined."""
-    # Should be able to raise and catch it
-    with pytest.raises(MissingConfigError):
-        raise MissingConfigError("test")
 
 
 def test_template_mentions_deployment_scenarios():

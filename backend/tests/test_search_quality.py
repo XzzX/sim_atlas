@@ -177,7 +177,7 @@ def _storage(monkeypatch: pytest.MonkeyPatch, *, embeddings: bool) -> FileSystem
     for node in _CATALOG.values():
         storage.create_node(node.model_copy(deep=True))
     if embeddings:
-        asyncio.run(storage.enrich())
+        asyncio.run(storage.embed_missing())
     return storage
 
 

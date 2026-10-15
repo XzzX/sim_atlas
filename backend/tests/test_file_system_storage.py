@@ -1038,3 +1038,32 @@ def test_second_instance_on_same_dir_is_refused(tmp_path: Path) -> None:
 
     first.close()
     FileSystemStorage(path=tmp_path).close()
+
+
+def test_embed_missing_skips_nodes_without_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A node with no description or port text is never sent to the provider."""
+    seen: list[list[str]] = []
+    embed = _embed_as([1.0, 0.0, 0.0])
+
+    async def _recording_embed(
+        documents: list[str], input_type: str = "document"
+    ) -> np.ndarray:
+        seen.append(list(documents))
+        return await embed(documents, input_type)
+
+    monkeypatch.setattr(fss, "create_embedding", _recording_embed)
+    storage = FileSystemStorage(path=None)
+    described = make_node(
+        name="described", description="Does a thing", source_code="def a(): pass"
+    )
+    empty = make_node(name="empty", description=None, source_code="def b(): pass")
+    storage.create_node(described)
+    storage.create_node(empty)
+
+    asyncio.run(storage.embed_missing())
+
+    assert seen == [["Does a thing"]]
+    assert storage.read_node(described.id).embedding is not None
+    assert storage.read_node(empty.id).embedding is None

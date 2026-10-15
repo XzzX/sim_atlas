@@ -168,10 +168,6 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    async def enrich(self, only_ids: list[str] | None = None) -> None:
-        pass
-
-    @abstractmethod
     async def embed_missing(self) -> None:
         pass
 

@@ -57,7 +57,7 @@ flowchart TD
     end
 
     subgraph SRV["Server"]
-        B["FastAPI Backend<br/>· JWT auth for write endpoints<br/>· CRUD for nodes<br/>· Keyword & semantic search<br/>· On-demand AI enrichment endpoint<br/>· Read-only MCP tool surface<br/>· Serves frontend & web_ide SPAs"]
+        B["FastAPI Backend<br/>· JWT auth for write endpoints<br/>· CRUD for nodes<br/>· Keyword & semantic search<br/>· On-demand embedding endpoint<br/>· Read-only MCP tool surface<br/>· Serves frontend & web_ide SPAs"]
         FS["FileSystemStorage<br/>· In-memory dict[id→NodeMetadata]<br/>· Persisted as artifacts.json<br/>· Embeddings: gzip+base64 numpy array"]
         subgraph AI["External AI Services"]
             V["VoyageAI<br/>voyage-code-3<br/>(embeddings)"]

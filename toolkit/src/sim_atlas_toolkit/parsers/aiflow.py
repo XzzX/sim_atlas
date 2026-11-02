@@ -6,16 +6,16 @@ import inspect
 import textwrap
 from typing import Any
 
-from core import (  # pyright: ignore[reportMissingImports]
+from aiflow.core import (  # pyright: ignore[reportMissingImports]
     Workflow,  # pyright: ignore[reportMissingImports]
 )
-from core.graph_to_workflow import (  # pyright: ignore[reportMissingImports]  # pyright: ignore[reportMissingImports]
+from aiflow.core.graph_to_workflow import (  # pyright: ignore[reportMissingImports]  # pyright: ignore[reportMissingImports]
     graph_to_workflow_code,
 )
-from core.groups import (  # pyright: ignore[reportMissingImports]
+from aiflow.core.groups import (  # pyright: ignore[reportMissingImports]
     WorkflowGroupFactory,
 )
-from core.node import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]  # pyright: ignore[reportMissingImports]
+from aiflow.core.node import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]  # pyright: ignore[reportMissingImports]
     GroupNode,
     Node,
 )

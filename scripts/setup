@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Set up the project for first use: install dependencies and create the backend config.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+scripts/bootstrap
+
+# Loading the settings writes backend/.sim_atlas_config.toml if no config file exists.
+echo "==> backend config"
+(cd backend && uv run python -c "import sim_atlas.settings")

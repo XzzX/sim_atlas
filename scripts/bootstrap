@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Install or update all dependencies. Safe to re-run.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+for tool in uv npm; do
+  if ! command -v "$tool" >/dev/null; then
+    echo "error: '$tool' not found on PATH" >&2
+    exit 1
+  fi
+done
+
+for d in backend toolkit; do
+  echo "==> uv sync ($d)"
+  (cd "$d" && uv sync)
+done
+
+for d in frontend web_ide e2e; do
+  echo "==> npm ci ($d)"
+  (cd "$d" && npm ci)
+done

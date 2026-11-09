@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Start the app.
+#   scripts/server           backend on :8000 + frontend dev server on :5173
+#   scripts/server --static  build both SPAs into the backend and serve everything on :8000
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+case "${1:-}" in
+  "") ;;
+  --static)
+    scripts/build
+    cd backend
+    exec uv run sim-atlas
+    ;;
+  *)
+    echo "usage: $0 [--static]" >&2
+    exit 2
+    ;;
+esac
+
+# Job control puts each server in its own process group, so cleanup also reaches the
+# grandchildren (npm does not forward signals to vite).
+set -m
+pids=()
+cleanup() {
+  for pid in "${pids[@]}"; do
+    kill -- "-$pid" 2>/dev/null || true
+  done
+}
+trap cleanup EXIT INT TERM
+
+(cd backend && exec uv run sim-atlas) &
+pids+=($!)
+(cd frontend && exec npm run dev) &
+pids+=($!)
+
+# Exit (and stop the other server) as soon as either one dies.
+while kill -0 "${pids[0]}" 2>/dev/null && kill -0 "${pids[1]}" 2>/dev/null; do
+  sleep 1
+done
+echo "a server exited; stopping the other one" >&2
+exit 1

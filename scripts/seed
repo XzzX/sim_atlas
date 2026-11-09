@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Seed a running backend with the e2e dummy_module fixture through the real toolkit upload.
+# Re-running is safe: already-present nodes are reported as conflicts.
+# Usage: scripts/seed [extra sim-atlas-upload args...]
+#   The API defaults to http://127.0.0.1:8000/api/v1; override with SIM_ATLAS_API_URL.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export SIM_ATLAS_API_URL="${SIM_ATLAS_API_URL:-http://127.0.0.1:8000/api/v1}"
+SIM_ATLAS_API_TOKEN=$(cd backend && uv run sim-atlas-access-token "Dev" "dev@example.com")
+export SIM_ATLAS_API_TOKEN
+
+cd e2e
+if [ ! -d .venv ]; then
+  uv venv --python=3.12
+fi
+# Reinstalled every time so the upload uses the current toolkit source.
+uv pip install dummy_module/. ../toolkit/.
+
+uv run sim-atlas-upload dummy_module dummy_module.flowrep \
+  --allowed-modules flowrep \
+  "$@"

@@ -13,6 +13,8 @@ from pydantic_settings import (
     TomlConfigSettingsSource,
 )
 
+from sim_atlas.embedding import EmbeddingConfig
+
 _CONFIG_FILES = [
     Path("/etc/sim_atlas_config.toml"),  # system (lowest priority)
     Path.home() / ".sim_atlas_config.toml",  # user
@@ -46,6 +48,7 @@ jwt_secret = "replace-with-strong-secret-key-min-32-chars"
 # === OPTIONAL: EMBEDDINGS ===
 # Leave commented out if you don't use semantic search (keyword search still works).
 # Configure the embedding provider for semantic search.
+# Each provider needs its extra: pip install 'sim-atlas[fastembed]' (or [openai], [voyageai]).
 embedding_provider = "fastembed"                    # fastembed | openai | voyageai
 embedding_model = "nomic-ai/nomic-embed-text-v1.5"  # model name
 # embedding_api_key = "pa-..."                      # API key (voyageai or openai; omit for fastembed)
@@ -95,14 +98,21 @@ class Settings(BaseSettings):
         return Path(".")
 
     @property
+    def embedding_config(self) -> EmbeddingConfig | None:
+        if self.embedding_provider is None:
+            return None
+        return EmbeddingConfig(
+            provider=self.embedding_provider,
+            model=self.embedding_model,
+            api_key=self.embedding_api_key,
+            base_url=self.embedding_base_url,
+            batch_size=self.embedding_batch_size,
+        )
+
+    @property
     def embeddings_enabled(self) -> bool:
-        match self.embedding_provider:
-            case "fastembed":
-                return True
-            case "openai" | "voyageai":
-                return bool(self.embedding_api_key and self.embedding_model)
-            case _:
-                return False
+        config = self.embedding_config
+        return config is not None and config.ready
 
 
 @lru_cache(maxsize=1)

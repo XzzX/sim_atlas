@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 
 from sim_atlas.models import (
@@ -10,6 +11,8 @@ from sim_atlas.models import (
     ScoredSearchResponse,
     Suggestion,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class NodeAlreadyExistsError(Exception):
@@ -232,4 +235,11 @@ def get_storage_backend() -> StorageInterface:
     from sim_atlas.settings import load_settings  # noqa: PLC0415
     from sim_atlas.storage.file_system_storage import FileSystemStorage  # noqa: PLC0415
 
-    return FileSystemStorage(path=load_settings().config_dir)
+    settings = load_settings()
+    embedding_config = settings.embedding_config
+    if embedding_config is not None and (problem := embedding_config.problem):
+        logger.warning("Semantic search disabled, using keyword search: %s", problem)
+        embedding_config = None
+    return FileSystemStorage(
+        path=settings.config_dir, embedding_config=embedding_config
+    )

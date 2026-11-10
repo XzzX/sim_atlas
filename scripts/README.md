@@ -6,7 +6,7 @@ coding agents. Every script can be run from any directory.
 
 | Script | What it does |
 |---|---|
-| `scripts/bootstrap` | Installs or updates all dependencies: `uv sync` in `backend/` and `toolkit/`, `npm ci` in `frontend/`, `web_ide/` and `e2e/`. Safe to re-run; run it after pulling. |
+| `scripts/bootstrap` | Installs or updates all dependencies: `uv sync --all-extras` in `backend/` and `toolkit/`, `npm ci` in `frontend/`, `web_ide/` and `e2e/`. Safe to re-run; run it after pulling. |
 | `scripts/setup` | First-time setup: runs `bootstrap`, then writes `backend/.sim_atlas_config.toml` with a generated JWT secret if no config file exists. |
 | `scripts/server` | Starts the backend on :8000 and the frontend dev server on :5173 (proxies `/api` and `/ide` to the backend). Stops both on Ctrl+C or when either one dies. |
 | `scripts/server --static` | Runs `build`, then serves the API and both web apps from the backend on :8000, as in production. |

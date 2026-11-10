@@ -10,9 +10,11 @@ for tool in uv npm; do
   fi
 done
 
+# --all-extras: the backend's embedding providers are extras, and the generated
+# config enables fastembed.
 for d in backend toolkit; do
-  echo "==> uv sync ($d)"
-  (cd "$d" && uv sync)
+  echo "==> uv sync --all-extras ($d)"
+  (cd "$d" && uv sync --all-extras)
 done
 
 for d in frontend web_ide e2e; do

@@ -11,7 +11,8 @@ from typing import IO
 
 from pydantic import BaseModel
 
-from sim_atlas.embedding import create_embedding
+from sim_atlas.embedding import EmbeddingConfig, create_embedding
+from sim_atlas.exceptions import AINotConfiguredError
 from sim_atlas.models import (
     AnnotationResponse,
     ArtifactType,
@@ -27,7 +28,6 @@ from sim_atlas.models import (
 )
 from sim_atlas.node_text import short_description
 from sim_atlas.search import fusion, keyword, semantic, substring
-from sim_atlas.settings import load_settings
 from sim_atlas.storage.storage_interface import (
     ExecutionResultAlreadyExistsError,
     ExecutionResultDuplicateError,
@@ -135,7 +135,11 @@ class FileSystemStorage(StorageInterface):
     EXECUTION_RESULTS_FILENAME = "execution_results.json"
     LOCK_FILENAME = ".sim_atlas.lock"
 
-    def __init__(self, path: Path | None = None) -> None:
+    def __init__(
+        self, path: Path | None = None, embedding_config: EmbeddingConfig | None = None
+    ) -> None:
+        # None disables the semantic leg: search is keyword/substring only.
+        self._embedding_config = embedding_config
         self._nodes: dict[str, NodeMetadata] = {}
         self._execution_results: dict[str, ExecutionResultMetadata] = {}
         self._path = path
@@ -491,7 +495,11 @@ class FileSystemStorage(StorageInterface):
             List of relevant node metadata, ordered by relevance
         """
         # Generate embedding for the query
-        query_embedding = (await create_embedding([query], input_type="query"))[0]
+        query_embedding = (
+            await create_embedding(
+                self._require_embedding_config(), [query], input_type="query"
+            )
+        )[0]
 
         filtered_nodes = self._filtered_nodes(filter)
         scores = semantic.rank(query_embedding, filtered_nodes)
@@ -523,8 +531,12 @@ class FileSystemStorage(StorageInterface):
             fusion.Leg(fusion.SUBSTRING_WEIGHT, substring.rank(query, filtered_nodes)),
             fusion.Leg(fusion.KEYWORD_WEIGHT, keyword.rank(query, filtered_nodes)),
         ]
-        if load_settings().embeddings_enabled:
-            query_embedding = (await create_embedding([query], input_type="query"))[0]
+        if self._embedding_config is not None:
+            query_embedding = (
+                await create_embedding(
+                    self._embedding_config, [query], input_type="query"
+                )
+            )[0]
             legs.append(
                 fusion.Leg(
                     fusion.SEMANTIC_WEIGHT,
@@ -535,6 +547,13 @@ class FileSystemStorage(StorageInterface):
 
         fused = fusion.reciprocal_rank_fusion(legs)
         return self._ranked_page(self._scored(filtered_nodes, fused), page, limit)
+
+    def _require_embedding_config(self) -> EmbeddingConfig:
+        if self._embedding_config is None:
+            raise AINotConfiguredError(
+                "semantic search is disabled: no usable embedding provider configured"
+            )
+        return self._embedding_config
 
     @staticmethod
     def _embedding_text(node: NodeMetadata) -> str:
@@ -598,7 +617,9 @@ class FileSystemStorage(StorageInterface):
         if not pending:
             return
         embeddings = await create_embedding(
-            [text for _, text in pending], input_type="document"
+            self._require_embedding_config(),
+            [text for _, text in pending],
+            input_type="document",
         )
         for emb, (node, _) in zip(embeddings, pending, strict=True):
             node.embedding = emb

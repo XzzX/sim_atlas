@@ -7,7 +7,6 @@ import hashlib
 from collections.abc import Generator
 from importlib.metadata import version
 from math import ceil
-from types import SimpleNamespace
 from typing import Any, Protocol, cast
 
 import httpx2
@@ -19,6 +18,7 @@ from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
 from sim_atlas.api.nodes import compose_node
+from sim_atlas.embedding import EmbeddingConfig
 from sim_atlas.main import app, mcp
 from sim_atlas.models import (
     AnnotationRequest,
@@ -400,14 +400,11 @@ def test_search_does_not_leak_embedding(
     )
 
     async def _fake_embed(
-        documents: list[str], input_type: str = "document"
+        _config: EmbeddingConfig, documents: list[str], input_type: str = "document"
     ) -> np.ndarray:
         return np.ones((len(documents), dim), dtype=np.float32)
 
-    monkeypatch.setattr(
-        "sim_atlas.storage.file_system_storage.load_settings",
-        lambda: SimpleNamespace(embeddings_enabled=True),
-    )
+    monkeypatch.setattr(storage, "_embedding_config", EmbeddingConfig("fastembed"))
     monkeypatch.setattr(
         "sim_atlas.storage.file_system_storage.create_embedding", _fake_embed
     )
@@ -946,14 +943,11 @@ def test_mcp_tools_never_leak_embeddings(
     storage.create_node(node)
 
     async def _fake_embed(
-        documents: list[str], input_type: str = "document"
+        _config: EmbeddingConfig, documents: list[str], input_type: str = "document"
     ) -> np.ndarray:
         return np.ones((len(documents), dim), dtype=np.float32)
 
-    monkeypatch.setattr(
-        "sim_atlas.storage.file_system_storage.load_settings",
-        lambda: SimpleNamespace(embeddings_enabled=True),
-    )
+    monkeypatch.setattr(storage, "_embedding_config", EmbeddingConfig("fastembed"))
     monkeypatch.setattr(
         "sim_atlas.storage.file_system_storage.create_embedding", _fake_embed
     )

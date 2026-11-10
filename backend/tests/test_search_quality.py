@@ -22,6 +22,7 @@ import numpy as np
 import pytest
 
 import sim_atlas.storage.file_system_storage as fss
+from sim_atlas.embedding import EmbeddingConfig
 from sim_atlas.models import NodeMetadata
 from sim_atlas.storage.file_system_storage import FileSystemStorage
 
@@ -52,14 +53,9 @@ def _fake_vector(text: str) -> np.ndarray:
 
 
 async def _fake_create_embedding(
-    documents: list[str], input_type: str = "document"
+    _config: EmbeddingConfig, documents: list[str], input_type: str = "document"
 ) -> np.ndarray:
     return np.vstack([_fake_vector(document) for document in documents])
-
-
-class _FakeSettings:
-    def __init__(self, *, embeddings: bool) -> None:
-        self.embeddings_enabled = embeddings
 
 
 def _function(name: str, python_import: str, description: str | None) -> NodeMetadata:
@@ -169,11 +165,11 @@ _CASES: list[tuple[str, str, int, bool]] = [
 
 
 def _storage(monkeypatch: pytest.MonkeyPatch, *, embeddings: bool) -> FileSystemStorage:
-    monkeypatch.setattr(
-        fss, "load_settings", lambda: _FakeSettings(embeddings=embeddings)
-    )
     monkeypatch.setattr(fss, "create_embedding", _fake_create_embedding)
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(
+        path=None,
+        embedding_config=EmbeddingConfig("fastembed") if embeddings else None,
+    )
     for node in _CATALOG.values():
         storage.create_node(node.model_copy(deep=True))
     if embeddings:

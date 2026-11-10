@@ -33,9 +33,11 @@ sim_atlas/
 
 ```bash
 cd <sim-atlas>
-uvx sim-atlas
+uvx --from 'sim-atlas[fastembed]' sim-atlas
 ```
 On the first start the server will create a configuration file in the current working directory if it does not find one.
+It enables semantic search with the local `fastembed` provider. For a hosted provider, install `sim-atlas[openai]` or
+`sim-atlas[voyageai]` instead and set it in the configuration file. A plain `sim-atlas` install without an extra serves keyword-only search.
 
 The API and both SPAs are now available at http://localhost:8000.
 

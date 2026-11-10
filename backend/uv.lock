@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -3402,13 +3402,22 @@ version = "0.0.19"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi", extra = ["standard"] },
-    { name = "fastembed" },
     { name = "fastmcp" },
     { name = "numpy" },
-    { name = "openai" },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
     { name = "tqdm" },
+]
+
+[package.optional-dependencies]
+fastembed = [
+    { name = "fastembed" },
+    { name = "huggingface-hub" },
+]
+openai = [
+    { name = "openai" },
+]
+voyageai = [
     { name = "voyageai" },
 ]
 
@@ -3423,15 +3432,17 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.122.0" },
-    { name = "fastembed", specifier = ">=0.4" },
+    { name = "fastembed", marker = "extra == 'fastembed'", specifier = ">=0.4" },
     { name = "fastmcp", specifier = ">=2.14.0" },
+    { name = "huggingface-hub", marker = "extra == 'fastembed'", specifier = ">=0.20" },
     { name = "numpy", specifier = ">=1.21" },
-    { name = "openai", specifier = ">=2.8.1" },
+    { name = "openai", marker = "extra == 'openai'", specifier = ">=2.8.1" },
     { name = "pydantic-settings", extras = ["toml"], specifier = ">=2.13.1" },
     { name = "pyjwt", specifier = ">=2.12.1" },
     { name = "tqdm", specifier = ">=4.67.3" },
-    { name = "voyageai", specifier = ">=0.3.7" },
+    { name = "voyageai", marker = "extra == 'voyageai'", specifier = ">=0.3.7" },
 ]
+provides-extras = ["fastembed", "openai", "voyageai"]
 
 [package.metadata.requires-dev]
 dev = [

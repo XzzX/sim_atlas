@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 
 from sim_atlas.models import (
@@ -10,6 +11,8 @@ from sim_atlas.models import (
     ScoredSearchResponse,
     Suggestion,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class NodeAlreadyExistsError(Exception):
@@ -51,6 +54,11 @@ class ExecutionResultDuplicateError(Exception):
 class StorageInterface(ABC):
     def close(self) -> None:  # noqa: B027
         """Release any resources held by the backend."""
+
+    @property
+    @abstractmethod
+    def embeddings_enabled(self) -> bool:
+        """Whether semantic search and `embed_missing` are available."""
 
     @abstractmethod
     def create_node(
@@ -229,7 +237,28 @@ def get_storage_backend() -> StorageInterface:
         ValueError: If the configured backend is not supported
     """
 
+    from sim_atlas.embedding import EmbeddingConfig, load_embedder  # noqa: PLC0415
     from sim_atlas.settings import load_settings  # noqa: PLC0415
     from sim_atlas.storage.file_system_storage import FileSystemStorage  # noqa: PLC0415
 
-    return FileSystemStorage(path=load_settings().config_dir)
+    settings = load_settings()
+    embedding_config = None
+    if settings.embedding_provider is not None:
+        embedding_config = EmbeddingConfig(
+            provider=settings.embedding_provider,
+            model=settings.embedding_model,
+            api_key=settings.embedding_api_key,
+            base_url=settings.embedding_base_url,
+            batch_size=settings.embedding_batch_size,
+        )
+        # Load the provider now, not on the first search: that request would
+        # block the event loop, and a broken install should degrade to keyword
+        # search instead of failing every search.
+        try:
+            load_embedder(embedding_config)
+        except Exception as e:  # any failure (missing extra, broken install): no AI
+            logger.warning("Semantic search disabled, using keyword search: %s", e)
+            embedding_config = None
+    return FileSystemStorage(
+        path=settings.config_dir, embedding_config=embedding_config
+    )

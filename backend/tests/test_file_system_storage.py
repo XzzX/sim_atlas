@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 import sim_atlas.storage.file_system_storage as fss
+from sim_atlas.embedding import EmbeddingConfig
 from sim_atlas.models import (
     AnnotationRequest,
     AnnotationResponse,
@@ -39,9 +40,9 @@ class TestFileSystemStorage(StorageContractTests):
         return s
 
 
-class _FakeSettings:
-    def __init__(self, *, embeddings: bool) -> None:
-        self.embeddings_enabled = embeddings
+# Storage only needs *a* config to run the semantic leg; `create_embedding` is
+# stubbed in every test, so the provider package need not be installed.
+_EMBEDDING = EmbeddingConfig("fastembed")
 
 
 def test_search_hybrid_falls_back_to_keyword_without_embeddings(
@@ -50,8 +51,6 @@ def test_search_hybrid_falls_back_to_keyword_without_embeddings(
     """With no embedding provider, search_hybrid must keyword-search, never embed."""
     storage = FileSystemStorage(path=None)
     storage.create_node(make_node(name="special_fn", python_import="lib.special_fn"))
-
-    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=False))
 
     async def _boom(*_args: Any, **_kwargs: Any) -> np.ndarray:
         raise AssertionError("create_embedding must not be called")
@@ -89,8 +88,6 @@ def test_search_hybrid_without_embeddings_matches_a_sentence_shaped_query(
         )
     )
 
-    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=False))
-
     async def _boom(*_args: Any, **_kwargs: Any) -> np.ndarray:
         raise AssertionError("create_embedding must not be called")
 
@@ -119,8 +116,6 @@ def test_search_hybrid_without_embeddings_fuses_the_substring_leg(
     )
     storage.create_node(make_node(name="unrelated", source_code="def b(): pass"))
 
-    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=False))
-
     assert storage.search("grain").results.total_items == 0
     response = asyncio.run(storage.search_hybrid("grain"))
     assert [i.node.name for i in response.results.data] == ["buildmggrainboundary"]
@@ -130,7 +125,7 @@ def test_search_hybrid_prefers_a_node_several_legs_agree_on(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Lexical and semantic agreement beats the semantic leg's top spot alone."""
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(path=None, embedding_config=_EMBEDDING)
     storage.create_node(
         make_node(
             name="semantic_only",
@@ -146,7 +141,6 @@ def test_search_hybrid_prefers_a_node_several_legs_agree_on(
         )
     )
 
-    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=True))
     monkeypatch.setattr(fss, "create_embedding", _embed_as([1.0, 0.0, 0.0]))
 
     response = asyncio.run(storage.search_hybrid("temperature"))
@@ -206,7 +200,7 @@ def test_search_hybrid_none_query_returns_filtered() -> None:
 
 def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     """`used_by` is populated identically by the keyword and hybrid paths."""
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(path=None, embedding_config=_EMBEDDING)
     fn = make_node(name="child_fn", source_code="def child_fn(): pass")
     storage.create_node(fn)
     wf = make_workflow(
@@ -226,10 +220,8 @@ def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
         ArtifactType.WORKFLOW
     )
 
-    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=True))
-
     async def _fake_embed(
-        documents: list[str], input_type: str = "document"
+        _config: EmbeddingConfig, documents: list[str], input_type: str = "document"
     ) -> np.ndarray:
         return np.ones((len(documents), 3))
 
@@ -653,7 +645,7 @@ def _embed_as(vector: list[float]) -> Any:
     """Return a `create_embedding` stub that always embeds to *vector*."""
 
     async def _fake_embed(
-        documents: list[str], input_type: str = "document"
+        _config: EmbeddingConfig, documents: list[str], input_type: str = "document"
     ) -> np.ndarray:
         return np.vstack([np.array(vector, dtype=np.float32)] * len(documents))
 
@@ -664,7 +656,7 @@ def test_search_semantic_ranks_by_cosine_similarity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Results are ordered by cosine similarity to the query embedding."""
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(path=None, embedding_config=_EMBEDDING)
     storage.create_node(
         make_node(
             name="aligned",
@@ -706,7 +698,7 @@ def test_search_semantic_zero_norm_embedding_scores_zero(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A zero vector scores exactly 0.0 rather than NaN."""
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(path=None, embedding_config=_EMBEDDING)
     storage.create_node(
         make_node(
             name="empty_vec",
@@ -727,7 +719,7 @@ def test_search_semantic_skips_unembedded_and_respects_filter(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Nodes without an embedding stay invisible, and filters still apply."""
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(path=None, embedding_config=_EMBEDDING)
     storage.create_node(
         make_node(
             name="embedded_physics",
@@ -765,7 +757,7 @@ def test_search_semantic_without_embedded_nodes_returns_empty(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """No embedded candidates yields an empty page, not a stacking error."""
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(path=None, embedding_config=_EMBEDDING)
     storage.create_node(make_node(name="plain", source_code="def plain(): pass"))
 
     monkeypatch.setattr(fss, "create_embedding", _embed_as([1.0, 0.0, 0.0]))
@@ -781,7 +773,7 @@ def test_search_hybrid_semantic_rank_is_stable_on_ties(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Equally similar nodes keep their insertion order in the semantic rank."""
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(path=None, embedding_config=_EMBEDDING)
     embedding = np.array([1.0, 0.0, 0.0], dtype=np.float32)
     for name in ("first_fn", "second_fn", "third_fn"):
         storage.create_node(
@@ -790,7 +782,6 @@ def test_search_hybrid_semantic_rank_is_stable_on_ties(
             )
         )
 
-    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=True))
     monkeypatch.setattr(fss, "create_embedding", _embed_as([1.0, 0.0, 0.0]))
 
     # a query that matches no keyword text, so ordering comes from the semantic rank alone
@@ -932,7 +923,7 @@ def test_search_responses_never_serialize_embeddings(
     method: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`ScoredSearchItem.node` is typed as the Response class, so embeddings are dropped."""
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(path=None, embedding_config=_EMBEDDING)
     storage.create_node(
         make_node(
             name="embedded_fn",
@@ -944,7 +935,6 @@ def test_search_responses_never_serialize_embeddings(
         make_workflow(name="embedded_wf", embedding=np.arange(16, dtype=np.float32))
     )
 
-    monkeypatch.setattr(fss, "load_settings", lambda: _FakeSettings(embeddings=True))
     monkeypatch.setattr(fss, "create_embedding", _embed_as([1.0] * 16))
 
     response = _search_all_methods(storage, "embedded")[method]
@@ -959,7 +949,7 @@ def test_search_semantic_populates_used_by_and_connections(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Parity with the keyword and hybrid paths (ADR-0018)."""
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(path=None, embedding_config=_EMBEDDING)
     fn = make_node(
         name="child_fn",
         source_code="def child_fn(): pass",
@@ -987,7 +977,7 @@ def test_search_semantic_does_not_return_stale_used_by(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Derived fields reflect the catalog at read time, not an earlier read."""
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(path=None, embedding_config=_EMBEDDING)
     fn = make_node(
         name="child_fn",
         source_code="def child_fn(): pass",
@@ -1048,13 +1038,13 @@ def test_embed_missing_skips_nodes_without_text(
     embed = _embed_as([1.0, 0.0, 0.0])
 
     async def _recording_embed(
-        documents: list[str], input_type: str = "document"
+        config: EmbeddingConfig, documents: list[str], input_type: str = "document"
     ) -> np.ndarray:
         seen.append(list(documents))
-        return await embed(documents, input_type)
+        return await embed(config, documents, input_type)
 
     monkeypatch.setattr(fss, "create_embedding", _recording_embed)
-    storage = FileSystemStorage(path=None)
+    storage = FileSystemStorage(path=None, embedding_config=_EMBEDDING)
     described = make_node(
         name="described", description="Does a thing", source_code="def a(): pass"
     )

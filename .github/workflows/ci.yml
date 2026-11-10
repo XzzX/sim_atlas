@@ -116,6 +116,38 @@ jobs:
       - name: Run pytest
         run: uv run pytest
 
+  # The backend must install and run without any embedding-provider extra
+  # (keyword-only search); the job above installs all extras.
+  backend-core-only:
+    name: backend (core only, no extras)
+    needs: changes
+    if: contains(needs.changes.outputs.python, 'backend')
+    runs-on: ubuntu-latest
+    env:
+      SIM_ATLAS_JWT_SECRET: test-secret-key-for-ci-testing-only
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies (no extras)
+        run: uv sync --group dev
+
+      - name: Check that no provider extra is installed
+        run: uv run python -c "import importlib.util as u; assert all(u.find_spec(m) is None for m in ('fastembed', 'openai', 'voyageai'))"
+
+      - name: Run pytest
+        run: uv run pytest
+
   node:
     name: ${{ matrix.project }}
     needs: changes

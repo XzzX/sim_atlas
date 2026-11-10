@@ -46,6 +46,7 @@ jwt_secret = "replace-with-strong-secret-key-min-32-chars"
 # === OPTIONAL: EMBEDDINGS ===
 # Leave commented out if you don't use semantic search (keyword search still works).
 # Configure the embedding provider for semantic search.
+# Each provider needs its extra: pip install 'sim-atlas[fastembed]' (or [openai], [voyageai]).
 embedding_provider = "fastembed"                    # fastembed | openai | voyageai
 embedding_model = "nomic-ai/nomic-embed-text-v1.5"  # model name
 # embedding_api_key = "pa-..."                      # API key (voyageai or openai; omit for fastembed)
@@ -93,16 +94,6 @@ class Settings(BaseSettings):
             if path.exists():
                 return path.parent
         return Path(".")
-
-    @property
-    def embeddings_enabled(self) -> bool:
-        match self.embedding_provider:
-            case "fastembed":
-                return True
-            case "openai" | "voyageai":
-                return bool(self.embedding_api_key and self.embedding_model)
-            case _:
-                return False
 
 
 @lru_cache(maxsize=1)

@@ -548,6 +548,10 @@ class FileSystemStorage(StorageInterface):
         fused = fusion.reciprocal_rank_fusion(legs)
         return self._ranked_page(self._scored(filtered_nodes, fused), page, limit)
 
+    @property
+    def embeddings_enabled(self) -> bool:
+        return self._embedding_config is not None
+
     def _require_embedding_config(self) -> EmbeddingConfig:
         if self._embedding_config is None:
             raise AINotConfiguredError(

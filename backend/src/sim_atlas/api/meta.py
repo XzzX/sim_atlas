@@ -2,8 +2,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+from sim_atlas.dependencies import get_storage
 from sim_atlas.security import Creator, get_current_user
-from sim_atlas.settings import load_settings
+from sim_atlas.storage.storage_interface import StorageInterface
 
 router = APIRouter()
 
@@ -16,5 +17,7 @@ async def return_creator(
 
 
 @router.get("/capabilities", tags=["meta"])
-async def get_capabilities() -> dict[str, bool]:
-    return {"embeddings_enabled": load_settings().embeddings_enabled}
+async def get_capabilities(
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+) -> dict[str, bool]:
+    return {"embeddings_enabled": storage.embeddings_enabled}

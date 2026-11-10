@@ -12,10 +12,10 @@ done
 
 # --all-extras: the backend's embedding providers are extras, and the generated
 # config enables fastembed.
-for d in backend toolkit; do
-  echo "==> uv sync --all-extras ($d)"
-  (cd "$d" && uv sync --all-extras)
-done
+echo "==> uv sync --all-extras (backend)"
+(cd backend && uv sync --all-extras)
+echo "==> uv sync (toolkit)"
+(cd toolkit && uv sync)
 
 for d in frontend web_ide e2e; do
   echo "==> npm ci ($d)"

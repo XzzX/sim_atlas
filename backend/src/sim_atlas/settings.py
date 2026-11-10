@@ -13,8 +13,6 @@ from pydantic_settings import (
     TomlConfigSettingsSource,
 )
 
-from sim_atlas.embedding import EmbeddingConfig
-
 _CONFIG_FILES = [
     Path("/etc/sim_atlas_config.toml"),  # system (lowest priority)
     Path.home() / ".sim_atlas_config.toml",  # user
@@ -96,23 +94,6 @@ class Settings(BaseSettings):
             if path.exists():
                 return path.parent
         return Path(".")
-
-    @property
-    def embedding_config(self) -> EmbeddingConfig | None:
-        if self.embedding_provider is None:
-            return None
-        return EmbeddingConfig(
-            provider=self.embedding_provider,
-            model=self.embedding_model,
-            api_key=self.embedding_api_key,
-            base_url=self.embedding_base_url,
-            batch_size=self.embedding_batch_size,
-        )
-
-    @property
-    def embeddings_enabled(self) -> bool:
-        config = self.embedding_config
-        return config is not None and config.ready
 
 
 @lru_cache(maxsize=1)

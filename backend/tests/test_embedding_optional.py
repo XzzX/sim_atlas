@@ -11,6 +11,7 @@ import logging
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +20,12 @@ import pytest
 
 import sim_atlas.storage.file_system_storage as fss
 from sim_atlas import embedding
-from sim_atlas.embedding import EmbeddingConfig, Provider, create_embedding
+from sim_atlas.embedding import (
+    EmbeddingConfig,
+    Provider,
+    create_embedding,
+    load_embedder,
+)
 from sim_atlas.exceptions import AINotConfiguredError
 from sim_atlas.settings import Settings
 from sim_atlas.storage.file_system_storage import FileSystemStorage
@@ -36,14 +42,6 @@ _AI_MODULES = (
     "huggingface_hub",
 )
 _PROVIDERS: tuple[Provider, ...] = ("fastembed", "openai", "voyageai")
-
-
-def _installed(_provider: Provider) -> bool:
-    return True
-
-
-def _not_installed(_provider: Provider) -> bool:
-    return False
 
 
 @pytest.fixture(autouse=True)
@@ -105,26 +103,13 @@ def test_embedding_and_storage_work_without_settings(tmp_path: Path) -> None:
 def test_missing_extra_raises_with_install_hint(
     provider: Provider, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(embedding, "provider_installed", _not_installed)
+    monkeypatch.setitem(sys.modules, provider, None)  # makes `import` fail
     config = EmbeddingConfig(provider, model="m", api_key="k")
 
-    assert not config.ready
+    with pytest.raises(AINotConfiguredError, match=rf"sim-atlas\[{provider}\]"):
+        load_embedder(config)
     with pytest.raises(AINotConfiguredError, match=rf"sim-atlas\[{provider}\]"):
         asyncio.run(create_embedding(config, ["x"]))
-
-
-@pytest.mark.parametrize("provider", _PROVIDERS)
-def test_factory_import_error_raises_with_install_hint(
-    provider: Provider, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Even if find_spec is fooled, a failing import still gives the hint."""
-    monkeypatch.setattr(embedding, "provider_installed", _installed)
-    monkeypatch.setitem(sys.modules, provider, None)  # makes `import` fail
-
-    with pytest.raises(AINotConfiguredError, match=rf"sim-atlas\[{provider}\]"):
-        asyncio.run(
-            create_embedding(EmbeddingConfig(provider, model="m", api_key="k"), ["x"])
-        )
 
 
 @pytest.mark.parametrize("provider", ["openai", "voyageai"])
@@ -133,16 +118,10 @@ def test_factory_import_error_raises_with_install_hint(
     [(None, "k", "embedding_model"), ("m", None, "embedding_api_key")],
 )
 def test_hosted_providers_need_model_and_key(
-    provider: Provider,
-    model: str | None,
-    api_key: str | None,
-    missing: str,
-    monkeypatch: pytest.MonkeyPatch,
+    provider: Provider, model: str | None, api_key: str | None, missing: str
 ) -> None:
-    monkeypatch.setattr(embedding, "provider_installed", _installed)
     config = EmbeddingConfig(provider, model=model, api_key=api_key)
 
-    assert config.problem is not None and missing in config.problem
     with pytest.raises(AINotConfiguredError, match=missing):
         asyncio.run(create_embedding(config, ["x"]))
 
@@ -154,13 +133,12 @@ def test_api_key_is_not_in_repr() -> None:
 def test_create_embedding_returns_float32_array_in_batches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(embedding, "provider_installed", _installed)
     batches: list[list[str]] = []
 
-    def _fake_factory(config: EmbeddingConfig) -> embedding.Embedder:
+    def _fake_factory(_model_name: str, batch_size: int) -> embedding.Embedder:
         async def embed(documents: list[str], input_type: str) -> np.ndarray:
             rows: list[list[float]] = []
-            for batch in embedding._batches(documents, config.batch_size):  # pyright: ignore[reportPrivateUsage]
+            for batch in embedding._batches(documents, batch_size):  # pyright: ignore[reportPrivateUsage]
                 batches.append(batch)
                 rows += [[float(len(d)), 1.0] for d in batch]
             return np.array(rows, dtype=np.float32)
@@ -180,24 +158,43 @@ def test_create_embedding_returns_float32_array_in_batches(
     assert batches == [["a", "bb"], ["ccc", "dddd"], ["eeeee"]]
 
 
-def test_uninstalled_provider_falls_back_to_keyword_search(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """The generated config names fastembed; a core-only install must still serve."""
-    monkeypatch.setattr(embedding, "provider_installed", _not_installed)
+@pytest.fixture
+def fastembed_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Settings:
+    """The generated config: fastembed enabled, storage in a temp dir."""
     settings = Settings(jwt_secret="x", embedding_provider="fastembed")
     monkeypatch.setattr("sim_atlas.settings.load_settings", lambda: settings)
     monkeypatch.setattr(Settings, "config_dir", property(lambda _self: tmp_path))
+    return settings
 
-    assert not settings.embeddings_enabled
+
+def _broken_import(*_args: Any) -> embedding.Embedder:
+    raise AINotConfiguredError("needs: pip install 'sim-atlas[fastembed]'")
+
+
+def _broken_native_lib(*_args: Any) -> embedding.Embedder:
+    # e.g. onnxruntime is installed but its shared library fails to load
+    raise OSError("libonnxruntime.so: cannot open shared object file")
+
+
+@pytest.mark.parametrize(
+    ("factory", "logged"),
+    [(_broken_import, "sim-atlas[fastembed]"), (_broken_native_lib, "libonnxruntime")],
+)
+def test_unusable_provider_falls_back_to_keyword_search(
+    factory: Callable[..., embedding.Embedder],
+    logged: str,
+    fastembed_settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A missing or broken provider degrades to keyword search; it never 503s."""
+    monkeypatch.setattr(embedding, "_fastembed_embedder", factory)
 
     with caplog.at_level(logging.WARNING):
         storage = get_storage_backend()
     try:
-        assert "sim-atlas[fastembed]" in caplog.text
-        assert isinstance(storage, FileSystemStorage)
+        assert logged in caplog.text
+        assert not storage.embeddings_enabled
 
         async def _boom(*_args: Any, **_kwargs: Any) -> np.ndarray:
             raise AssertionError("create_embedding must not be called")
@@ -208,8 +205,34 @@ def test_uninstalled_provider_falls_back_to_keyword_search(
         storage.close()
 
 
+def test_provider_is_loaded_at_startup_not_on_first_search(
+    fastembed_settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    built: list[str] = []
+
+    def _fake_factory(model_name: str, _batch_size: int) -> embedding.Embedder:
+        built.append(model_name)
+
+        async def embed(documents: list[str], input_type: str) -> np.ndarray:
+            return np.ones((len(documents), 3), dtype=np.float32)
+
+        return embed
+
+    monkeypatch.setattr(embedding, "_fastembed_embedder", _fake_factory)
+
+    storage = get_storage_backend()
+    try:
+        assert built == ["nomic-ai/nomic-embed-text-v1.5"]
+        assert storage.embeddings_enabled
+        asyncio.run(storage.search_hybrid("anything"))
+        assert len(built) == 1  # cached, not rebuilt per request
+    finally:
+        storage.close()
+
+
 def test_storage_without_config_rejects_semantic_operations() -> None:
     storage = FileSystemStorage(path=None)
+    assert not storage.embeddings_enabled
     storage.create_node(make_node(description="Does a thing"))
     with pytest.raises(AINotConfiguredError):
         asyncio.run(storage.search_semantic("anything"))

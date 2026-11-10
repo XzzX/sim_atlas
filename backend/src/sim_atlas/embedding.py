@@ -10,7 +10,6 @@ import os
 from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass, field
 from functools import lru_cache
-from importlib.util import find_spec
 from typing import Literal
 
 import numpy as np
@@ -24,11 +23,6 @@ type Embedder = Callable[[list[str], str], Awaitable[np.ndarray]]
 _DEFAULT_FASTEMBED_MODEL = "nomic-ai/nomic-embed-text-v1.5"
 
 
-def provider_installed(provider: Provider) -> bool:
-    """Whether the optional package for *provider* is importable."""
-    return find_spec(provider) is not None
-
-
 @dataclass(frozen=True)
 class EmbeddingConfig:
     provider: Provider
@@ -37,21 +31,14 @@ class EmbeddingConfig:
     base_url: str | None = None  # openai-compatible endpoints only
     batch_size: int = 8
 
-    @property
-    def problem(self) -> str | None:
-        """Why this config cannot embed, or None if it can."""
-        if not provider_installed(self.provider):
-            return str(_missing_extra(self.provider))
-        if self.provider in ("openai", "voyageai"):
-            if not self.api_key:
-                return f"embedding_api_key is required for the {self.provider} provider"
-            if not self.model:
-                return f"embedding_model is required for the {self.provider} provider"
-        return None
 
-    @property
-    def ready(self) -> bool:
-        return self.problem is None
+def load_embedder(config: EmbeddingConfig) -> None:
+    """Import the provider and build its model/client now instead of on first use.
+
+    Raises `AINotConfiguredError` if the config is incomplete or the provider's
+    extra is missing or cannot be imported.
+    """
+    _embedder(config)
 
 
 async def create_embedding(
@@ -67,15 +54,30 @@ async def create_embedding(
 # new TCP+TLS handshake to the provider.
 @lru_cache(maxsize=1)
 def _embedder(config: EmbeddingConfig) -> Embedder:
-    if (problem := config.problem) is not None:
-        raise AINotConfiguredError(problem)
     match config.provider:
         case "fastembed":
-            return _fastembed_embedder(config)
+            return _fastembed_embedder(
+                config.model or _DEFAULT_FASTEMBED_MODEL, config.batch_size
+            )
         case "openai":
-            return _openai_embedder(config)
+            return _openai_embedder(
+                _required(config.model, "embedding_model", config.provider),
+                _required(config.api_key, "embedding_api_key", config.provider),
+                config.base_url,
+                config.batch_size,
+            )
         case "voyageai":
-            return _voyageai_embedder(config)
+            return _voyageai_embedder(
+                _required(config.model, "embedding_model", config.provider),
+                _required(config.api_key, "embedding_api_key", config.provider),
+                config.batch_size,
+            )
+
+
+def _required(value: str | None, name: str, provider: Provider) -> str:
+    if not value:
+        raise AINotConfiguredError(f"{name} is required for the {provider} provider")
+    return value
 
 
 def _missing_extra(provider: Provider) -> AINotConfiguredError:
@@ -89,7 +91,7 @@ def _batches(documents: list[str], size: int) -> Iterator[list[str]]:
         yield documents[i : i + size]
 
 
-def _fastembed_embedder(config: EmbeddingConfig) -> Embedder:
+def _fastembed_embedder(model_name: str, batch_size: int) -> Embedder:
     try:
         from fastembed import TextEmbedding  # noqa: PLC0415
         from huggingface_hub.constants import HF_HUB_CACHE  # noqa: PLC0415
@@ -101,35 +103,30 @@ def _fastembed_embedder(config: EmbeddingConfig) -> Embedder:
     # hub cache (honours HF_HOME / HF_HUB_CACHE) so models persist and are shared
     # with other HF-based tools. FASTEMBED_CACHE_PATH still takes precedence.
     cache_dir = os.getenv("FASTEMBED_CACHE_PATH") or HF_HUB_CACHE
-    model = TextEmbedding(
-        model_name=config.model or _DEFAULT_FASTEMBED_MODEL, cache_dir=cache_dir
-    )
+    model = TextEmbedding(model_name=model_name, cache_dir=cache_dir)
 
     async def embed(documents: list[str], input_type: str) -> np.ndarray:
         embeddings: list[np.ndarray] = []
-        for batch in _batches(documents, config.batch_size):
-            embeddings += model.embed(batch, batch_size=config.batch_size)
+        for batch in _batches(documents, batch_size):
+            embeddings += model.embed(batch, batch_size=batch_size)
         return np.array(embeddings, dtype=np.float32)
 
     return embed
 
 
-def _openai_embedder(config: EmbeddingConfig) -> Embedder:
+def _openai_embedder(
+    model: str, api_key: str, base_url: str | None, batch_size: int
+) -> Embedder:
     try:
         from openai import AsyncOpenAI  # noqa: PLC0415
     except ImportError as e:
         raise _missing_extra("openai") from e
 
-    model = config.model
-    if model is None:  # unreachable after EmbeddingConfig.problem; narrows the type
-        raise AINotConfiguredError(
-            "embedding_model is required for the openai provider"
-        )
-    client = AsyncOpenAI(api_key=config.api_key, base_url=config.base_url)
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     async def embed(documents: list[str], input_type: str) -> np.ndarray:
         embeddings: list[list[float]] = []
-        for batch in _batches(documents, config.batch_size):
+        for batch in _batches(documents, batch_size):
             response = await client.embeddings.create(input=batch, model=model)
             embeddings += [e.embedding for e in response.data]
         return np.array(embeddings, dtype=np.float32)
@@ -137,20 +134,18 @@ def _openai_embedder(config: EmbeddingConfig) -> Embedder:
     return embed
 
 
-def _voyageai_embedder(config: EmbeddingConfig) -> Embedder:
+def _voyageai_embedder(model: str, api_key: str, batch_size: int) -> Embedder:
     try:
         import voyageai  # noqa: PLC0415  # pyright: ignore[reportMissingTypeStubs]
     except ImportError as e:
         raise _missing_extra("voyageai") from e
 
-    client = voyageai.AsyncClient(api_key=config.api_key)  # pyright: ignore[reportPrivateImportUsage]
+    client = voyageai.AsyncClient(api_key=api_key)  # pyright: ignore[reportPrivateImportUsage]
 
     async def embed(documents: list[str], input_type: str) -> np.ndarray:
         embeddings: list[list[float]] = []
-        for batch in _batches(documents, config.batch_size):
-            result = await client.embed(
-                batch, model=config.model, input_type=input_type
-            )
+        for batch in _batches(documents, batch_size):
+            result = await client.embed(batch, model=model, input_type=input_type)
             embeddings += result.embeddings  # pyright: ignore[reportAssignmentType]
         return np.array(embeddings, dtype=np.float32)
 

@@ -34,9 +34,11 @@ Chosen option: **one extra per provider, no aggregate extra.**
 * `embedding.py` is settings-free. It takes a frozen `EmbeddingConfig` and returns a plain
   `np.ndarray`. `FileSystemStorage` takes `embedding_config` in its constructor, where `None`
   means keyword-only search. Only `get_storage_backend()` maps settings to that config.
-* If the configured provider isn't usable (extra missing, or API key/model missing),
-  `get_storage_backend()` logs a warning and the server falls back to keyword-only search
-  instead of failing.
+* `get_storage_backend()` loads the configured provider at startup, so the first search
+  doesn't block the event loop. If loading fails for any reason (extra missing, API
+  key/model missing, broken native library), it logs a warning and the server falls back
+  to keyword-only search instead of failing. `/capabilities` reports what the storage
+  actually uses.
 
 ### Consequences
 

@@ -1,8 +1,8 @@
 """Cross-references between catalog nodes, derived from the stored workflows.
 
-``used_by`` (which workflows use a node) and port ``connections`` (which other
-nodes a port is wired to) are never stored: they are computed here from the
-workflows' ``uses`` and ``wf_definition`` edges and attached to a *copy* of a
+``used_by`` (which workflows use a node), port ``connections`` (which other
+nodes a port is wired to) and the ``artifact_type`` of every reference are never
+stored: they are computed here from the catalog and attached to a *copy* of a
 node on the way out of storage, so the stored nodes are never mutated.
 """
 
@@ -10,14 +10,15 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from sim_atlas.models import (
+from sim_atlas_models import (
     AnnotationResponse,
     ArtifactType,
-    NodeMetadata,
     NodeResponse,
-    Reference,
+    ReferenceResponse,
     WfFunctionNode,
 )
+
+from sim_atlas.models import NodeMetadata
 
 # (node id, port label, is_output)
 _PortKey = tuple[str, str, bool]
@@ -31,7 +32,8 @@ class WorkflowGraph:
     """
 
     def __init__(self, nodes: Mapping[str, NodeMetadata]) -> None:
-        self._used_by: dict[str, list[Reference]] = {}
+        self._artifact_types = {key: n.artifact_type for key, n in nodes.items()}
+        self._used_by: dict[str, list[ReferenceResponse]] = {}
         port_counts: dict[_PortKey, dict[str, int]] = {}
 
         for wf in nodes.values():
@@ -43,7 +45,7 @@ class WorkflowGraph:
                 usages[use.id] = usages.get(use.id, 0) + use.count
             for node_id, count in usages.items():
                 self._used_by.setdefault(node_id, []).append(
-                    Reference(
+                    ReferenceResponse(
                         label=wf.name,
                         id=wf.id,
                         count=count,
@@ -70,10 +72,10 @@ class WorkflowGraph:
                     counts = port_counts.setdefault((own, port, is_output), {})
                     counts[other] = counts.get(other, 0) + 1
 
-        self._connections: dict[_PortKey, list[Reference]] = {
+        self._connections: dict[_PortKey, list[ReferenceResponse]] = {
             key: sorted(
                 (
-                    Reference(
+                    ReferenceResponse(
                         label=nodes[other_id].name,
                         id=other_id,
                         count=count,
@@ -86,18 +88,24 @@ class WorkflowGraph:
             for key, counts in port_counts.items()
         }
 
-    def used_by(self, node_id: str) -> list[Reference] | None:
+    def used_by(self, node_id: str) -> list[ReferenceResponse] | None:
         """Workflows whose ``uses`` reference *node_id*."""
         return self._used_by.get(node_id)
 
     def connections(
         self, node_id: str, port_label: str, is_output: bool
-    ) -> list[Reference] | None:
+    ) -> list[ReferenceResponse] | None:
         """Other nodes whose port is directly wired to this port."""
         return self._connections.get((node_id, port_label, is_output))
 
     def hydrate[N: NodeResponse](self, node: N) -> N:
-        """A copy of *node* with ``used_by`` and port ``connections`` filled in."""
+        """A copy of *node* with all derived references filled in."""
+
+        def references(refs: list[ReferenceResponse]) -> list[ReferenceResponse]:
+            return [
+                r.model_copy(update={"artifact_type": self._artifact_types.get(r.id)})
+                for r in refs
+            ]
 
         def ports(
             annotations: list[AnnotationResponse], is_output: bool
@@ -116,6 +124,8 @@ class WorkflowGraph:
         return node.model_copy(
             update={
                 "used_by": self.used_by(node.id),
+                "uses": references(node.uses),
+                "see_also": references(node.see_also),
                 "inputs": ports(node.inputs, is_output=False),
                 "outputs": ports(node.outputs, is_output=True),
             }

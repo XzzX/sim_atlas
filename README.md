@@ -1,6 +1,7 @@
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 ![PyPI - backend](https://img.shields.io/pypi/v/sim-atlas?label=backend)
 ![PyPI - toolkit](https://img.shields.io/pypi/v/sim-atlas-toolkit?label=toolkit)
+![PyPI - models](https://img.shields.io/pypi/v/sim-atlas-models?label=models)
 
 
 [![ci](https://github.com/XzzX/sim_atlas/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/ci.yml)
@@ -18,6 +19,7 @@ sim_atlas/
 ├── frontend/   Search & discovery SPA, served at /
 ├── web_ide/    Visual workflow composer SPA, served at /ide
 ├── toolkit/    Client-side parser & upload library (sim-atlas-toolkit)
+├── models/     Shared REST wire models (sim-atlas-models)
 └── docs/       Architecture docs and ADRs
 ```
 

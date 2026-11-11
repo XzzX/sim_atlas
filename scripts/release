@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cut a release: bump the version of both Python packages, commit, tag and push.
+# Cut a release: bump the version of every Python package, commit, tag and push.
 # Pushing the tag triggers .github/workflows/release.yml, which builds and publishes to PyPI.
 # Usage: scripts/release <patch|minor|major|X.Y.Z>
 set -euo pipefail
@@ -36,12 +36,25 @@ if git rev-parse --quiet --verify "refs/tags/$tag" >/dev/null; then
   exit 1
 fi
 
+# Released in lockstep; models comes first because the others pin it exactly.
+packages=(models backend toolkit)
+
 echo "==> bump version to $version"
-for d in backend toolkit; do
+for d in "${packages[@]}"; do
   (cd "$d" && uv version --no-sync "$version")
 done
 
-git add backend/pyproject.toml backend/uv.lock toolkit/pyproject.toml toolkit/uv.lock
+echo "==> pin sim-atlas-models==$version"
+for d in "${packages[@]}"; do
+  if grep -q '"sim-atlas-models==' "$d/pyproject.toml"; then
+    sed -i -E "s/\"sim-atlas-models==[^\"]*\"/\"sim-atlas-models==$version\"/" "$d/pyproject.toml"
+    (cd "$d" && uv lock --quiet)
+  fi
+done
+
+for d in "${packages[@]}"; do
+  git add "$d/pyproject.toml" "$d/uv.lock"
+done
 git commit --quiet -m "Release $tag"
 git tag -a "$tag" -m "$tag"
 

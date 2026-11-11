@@ -9,22 +9,24 @@ from typing import Any
 
 import numpy as np
 import pytest
+from sim_atlas_models import (
+    Annotation,
+    AnnotationResponse,
+    ArtifactType,
+    IOValue,
+    ReferenceResponse,
+    WfDefinition,
+    WfEdge,
+    WfFunctionNode,
+)
 
 import sim_atlas.storage.file_system_storage as fss
 from sim_atlas.embedding import EmbeddingConfig
 from sim_atlas.models import (
-    AnnotationRequest,
-    AnnotationResponse,
-    ArtifactType,
     ExecutionResultMetadata,
     Filter,
-    IOValue,
     NodeMetadata,
-    Reference,
     ScoredSearchResponse,
-    WfDefinition,
-    WfEdge,
-    WfFunctionNode,
 )
 from sim_atlas.storage.file_system_storage import FileSystemStorage
 
@@ -204,7 +206,7 @@ def test_used_by_shape_parity(monkeypatch: pytest.MonkeyPatch) -> None:
     fn = make_node(name="child_fn", source_code="def child_fn(): pass")
     storage.create_node(fn)
     wf = make_workflow(
-        name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
+        name="parent_wf", uses=[ReferenceResponse(label="child_fn", id=fn.id, count=1)]
     )
     storage.create_node(wf)
 
@@ -245,8 +247,8 @@ def test_used_by_count_reflects_usages_within_workflow() -> None:
     wf = make_workflow(
         name="parent_wf",
         uses=[
-            Reference(label="child_fn", id=fn.id, count=1),
-            Reference(label="child_fn", id=fn.id, count=1),
+            ReferenceResponse(label="child_fn", id=fn.id, count=1),
+            ReferenceResponse(label="child_fn", id=fn.id, count=1),
         ],
     )
     storage.create_node(wf)
@@ -290,14 +292,14 @@ def test_connections_lists_other_nodes_sorted_by_count() -> None:
             node_id=node_id,
             atlas_id=fn_a.id,
             inputs=[],
-            outputs=[AnnotationRequest(label="out")],
+            outputs=[Annotation(label="out")],
         )
 
     def sink_node(node_id: str, atlas_id: str) -> WfFunctionNode:
         return WfFunctionNode(
             node_id=node_id,
             atlas_id=atlas_id,
-            inputs=[AnnotationRequest(label="in")],
+            inputs=[Annotation(label="in")],
             outputs=[],
         )
 
@@ -371,19 +373,19 @@ def test_read_node_populates_connections_and_used_by() -> None:
 
     wf = make_workflow(
         name="wf",
-        uses=[Reference(label="fn_a", id=fn_a.id, count=1)],
+        uses=[ReferenceResponse(label="fn_a", id=fn_a.id, count=1)],
         wf_definition=WfDefinition(
             nodes=[
                 WfFunctionNode(
                     node_id="a1",
                     atlas_id=fn_a.id,
                     inputs=[],
-                    outputs=[AnnotationRequest(label="out")],
+                    outputs=[Annotation(label="out")],
                 ),
                 WfFunctionNode(
                     node_id="b1",
                     atlas_id=fn_b.id,
-                    inputs=[AnnotationRequest(label="in")],
+                    inputs=[Annotation(label="in")],
                     outputs=[],
                 ),
             ],
@@ -430,12 +432,12 @@ def test_fill_connections_populates_workflow_ports() -> None:
                     node_id="w1",
                     atlas_id=inner_wf.id,
                     inputs=[],
-                    outputs=[AnnotationRequest(label="y")],
+                    outputs=[Annotation(label="y")],
                 ),
                 WfFunctionNode(
                     node_id="s1",
                     atlas_id=fn_sink.id,
-                    inputs=[AnnotationRequest(label="in")],
+                    inputs=[Annotation(label="in")],
                     outputs=[],
                 ),
             ],
@@ -496,7 +498,7 @@ def test_suggest_does_not_mutate_stored_nodes() -> None:
     storage.create_node(fn)
     wf = make_workflow(
         name="temperature_pipeline",
-        uses=[Reference(label="get_temperature", id=fn.id, count=1)],
+        uses=[ReferenceResponse(label="get_temperature", id=fn.id, count=1)],
     )
     storage.create_node(wf)
 
@@ -527,8 +529,8 @@ def _wired_catalog(
     wf = make_workflow(
         name="wf",
         uses=[
-            Reference(label="fn_a", id=fn_a.id, count=1),
-            Reference(label="fn_b", id=fn_b.id, count=1),
+            ReferenceResponse(label="fn_a", id=fn_a.id, count=1),
+            ReferenceResponse(label="fn_b", id=fn_b.id, count=1),
         ],
         wf_definition=WfDefinition(
             nodes=[
@@ -536,12 +538,12 @@ def _wired_catalog(
                     node_id="a1",
                     atlas_id=fn_a.id,
                     inputs=[],
-                    outputs=[AnnotationRequest(label="out")],
+                    outputs=[Annotation(label="out")],
                 ),
                 WfFunctionNode(
                     node_id="b1",
                     atlas_id=fn_b.id,
-                    inputs=[AnnotationRequest(label="in")],
+                    inputs=[Annotation(label="in")],
                     outputs=[],
                 ),
             ],
@@ -565,6 +567,8 @@ def _assert_no_derived_fields(storage: FileSystemStorage) -> None:
         assert item.node.used_by is None
         for port in item.node.inputs + item.node.outputs:
             assert port.connections is None
+        for ref in item.node.uses + item.node.see_also:
+            assert ref.artifact_type is None
 
 
 def test_read_paths_do_not_mutate_stored_nodes() -> None:
@@ -597,7 +601,7 @@ def test_read_node_returns_an_independent_copy() -> None:
 
 
 def test_derived_fields_are_not_persisted(tmp_path: Path) -> None:
-    """Reads followed by a write never put used_by/connections on disk."""
+    """Reads followed by a write never put derived references on disk."""
     storage = FileSystemStorage(path=tmp_path)
     fn_a, _, _ = _wired_catalog(storage)
     storage.read_node(fn_a.id)
@@ -609,10 +613,12 @@ def test_derived_fields_are_not_persisted(tmp_path: Path) -> None:
         assert node["used_by"] is None
         for port in node["inputs"] + node["outputs"]:
             assert port["connections"] is None
+        for ref in node["uses"] + node["see_also"]:
+            assert ref["artifact_type"] is None
 
 
 def test_stale_derived_fields_on_disk_are_dropped_on_load(tmp_path: Path) -> None:
-    """Files written before the fix may carry used_by; it must not be trusted."""
+    """Older files may carry derived references; they must not be trusted."""
     storage = FileSystemStorage(path=tmp_path)
     fn = make_node(
         name="orphan",
@@ -626,6 +632,7 @@ def test_stale_derived_fields_on_disk_are_dropped_on_load(tmp_path: Path) -> Non
     stale = {"label": "gone_wf", "id": "gone", "count": 1}
     data[fn.id]["used_by"] = [stale]
     data[fn.id]["inputs"][0]["connections"] = [stale]
+    data[fn.id]["see_also"] = [stale | {"artifact_type": "workflow"}]
     nodes_file.write_text(json.dumps(data))
 
     storage.close()
@@ -634,6 +641,34 @@ def test_stale_derived_fields_on_disk_are_dropped_on_load(tmp_path: Path) -> Non
     node = reloaded.read_node(fn.id)
     assert node.used_by is None
     assert node.inputs[0].connections is None
+    assert node.see_also[0].artifact_type is None  # "gone" is not in the catalog
+
+
+def test_references_carry_the_artifact_type_of_the_referenced_node() -> None:
+    """uses/see_also artifact_type is derived from the catalog on every read path."""
+    storage = FileSystemStorage(path=None)
+    fn = make_node(name="child_fn", source_code="def child_fn(): pass")
+    sub = make_workflow(name="sub_wf", source_code="sub")
+    storage.create_node(fn)
+    storage.create_node(sub)
+    wf = make_workflow(
+        name="parent_wf",
+        source_code="parent",
+        uses=[
+            ReferenceResponse(label="child_fn", id=fn.id, count=1),
+            ReferenceResponse(label="sub_wf", id=sub.id, count=1),
+            ReferenceResponse(label="missing", id="missing", count=1),
+        ],
+        see_also=[ReferenceResponse(label="child_fn", id=fn.id, count=1)],
+    )
+    storage.create_node(wf)
+
+    expected_uses = [ArtifactType.FUNCTION, ArtifactType.WORKFLOW, None]
+    read = storage.read_node(wf.id)
+    hit = next(i.node for i in storage.search("parent_wf").results.data)
+    for node in (read, hit):
+        assert [r.artifact_type for r in node.uses] == expected_uses
+        assert [r.artifact_type for r in node.see_also] == [ArtifactType.FUNCTION]
 
 
 # ---------------------------------------------------------------------------
@@ -957,7 +992,7 @@ def test_search_semantic_populates_used_by_and_connections(
     )
     storage.create_node(fn)
     wf = make_workflow(
-        name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
+        name="parent_wf", uses=[ReferenceResponse(label="child_fn", id=fn.id, count=1)]
     )
     storage.create_node(wf)
 
@@ -985,7 +1020,7 @@ def test_search_semantic_does_not_return_stale_used_by(
     )
     storage.create_node(fn)
     wf = make_workflow(
-        name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
+        name="parent_wf", uses=[ReferenceResponse(label="child_fn", id=fn.id, count=1)]
     )
     storage.create_node(wf)
 
@@ -1009,7 +1044,7 @@ def test_search_substring_populates_used_by() -> None:
     fn = make_node(name="child_fn", source_code="def child_fn(): pass")
     storage.create_node(fn)
     wf = make_workflow(
-        name="parent_wf", uses=[Reference(label="child_fn", id=fn.id, count=1)]
+        name="parent_wf", uses=[ReferenceResponse(label="child_fn", id=fn.id, count=1)]
     )
     storage.create_node(wf)
 

@@ -10,17 +10,15 @@ from pathlib import Path
 from typing import IO
 
 from pydantic import BaseModel
+from sim_atlas_models import AnnotationResponse, ArtifactType, NodeResponse
 
 from sim_atlas.embedding import EmbeddingConfig, create_embedding
 from sim_atlas.exceptions import AINotConfiguredError
 from sim_atlas.models import (
-    AnnotationResponse,
-    ArtifactType,
     ExecutionResultMetadata,
     Filter,
     FilterOptions,
     NodeMetadata,
-    NodeResponse,
     ScoredSearchItem,
     ScoredSearchResponse,
     SearchResults,
@@ -48,6 +46,10 @@ def _deserialize_node(data: dict[str, object]) -> NodeMetadata:
     return node.model_copy(
         update={
             "used_by": None,
+            "uses": [r.model_copy(update={"artifact_type": None}) for r in node.uses],
+            "see_also": [
+                r.model_copy(update={"artifact_type": None}) for r in node.see_also
+            ],
             "inputs": [a.model_copy(update={"connections": None}) for a in node.inputs],
             "outputs": [
                 a.model_copy(update={"connections": None}) for a in node.outputs

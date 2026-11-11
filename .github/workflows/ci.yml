@@ -56,20 +56,28 @@ jobs:
             [ "$all" = true ] || echo "$files" | grep -qE "$1|$shared"
           }
 
-          # JSON array of the projects in $2.. whose directory changed
+          # Packages a project depends on: a change there selects it too.
+          deps() {
+            case "$1" in
+              backend|toolkit) echo "|^models/" ;;
+            esac
+          }
+
+          # JSON array of the projects in $@ whose directory (or a
+          # dependency's directory) changed
           matrix() {
             local out="" sep=""
             for p in "$@"; do
-              if changed "^$p/"; then out="$out$sep\"$p\""; sep=","; fi
+              if changed "^$p/$(deps "$p")"; then out="$out$sep\"$p\""; sep=","; fi
             done
             echo "[$out]"
           }
 
           {
-            echo "python=$(matrix backend toolkit)"
+            echo "python=$(matrix models backend toolkit)"
             echo "node=$(matrix frontend web_ide)"
             # e2e exercises backend + toolkit + both UIs together
-            if changed '^(backend|toolkit|frontend|web_ide|e2e)/'; then
+            if changed '^(models|backend|toolkit|frontend|web_ide|e2e)/'; then
               echo "e2e=true"
             else
               echo "e2e=false"

@@ -16,6 +16,8 @@ echo "==> uv sync --all-extras (backend)"
 (cd backend && uv sync --all-extras)
 echo "==> uv sync (toolkit)"
 (cd toolkit && uv sync)
+echo "==> uv sync (models)"
+(cd models && uv sync)
 
 for d in frontend web_ide e2e; do
   echo "==> npm ci ($d)"

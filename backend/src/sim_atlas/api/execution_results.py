@@ -4,13 +4,10 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sim_atlas_models import ExecutionResultRequest, ExecutionResultResponse
 
 from sim_atlas.dependencies import get_storage
-from sim_atlas.models import (
-    ExecutionResultMetadata,
-    ExecutionResultRequest,
-    ExecutionResultResponse,
-)
+from sim_atlas.models import ExecutionResultMetadata
 from sim_atlas.security import Creator, get_current_user
 from sim_atlas.storage.storage_interface import (
     ExecutionResultAlreadyExistsError,

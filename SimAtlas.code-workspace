@@ -13,6 +13,10 @@
       "path": "frontend",
     },
     {
+      "name": "models",
+      "path": "models",
+    },
+    {
       "name": "toolkit",
       "path": "toolkit",
     },

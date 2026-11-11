@@ -32,20 +32,17 @@ import uuid
 from typing import Any
 
 import pytest
-
-from sim_atlas.models import (
-    AnnotationRequest,
+from sim_atlas_models import (
+    Annotation,
     AnnotationResponse,
     ArtifactType,
-    Filter,
-    FilterOptions,
-    NodeMetadata,
-    ScoredSearchResponse,
     WfDefinition,
     WfEdge,
     WfInputNode,
     WfOutputNode,
 )
+
+from sim_atlas.models import Filter, FilterOptions, NodeMetadata, ScoredSearchResponse
 from sim_atlas.storage.storage_interface import (
     NodeAlreadyExistsError,
     NodeDuplicateError,
@@ -121,8 +118,8 @@ def make_workflow(**kwargs: Any) -> NodeMetadata:
         "hash": "",
         "wf_definition": WfDefinition(
             nodes=[
-                WfInputNode(node_id="i1", outputs=[AnnotationRequest(label="i1")]),
-                WfOutputNode(node_id="o1", inputs=[AnnotationRequest(label="o1")]),
+                WfInputNode(node_id="i1", outputs=[Annotation(label="i1")]),
+                WfOutputNode(node_id="o1", inputs=[Annotation(label="o1")]),
             ],
             edges=[WfEdge(source_node="i1", target_node="o1")],
         ),

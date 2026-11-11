@@ -5,8 +5,7 @@ from typing import Any, TypeAlias
 from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("SimAtlas")
+logger = logging.getLogger(__name__)
 
 ParserFn: TypeAlias = Callable[..., Awaitable[list[NodeResult]]]
 

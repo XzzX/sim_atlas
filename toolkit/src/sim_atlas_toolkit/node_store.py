@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
+from types import TracebackType
+from typing import Self
 
 from sim_atlas_toolkit.models import (
     ExecutionResultRequest,
@@ -42,7 +44,26 @@ class NodeStore(ABC):
 
     Implementations must tolerate concurrent use: ``orchestrator`` runs up to
     ``concurrency`` uploads in parallel.
+
+    A store may hold resources (e.g. a connection pool); use it as an async
+    context manager or call ``aclose`` when done. Whoever creates a store
+    owns it and closes it.
     """
+
+    # Deliberately concrete: stores without resources need not override it.
+    async def aclose(self) -> None:  # noqa: B027
+        """Release resources held by the store. The default holds none."""
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        await self.aclose()
 
     @abstractmethod
     async def create_node(self, node: NodeRequest) -> NodeResult:

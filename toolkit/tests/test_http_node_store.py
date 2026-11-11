@@ -1,0 +1,289 @@
+"""Behaviour of ``HttpNodeStore`` against a mocked backend.
+
+Every request goes through ``httpx2.MockTransport``, so these tests also
+prove the store sends its requests through the injected async transport
+rather than through module-level (synchronous) ``httpx2`` calls.
+"""
+
+import asyncio
+from collections.abc import Awaitable, Callable, Coroutine
+from datetime import UTC, datetime
+from http import HTTPStatus
+from typing import Any
+
+import httpx2
+import pytest
+
+from sim_atlas_toolkit.http_node_store import HttpNodeStore
+from sim_atlas_toolkit.models import (
+    ArtifactType,
+    ExecutionResultRequest,
+    NodeRequest,
+)
+from sim_atlas_toolkit.node_store import (
+    EmbeddingNotConfiguredError,
+    NodeStatus,
+    NodeStoreError,
+)
+
+API_URL = "http://atlas.test/api"
+
+Handler = (
+    Callable[[httpx2.Request], httpx2.Response]
+    | Callable[[httpx2.Request], Coroutine[Any, Any, httpx2.Response]]
+)
+
+
+def _node_request(name: str = "f") -> NodeRequest:
+    return NodeRequest(
+        artifact_type=ArtifactType.FUNCTION,
+        hash=f"hash-{name}",
+        name=name,
+        category="test",
+        keywords=[],
+        source_code="def f(): ...",
+        inputs=[],
+        outputs=[],
+    )
+
+
+def _node_response_json(name: str = "f") -> dict[str, Any]:
+    return {
+        **_node_request(name).model_dump(mode="json"),
+        "id": f"id-{name}",
+        "creator_name": "test",
+        "creator_email": "test@example.com",
+        "creation_timestamp": datetime.now(UTC).isoformat(),
+    }
+
+
+def _execution_result_request() -> ExecutionResultRequest:
+    return ExecutionResultRequest(
+        author_name="a",
+        author_email="a@example.com",
+        artifact_id="id-f",
+        inputs=[],
+        outputs="42",
+    )
+
+
+def _execution_result_response_json() -> dict[str, Any]:
+    return {
+        **_execution_result_request().model_dump(mode="json"),
+        "id": "exec-1",
+        "creator_name": "test",
+        "creator_email": "test@example.com",
+        "creation_timestamp": datetime.now(UTC).isoformat(),
+    }
+
+
+def _store(handler: Handler, api_key: str = "secret") -> HttpNodeStore:
+    return HttpNodeStore(API_URL, api_key, transport=httpx2.MockTransport(handler))
+
+
+def _respond(status: int, body: Any = None) -> Handler:
+    def handler(_request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(status, json=body)
+
+    return handler
+
+
+# --- create_node ---------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("status_code", "expected"),
+    [
+        (HTTPStatus.CREATED, NodeStatus.CREATED),
+        (HTTPStatus.CONFLICT, NodeStatus.EXISTS),
+    ],
+)
+async def test_create_node_maps_status_to_node_status(
+    status_code: int, expected: NodeStatus
+) -> None:
+    async with _store(_respond(status_code, _node_response_json())) as store:
+        result = await store.create_node(_node_request())
+
+    assert result.status is expected
+    assert result.node.id == "id-f"
+
+
+@pytest.mark.parametrize(
+    "status_code",
+    [HTTPStatus.OK, HTTPStatus.BAD_REQUEST, HTTPStatus.UNPROCESSABLE_ENTITY, 500],
+)
+async def test_create_node_raises_on_other_status(status_code: int) -> None:
+    async with _store(_respond(status_code, _node_response_json())) as store:
+        with pytest.raises(NodeStoreError):
+            await store.create_node(_node_request())
+
+
+async def test_create_node_posts_node_with_api_key() -> None:
+    seen: list[httpx2.Request] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        seen.append(request)
+        return httpx2.Response(HTTPStatus.CREATED, json=_node_response_json())
+
+    async with _store(handler) as store:
+        await store.create_node(_node_request())
+
+    (request,) = seen
+    assert request.method == "POST"
+    assert str(request.url) == f"{API_URL}/nodes"
+    assert request.headers["x-api-key"] == "secret"
+
+
+# --- read_node -----------------------------------------------------------
+
+
+async def test_read_node_returns_node_on_ok() -> None:
+    seen: list[httpx2.Request] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        seen.append(request)
+        return httpx2.Response(HTTPStatus.OK, json=_node_response_json())
+
+    async with _store(handler) as store:
+        node = await store.read_node("id-f")
+
+    assert node is not None
+    assert node.id == "id-f"
+    assert str(seen[0].url) == f"{API_URL}/nodes/id-f"
+
+
+async def test_read_node_returns_none_on_not_found() -> None:
+    async with _store(_respond(HTTPStatus.NOT_FOUND)) as store:
+        assert await store.read_node("missing") is None
+
+
+@pytest.mark.parametrize("status_code", [HTTPStatus.BAD_REQUEST, 500, 503])
+async def test_read_node_raises_on_other_errors(status_code: int) -> None:
+    async with _store(_respond(status_code)) as store:
+        with pytest.raises(NodeStoreError):
+            await store.read_node("id-f")
+
+
+async def test_read_node_does_not_require_api_key() -> None:
+    async with _store(_respond(HTTPStatus.NOT_FOUND), api_key="") as store:
+        assert await store.read_node("id-f") is None
+
+
+# --- create_execution_result ---------------------------------------------
+
+
+async def test_create_execution_result_returns_record_on_created() -> None:
+    async with _store(
+        _respond(HTTPStatus.CREATED, _execution_result_response_json())
+    ) as store:
+        result = await store.create_execution_result(_execution_result_request())
+
+    assert result.id == "exec-1"
+
+
+@pytest.mark.parametrize("status_code", [HTTPStatus.OK, HTTPStatus.CONFLICT, 500])
+async def test_create_execution_result_raises_on_other_status(
+    status_code: int,
+) -> None:
+    async with _store(
+        _respond(status_code, _execution_result_response_json())
+    ) as store:
+        with pytest.raises(NodeStoreError):
+            await store.create_execution_result(_execution_result_request())
+
+
+# --- trigger_embed -------------------------------------------------------
+
+
+@pytest.mark.parametrize("status_code", [HTTPStatus.OK, HTTPStatus.ACCEPTED])
+async def test_trigger_embed_succeeds_on_success_status(status_code: int) -> None:
+    async with _store(_respond(status_code)) as store:
+        await store.trigger_embed()
+
+
+async def test_trigger_embed_raises_not_configured_on_503() -> None:
+    async with _store(_respond(HTTPStatus.SERVICE_UNAVAILABLE)) as store:
+        with pytest.raises(EmbeddingNotConfiguredError):
+            await store.trigger_embed()
+
+
+@pytest.mark.parametrize("status_code", [HTTPStatus.BAD_REQUEST, 500])
+async def test_trigger_embed_raises_on_other_errors(status_code: int) -> None:
+    async with _store(_respond(status_code)) as store:
+        with pytest.raises(NodeStoreError) as excinfo:
+            await store.trigger_embed()
+    assert not isinstance(excinfo.value, EmbeddingNotConfiguredError)
+
+
+# --- authentication ------------------------------------------------------
+
+
+async def _create_node(store: HttpNodeStore) -> object:
+    return await store.create_node(_node_request())
+
+
+async def _create_execution_result(store: HttpNodeStore) -> object:
+    return await store.create_execution_result(_execution_result_request())
+
+
+async def _trigger_embed(store: HttpNodeStore) -> object:
+    return await store.trigger_embed()
+
+
+@pytest.mark.parametrize(
+    "call", [_create_node, _create_execution_result, _trigger_embed]
+)
+async def test_writes_require_api_key(
+    call: Callable[[HttpNodeStore], Awaitable[object]],
+) -> None:
+    requests: list[httpx2.Request] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(request)
+        return httpx2.Response(HTTPStatus.CREATED, json=_node_response_json())
+
+    async with _store(handler, api_key="") as store:
+        with pytest.raises(ValueError, match="API key"):
+            await call(store)
+    assert requests == []
+
+
+# --- concurrency and lifecycle -------------------------------------------
+
+
+async def test_concurrent_requests_overlap() -> None:
+    """N concurrent calls are all in flight at once, i.e. no call blocks the
+    event loop until its response arrives."""
+    n = 5
+    barrier = asyncio.Barrier(n)
+
+    async def handler(request: httpx2.Request) -> httpx2.Response:
+        await barrier.wait()
+        name = request.url.path.rsplit("/", 1)[-1]
+        return httpx2.Response(HTTPStatus.OK, json=_node_response_json(name))
+
+    async with _store(handler) as store:
+        nodes = await asyncio.wait_for(
+            asyncio.gather(*(store.read_node(f"n{i}") for i in range(n))),
+            timeout=5,
+        )
+
+    assert [node.name for node in nodes if node is not None] == [
+        f"n{i}" for i in range(n)
+    ]
+
+
+async def test_context_manager_closes_client() -> None:
+    async with _store(_respond(HTTPStatus.NOT_FOUND)) as store:
+        await store.read_node("x")
+
+    with pytest.raises(RuntimeError):
+        await store.read_node("x")
+
+
+async def test_aclose_closes_client() -> None:
+    store = _store(_respond(HTTPStatus.NOT_FOUND))
+    await store.aclose()
+
+    with pytest.raises(RuntimeError):
+        await store.read_node("x")

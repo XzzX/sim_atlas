@@ -59,7 +59,7 @@ jobs:
           # Packages a project depends on: a change there selects it too.
           deps() {
             case "$1" in
-              backend) echo "|^models/" ;;
+              backend | toolkit) echo "|^models/" ;;
             esac
           }
 

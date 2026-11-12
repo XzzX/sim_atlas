@@ -4,7 +4,7 @@ from enum import StrEnum
 from types import TracebackType
 from typing import Self
 
-from sim_atlas_toolkit.models import (
+from sim_atlas_models import (
     ExecutionResultRequest,
     ExecutionResultResponse,
     NodeRequest,

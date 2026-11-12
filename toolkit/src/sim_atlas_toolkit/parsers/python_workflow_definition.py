@@ -3,12 +3,13 @@
 import hashlib
 from typing import Any
 
-from sim_atlas_toolkit.context import ParseContext
-from sim_atlas_toolkit.models import (
+from sim_atlas_models import (
     Annotation,
     ArtifactType,
     NodeRequest,
 )
+
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult
 
 

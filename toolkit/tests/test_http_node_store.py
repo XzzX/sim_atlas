@@ -13,13 +13,18 @@ from typing import Any
 
 import httpx2
 import pytest
-
-from sim_atlas_toolkit.http_node_store import HttpNodeStore
-from sim_atlas_toolkit.models import (
+from pydantic import ValidationError
+from sim_atlas_models import (
+    AnnotationResponse,
     ArtifactType,
     ExecutionResultRequest,
     NodeRequest,
+    ReferenceResponse,
+    WfDefinition,
+    WfFunctionNode,
 )
+
+from sim_atlas_toolkit.http_node_store import HttpNodeStore
 from sim_atlas_toolkit.node_store import (
     EmbeddingNotConfiguredError,
     NodeStatus,
@@ -134,6 +139,61 @@ async def test_create_node_posts_node_with_api_key() -> None:
     assert request.method == "POST"
     assert str(request.url) == f"{API_URL}/nodes"
     assert request.headers["x-api-key"] == "secret"
+
+
+_SERVER_DERIVED_ANNOTATION = AnnotationResponse(
+    label="x", connections=[ReferenceResponse(label="g", id="g", count=1)]
+)
+_SERVER_DERIVED_REFERENCE = ReferenceResponse(
+    label="g", id="g", count=1, artifact_type=ArtifactType.FUNCTION
+)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("inputs", [_SERVER_DERIVED_ANNOTATION]),
+        ("outputs", [_SERVER_DERIVED_ANNOTATION]),
+        ("uses", [_SERVER_DERIVED_REFERENCE]),
+        ("see_also", [_SERVER_DERIVED_REFERENCE]),
+        (
+            "wf_definition",
+            WfDefinition(
+                nodes=[
+                    WfFunctionNode.model_construct(
+                        node_id="n",
+                        inputs=[_SERVER_DERIVED_ANNOTATION],
+                        outputs=[],
+                        atlas_id=None,
+                    )
+                ],
+                edges=[],
+            ),
+        ),
+    ],
+)
+async def test_create_node_rejects_server_owned_fields_before_sending(
+    field: str, value: Any
+) -> None:
+    """Parsers build nodes with ``model_construct``, which skips validation, so
+    a response-side value (with its server-derived fields) can end up inside a
+    request. The store must refuse it instead of sending it to the backend.
+    """
+    seen: list[httpx2.Request] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        seen.append(request)
+        return httpx2.Response(HTTPStatus.CREATED, json=_node_response_json())
+
+    node = NodeRequest.model_construct(
+        **{**dict(_node_request()), field: value},
+    )
+
+    async with _store(handler) as store:
+        with pytest.raises(ValidationError):
+            await store.create_node(node)
+
+    assert seen == []
 
 
 # --- read_node -----------------------------------------------------------

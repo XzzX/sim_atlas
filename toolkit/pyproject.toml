@@ -31,6 +31,7 @@ dependencies = [
     "httpx2>=2.13.0",
     "pydantic>=2",
     "pydantic-settings>=2",
+    "sim-atlas-models==0.0.19",
     "tqdm>=4",
 ]
 
@@ -59,6 +60,9 @@ dev = [
     "pyright>=1.1.407",
     "ruff>=0.14.6",
 ]
+
+[tool.uv.sources]
+sim-atlas-models = { path = "../models", editable = true }
 
 [build-system]
 requires = ["uv_build>=0.9.13,<0.10.0"]

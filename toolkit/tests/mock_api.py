@@ -1,12 +1,13 @@
 import uuid
 from datetime import UTC, datetime
 
-from sim_atlas_toolkit.models import (
+from sim_atlas_models import (
     ExecutionResultRequest,
     ExecutionResultResponse,
     NodeRequest,
     NodeResponse,
 )
+
 from sim_atlas_toolkit.node_store import (
     EmbeddingNotConfiguredError,
     NodeResult,

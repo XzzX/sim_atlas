@@ -5,8 +5,7 @@ import pytest
 
 openai = pytest.importorskip("openai")
 
-from sim_atlas_toolkit.context import ParseContext  # noqa: E402
-from sim_atlas_toolkit.models import (  # noqa: E402
+from sim_atlas_models import (  # noqa: E402
     Annotation,
     ArtifactType,
     NodeResponse,
@@ -16,6 +15,8 @@ from sim_atlas_toolkit.models import (  # noqa: E402
     WfInputNode,
     WfOutputNode,
 )
+
+from sim_atlas_toolkit.context import ParseContext  # noqa: E402
 
 # Testing the internal graph-rendering helper directly, not just its public
 # wrapper, to pin down the rendered text without invoking the LLM client.

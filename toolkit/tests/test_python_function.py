@@ -1,9 +1,9 @@
 import inspect
 
 import pytest
+from sim_atlas_models import ArtifactType, NodeRequest, PackageRef
 
 from sim_atlas_toolkit.context import ParseContext
-from sim_atlas_toolkit.models import ArtifactType, NodeRequest, PackageRef
 from sim_atlas_toolkit.parsers import python_function
 from sim_atlas_toolkit.parsers.python_function import parse
 from sim_atlas_toolkit.settings import ToolkitSettings

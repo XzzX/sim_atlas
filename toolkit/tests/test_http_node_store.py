@@ -26,6 +26,8 @@ from sim_atlas_toolkit.node_store import (
     NodeStoreError,
 )
 
+from .http_backend import http_backend
+
 API_URL = "http://atlas.test/api"
 
 Handler = (
@@ -273,17 +275,58 @@ async def test_concurrent_requests_overlap() -> None:
     ]
 
 
-async def test_context_manager_closes_client() -> None:
-    async with _store(_respond(HTTPStatus.NOT_FOUND)) as store:
+class _RecordingTransport(httpx2.MockTransport):
+    """``MockTransport`` that records whether the client closed it."""
+
+    def __init__(self, handler: Handler) -> None:
+        super().__init__(handler)
+        self.closed = False
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+@pytest.mark.parametrize("use_context_manager", [True, False])
+async def test_closing_releases_connections(use_context_manager: bool) -> None:
+    transport = _RecordingTransport(_respond(HTTPStatus.NOT_FOUND))
+    store = HttpNodeStore(API_URL, "secret", transport=transport)
+
+    if use_context_manager:
+        async with store:
+            await store.read_node("x")
+    else:
         await store.read_node("x")
+        await store.aclose()
 
-    with pytest.raises(RuntimeError):
-        await store.read_node("x")
+    assert transport.closed
 
 
-async def test_aclose_closes_client() -> None:
+async def test_store_stays_usable_after_aclose() -> None:
     store = _store(_respond(HTTPStatus.NOT_FOUND))
+    await store.read_node("x")
     await store.aclose()
 
-    with pytest.raises(RuntimeError):
-        await store.read_node("x")
+    assert await store.read_node("x") is None
+    await store.aclose()
+
+
+async def test_aclose_without_use_is_harmless() -> None:
+    store = _store(_respond(HTTPStatus.NOT_FOUND))
+    await store.aclose()
+    await store.aclose()
+
+
+def test_store_is_usable_from_successive_event_loops() -> None:
+    """Each ``asyncio.run`` is a new event loop; a store released at the end
+    of one loop must work in the next one over real connections."""
+
+    async def read_then_release(store: HttpNodeStore) -> None:
+        try:
+            assert await store.read_node("x") is None
+        finally:
+            await store.aclose()
+
+    with http_backend() as api_url:
+        store = HttpNodeStore(api_url, "secret")
+        for _ in range(3):
+            asyncio.run(read_then_release(store))

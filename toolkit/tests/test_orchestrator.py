@@ -9,8 +9,10 @@ import pytest
 from sim_atlas_toolkit import orchestrator
 from sim_atlas_toolkit.http_node_store import HttpNodeStore
 from sim_atlas_toolkit.orchestrator import upload_modules
+from sim_atlas_toolkit.parsers import python_function
 from sim_atlas_toolkit.settings import ToolkitSettings
 
+from .http_backend import http_backend
 from .mock_api import MockNodeStore
 
 
@@ -75,12 +77,28 @@ class _ClosingMockNodeStore(MockNodeStore):
         self.closed = True
 
 
-def test_upload_modules_leaves_caller_supplied_store_open() -> None:
-    store = _ClosingMockNodeStore()
+def test_upload_modules_caller_supplied_store_is_reusable() -> None:
+    """A store passed in stays usable across ``upload_modules`` calls, each of
+    which runs on its own event loop, over real connections.
 
-    upload_modules(ToolkitSettings(), modules=["tests.test_orchestrator"], store=store)
+    Only ``python_function`` parses here: it reports store failures as upload
+    errors, where a parser that falls through on any exception would hide them.
+    """
+    with http_backend() as api_url:
+        store = HttpNodeStore(api_url, "secret")
 
-    assert not store.closed
+        first, second = (
+            upload_modules(
+                ToolkitSettings(),
+                modules=["tests.concurrency_module"],
+                parsers=[python_function.parse],
+                store=store,
+            )
+            for _ in range(2)
+        )
+
+    assert [(r.created, r.existing, r.errors) for r in first] == [(3, 0, 0)]
+    assert [(r.created, r.existing, r.errors) for r in second] == [(0, 3, 0)]
 
 
 def test_upload_modules_closes_store_it_created(
@@ -140,15 +158,12 @@ def test_upload_modules_runs_store_requests_concurrently() -> None:
         "http://atlas.test/api", "secret", transport=httpx2.MockTransport(handler)
     )
 
-    try:
-        [summary] = upload_modules(
-            ToolkitSettings(embed=False),
-            modules=["tests.concurrency_module"],
-            concurrency=n,
-            store=store,
-        )
-    finally:
-        asyncio.run(store.aclose())
+    [summary] = upload_modules(
+        ToolkitSettings(embed=False),
+        modules=["tests.concurrency_module"],
+        concurrency=n,
+        store=store,
+    )
 
     assert peak == n
     assert summary.errors == 0

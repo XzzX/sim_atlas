@@ -2,6 +2,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, Literal
 
 from tqdm.asyncio import tqdm as atqdm
@@ -45,11 +46,35 @@ async def _upload_modules_async(  # noqa: PLR0913
 ) -> list[ModuleUploadResult]:
     if concurrency < 1:
         raise ValueError("concurrency must be >= 1")
-    semaphore = asyncio.Semaphore(concurrency)
-    ctx = ParseContext(
-        settings=settings,
-        store=store or HttpNodeStore(settings.api_url, settings.api_token),
+    upload_all = partial(
+        _upload_with_context,
+        modules=modules,
+        recursive=recursive,
+        update_existing=update_existing,
+        parsers=parsers,
+        module_allowlist=module_allowlist,
+        concurrency=concurrency,
+        **kwargs,
     )
+    # A caller-supplied store belongs to the caller and stays open; a store
+    # created here is closed when the upload finishes.
+    if store is not None:
+        return await upload_all(ParseContext(settings=settings, store=store))
+    async with HttpNodeStore(settings.api_url, settings.api_token) as owned:
+        return await upload_all(ParseContext(settings=settings, store=owned))
+
+
+async def _upload_with_context(  # noqa: PLR0913
+    ctx: ParseContext,
+    modules: list[str],
+    recursive: Literal["no", "import", "filesystem"],
+    update_existing: bool,
+    parsers: list[Callable[..., Awaitable[list[NodeResult]]]] | None,
+    module_allowlist: list[str] | None,
+    concurrency: int,
+    **kwargs: dict[str, Any],
+) -> list[ModuleUploadResult]:
+    semaphore = asyncio.Semaphore(concurrency)
 
     async def upload_object(obj: Any) -> tuple[int, int, int]:
         async with semaphore:
@@ -103,7 +128,7 @@ async def _upload_modules_async(  # noqa: PLR0913
             )
         )
 
-    if settings.embed:
+    if ctx.settings.embed:
         try:
             await ctx.store.trigger_embed()
             logger.info("Triggered embedding of newly uploaded nodes")
@@ -130,16 +155,23 @@ def upload_modules(  # noqa: PLR0913
     store: NodeStore | None = None,
     **kwargs: dict[str, Any],
 ) -> list[ModuleUploadResult]:
-    return asyncio.run(
-        _upload_modules_async(
-            settings,
-            modules=modules,
-            recursive=recursive,
-            update_existing=update_existing,
-            parsers=parsers,
-            module_allowlist=module_allowlist,
-            concurrency=concurrency,
-            store=store,
-            **kwargs,
-        )
-    )
+    async def run() -> list[ModuleUploadResult]:
+        try:
+            return await _upload_modules_async(
+                settings,
+                modules=modules,
+                recursive=recursive,
+                update_existing=update_existing,
+                parsers=parsers,
+                module_allowlist=module_allowlist,
+                concurrency=concurrency,
+                store=store,
+                **kwargs,
+            )
+        finally:
+            # The event loop ends with this call. Release the caller's store
+            # from it; the store stays usable for the next call.
+            if store is not None:
+                await store.aclose()
+
+    return asyncio.run(run())

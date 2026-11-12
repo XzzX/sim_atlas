@@ -77,8 +77,9 @@ The legacy single-phase path stays in place next to the new one until the cutove
 * Neutral, because upload counts now include child nodes (previously only top-level results
   were counted), each child in the group of the first seed that reached it, and objects no
   parser accepts are reported separately as `unparsed` instead of as errors.
-* Neutral, because the one-node rule retires the virtual dataclass PACK/UNPACK pair, the only
-  multi-node parser; dataclasses become one constructor node (#233). A future parser that
+* Neutral, because the one-node rule will retire the virtual dataclass PACK/UNPACK pair, the
+  only multi-node parser: the legacy dataclass parser keeps emitting it until dataclasses are
+  ported as one constructor node (#233). A future parser that
   maps one object to several nodes has to wrap them as a container's children.
 
 ## Pros and Cons of the Options

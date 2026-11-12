@@ -384,7 +384,7 @@ async def test_generate_workflow_docstring_describes_given_children(
         "def wf(): ...",
         "",
         wf_definition,
-        children={"atlas-1": child},
+        children_by_id={"atlas-1": child},
     )
 
     assert result == GENERATED

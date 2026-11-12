@@ -12,7 +12,9 @@ import pytest
 from sim_atlas_models import (
     AnnotationResponse,
     ArtifactType,
+    ExecutionResultRequest,
     NodeRequest,
+    NodeResponse,
     Reference,
 )
 
@@ -29,6 +31,7 @@ from sim_atlas_toolkit.plugin import (
 )
 from sim_atlas_toolkit.settings import ToolkitSettings
 
+# _to_response builds a stored node exactly as MockNodeStore does, for seeding.
 from .mock_api import MockNodeStore, _to_response  # pyright: ignore[reportPrivateUsage]
 
 
@@ -371,3 +374,128 @@ async def test_store_failure_during_discovery_counts_as_errors() -> None:
         "one": GroupResult(created=0, existing=0, errors=1, unparsed=0),
         "two": GroupResult(created=0, existing=0, errors=1, unparsed=0),
     }
+
+
+class _ReadCountingStore(MockNodeStore):
+    """Answers existence checks without ``read_node``; counts the reads."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.reads: Counter[str] = Counter()
+
+    async def existing_ids(self, ids: Collection[str]) -> set[str]:
+        self.existing_ids_calls.append(set(ids))
+        return {i for i in ids if await super().read_node(i) is not None}
+
+    async def read_node(self, node_id: str) -> NodeResponse | None:
+        self.reads[node_id] += 1
+        return await super().read_node(node_id)
+
+
+async def test_stored_child_is_read_once_for_all_parents() -> None:
+    store = _ReadCountingStore()
+    old = Obj("old")
+    _stored(store, old)
+    seeds = [Obj(f"p{i}", {"c": old}) for i in range(3)]
+    parser = FakeParser()
+
+    await run_pipeline({"mod": seeds}, [parser], _ctx(store))
+
+    assert store.reads[old.node_id] == 1
+    assert all(parser.seen_children[f"p{i}"]["c"].name == "old" for i in range(3))
+
+
+async def test_workflow_enrichment_describes_children_from_memory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[Mapping[str, ResolvedChild] | None] = []
+
+    # Mirrors generate_workflow_docstring's signature, hence its argument count.
+    async def fake_generate_workflow_docstring(  # noqa: PLR0913
+        ctx: ParseContext,
+        name: str,
+        source_code: str,
+        docstring: str,
+        wf_definition: Any,
+        children_by_id: Mapping[str, ResolvedChild] | None = None,
+    ) -> str:
+        calls.append(children_by_id)
+        return "Run the workflow.\n\nIt calls its child."
+
+    monkeypatch.setattr(
+        pipeline, "generate_workflow_docstring", fake_generate_workflow_docstring
+    )
+    store = MockNodeStore()
+    child = Obj("child")
+    parser = FakeParser(Enrichment.WORKFLOW)
+
+    await run_pipeline({"mod": [Obj("wf", {"c": child})]}, [parser], _ctx(store))
+
+    assert [{k: v.name for k, v in (c or {}).items()} for c in calls] == [
+        {},  # the child itself has no children
+        {child.node_id: "child"},
+    ]
+    (stored_wf,) = (n for n in store.uploaded if n.name == "wf")
+    assert stored_wf.brief_description == "Run the workflow."
+
+
+class ResultParser(FakeParser):
+    """A container ``run`` carries one execution result for its ``target``."""
+
+    def describe(
+        self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
+    ) -> Description:
+        description = super().describe(obj, identity, children)
+        if obj.source == "run":
+            description.execution_results = [
+                ExecutionResultRequest(
+                    author_name="a",
+                    author_email="a@example.com",
+                    artifact_id=children["target"].id,
+                    inputs=[],
+                    outputs="42",
+                )
+            ]
+        return description
+
+
+async def test_container_stores_execution_results_for_its_children() -> None:
+    store = MockNodeStore()
+    target = Obj("target")
+    run = Obj("run", {"target": target}, container=True)
+
+    result = await run_pipeline({"mod": [run]}, [ResultParser()], _ctx(store))
+
+    assert [r.artifact_id for r in store.uploaded_execution_results] == [target.node_id]
+    assert result == {"mod": GroupResult(created=1, existing=0, errors=0, unparsed=0)}
+
+
+class SourceObjParser(FakeParser):
+    def describe(
+        self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
+    ) -> Description:
+        description = super().describe(obj, identity, children)
+        if description.node is not None:
+            description.node.source_obj = obj
+        return description
+
+
+async def test_source_obj_is_self_contained_after_enrichment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    contained: list[Any] = []
+
+    def fake_self_contain_source(
+        settings: ToolkitSettings, obj: Any, source_code: str
+    ) -> str:
+        contained.append(obj)
+        return f"# self-contained\n{source_code}"
+
+    monkeypatch.setattr(pipeline, "self_contain_source", fake_self_contain_source)
+    store = MockNodeStore()
+    a = Obj("a")
+
+    await run_pipeline({"mod": [a]}, [SourceObjParser()], _ctx(store))
+
+    assert contained == [a]
+    assert [n.source_code for n in store.uploaded] == ["# self-contained\na"]

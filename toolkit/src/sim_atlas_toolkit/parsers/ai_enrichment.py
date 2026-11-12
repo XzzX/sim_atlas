@@ -166,15 +166,15 @@ def _format_boundary_node(ann: Annotation) -> str:
 async def _render_function_node(
     store: NodeStore,
     node: WfFunctionNode,
-    children: Mapping[str, ResolvedChild] | None,
+    children_by_id: Mapping[str, ResolvedChild] | None,
 ) -> str:
     brief = None
     display_name = node.node_id
     if node.atlas_id is not None:
         try:
             catalog_node = (
-                children.get(node.atlas_id)
-                if children is not None
+                children_by_id.get(node.atlas_id)
+                if children_by_id is not None
                 else await store.read_node(node.atlas_id)
             )
             if catalog_node is not None:
@@ -203,12 +203,12 @@ async def _render_function_node(
 async def _render_wf_graph(
     store: NodeStore,
     wf_definition: WfDefinition,
-    children: Mapping[str, ResolvedChild] | None = None,
+    children_by_id: Mapping[str, ResolvedChild] | None = None,
 ) -> str:
     """Render a workflow's dataflow graph as text for the LLM prompt.
 
     Function nodes are enriched with their name and description, looked up
-    by ``atlas_id`` in *children* when given, else fetched via
+    by ``atlas_id`` in *children_by_id* when given, else fetched via
     ``store.read_node``. Nodes that cannot be resolved are rendered with just
     their id and I/O labels.
     """
@@ -224,7 +224,7 @@ async def _render_wf_graph(
     lines.append("")
     lines.append("Function nodes:")
     for node in function_nodes:
-        lines.append(await _render_function_node(store, node, children))
+        lines.append(await _render_function_node(store, node, children_by_id))
 
     lines.append("")
     lines.append("Outputs:")
@@ -248,7 +248,7 @@ async def generate_workflow_docstring(  # noqa: PLR0913
     source_code: str,
     docstring: str,
     wf_definition: WfDefinition,
-    children: Mapping[str, ResolvedChild] | None = None,
+    children_by_id: Mapping[str, ResolvedChild] | None = None,
 ) -> str:
     """Generate a docstring for a workflow from its source and dataflow graph, if enabled.
 
@@ -256,13 +256,13 @@ async def generate_workflow_docstring(  # noqa: PLR0913
         ctx: Parse context; ``ctx.settings`` gates whether generation runs
             (``llm_docstrings``) and provides the LLM client config, while
             ``ctx.store`` is used to fetch per-node descriptions unless
-            *children* is given.
+            *children_by_id* is given.
         name: The workflow's name.
         source_code: The workflow's rendered Python source code.
         docstring: The workflow's existing docstring, if any.
         wf_definition: The parsed dataflow graph, used to describe the
             workflow's constituent nodes and how data flows between them.
-        children: The workflow's resolved function nodes by id. When given,
+        children_by_id: The workflow's resolved function nodes by id. When given,
             node descriptions come from here and the store is not read.
 
     Returns:
@@ -281,7 +281,7 @@ async def generate_workflow_docstring(  # noqa: PLR0913
         from openai import AsyncOpenAI  # noqa: PLC0415
 
         client = AsyncOpenAI(api_key=settings.llm_key, base_url=settings.llm_url)
-        graph = await _render_wf_graph(ctx.store, wf_definition, children)
+        graph = await _render_wf_graph(ctx.store, wf_definition, children_by_id)
 
         prompt = f"""
 You are a technical writer generating Python docstrings. You will receive a

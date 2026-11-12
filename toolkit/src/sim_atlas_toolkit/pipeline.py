@@ -76,6 +76,9 @@ class _Entry:
     missing: bool = True
     failed: bool = False
     stored: NodeResponse | None = None
+    """The node this run stored for a missing entry."""
+    lookup: "asyncio.Task[NodeResponse | None] | None" = None
+    """The one ``read_node`` of an existing entry, shared by all its parents."""
     done: asyncio.Event = field(default_factory=asyncio.Event)
 
 
@@ -288,8 +291,9 @@ async def _build(entry: _Entry, ctx: ParseContext, counts: _Counts) -> None:
 
     result = None
     if draft is not None:
-        by_id = {child.id: child for child in children.values()}
-        result = await ctx.store.create_node(await _finish(draft, ctx, by_id))
+        children_by_id = {child.id: child for child in children.values()}
+        request = await _finish(draft, ctx, children_by_id)
+        result = await ctx.store.create_node(request)
     for execution_result in description.execution_results:
         await ctx.store.create_execution_result(execution_result)
 
@@ -307,7 +311,12 @@ async def _resolve(child: _Entry, store: NodeStore) -> ResolvedChild | None:
     node_id = child.identity.node_id
     if node_id is None:
         return None
-    node = child.stored if child.missing else await store.read_node(node_id)
+    if child.missing:
+        node = child.stored
+    else:
+        if child.lookup is None:
+            child.lookup = asyncio.ensure_future(store.read_node(node_id))
+        node = await child.lookup
     if node is None:
         logger.warning("Stored node %s vanished", node_id)
         return None
@@ -315,7 +324,9 @@ async def _resolve(child: _Entry, store: NodeStore) -> ResolvedChild | None:
 
 
 async def _finish(
-    draft: NodeDraft, ctx: ParseContext, children: Mapping[str, ResolvedChild]
+    draft: NodeDraft,
+    ctx: ParseContext,
+    children_by_id: Mapping[str, ResolvedChild],
 ) -> NodeRequest:
     """Enrich *draft* and validate it into a sendable request."""
     request = draft.request
@@ -324,7 +335,6 @@ async def _finish(
             request.docstring = await generate_docstring(
                 ctx, request.source_code, request.docstring or ""
             )
-            enrich_from_docstring(request.docstring, request)
         case Enrichment.WORKFLOW:
             request.docstring = await generate_workflow_docstring(
                 ctx,
@@ -332,11 +342,12 @@ async def _finish(
                 request.source_code,
                 request.docstring or "",
                 request.wf_definition,
-                children=children,
+                children_by_id=children_by_id,
             )
-            enrich_from_docstring(request.docstring, request)
         case Enrichment.NONE:
             pass
+    if draft.enrichment is not Enrichment.NONE:
+        enrich_from_docstring(request.docstring or "", request)
     if draft.source_obj is not None:
         request.source_code = self_contain_source(
             ctx.settings, draft.source_obj, request.source_code

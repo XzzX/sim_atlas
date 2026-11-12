@@ -4,6 +4,7 @@ import fcntl
 import json
 import logging
 import os
+from collections.abc import Collection
 from functools import reduce
 from math import ceil
 from pathlib import Path
@@ -244,6 +245,9 @@ class FileSystemStorage(StorageInterface):
 
     def exists(self, id: str) -> bool:
         return id in self._nodes
+
+    def existing_ids(self, ids: Collection[str]) -> set[str]:
+        return {id for id in ids if id in self._nodes}
 
     def count(self) -> int:
         return len(self._nodes)

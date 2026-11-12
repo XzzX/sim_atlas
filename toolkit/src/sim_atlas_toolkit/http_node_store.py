@@ -1,9 +1,16 @@
+import asyncio
+import logging
+from collections.abc import Collection
 from http import HTTPStatus
+from itertools import batched
 
 import httpx2
 from sim_atlas_models import (
+    NODE_EXISTS_MAX_IDS,
     ExecutionResultRequest,
     ExecutionResultResponse,
+    NodeExistsRequest,
+    NodeExistsResponse,
     NodeRequest,
     NodeResponse,
 )
@@ -15,6 +22,12 @@ from sim_atlas_toolkit.node_store import (
     NodeStore,
     NodeStoreError,
 )
+
+logger = logging.getLogger(__name__)
+
+
+class _NoBatchEndpointError(Exception):
+    """The server predates ``POST /nodes/exists`` (it answered 404 or 405)."""
 
 
 def _validated(node: NodeRequest) -> NodeRequest:
@@ -50,6 +63,7 @@ class HttpNodeStore(NodeStore):
         self._api_key = api_key
         self._transport = transport
         self._client: httpx2.AsyncClient | None = None
+        self._has_batch_endpoint = True
 
     @property
     def _http(self) -> httpx2.AsyncClient:
@@ -99,6 +113,61 @@ class HttpNodeStore(NodeStore):
                 f"{response.status_code}"
             )
         return NodeResponse.model_validate(response.json())
+
+    async def existing_ids(self, ids: Collection[str]) -> set[str]:
+        """One ``POST /nodes/exists`` per chunk of at most
+        ``NODE_EXISTS_MAX_IDS`` ids, all chunks in flight at once.
+
+        A server without that endpoint is asked per id instead (the base
+        implementation), for the rest of this store's lifetime.
+
+        Raises
+        ------
+        NodeStoreError
+            The backend could not be reached or returned an unusable answer.
+        """
+        if not self._has_batch_endpoint:
+            return await super().existing_ids(ids)
+        chunks = batched(dict.fromkeys(ids), NODE_EXISTS_MAX_IDS)
+        results = await asyncio.gather(
+            *(self._existing_chunk(c) for c in chunks), return_exceptions=True
+        )
+        if any(isinstance(r, _NoBatchEndpointError) for r in results):
+            self._has_batch_endpoint = False
+            logger.debug(
+                "%s has no POST /nodes/exists; checking node existence per id",
+                self._api_url,
+            )
+            return await super().existing_ids(ids)
+        found: set[str] = set()
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
+            found.update(result)
+        return found
+
+    async def _existing_chunk(self, ids: tuple[str, ...]) -> list[str]:
+        url = f"{self._api_url}/nodes/exists"
+        try:
+            response = await self._http.post(
+                "/nodes/exists",
+                json=NodeExistsRequest(ids=list(ids)).model_dump(),
+            )
+        except httpx2.HTTPError as e:
+            raise NodeStoreError(f"POST {url} failed: {e}") from e
+        if response.status_code in (
+            HTTPStatus.NOT_FOUND,
+            HTTPStatus.METHOD_NOT_ALLOWED,
+        ):
+            raise _NoBatchEndpointError
+        if response.status_code != HTTPStatus.OK:
+            raise NodeStoreError(
+                f"POST {url} failed with status {response.status_code}"
+            )
+        try:
+            return NodeExistsResponse.model_validate(response.json()).existing
+        except ValueError as e:  # invalid JSON or pydantic ValidationError
+            raise NodeStoreError(f"POST {url} returned an unusable body: {e}") from e
 
     async def create_execution_result(
         self, execution_result: ExecutionResultRequest

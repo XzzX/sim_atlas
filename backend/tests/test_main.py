@@ -18,6 +18,7 @@ from fastmcp import Client
 from fastmcp.exceptions import ToolError
 from pydantic import BaseModel
 from sim_atlas_models import (
+    NODE_EXISTS_MAX_IDS,
     Annotation,
     ArtifactType,
     ExecutionResultRequest,
@@ -219,6 +220,63 @@ def test_read_node_returns_200(client: ApiClient) -> None:
 def test_read_node_not_found_returns_404(client: ApiClient) -> None:
     response = client.get("/api/v1/nodes/does-not-exist")
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ---------------------------------------------------------------------------
+# Node existence (batched)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("ids", "existing"),
+    [
+        ([], []),
+        (["b", "a"], ["b", "a"]),
+        (["x", "y"], []),
+        (["x", "b", "a", "b", "x", "a"], ["b", "a"]),
+    ],
+    ids=["empty", "all-present", "none-present", "duplicates-keep-input-order"],
+)
+def test_nodes_exists_returns_stored_ids_in_input_order(
+    unauthed_client: ApiClient,
+    storage: FileSystemStorage,
+    ids: list[str],
+    existing: list[str],
+) -> None:
+    storage.create_node(make_node(id="a", source_code="def a(): pass"))
+    storage.create_node(make_node(id="b", source_code="def b(): pass"))
+    response = unauthed_client.post("/api/v1/nodes/exists", json={"ids": ids})
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"existing": existing}
+
+
+@pytest.mark.parametrize(
+    ("count", "expected_status"),
+    [
+        (NODE_EXISTS_MAX_IDS, status.HTTP_200_OK),
+        (NODE_EXISTS_MAX_IDS + 1, status.HTTP_422_UNPROCESSABLE_CONTENT),
+    ],
+)
+def test_nodes_exists_caps_the_batch_size(
+    client: ApiClient, count: int, expected_status: int
+) -> None:
+    ids = [f"id-{i}" for i in range(count)]
+    response = client.post("/api/v1/nodes/exists", json={"ids": ids})
+    assert response.status_code == expected_status
+
+
+def test_nodes_exists_rejects_unknown_fields(client: ApiClient) -> None:
+    response = client.post("/api/v1/nodes/exists", json={"ids": [], "hashes": []})
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+def test_node_with_id_exists_is_still_readable(
+    client: ApiClient, storage: FileSystemStorage
+) -> None:
+    storage.create_node(make_node(id="exists"))
+    response = client.get("/api/v1/nodes/exists")
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["id"] == "exists"
 
 
 # ---------------------------------------------------------------------------

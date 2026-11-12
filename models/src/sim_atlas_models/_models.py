@@ -17,7 +17,7 @@ over the annotation and reference types where the two sides differ.
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Discriminator
+from pydantic import BaseModel, ConfigDict, Discriminator, Field
 
 _REQUEST = ConfigDict(extra="forbid")
 _RESPONSE = ConfigDict(extra="ignore")
@@ -220,6 +220,26 @@ class NodeResponse(_NodeFields[AnnotationResponse, ReferenceResponse]):
     creation_timestamp: str
 
     used_by: list[ReferenceResponse] | None = None
+
+
+NODE_EXISTS_MAX_IDS = 1000
+"""Most ids a single ``NodeExistsRequest`` may carry; larger batches are 422."""
+
+
+class NodeExistsRequest(BaseModel):
+    """Which of these node ids are stored? Body of ``POST /nodes/exists``."""
+
+    model_config = _REQUEST
+
+    ids: list[str] = Field(max_length=NODE_EXISTS_MAX_IDS)
+
+
+class NodeExistsResponse(BaseModel):
+    """The stored subset of the requested ids, in request order, deduplicated."""
+
+    model_config = _RESPONSE
+
+    existing: list[str]
 
 
 # --- Execution results ---

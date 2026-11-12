@@ -207,6 +207,28 @@ class StorageContractTests:
     ) -> None:
         assert not storage.exists("nonexistent")
 
+    @pytest.mark.parametrize(
+        ("query", "expected"),
+        [
+            ([], set[str]()),
+            (["a", "b"], {"a", "b"}),
+            (["x", "y"], set[str]()),
+            (["a", "x", "a"], {"a"}),
+        ],
+        ids=["empty", "all-present", "none-present", "mixed-with-duplicates"],
+    )
+    def test_existing_ids_returns_stored_subset(
+        self, storage: StorageInterface, query: list[str], expected: set[str]
+    ) -> None:
+        storage.create_node(make_node(id="a", source_code="def a(): pass"))
+        storage.create_node(make_node(id="b", source_code="def b(): pass"))
+        assert storage.existing_ids(query) == expected
+
+    def test_existing_ids_matches_id_not_hash(self, storage: StorageInterface) -> None:
+        node = make_node(id="a")
+        storage.create_node(node)
+        assert storage.existing_ids([node.hash]) == set()
+
     def test_update_replaces_node(self, storage: StorageInterface) -> None:
         node1 = make_node(name="first")
         storage.create_node(node1)

@@ -3,7 +3,13 @@ import hashlib
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sim_atlas_models import NodeRequest, NodeResponse
+from sim_atlas_models import (
+    NODE_EXISTS_MAX_IDS,
+    NodeExistsRequest,
+    NodeExistsResponse,
+    NodeRequest,
+    NodeResponse,
+)
 
 from sim_atlas.dependencies import get_storage
 from sim_atlas.models import NodeMetadata
@@ -58,6 +64,30 @@ async def create_node(
     except NodeDuplicateError as e:
         response.status_code = status.HTTP_409_CONFLICT
         return e.node
+
+
+# Declared before the ``/nodes/{node_id}`` routes: should one ever take POST, the
+# first match wins and ``exists`` must not be read as a node id.
+@router.post(
+    "/nodes/exists",
+    tags=["nodes"],
+    summary="Check which node ids are stored",
+    description=(
+        "Return the subset of `ids` that are stored, matched on node id exactly "
+        "like `GET /nodes/{node_id}`. The result keeps request order and drops "
+        f"duplicates. At most {NODE_EXISTS_MAX_IDS} ids per request (422 above). "
+        "Public, like every read route. Lets a client check a whole batch in "
+        "one request instead of one `GET /nodes/{node_id}` per id."
+    ),
+)
+async def nodes_exist(
+    request: NodeExistsRequest,
+    storage: Annotated[StorageInterface, Depends(get_storage)],
+) -> NodeExistsResponse:
+    stored = storage.existing_ids(request.ids)
+    return NodeExistsResponse(
+        existing=[i for i in dict.fromkeys(request.ids) if i in stored]
+    )
 
 
 @router.get("/nodes/{node_id}", tags=["nodes"])

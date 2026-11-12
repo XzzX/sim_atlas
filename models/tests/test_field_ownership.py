@@ -17,6 +17,8 @@ from sim_atlas_models import (
     ExecutionResultRequest,
     ExecutionResultResponse,
     IOValue,
+    NodeExistsRequest,
+    NodeExistsResponse,
     NodeRequest,
     NodeResponse,
     PackageRef,
@@ -108,9 +110,13 @@ REQUEST_SAMPLES: list[BaseModel] = [
     NODE_REQUEST,
     IOValue(label="x", value="v"),
     EXECUTION_RESULT_REQUEST,
+    NodeExistsRequest(ids=["a", "b"]),
 ]
 
-RESPONSE_SAMPLES: list[BaseModel] = [response for _, response in PAIRS]
+RESPONSE_SAMPLES: list[BaseModel] = [
+    *(response for _, response in PAIRS),
+    NodeExistsResponse(existing=["a"]),
+]
 
 
 def _name(value: object) -> str:

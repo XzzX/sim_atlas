@@ -1,12 +1,15 @@
 """Shared wire models of the Simulation Atlas REST API (ADR-0024)."""
 
 from sim_atlas_models._models import (
+    NODE_EXISTS_MAX_IDS,
     Annotation,
     AnnotationResponse,
     ArtifactType,
     ExecutionResultRequest,
     ExecutionResultResponse,
     IOValue,
+    NodeExistsRequest,
+    NodeExistsResponse,
     NodeRequest,
     NodeResponse,
     PackageRef,
@@ -21,12 +24,15 @@ from sim_atlas_models._models import (
 )
 
 __all__ = [
+    "NODE_EXISTS_MAX_IDS",
     "Annotation",
     "AnnotationResponse",
     "ArtifactType",
     "ExecutionResultRequest",
     "ExecutionResultResponse",
     "IOValue",
+    "NodeExistsRequest",
+    "NodeExistsResponse",
     "NodeRequest",
     "NodeResponse",
     "PackageRef",

@@ -6,6 +6,8 @@ rather than through module-level (synchronous) ``httpx2`` calls.
 """
 
 import asyncio
+import json
+import logging
 from collections.abc import Awaitable, Callable, Coroutine
 from datetime import UTC, datetime
 from http import HTTPStatus
@@ -15,6 +17,7 @@ import httpx2
 import pytest
 from pydantic import ValidationError
 from sim_atlas_models import (
+    NODE_EXISTS_MAX_IDS,
     AnnotationResponse,
     ArtifactType,
     ExecutionResultRequest,
@@ -229,6 +232,115 @@ async def test_read_node_raises_on_other_errors(status_code: int) -> None:
 async def test_read_node_does_not_require_api_key() -> None:
     async with _store(_respond(HTTPStatus.NOT_FOUND), api_key="") as store:
         assert await store.read_node("id-f") is None
+
+
+# --- existing_ids --------------------------------------------------------
+
+
+def _exists_backend(
+    stored: set[str],
+    seen: list[httpx2.Request],
+    barrier: asyncio.Barrier | None = None,
+) -> Handler:
+    """Answers ``POST /nodes/exists`` like the backend: stored ids, in order.
+    With *barrier*, every request waits there before it is answered."""
+
+    async def handler(request: httpx2.Request) -> httpx2.Response:
+        seen.append(request)
+        if barrier is not None:
+            await barrier.wait()
+        ids: list[str] = json.loads(request.content)["ids"]
+        return httpx2.Response(
+            HTTPStatus.OK, json={"existing": [i for i in ids if i in stored]}
+        )
+
+    return handler
+
+
+async def test_existing_ids_asks_the_batch_endpoint_once() -> None:
+    seen: list[httpx2.Request] = []
+    async with _store(_exists_backend({"a", "c"}, seen), api_key="") as store:
+        assert await store.existing_ids(["a", "b", "c"]) == {"a", "c"}
+
+    (request,) = seen
+    assert request.method == "POST"
+    assert str(request.url) == f"{API_URL}/nodes/exists"
+
+
+async def test_existing_ids_sends_full_chunks_concurrently() -> None:
+    limit = NODE_EXISTS_MAX_IDS
+    ids = [f"n{i}" for i in range(2 * limit + limit // 2)]
+    stored = {ids[0], ids[limit - 1], ids[limit], ids[-1]}  # chunk boundaries
+    seen: list[httpx2.Request] = []
+    # Passes only once all three chunks are in flight at the same time.
+    backend = _exists_backend(stored, seen, barrier=asyncio.Barrier(3))
+
+    async with _store(backend) as store:
+        found = await asyncio.wait_for(store.existing_ids(ids + ids), timeout=5)
+
+    chunks: list[list[str]] = [json.loads(r.content)["ids"] for r in seen]
+    assert found == stored
+    assert sorted(len(chunk) for chunk in chunks) == [limit // 2, limit, limit]
+    assert sorted(i for chunk in chunks for i in chunk) == sorted(ids)
+
+
+@pytest.mark.parametrize(
+    "status_code", [HTTPStatus.NOT_FOUND, HTTPStatus.METHOD_NOT_ALLOWED]
+)
+async def test_existing_ids_falls_back_to_reads_on_older_servers(
+    status_code: int, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A server without the batch endpoint answers per id, and is not asked
+    for the endpoint again for the rest of the store's lifetime."""
+    requests: list[str] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(f"{request.method} {request.url.path}")
+        if request.method == "POST":
+            return httpx2.Response(status_code)
+        if request.url.path.endswith("/a"):
+            return httpx2.Response(HTTPStatus.OK, json=_node_response_json("a"))
+        return httpx2.Response(HTTPStatus.NOT_FOUND)
+
+    caplog.set_level(logging.DEBUG, logger="sim_atlas_toolkit.http_node_store")
+    async with _store(handler) as store:
+        assert await store.existing_ids(["a", "b"]) == {"a"}
+        assert await store.existing_ids(["a"]) == {"a"}
+
+    assert sorted(requests) == [
+        "GET /api/nodes/a",
+        "GET /api/nodes/a",
+        "GET /api/nodes/b",
+        "POST /api/nodes/exists",
+    ]
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelno == logging.DEBUG
+
+
+@pytest.mark.parametrize("status_code", [HTTPStatus.BAD_REQUEST, 500, 503])
+async def test_existing_ids_raises_on_other_errors(status_code: int) -> None:
+    async with _store(_respond(status_code)) as store:
+        with pytest.raises(NodeStoreError):
+            await store.existing_ids(["a"])
+
+
+def _unreachable(request: httpx2.Request) -> httpx2.Response:
+    raise httpx2.ConnectError("connection refused", request=request)
+
+
+@pytest.mark.parametrize(
+    "handler",
+    [_unreachable, _respond(HTTPStatus.OK, {"unexpected": []})],
+    ids=["unreachable", "malformed-body"],
+)
+async def test_existing_ids_raises_store_error_on_request_failures(
+    handler: Handler,
+) -> None:
+    """The pipeline counts a level as failed on ``NodeStoreError`` and goes
+    on; anything else would end the whole run."""
+    async with _store(handler) as store:
+        with pytest.raises(NodeStoreError):
+            await store.existing_ids(["a"])
 
 
 # --- create_execution_result ---------------------------------------------

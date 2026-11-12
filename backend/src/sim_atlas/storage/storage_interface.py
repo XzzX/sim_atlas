@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Collection
 
 from sim_atlas.models import (
     ExecutionResultMetadata,
@@ -107,6 +108,12 @@ class StorageInterface(ABC):
     @abstractmethod
     def exists(self, id: str) -> bool:
         """Return True if *id* is present in storage."""
+        pass
+
+    @abstractmethod
+    def existing_ids(self, ids: Collection[str]) -> set[str]:
+        """Return the subset of *ids* present in storage, matched on node id
+        exactly like ``read_node``. Never loads or hydrates the nodes."""
         pass
 
     @abstractmethod

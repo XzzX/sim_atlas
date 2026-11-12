@@ -13,14 +13,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
-from sim_atlas_toolkit import provenance
-from sim_atlas_toolkit.models import (
+from sim_atlas_models import (
     ArtifactType,
     NodeRequest,
     PackageRef,
-    node_request_adapter,
 )
+
+from sim_atlas_toolkit import provenance
 from sim_atlas_toolkit.provenance import (
     _channel,  # pyright: ignore[reportPrivateUsage]
     _conda_index,  # pyright: ignore[reportPrivateUsage]
@@ -329,6 +328,6 @@ def test_packages_survive_the_upload_serialization_round_trip() -> None:
         )
     ]
 
-    restored = node_request_adapter.validate_python(request.model_dump())
+    restored = NodeRequest.model_validate(request.model_dump())
 
     assert restored.packages == request.packages

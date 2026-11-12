@@ -13,9 +13,7 @@ from flowrep.api.schemas import (
     WorkflowRecipe,
 )
 from flowrep.retrospective.datastructures import DagData
-
-from sim_atlas_toolkit.context import ParseContext
-from sim_atlas_toolkit.models import (
+from sim_atlas_models import (
     Annotation,
     ArtifactType,
     ExecutionResultRequest,
@@ -29,6 +27,8 @@ from sim_atlas_toolkit.models import (
     WfNode,
     WfOutputNode,
 )
+
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult, NodeStatus
 from sim_atlas_toolkit.parsers.ai_enrichment import (
     generate_docstring,

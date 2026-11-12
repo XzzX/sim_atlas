@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.12' and sys_platform == 'emscripten'",
@@ -1160,6 +1160,24 @@ wheels = [
 ]
 
 [[package]]
+name = "sim-atlas-models"
+version = "0.0.19"
+source = { editable = "../models" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pyright", specifier = ">=1.1.407" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff", specifier = ">=0.14.6" },
+]
+
+[[package]]
 name = "sim-atlas-toolkit"
 version = "0.0.19"
 source = { editable = "." }
@@ -1168,6 +1186,7 @@ dependencies = [
     { name = "httpx2" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "sim-atlas-models" },
     { name = "tqdm" },
 ]
 
@@ -1203,6 +1222,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2" },
     { name = "pyiron-workflow", marker = "extra == 'pyiron-workflow'", specifier = ">=0.15.6" },
     { name = "python-workflow-definition", marker = "extra == 'pwd'", specifier = ">=0.1.0" },
+    { name = "sim-atlas-models", editable = "../models" },
     { name = "tqdm", specifier = ">=4" },
 ]
 provides-extras = ["ai", "pyiron-workflow", "pwd", "flowrep"]

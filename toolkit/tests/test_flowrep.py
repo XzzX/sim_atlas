@@ -6,9 +6,7 @@ import flowrep as fr
 import pytest
 from flowrep.api.schemas import WorkflowRecipe
 from flowrep.retrospective.datastructures import DagData
-
-from sim_atlas_toolkit.context import ParseContext
-from sim_atlas_toolkit.models import (
+from sim_atlas_models import (
     ArtifactType,
     NodeRequest,
     NodeResponse,
@@ -17,6 +15,8 @@ from sim_atlas_toolkit.models import (
     WfInputNode,
     WfOutputNode,
 )
+
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult, NodeStatus
 from sim_atlas_toolkit.parsers import flowrep_parser
 from sim_atlas_toolkit.parsers.flowrep_parser import flowrep_to_wf_definition, parse

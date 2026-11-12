@@ -2,9 +2,9 @@ import dataclasses
 from typing import Annotated
 
 import pytest
+from sim_atlas_models import ArtifactType, NodeRequest, PackageRef
 
 from sim_atlas_toolkit.context import ParseContext
-from sim_atlas_toolkit.models import ArtifactType, NodeRequest, PackageRef
 from sim_atlas_toolkit.node_store import NodeStatus
 from sim_atlas_toolkit.parsers import dataclass_node
 from sim_atlas_toolkit.parsers.dataclass_node import parse

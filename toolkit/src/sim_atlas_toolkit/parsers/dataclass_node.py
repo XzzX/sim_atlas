@@ -4,12 +4,13 @@ import inspect
 import textwrap
 from typing import Any, get_type_hints
 
-from sim_atlas_toolkit.context import ParseContext
-from sim_atlas_toolkit.models import (
+from sim_atlas_models import (
     Annotation,
     ArtifactType,
     NodeRequest,
 )
+
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult, NodeStatus
 from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,

@@ -1,14 +1,15 @@
 import logging
 import re
 
-from sim_atlas_toolkit.context import ParseContext
-from sim_atlas_toolkit.models import (
+from sim_atlas_models import (
     Annotation,
     WfDefinition,
     WfFunctionNode,
     WfInputNode,
     WfOutputNode,
 )
+
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeStore
 
 logger = logging.getLogger(__name__)

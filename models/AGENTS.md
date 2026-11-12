@@ -19,7 +19,7 @@ uv run pyright                          # type-check (strict mode)
 - **Wire compatibility**: a change here changes the JSON both sides send and accept. Node ids are content hashes (ADR-0005), so never change what parsers put into `source_code`/`hash` through a model change
 - **Tests**: `tests/test_field_ownership.py` derives the server-owned fields from the models (`set(Response.model_fields) - set(Request.model_fields)`); add a new request/response pair to its `PAIRS` table and new request models to `REQUEST_SAMPLES`
 - **Python floor 3.11** (the toolkit's); do not use 3.12-only syntax such as PEP 695 generics
-- **Versioning**: released in lockstep with backend and toolkit; every dependent pins `sim-atlas-models==<version>` exactly (backend now, toolkit from #222); `scripts/release` bumps all three and rewrites every pin
+- **Versioning**: released in lockstep with backend and toolkit; every dependent pins `sim-atlas-models==<version>` exactly (backend and toolkit); `scripts/release` bumps all three and rewrites every pin
 
 ## Think Before Coding
 

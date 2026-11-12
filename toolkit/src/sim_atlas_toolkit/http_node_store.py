@@ -1,15 +1,13 @@
 from http import HTTPStatus
 
 import httpx2
-
-from sim_atlas_toolkit.models import (
+from sim_atlas_models import (
     ExecutionResultRequest,
     ExecutionResultResponse,
     NodeRequest,
     NodeResponse,
-    node_request_adapter,
-    node_response_adapter,
 )
+
 from sim_atlas_toolkit.node_store import (
     EmbeddingNotConfiguredError,
     NodeResult,
@@ -17,6 +15,18 @@ from sim_atlas_toolkit.node_store import (
     NodeStore,
     NodeStoreError,
 )
+
+
+def _validated(node: NodeRequest) -> NodeRequest:
+    """Re-validate *node*, which parsers build unvalidated (``model_construct``).
+
+    ``serialize_as_any`` dumps nested values as what they are rather than as
+    their declared type, so a response-side value smuggled into the request
+    (e.g. an ``AnnotationResponse`` with ``connections``) keeps its
+    server-owned fields and fails ``extra="forbid"`` instead of being
+    silently stripped.
+    """
+    return NodeRequest.model_validate(node.model_dump(serialize_as_any=True))
 
 
 class HttpNodeStore(NodeStore):
@@ -63,9 +73,7 @@ class HttpNodeStore(NodeStore):
     async def create_node(self, node: NodeRequest) -> NodeResult:
         response = await self._http.post(
             "/nodes",
-            json=node_request_adapter.dump_python(
-                node_request_adapter.validate_python(node.model_dump())
-            ),
+            json=_validated(node).model_dump(mode="json"),
             headers=self._headers,
         )
         if response.status_code == HTTPStatus.CREATED:
@@ -78,7 +86,7 @@ class HttpNodeStore(NodeStore):
             )
         return NodeResult(
             status=status,
-            node=node_response_adapter.validate_python(response.json()),
+            node=NodeResponse.model_validate(response.json()),
         )
 
     async def read_node(self, node_id: str) -> NodeResponse | None:
@@ -90,7 +98,7 @@ class HttpNodeStore(NodeStore):
                 f"GET {self._api_url}/nodes/{node_id} failed with status "
                 f"{response.status_code}"
             )
-        return node_response_adapter.validate_python(response.json())
+        return NodeResponse.model_validate(response.json())
 
     async def create_execution_result(
         self, execution_result: ExecutionResultRequest

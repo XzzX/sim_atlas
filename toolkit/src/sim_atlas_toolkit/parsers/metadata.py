@@ -18,11 +18,11 @@ from griffe import (
     SphinxOptions,
     parse_auto,
 )
-
-from sim_atlas_toolkit.models import (
+from sim_atlas_models import (
     Annotation,
     NodeRequest,
 )
+
 from sim_atlas_toolkit.parsers.self_contained_source_code import (
     ExtractionError,
     extract,

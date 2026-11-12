@@ -20,7 +20,7 @@ from typing import Any, NamedTuple, cast
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
-from sim_atlas_toolkit.models import NodeRequest, PackageRef
+from sim_atlas_models import NodeRequest, PackageRef
 
 logger = logging.getLogger(__name__)
 

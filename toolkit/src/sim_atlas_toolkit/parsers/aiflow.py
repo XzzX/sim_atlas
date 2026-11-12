@@ -19,9 +19,7 @@ from aiflow.core.node import (  # noqa: PLC0415 # pyright: ignore[reportMissingI
     GroupNode,
     Node,
 )
-
-from sim_atlas_toolkit.context import ParseContext
-from sim_atlas_toolkit.models import (
+from sim_atlas_models import (
     Annotation,
     ArtifactType,
     NodeRequest,
@@ -31,6 +29,8 @@ from sim_atlas_toolkit.models import (
     WfFunctionNode,
     WfNode,
 )
+
+from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult, NodeStatus
 from sim_atlas_toolkit.parsers.ai_enrichment import (
     generate_docstring,

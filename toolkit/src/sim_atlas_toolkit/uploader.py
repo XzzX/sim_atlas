@@ -3,8 +3,9 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from sim_atlas_models import NodeRequest
+
 from sim_atlas_toolkit.context import ParseContext
-from sim_atlas_toolkit.models import NodeRequest
 from sim_atlas_toolkit.node_store import NodeResult
 
 logger = logging.getLogger(__name__)

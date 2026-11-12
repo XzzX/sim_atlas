@@ -26,17 +26,17 @@ def compose_execution_result(
         + "".join(f"{v.label}={v.value}" for v in request.inputs)
         + request.outputs
     )
-    return ExecutionResultMetadata(
-        id=str(uuid.uuid4()),
-        author_name=request.author_name,
-        author_email=request.author_email,
-        creator_name=creator.name,
-        creator_email=creator.email,
-        creation_timestamp=dt.datetime.now(dt.UTC).isoformat(),
-        artifact_id=request.artifact_id,
-        inputs=request.inputs,
-        outputs=request.outputs,
-        hash=hashlib.sha256(hash_input.encode()).hexdigest(),
+    # Built from the request's dump, so a field added to ExecutionResultRequest
+    # reaches storage without touching this function (ADR-0024).
+    return ExecutionResultMetadata.model_validate(
+        request.model_dump()
+        | {
+            "id": str(uuid.uuid4()),
+            "creator_name": creator.name,
+            "creator_email": creator.email,
+            "creation_timestamp": dt.datetime.now(dt.UTC).isoformat(),
+            "hash": hashlib.sha256(hash_input.encode()).hexdigest(),
+        }
     )
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from importlib.metadata import version
 from math import ceil
 from typing import Any, Protocol, cast
@@ -16,9 +16,11 @@ from fastapi import status
 from fastapi.testclient import TestClient
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
+from pydantic import BaseModel
 from sim_atlas_models import (
     Annotation,
     ArtifactType,
+    ExecutionResultRequest,
     NodeRequest,
     WfDefinition,
     WfEdge,
@@ -26,6 +28,7 @@ from sim_atlas_models import (
     WfOutputNode,
 )
 
+from sim_atlas.api.execution_results import compose_execution_result
 from sim_atlas.api.nodes import compose_node
 from sim_atlas.embedding import EmbeddingConfig
 from sim_atlas.main import app, mcp
@@ -1058,9 +1061,8 @@ def test_create_node_with_invalid_artifact_type_returns_422(
     assert response.status_code == 422  # noqa: PLR2004
 
 
-def test_compose_node_keeps_every_client_owned_field() -> None:
-    """Every field a client sends reaches the stored node unchanged (ADR-0024)."""
-    request = NodeRequest.model_validate(
+def _full_node_request() -> NodeRequest:
+    return NodeRequest.model_validate(
         make_workflow_request_body(
             id="custom-id",
             hash="custom-hash",
@@ -1076,7 +1078,30 @@ def test_compose_node_keeps_every_client_owned_field() -> None:
             uses=[{"label": "b", "id": "b-id", "count": 2}],
         )
     )
-    stored = compose_node(request, TEST_CREATOR).model_dump()
+
+
+def _full_execution_result_request() -> ExecutionResultRequest:
+    return ExecutionResultRequest.model_validate(make_execution_result_request_body())
+
+
+@pytest.mark.parametrize(
+    ("make_request", "compose"),
+    [
+        pytest.param(_full_node_request, compose_node, id="node"),
+        pytest.param(
+            _full_execution_result_request,
+            compose_execution_result,
+            id="execution_result",
+        ),
+    ],
+)
+def test_compose_keeps_every_client_owned_field(
+    make_request: Callable[[], BaseModel],
+    compose: Callable[[Any, Creator], BaseModel],
+) -> None:
+    """Every field a client sends reaches the stored record unchanged (ADR-0024)."""
+    request = make_request()
+    stored = compose(request, TEST_CREATOR).model_dump()
 
     def client_owned(value: Any, sent: Any) -> Any:
         """*value* reduced to the keys of *sent* (nested responses add keys)."""
@@ -1137,17 +1162,28 @@ def test_execution_result_write_rejects_server_owned_fields(
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, field
 
 
-def test_read_node_fills_artifact_type_of_references(client: ApiClient) -> None:
+def test_every_node_response_fills_artifact_type_of_references(
+    client: ApiClient,
+) -> None:
+    """POST (201 and 409), PUT and GET all return server-derived reference types."""
     fn_id = client.post("/api/v1/nodes", json=make_function_request_body()).json()["id"]
     ref = {"label": "add_numbers", "id": fn_id, "count": 1}
-    wf_id = client.post(
-        "/api/v1/nodes",
-        json=make_workflow_request_body(uses=[ref], see_also=[ref]),
-    ).json()["id"]
+    body = make_workflow_request_body(uses=[ref], see_also=[ref])
 
-    body = client.get(f"/api/v1/nodes/{wf_id}").json()
-    assert [r["artifact_type"] for r in body["uses"]] == [ArtifactType.FUNCTION]
-    assert [r["artifact_type"] for r in body["see_also"]] == [ArtifactType.FUNCTION]
+    created = client.post("/api/v1/nodes", json=body)
+    wf_id = created.json()["id"]
+    responses = {
+        "POST 201": created,
+        "POST 409": client.post("/api/v1/nodes", json=body),
+        "PUT": client.put(f"/api/v1/nodes/{wf_id}", json=body),
+        "GET": client.get(f"/api/v1/nodes/{wf_id}"),
+    }
+
+    assert responses["POST 409"].status_code == status.HTTP_409_CONFLICT
+    for name, response in responses.items():
+        node = response.json()
+        assert [r["artifact_type"] for r in node["uses"]] == ["function"], name
+        assert [r["artifact_type"] for r in node["see_also"]] == ["function"], name
 
 
 # ---------------------------------------------------------------------------

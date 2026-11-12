@@ -89,8 +89,7 @@ class Annotation(_AnnotationFields):
 class AnnotationResponse(_AnnotationFields):
     """A port annotation as the server returns it.
 
-    ``connections`` (other nodes wired to this port) is derived by the server
-    and filled in only when a node is read, not in ``POST /nodes`` responses.
+    ``connections`` (other nodes wired to this port) is derived by the server.
     """
 
     model_config = _RESPONSE

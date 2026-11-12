@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ from sim_atlas_models import (
     AnnotationResponse,
     ArtifactType,
     IOValue,
+    NodeResponse,
     ReferenceResponse,
     WfDefinition,
     WfEdge,
@@ -29,6 +31,10 @@ from sim_atlas.models import (
     ScoredSearchResponse,
 )
 from sim_atlas.storage.file_system_storage import FileSystemStorage
+from sim_atlas.storage.storage_interface import (
+    NodeAlreadyExistsError,
+    NodeDuplicateError,
+)
 
 from .test_storage_interface import StorageContractTests, make_node, make_workflow
 
@@ -478,10 +484,9 @@ def test_suggest_does_not_enrich_or_touch_the_graph(
     def _boom(*_args: Any, **_kwargs: Any) -> None:
         raise AssertionError("suggest must not call this")
 
-    monkeypatch.setattr(FileSystemStorage, "_hydrate", _boom)
-
     storage = FileSystemStorage(path=None)
     storage.create_node(make_node(name="get_temperature", source_code="def a(): pass"))
+    monkeypatch.setattr(FileSystemStorage, "_hydrate", _boom)
 
     results = storage.suggest("temp")
     assert [s.name for s in results] == ["get_temperature"]
@@ -644,8 +649,34 @@ def test_stale_derived_fields_on_disk_are_dropped_on_load(tmp_path: Path) -> Non
     assert node.see_also[0].artifact_type is None  # "gone" is not in the catalog
 
 
-def test_references_carry_the_artifact_type_of_the_referenced_node() -> None:
-    """uses/see_also artifact_type is derived from the catalog on every read path."""
+def _raised_node(action: Callable[[], object]) -> NodeMetadata:
+    """The node carried by the conflict error *action* raises."""
+    with pytest.raises((NodeAlreadyExistsError, NodeDuplicateError)) as excinfo:
+        action()
+    return excinfo.value.node
+
+
+# Every way a stored node leaves FileSystemStorage, given the catalog and the
+# stored workflow ``wf`` (hash "parent-hash").
+_NODE_EXITS: dict[str, Callable[[FileSystemStorage, NodeMetadata], NodeResponse]] = {
+    "read_node": lambda st, wf: st.read_node(wf.id),
+    "search": lambda st, wf: next(
+        i.node for i in st.search("parent_wf").results.data if i.node.id == wf.id
+    ),
+    "update_node": lambda st, wf: st.update_node(wf.id, wf),
+    "create_node: id conflict": lambda st, wf: _raised_node(lambda: st.create_node(wf)),
+    "create_node: hash conflict": lambda st, wf: _raised_node(
+        lambda: st.create_node(wf.model_copy(update={"id": "other-id"}))
+    ),
+}
+
+
+@pytest.mark.parametrize("exit_path", _NODE_EXITS.values(), ids=_NODE_EXITS.keys())
+def test_references_carry_the_artifact_type_of_the_referenced_node(
+    exit_path: Callable[[FileSystemStorage, NodeMetadata], NodeResponse],
+) -> None:
+    """uses/see_also artifact_type is derived from the catalog wherever a node
+    leaves storage; a dangling reference gets ``None``."""
     storage = FileSystemStorage(path=None)
     fn = make_node(name="child_fn", source_code="def child_fn(): pass")
     sub = make_workflow(name="sub_wf", source_code="sub")
@@ -654,6 +685,7 @@ def test_references_carry_the_artifact_type_of_the_referenced_node() -> None:
     wf = make_workflow(
         name="parent_wf",
         source_code="parent",
+        hash="parent-hash",
         uses=[
             ReferenceResponse(label="child_fn", id=fn.id, count=1),
             ReferenceResponse(label="sub_wf", id=sub.id, count=1),
@@ -661,14 +693,30 @@ def test_references_carry_the_artifact_type_of_the_referenced_node() -> None:
         ],
         see_also=[ReferenceResponse(label="child_fn", id=fn.id, count=1)],
     )
-    storage.create_node(wf)
+    created = storage.create_node(wf)
 
-    expected_uses = [ArtifactType.FUNCTION, ArtifactType.WORKFLOW, None]
-    read = storage.read_node(wf.id)
-    hit = next(i.node for i in storage.search("parent_wf").results.data)
-    for node in (read, hit):
-        assert [r.artifact_type for r in node.uses] == expected_uses
+    for node in (created, exit_path(storage, wf)):
+        assert [r.artifact_type for r in node.uses] == [
+            ArtifactType.FUNCTION,
+            ArtifactType.WORKFLOW,
+            None,
+        ]
         assert [r.artifact_type for r in node.see_also] == [ArtifactType.FUNCTION]
+    _assert_no_derived_fields(storage)
+
+
+def test_write_paths_never_store_derived_references() -> None:
+    """A node handed to create/update with derived values set is stored bare."""
+    storage = FileSystemStorage(path=None)
+    fn_a, _, wf = _wired_catalog(storage)
+    hydrated = storage.read_node(fn_a.id)
+    assert hydrated.used_by  # the input really carries derived values
+
+    storage.update_node(fn_a.id, hydrated)
+    storage.create_node(hydrated.model_copy(update={"id": "copy", "hash": "copy-hash"}))
+    storage.update_node(wf.id, storage.read_node(wf.id))
+
+    _assert_no_derived_fields(storage)
 
 
 # ---------------------------------------------------------------------------

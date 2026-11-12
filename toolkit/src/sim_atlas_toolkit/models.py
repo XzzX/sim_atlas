@@ -51,8 +51,7 @@ class Annotation(BaseModel):
 class AnnotationResponse(Annotation):
     """Response-side port annotation (backend: ``AnnotationResponse``).
 
-    ``connections`` is populated only by ``GET /nodes/{id}``; nodes returned
-    from ``POST /nodes`` (201 and 409 alike) always carry ``None`` here.
+    ``connections`` is derived by the server from the stored workflows.
     """
 
     connections: list[ReferenceResponse] | None = None

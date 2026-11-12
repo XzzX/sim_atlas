@@ -33,29 +33,16 @@ from sim_atlas.storage.storage_interface import (
     NodeDuplicateError,
     StorageInterface,
 )
-from sim_atlas.storage.workflow_graph import WorkflowGraph
+from sim_atlas.storage.workflow_graph import WorkflowGraph, strip_derived
 from sim_atlas.type_utils import collect_datatypes, datatype_matches
 
 logger = logging.getLogger(__name__)
 
 
 def _deserialize_node(data: dict[str, object]) -> NodeMetadata:
-    node = NodeMetadata.model_validate(data)
-    # Files written before WorkflowGraph may still carry derived references;
-    # stored nodes must not, so drop them rather than trusting stale values.
-    return node.model_copy(
-        update={
-            "used_by": None,
-            "uses": [r.model_copy(update={"artifact_type": None}) for r in node.uses],
-            "see_also": [
-                r.model_copy(update={"artifact_type": None}) for r in node.see_also
-            ],
-            "inputs": [a.model_copy(update={"connections": None}) for a in node.inputs],
-            "outputs": [
-                a.model_copy(update={"connections": None}) for a in node.outputs
-            ],
-        }
-    )
+    # Older files may still carry derived references; stored nodes must not,
+    # so drop them rather than trusting stale values.
+    return strip_derived(NodeMetadata.model_validate(data))
 
 
 def _write_json_atomically(target: Path, payload: dict[str, object]) -> None:
@@ -228,14 +215,14 @@ class FileSystemStorage(StorageInterface):
     ) -> NodeMetadata:
         id = value.id
         if id in self._nodes:
-            raise NodeAlreadyExistsError(self._nodes[id])
+            raise NodeAlreadyExistsError(self._hydrate(self._nodes[id]))
         if check_source_hash and value.hash:
             for node in self._nodes.values():
                 if node.hash == value.hash:
-                    raise NodeDuplicateError(node)
-        self._nodes[id] = value
+                    raise NodeDuplicateError(self._hydrate(node))
+        self._nodes[id] = strip_derived(value)
         self._nodes_changed()
-        return value
+        return self._hydrate(self._nodes[id])
 
     def read_node(self, id: str) -> NodeMetadata:
         if id not in self._nodes:
@@ -245,9 +232,9 @@ class FileSystemStorage(StorageInterface):
     def update_node(self, id: str, value: NodeMetadata) -> NodeMetadata:
         if id not in self._nodes:
             raise KeyError(id)
-        self._nodes[id] = value
+        self._nodes[id] = strip_derived(value)
         self._nodes_changed()
-        return value
+        return self._hydrate(self._nodes[id])
 
     def delete_node(self, id: str) -> None:
         if id not in self._nodes:

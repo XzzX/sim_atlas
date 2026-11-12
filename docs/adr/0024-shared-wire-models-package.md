@@ -76,10 +76,13 @@ Types enforce field ownership:
 * `Reference` is split into `Reference` (request: `label`, `id`, `count`) and
   `ReferenceResponse` (adds `artifact_type`). Clients can no longer send `artifact_type`, so
   the server derives it from the catalog for `uses` and `see_also` too, not only for `used_by`
-  and `connections` (`WorkflowGraph.hydrate`). Like the other derived fields, it is never
-  stored. A stored value from older files is dropped on load.
-* `compose_node` builds the stored node from the request's dump plus the server fields. A new
-  client-owned field therefore reaches storage without changes there.
+  and `connections`. Like the other derived fields, it is never stored: storage strips them on
+  every write and on load (`strip_derived`) and fills them in on every node it hands out
+  (`WorkflowGraph.hydrate`), including `POST`/`PUT` responses and 409 conflicts. Both go
+  through one helper, so the list of derived fields exists once.
+* `compose_node` and `compose_execution_result` build the stored record from the request's
+  dump plus the server fields. A new client-owned field therefore reaches storage without
+  changes there.
 
 ### Consequences
 
@@ -87,7 +90,8 @@ Types enforce field ownership:
   cannot drift.
 * Good: the types state field ownership. Neither side can set a field the other owns, and
   typos or outdated fields in requests fail loudly.
-* Good: `compose_node` no longer lists fields by hand, which removes a silent-drop path.
+* Good: `compose_node` and `compose_execution_result` no longer list fields by hand, which
+  removes a silent-drop path.
 * Bad: a third package to release, and the PyPI project needs its own trusted publisher.
 * Bad: `extra="forbid"` is a breaking change for clients that send server-owned fields.
   Toolkit versions up to 0.0.19 send `uses[].artifact_type` (as `null`), so their workflow

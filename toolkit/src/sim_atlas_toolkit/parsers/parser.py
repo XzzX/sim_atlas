@@ -1,13 +1,13 @@
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeAlias
+from typing import Any
 
 from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult
 
 logger = logging.getLogger(__name__)
 
-ParserFn: TypeAlias = Callable[..., Awaitable[list[NodeResult]]]
+type ParserFn = Callable[..., Awaitable[list[NodeResult]]]
 
 _registered_parsers: list[ParserFn] = []
 

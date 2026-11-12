@@ -5,7 +5,6 @@
 
 
 [![ci](https://github.com/XzzX/sim_atlas/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/ci.yml)
-[![dependency-audit](https://github.com/XzzX/sim_atlas/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/XzzX/sim_atlas/actions/workflows/audit.yml)
 
 # Sim Atlas
 

@@ -8,7 +8,7 @@
 
 # Sim Atlas
 
-Search and discovery platform for simulation nodes — Python functions, workflow definitions, and pyiron nodes used in scientific computing.
+Search and discovery platform for simulation nodes — Python functions, workflow definitions, and flowrep nodes (including pyiron_workflow's) used in scientific computing.
 
 ## Repository layout
 

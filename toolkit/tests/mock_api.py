@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Collection
 from datetime import UTC, datetime
 
 from sim_atlas_models import (
@@ -42,6 +43,7 @@ class MockNodeStore(NodeStore):
         self.uploaded_execution_results: list[ExecutionResultRequest] = []
         self.embed_triggers: int = 0
         self.embed_available: bool = True
+        self.existing_ids_calls: list[set[str]] = []
         self._nodes: dict[str, NodeResponse] = {}
 
     def preexisting(self, node: NodeResponse) -> NodeResponse:
@@ -60,6 +62,10 @@ class MockNodeStore(NodeStore):
 
     async def read_node(self, node_id: str) -> NodeResponse | None:
         return self._nodes.get(node_id)
+
+    async def existing_ids(self, ids: Collection[str]) -> set[str]:
+        self.existing_ids_calls.append(set(ids))
+        return await super().existing_ids(ids)
 
     async def create_execution_result(
         self, execution_result: ExecutionResultRequest

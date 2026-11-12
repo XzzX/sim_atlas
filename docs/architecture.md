@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-Sim Atlas is a search and discovery platform for simulation nodes — Python functions, workflow definitions, and pyiron nodes used in scientific computing. Users parse their locally installed Python packages or modules using the **toolkit** client library, then push the extracted metadata to a central server where it becomes searchable by all users via a **React search frontend**.
+Sim Atlas is a search and discovery platform for simulation nodes — Python functions, workflow definitions, and flowrep nodes (including pyiron_workflow's) used in scientific computing. Users parse their locally installed Python packages or modules using the **toolkit** client library, then push the extracted metadata to a central server where it becomes searchable by all users via a **React search frontend**.
 
 The system is structured as a **monorepo** containing five sub-packages: `backend`, `frontend`, `web_ide`, `toolkit`, and `models`. `models` (`sim-atlas-models`) holds the Pydantic wire schema that `backend` and `toolkit` share; it is released in lockstep with both and pinned exactly (ADR-0024).
 
@@ -54,7 +54,7 @@ The frontend and web_ide build artefacts are served as static files by the backe
 ```mermaid
 flowchart TD
     subgraph RM["Researcher's Machine"]
-        T["sim-atlas-toolkit<br/>· Inspects Python env (inspect API)<br/>· plain functions, pyiron nodes,<br/>  workflow definitions<br/>· Serialises NodeRequest JSON"]
+        T["sim-atlas-toolkit<br/>· Inspects Python env (inspect API)<br/>· plain functions, flowrep nodes,<br/>  workflow definitions<br/>· Serialises NodeRequest JSON"]
     end
 
     subgraph SRV["Server"]

@@ -59,3 +59,4 @@ A decision that affects multiple components lists all values, e.g. `scope: [back
 | [0022](0022-toolkit-node-store-abstraction.md) | NodeStore abstraction decouples the toolkit's parser pipeline from HTTP | accepted | toolkit |
 | [0023](0023-embedding-providers-as-extras.md) | Embedding providers as optional extras, loaded lazily | accepted | backend |
 | [0024](0024-shared-wire-models-package.md) | Shared wire models in a separate, lockstep-released package | accepted | backend, toolkit |
+| [0025](0025-two-phase-parser-pipeline.md) | Two-phase parsers driven by a worklist pipeline | accepted | toolkit |

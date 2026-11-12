@@ -44,9 +44,6 @@ sim-atlas-upload = "sim_atlas_toolkit.cli:main"
 ai = [
     "openai>=2.45.0",
 ]
-pyiron-workflow = [
-    "pyiron-workflow>=0.15.6",
-]
 pwd = [
     "python-workflow-definition>=0.1.0",
 ]

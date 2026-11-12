@@ -26,6 +26,7 @@ from sim_atlas_toolkit.parsers.ai_enrichment import (  # noqa: E402
     generate_docstring,
     generate_workflow_docstring,
 )
+from sim_atlas_toolkit.plugin import ResolvedChild  # noqa: E402
 from sim_atlas_toolkit.settings import ToolkitSettings  # noqa: E402
 
 from .mock_api import MockNodeStore  # noqa: E402
@@ -341,3 +342,50 @@ async def test_generate_workflow_docstring_llm_failure_falls_back(
     )
 
     assert result == "existing"
+
+
+async def test_generate_workflow_docstring_describes_given_children(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With ``children`` given, the graph is rendered from them, not the store."""
+    prompts: list[str] = []
+
+    class _FakeCompletions:
+        async def create(self, **kwargs: Any) -> SimpleNamespace:
+            prompts.append(kwargs["messages"][0]["content"])
+            message = SimpleNamespace(content=GENERATED)
+            return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+    class _FakeAsyncOpenAI:
+        def __init__(self, api_key: str, base_url: str) -> None:
+            self.chat = SimpleNamespace(completions=_FakeCompletions())
+
+    monkeypatch.setattr(openai, "AsyncOpenAI", _FakeAsyncOpenAI)
+    child = ResolvedChild(
+        id="atlas-1",
+        artifact_type=ArtifactType.FUNCTION,
+        name="pkg.mod.relax",
+        docstring="Relax a structure.\n\nMore detail.",
+        brief_description=None,
+        description=None,
+        inputs=[],
+        outputs=[],
+    )
+    wf_definition = WfDefinition(
+        nodes=[
+            WfFunctionNode(node_id="relax", inputs=[], outputs=[], atlas_id="atlas-1"),
+        ],
+        edges=[],
+    )
+
+    result = await generate_workflow_docstring(
+        _ctx(_settings()),  # an empty store: nothing to fetch there
+        "wf",
+        "def wf(): ...",
+        "",
+        wf_definition,
+        children_by_id={"atlas-1": child},
+    )
+
+    assert result == GENERATED
+    assert "- relax [pkg.mod.relax]: Relax a structure." in prompts[0]

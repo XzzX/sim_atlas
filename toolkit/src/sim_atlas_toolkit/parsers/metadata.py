@@ -1,3 +1,4 @@
+import hashlib
 import importlib
 import inspect
 import logging
@@ -30,6 +31,11 @@ from sim_atlas_toolkit.parsers.self_contained_source_code import (
 from sim_atlas_toolkit.settings import ToolkitSettings
 
 logger = logging.getLogger(__name__)
+
+
+def content_hash(source: str) -> str:
+    """A node's id: the sha256 of its source (ADR-0005)."""
+    return hashlib.sha256(source.encode("utf-8")).hexdigest()
 
 
 def type_to_str(tp: Any) -> str:

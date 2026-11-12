@@ -1,4 +1,6 @@
+import asyncio
 from abc import ABC, abstractmethod
+from collections.abc import Collection
 from dataclasses import dataclass
 from enum import StrEnum
 from types import TracebackType
@@ -10,6 +12,8 @@ from sim_atlas_models import (
     NodeRequest,
     NodeResponse,
 )
+
+_EXISTENCE_CONCURRENCY = 10
 
 
 class NodeStatus(StrEnum):
@@ -97,6 +101,25 @@ class NodeStore(ABC):
             The store could not be reached or returned an unusable answer.
             A missing node is not an error.
         """
+
+    async def existing_ids(self, ids: Collection[str]) -> set[str]:
+        """Subset of *ids* already stored. Default: concurrent ``read_node``
+        calls, at most ``_EXISTENCE_CONCURRENCY`` in flight.
+
+        Raises
+        ------
+        NodeStoreError
+            As ``read_node``.
+        """
+        semaphore = asyncio.Semaphore(_EXISTENCE_CONCURRENCY)
+
+        async def stored(node_id: str) -> bool:
+            async with semaphore:
+                return await self.read_node(node_id) is not None
+
+        unique = list(dict.fromkeys(ids))
+        found = await asyncio.gather(*(stored(i) for i in unique))
+        return {i for i, ok in zip(unique, found, strict=True) if ok}
 
     @abstractmethod
     async def create_execution_result(

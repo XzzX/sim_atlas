@@ -9,7 +9,7 @@ maintainers = [
   { name = "Sebastian Eibl", email = "sebastian.eibl@mpcdf.mpg.de"},
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = "BSD-3-Clause"
 license-files = ["LICEN[CS]E*"]
 keywords = ["pyiron"]
@@ -20,14 +20,16 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "pydantic>=2",
+    "pydantic>=2.5.0; python_version < '3.13'",
+    "pydantic>=2.8.0; python_version == '3.13'",
+    "pydantic>=2.12.0; python_version >= '3.14'",
 ]
 
 [dependency-groups]

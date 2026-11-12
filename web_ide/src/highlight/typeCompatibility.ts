@@ -1,4 +1,4 @@
-import type { Annotation } from "@/interfaces/BackendSchema";
+import type { Annotation } from "sim-atlas-api-schema";
 
 export type CompatibilityResult =
   | "match" // datatypes equal (or both null) — no warning

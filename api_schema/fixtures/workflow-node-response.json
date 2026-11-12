@@ -1,0 +1,253 @@
+{
+  "artifact_type": "workflow",
+  "author_email": "author@example.com",
+  "author_name": "Fixture Author",
+  "brief_description": "",
+  "category": "dummy_module>flowrep",
+  "creation_timestamp": "2026-01-01T00:00:00Z",
+  "creator_email": "creator@example.com",
+  "creator_name": "Fixture Creator",
+  "dependencies": null,
+  "description": "",
+  "docstring": null,
+  "documentation_url": null,
+  "hash": "76a05c37b71b0bc5518560e22acc4af779e5d2e69f7f94d855ab12eac5937555",
+  "homepage_url": null,
+  "id": "76a05c37b71b0bc5518560e22acc4af779e5d2e69f7f94d855ab12eac5937555",
+  "inputs": [
+    {
+      "connections": null,
+      "datatype": "float",
+      "description": null,
+      "has_default_value": false,
+      "label": "x",
+      "quantity": null,
+      "unit": null
+    },
+    {
+      "connections": null,
+      "datatype": "float",
+      "description": null,
+      "has_default_value": false,
+      "label": "slope",
+      "quantity": null,
+      "unit": null
+    },
+    {
+      "connections": null,
+      "datatype": "float",
+      "description": null,
+      "has_default_value": false,
+      "label": "intercept",
+      "quantity": null,
+      "unit": null
+    }
+  ],
+  "keywords": [
+    "flowrep"
+  ],
+  "name": "dummy_module.flowrep.linear",
+  "outputs": [
+    {
+      "connections": [
+        {
+          "artifact_type": "function",
+          "count": 2,
+          "id": "f8aae2ff7d7654706415f8cc8aaa63d8f7936960de6eb776aa730374e9543374",
+          "label": "dummy_module.flowrep.add"
+        }
+      ],
+      "datatype": "float",
+      "description": null,
+      "has_default_value": false,
+      "label": "result",
+      "quantity": null,
+      "unit": null
+    }
+  ],
+  "packages": [],
+  "python_import": "dummy_module.flowrep.linear",
+  "see_also": [],
+  "source_code": "def linear(x, slope, intercept): ...",
+  "source_url": null,
+  "used_by": [
+    {
+      "artifact_type": "workflow",
+      "count": 1,
+      "id": "62b40e5a4a2e42bafd3048614a6291556c623e58ff8a9e678289fb512bc762b8",
+      "label": "dummy_module.flowrep.twice"
+    }
+  ],
+  "uses": [
+    {
+      "artifact_type": "function",
+      "count": 1,
+      "id": "f20ab56c3330736884d4ec4e0c968c0610fc09b86083e74108732a7249214cb2",
+      "label": "mul"
+    },
+    {
+      "artifact_type": "function",
+      "count": 1,
+      "id": "f8aae2ff7d7654706415f8cc8aaa63d8f7936960de6eb776aa730374e9543374",
+      "label": "add"
+    }
+  ],
+  "wf_definition": {
+    "edges": [
+      {
+        "source_node": "x",
+        "source_port": null,
+        "target_node": "mul_0",
+        "target_port": "a"
+      },
+      {
+        "source_node": "slope",
+        "source_port": null,
+        "target_node": "mul_0",
+        "target_port": "b"
+      },
+      {
+        "source_node": "mul_0",
+        "source_port": "product",
+        "target_node": "add_0",
+        "target_port": "a"
+      },
+      {
+        "source_node": "intercept",
+        "source_port": null,
+        "target_node": "add_0",
+        "target_port": "b"
+      },
+      {
+        "source_node": "add_0",
+        "source_port": "sum",
+        "target_node": "result",
+        "target_port": null
+      }
+    ],
+    "nodes": [
+      {
+        "node_id": "x",
+        "outputs": [
+          {
+            "datatype": "float",
+            "description": null,
+            "has_default_value": false,
+            "label": "x",
+            "quantity": null,
+            "unit": null
+          }
+        ],
+        "type": "input"
+      },
+      {
+        "node_id": "slope",
+        "outputs": [
+          {
+            "datatype": "float",
+            "description": null,
+            "has_default_value": false,
+            "label": "slope",
+            "quantity": null,
+            "unit": null
+          }
+        ],
+        "type": "input"
+      },
+      {
+        "node_id": "intercept",
+        "outputs": [
+          {
+            "datatype": "float",
+            "description": null,
+            "has_default_value": false,
+            "label": "intercept",
+            "quantity": null,
+            "unit": null
+          }
+        ],
+        "type": "input"
+      },
+      {
+        "atlas_id": "f20ab56c3330736884d4ec4e0c968c0610fc09b86083e74108732a7249214cb2",
+        "inputs": [
+          {
+            "datatype": "float",
+            "description": null,
+            "has_default_value": false,
+            "label": "a",
+            "quantity": null,
+            "unit": null
+          },
+          {
+            "datatype": "float",
+            "description": null,
+            "has_default_value": false,
+            "label": "b",
+            "quantity": null,
+            "unit": null
+          }
+        ],
+        "node_id": "mul_0",
+        "outputs": [
+          {
+            "datatype": "float",
+            "description": null,
+            "has_default_value": false,
+            "label": "product",
+            "quantity": null,
+            "unit": null
+          }
+        ],
+        "type": "function"
+      },
+      {
+        "atlas_id": "f8aae2ff7d7654706415f8cc8aaa63d8f7936960de6eb776aa730374e9543374",
+        "inputs": [
+          {
+            "datatype": "float",
+            "description": null,
+            "has_default_value": false,
+            "label": "a",
+            "quantity": null,
+            "unit": null
+          },
+          {
+            "datatype": "float",
+            "description": null,
+            "has_default_value": false,
+            "label": "b",
+            "quantity": null,
+            "unit": null
+          }
+        ],
+        "node_id": "add_0",
+        "outputs": [
+          {
+            "datatype": "float",
+            "description": null,
+            "has_default_value": false,
+            "label": "sum",
+            "quantity": null,
+            "unit": null
+          }
+        ],
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "datatype": "float",
+            "description": null,
+            "has_default_value": false,
+            "label": "result",
+            "quantity": null,
+            "unit": null
+          }
+        ],
+        "node_id": "result",
+        "type": "output"
+      }
+    ]
+  }
+}

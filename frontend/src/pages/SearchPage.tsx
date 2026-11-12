@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router";
 import { useDebouncedCallback } from "use-debounce";
 import { simAtlasAPI } from "../services/api";
-import type {
-  Filter,
-  FilterOptions,
-  NodeSuggestion,
-  ScoredSearchResponse,
-} from "../types/index";
+import {
+  ArtifactTypeSchema,
+  type Filter,
+  type FilterOptions,
+  type Suggestion,
+  type ScoredSearchResponse,
+} from "sim-atlas-api-schema";
 import { ResultsTable, Legend } from "../components/ResultsTable";
 import { FilterSidebar } from "../components/FilterSidebar";
 import {
@@ -79,7 +80,10 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [filters, setFilters] = useState<Filter>({
     category: searchParams.get("category") ?? EMPTY_FILTER.category,
-    artifact_type: searchParams.getAll("artifact_type"),
+    // Drop unknown values from a hand-edited URL; the backend would reject them.
+    artifact_type: searchParams
+      .getAll("artifact_type")
+      .flatMap((t) => ArtifactTypeSchema.safeParse(t).data ?? []),
     author: searchParams.getAll("author"),
     keywords: searchParams.getAll("keywords"),
     datatypes: searchParams.getAll("datatypes"),
@@ -102,7 +106,7 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
   // itself — this is what lets the empty state be gated exactly (see
   // `showEmpty` below) without a separate loading flag or a flash of "no
   // matches" before the first response for a given query has landed.
-  const [suggest, setSuggest] = useState<{ query: string; items: NodeSuggestion[] }>({
+  const [suggest, setSuggest] = useState<{ query: string; items: Suggestion[] }>({
     query: "",
     items: [],
   });
@@ -214,7 +218,7 @@ export const SearchPage: React.FC<SearchPageProps> = () => {
     void debouncedSearch(query, filters, page);
   };
 
-  const handleSelectSuggestion = (suggestion: NodeSuggestion) => {
+  const handleSelectSuggestion = (suggestion: Suggestion) => {
     debouncedSearch.cancel();
     debouncedSuggest.cancel();
     void navigate(`/node/${suggestion.id}`);

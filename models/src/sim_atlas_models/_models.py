@@ -135,7 +135,10 @@ class WfFunctionNode(BaseModel):
     atlas_id: str | None
 
 
-WfNode = Annotated[
+# A `type` alias rather than a plain assignment, so that the JSON Schema names
+# the union: the TypeScript generator emits a tagged union for a named
+# discriminated union but drops the discriminator of an inline one (ADR-0027).
+type WfNode = Annotated[
     WfInputNode | WfOutputNode | WfFunctionNode,
     Discriminator("type"),
 ]

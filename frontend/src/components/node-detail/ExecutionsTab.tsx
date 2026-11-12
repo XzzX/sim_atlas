@@ -19,7 +19,7 @@ import { ExecutionFilterSidebar } from "./ExecutionFilterSidebar";
 import { ExecutionRunRow } from "./ExecutionRunRow";
 import { RunDetailDrawer } from "./RunDetailDrawer";
 import { deriveFilterSchema, filterExecutions, sortExecutions, type FilterValue } from "@/lib/executionFilters";
-import type { Annotation, ExecutionResultMetadata } from "@/types/index";
+import type { AnnotationResponse, ExecutionResultMetadata } from "sim-atlas-api-schema";
 
 const PAGE_SIZE = 10;
 
@@ -44,7 +44,7 @@ function RunListSkeleton() {
 }
 
 interface ExecutionsTabProps {
-  inputs: Annotation[];
+  inputs: AnnotationResponse[];
   executions: ExecutionResultMetadata[];
   loading: boolean;
   error: string | null;

@@ -9,7 +9,7 @@ import { simAtlasAPI } from "@/services/api";
 import { TypeChip } from "./TypeChip";
 import { ExecutionsTab } from "./ExecutionsTab";
 import { OverviewTab } from "./OverviewTab";
-import type { NodeResponse, ExecutionResultMetadata } from "../../types/index";
+import type { NodeResponse, ExecutionResultMetadata } from "sim-atlas-api-schema";
 
 type TabValue = "overview" | "executions";
 

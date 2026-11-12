@@ -1,13 +1,13 @@
 import type {
-  Annotation,
+  AnnotationResponse,
   NodeResponse,
   ExecutionResultMetadata,
   FilterOptions,
-  NodeSuggestion,
+  Suggestion,
   ScoredSearchResponse,
-} from "@/types/index";
+} from "sim-atlas-api-schema";
 
-const floatPort = (label: string): Annotation => ({
+const floatPort = (label: string): AnnotationResponse => ({
   label,
   datatype: "float",
   has_default_value: false,
@@ -21,6 +21,7 @@ export function makeLinearWorkflow(overrides: Partial<NodeResponse> = {}): NodeR
     creator_email: "creator@example.com",
     creation_timestamp: "2026-01-01T00:00:00Z",
     id: "wf-linear-0001",
+    hash: "wf-linear-0001",
     name: "dummy_module.flowrep.linear",
     artifact_type: "workflow",
     category: "dummy_module>flowrep",
@@ -32,6 +33,7 @@ export function makeLinearWorkflow(overrides: Partial<NodeResponse> = {}): NodeR
     outputs: [floatPort("result")],
     see_also: [],
     uses: [],
+    packages: [],
     wf_definition: {
       nodes: [
         { type: "input", node_id: "x", outputs: [floatPort("x")] },
@@ -134,12 +136,13 @@ export const searchResponse: ScoredSearchResponse = {
   aggregations: null,
 };
 
-export const suggestions: NodeSuggestion[] = [
+export const suggestions: Suggestion[] = [
   {
     id: "fn-add-0001",
     name: "dummy_module.functions.add",
     python_import: "dummy_module.functions.add",
     artifact_type: "function",
+    keywords: [],
     short_description: "Add two numbers.",
   },
 ];

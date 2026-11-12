@@ -11,6 +11,7 @@ sim_atlas/
 ├── web_ide/    TypeScript: React Flow visual workflow editor (simflow)
 ├── toolkit/    Python: client-side parsers + uploader (sim-atlas-toolkit)
 ├── models/     Python: shared REST wire models (sim-atlas-models)
+├── api_schema/ TypeScript: zod schemas generated from the backend's OpenAPI (sim-atlas-api-schema, private)
 └── docs/       Architecture docs and ADRs
 ```
 
@@ -20,6 +21,7 @@ sim_atlas/
 - `frontend` and `web_ide` are built as static assets and served by `backend` at `/` and `/ide` respectively
 - `toolkit` depends on `python-workflow-definition` (shared workflow schema)
 - `models` is the single definition of the wire schema shared by `backend` and `toolkit`, released in lockstep and pinned exactly (`sim-atlas-models==<version>`, path source for development); request models forbid server-owned fields (ADR-0024)
+- `api_schema` holds the zod schemas and types of the REST API for `frontend` and `web_ide` (`"file:../api_schema"` dependency), generated from the backend's OpenAPI schema and committed (ADR-0027). Never edit `api_schema/src/gen/`: change the Pydantic model, run `scripts/gen-api-schema`, commit the result; CI fails when it is stale
 
 ## Architecture & Design Decisions
 

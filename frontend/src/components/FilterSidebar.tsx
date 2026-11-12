@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { PanelLeftCloseIcon, PanelLeftOpenIcon, SlidersHorizontalIcon } from "lucide-react";
 import { FacetedSearch } from "./FacetedSearch";
-import type { Filter, FilterOptions } from "../types/index";
+import type { Filter, FilterOptions } from "sim-atlas-api-schema";
 
 interface FilterSidebarProps {
   filters: Filter;

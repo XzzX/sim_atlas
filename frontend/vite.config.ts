@@ -6,6 +6,9 @@ import tailwindcss from "@tailwindcss/vite";
 export default {
   plugins: [react(), tailwindcss()],
   resolve: {
+    // Keep the symlinked sim-atlas-api-schema under node_modules so its zod
+    // import resolves to this app's copy (ADR-0027).
+    preserveSymlinks: true,
     alias: {
       "@": "/src",
     },

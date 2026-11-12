@@ -29,8 +29,8 @@ classifiers = [
 dependencies = [
     "griffe>=2",
     "httpx2>=2.13.0",
-    "pydantic>=2.7.0; python_version < '3.13'",
-    "pydantic>=2.8.0; python_version == '3.13'",
+    # 2.10: PEP 695 `type` aliases (`WfNode`)
+    "pydantic>=2.10.0; python_version < '3.14'",
     "pydantic>=2.12.0; python_version >= '3.14'",
     "pydantic-settings>=2.8.0",
     "sim-atlas-models==0.0.19",

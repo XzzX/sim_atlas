@@ -19,6 +19,7 @@ npm run type-check   # tsc --build --noEmit
 - **Layout**: Dagre (`@dagrejs/dagre`) for automatic graph layout; triggered via layout utilities in `lib/`
 - **Workflow schema**: import/export JSON follows the `PythonWorkflowDefinition` format from the `toolkit` package; see `importWorkflow.ts`
 - **API calls**: all HTTP requests go through `services/`; do not call `fetch` directly
+- **API types**: import API schemas and types from `sim-atlas-api-schema` (`../api_schema`), generated from the backend's Pydantic models; never define them by hand or edit `api_schema/src/gen/`: change the Pydantic model, run `scripts/gen-api-schema`, commit the result (ADR-0027). Only schemas of other formats (e.g. `PythonWorkflowDefinitionSchema.ts`, an import file format) stay local
 - **Build output**: `dist/` is copied into backend's static directory — do not commit `dist/`
 
 ## Libraries

@@ -18,7 +18,7 @@ import type {
   ReactFlowInstance,
 } from "@xyflow/react";
 import { type NodeData, type FunctionNodeType } from "./nodes/FunctionNode";
-import { type Annotation, type Filter } from "./interfaces/BackendSchema";
+import { type Annotation, type Filter } from "sim-atlas-api-schema";
 import { type InputDataElement } from "./nodes/InputNode";
 import { type OutputDataElement } from "./nodes/OutputNode";
 import { AddNodeDialog } from "./dialogs/AddNodeDialog";

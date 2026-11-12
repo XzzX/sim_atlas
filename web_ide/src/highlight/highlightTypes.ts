@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { Annotation } from "@/interfaces/BackendSchema";
+import type { Annotation } from "sim-atlas-api-schema";
 
 // --- Interaction state ---
 export type InteractionState =

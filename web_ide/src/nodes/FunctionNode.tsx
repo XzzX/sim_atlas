@@ -15,7 +15,7 @@ import {
 import type {
   Annotation,
   NodeResponse,
-} from "../interfaces/BackendSchema";
+} from "sim-atlas-api-schema";
 import { useHighlight } from "@/highlight/useHighlight";
 import {
   checkCompatibility,

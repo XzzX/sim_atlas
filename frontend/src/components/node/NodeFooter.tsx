@@ -1,5 +1,5 @@
 import React from "react";
-import { type NodeResponse } from "../../types/index";
+import { type NodeResponse } from "sim-atlas-api-schema";
 import { Calendar, BookAIcon, FilePlusCornerIcon } from "lucide-react";
 import { CardFooter } from "@/components/ui/card";
 

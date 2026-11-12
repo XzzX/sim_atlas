@@ -26,6 +26,7 @@ jobs:
       compat-python: ${{ steps.diff.outputs.compat-python }}
       compat-resolution: ${{ steps.diff.outputs.compat-resolution }}
       node: ${{ steps.diff.outputs.node }}
+      api-schema: ${{ steps.diff.outputs.api-schema }}
       e2e: ${{ steps.diff.outputs.e2e }}
     steps:
       - uses: actions/checkout@v6
@@ -71,7 +72,10 @@ jobs:
           # Packages a project depends on: a change there selects it too.
           deps() {
             case "$1" in
-              backend | toolkit) echo "|^models/" ;;
+              # backend's tests check the committed api_schema fixture
+              backend) echo "|^models/|^api_schema/fixtures/" ;;
+              toolkit) echo "|^models/" ;;
+              frontend | web_ide) echo "|^api_schema/" ;;
             esac
           }
 
@@ -97,8 +101,14 @@ jobs:
               echo 'compat-resolution=["lowest-direct"]'
             fi
             echo "node=$(matrix frontend web_ide)"
+            # api_schema/ is generated from the backend's models (ADR-0027)
+            if changed '^(models|backend|api_schema)/'; then
+              echo "api-schema=true"
+            else
+              echo "api-schema=false"
+            fi
             # e2e exercises backend + toolkit + both UIs together
-            if changed '^(models|backend|toolkit|frontend|web_ide|e2e)/'; then
+            if changed '^(models|backend|toolkit|frontend|web_ide|api_schema|e2e)/'; then
               echo "e2e=true"
             else
               echo "e2e=false"
@@ -258,6 +268,45 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # The committed api_schema/ (OpenAPI snapshot + generated zod schemas) must
+  # match the backend's Pydantic models (ADR-0027). The node jobs build from the
+  # committed files, so they need no Python.
+  api-schema:
+    needs: changes
+    if: needs.changes.outputs.api-schema == 'true'
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.12"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: api_schema/package-lock.json
+
+      - name: Regenerate
+        run: scripts/gen-api-schema
+
+      - name: Check that api_schema/ is up to date
+        run: |
+          if [ -n "$(git status --porcelain api_schema/)" ]; then
+            git status --short api_schema/
+            git diff api_schema/
+            echo "api_schema/ is stale: run scripts/gen-api-schema and commit the result." >&2
+            exit 1
+          fi
 
   e2e:
     needs: [changes, python, node]
@@ -446,7 +495,7 @@ jobs:
   # job either succeeded or was skipped because its area did not change.
   ci-ok:
     if: always()
-    needs: [changes, python, python-compat, node, e2e]
+    needs: [changes, python, python-compat, node, api-schema, e2e]
     runs-on: ubuntu-latest
     steps:
       - name: Check results

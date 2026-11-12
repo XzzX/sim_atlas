@@ -1,4 +1,4 @@
-import type { Annotation, ExecutionResultMetadata } from "@/types/index";
+import type { AnnotationResponse, ExecutionResultMetadata } from "sim-atlas-api-schema";
 
 export type ScalarKind = "int" | "float" | "bool" | "str";
 
@@ -24,7 +24,7 @@ export type FilterField =
     };
 
 export function deriveFilterSchema(
-  inputs: Annotation[],
+  inputs: AnnotationResponse[],
   executions: ExecutionResultMetadata[],
 ): FilterField[] {
   const valuesByLabel = new Map<

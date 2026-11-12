@@ -4,14 +4,17 @@ import {
   NodeResponseSchema,
   type ScoredSearchResponse,
   ScoredSearchResponseSchema,
+  type SearchRequest,
+  type SuggestRequest,
   type Filter,
   type FilterOptions,
   FilterOptionsSchema,
   type ExecutionResultMetadata,
-  ExecutionResultListSchema,
-  type NodeSuggestion,
-  NodeSuggestionListSchema,
-} from "../types/index";
+  ExecutionResultMetadataSchema,
+  type Suggestion,
+  SuggestionSchema,
+} from "sim-atlas-api-schema";
+import { z } from "zod";
 
 const API_BASE_URL = "/api/v1";
 
@@ -35,7 +38,7 @@ export const simAtlasAPI = {
 
   getExecutionResults: async (nodeId: string): Promise<ExecutionResultMetadata[]> => {
     const response = await api.get(`/nodes/${nodeId}/execution_results`);
-    return ExecutionResultListSchema.parse(response.data);
+    return z.array(ExecutionResultMetadataSchema).parse(response.data);
   },
 
   search: async (
@@ -49,7 +52,7 @@ export const simAtlasAPI = {
       filter: filterOptions,
       page,
       limit,
-    });
+    } satisfies SearchRequest);
     return ScoredSearchResponseSchema.parse(response.data);
   },
 
@@ -60,13 +63,13 @@ export const simAtlasAPI = {
     query: string,
     filterOptions: Filter,
     limit = 8,
-  ): Promise<NodeSuggestion[]> => {
+  ): Promise<Suggestion[]> => {
     const response = await api.post("/suggest", {
       query,
       filter: filterOptions,
       limit,
-    });
-    return NodeSuggestionListSchema.parse(response.data);
+    } satisfies SuggestRequest);
+    return z.array(SuggestionSchema).parse(response.data);
   },
 };
 

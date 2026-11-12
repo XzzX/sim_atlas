@@ -11,7 +11,7 @@
 
 Sim Atlas is a search and discovery platform for simulation nodes — Python functions, workflow definitions, and flowrep nodes (including pyiron_workflow's) used in scientific computing. Users parse their locally installed Python packages or modules using the **toolkit** client library, then push the extracted metadata to a central server where it becomes searchable by all users via a **React search frontend**.
 
-The system is structured as a **monorepo** containing five sub-packages: `backend`, `frontend`, `web_ide`, `toolkit`, and `models`. `models` (`sim-atlas-models`) holds the Pydantic wire schema that `backend` and `toolkit` share; it is released in lockstep with both and pinned exactly (ADR-0024).
+The system is structured as a **monorepo** containing six sub-packages: `backend`, `frontend`, `web_ide`, `toolkit`, `models` and `api_schema`. `models` (`sim-atlas-models`) holds the Pydantic wire schema that `backend` and `toolkit` share; it is released in lockstep with both and pinned exactly (ADR-0024). `api_schema` (`sim-atlas-api-schema`, a private npm package) holds the zod schemas the two web apps validate responses with. They are generated from the backend's OpenAPI schema and committed, so Pydantic stays the only definition: change the model, run `scripts/gen-api-schema`, commit the result; CI fails when the committed output is stale (ADR-0027).
 
 ---
 
@@ -42,6 +42,7 @@ sim_atlas/
 ├── web_ide/          React SPA: visual workflow composer
 ├── toolkit/          Python package: sim-atlas-toolkit (parser + upload client)
 ├── models/           Python package: sim-atlas-models (shared wire models)
+├── api_schema/       npm package: sim-atlas-api-schema (generated zod schemas, private)
 └── docs/             Architecture docs, ADRs
 ```
 

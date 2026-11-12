@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router";
 import { cn, pluralize } from "@/lib/utils";
-import { ArtifactType, type Reference } from "@/types/index";
+import { ArtifactType, type ReferenceResponse } from "sim-atlas-api-schema";
 
 const ACCENT_VAR: Record<ArtifactType, string> = {
   [ArtifactType.function]: "var(--node-accent-function)",
@@ -42,7 +42,7 @@ const KIND_GLYPH: Record<ArtifactType, string> = {
 
 interface ConnectionsVariantProps {
   variant: "input" | "output";
-  connections: Reference[] | null | undefined;
+  connections: ReferenceResponse[] | null | undefined;
 }
 
 interface ConnectionsPillProps extends ConnectionsVariantProps {

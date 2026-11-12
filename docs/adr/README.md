@@ -60,3 +60,4 @@ A decision that affects multiple components lists all values, e.g. `scope: [back
 | [0023](0023-embedding-providers-as-extras.md) | Embedding providers as optional extras, loaded lazily | accepted | backend |
 | [0024](0024-shared-wire-models-package.md) | Shared wire models in a separate, lockstep-released package | accepted | backend, toolkit |
 | [0025](0025-two-phase-parser-pipeline.md) | Two-phase parsers driven by a worklist pipeline | accepted | toolkit |
+| [0027](0027-generated-typescript-api-schema.md) | Generate the TypeScript API schemas from the backend's OpenAPI schema | accepted | backend, frontend, web-ide |

@@ -3,7 +3,7 @@ import type { WorkflowNode } from "./nodes/nodes";
 import type { FunctionNodeType } from "./nodes/FunctionNode";
 import type { InputNodeType } from "./nodes/InputNode";
 import type { OutputNodeType } from "./nodes/OutputNode";
-import type { Annotation } from "./interfaces/BackendSchema";
+import type { Annotation } from "sim-atlas-api-schema";
 import type {
   FlowrepAtomicRecipe,
   FlowrepVersionInfo,

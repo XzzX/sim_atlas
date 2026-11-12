@@ -10,13 +10,13 @@ import {
 } from "@/components/ui/autocomplete";
 import { CardContent } from "./ui/card";
 import { splitName } from "@/lib/utils";
-import type { NodeSuggestion } from "../types/index";
+import type { Suggestion } from "sim-atlas-api-schema";
 
 interface SearchBarProps {
   query: string;
   onQueryChange: (query: string) => void;
-  suggestions: NodeSuggestion[];
-  onSelectSuggestion: (suggestion: NodeSuggestion) => void;
+  suggestions: Suggestion[];
+  onSelectSuggestion: (suggestion: Suggestion) => void;
   showEmpty?: boolean;
 }
 
@@ -36,7 +36,7 @@ export default function SearchBar({
         // default client-side `contains` filter would re-filter — and hide —
         // results it does not consider a substring match.
         filter={null}
-        itemToStringValue={(s: NodeSuggestion) => s.name}
+        itemToStringValue={(s: Suggestion) => s.name}
         // autoHighlight + Enter-selects would otherwise let a plain "run the
         // search" Enter press navigate away to the first suggestion.
         autoHighlight={false}
@@ -60,7 +60,7 @@ export default function SearchBar({
           <AutocompletePopup>
             <AutocompleteEmpty>{showEmpty ? "No matches." : null}</AutocompleteEmpty>
             <AutocompleteList>
-              {(item: NodeSuggestion) => {
+              {(item: Suggestion) => {
                 const { label, modulePath } = splitName(item.name);
                 const accent =
                   item.artifact_type === "workflow"

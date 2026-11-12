@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { Alert } from "@/components/ui/alert";
 import { splitName } from "@/lib/utils";
 import { DatatypeBadge } from "@/components/DatatypeBadge";
-import type { ScoredSearchItem, Annotation } from "../types/index";
+import type { ScoredSearchItem, AnnotationResponse } from "sim-atlas-api-schema";
 
 // ── Port list ──────────────────────────────────────────────────────────────────
 
@@ -12,7 +12,7 @@ function PortList({
   dotColor,
   cap,
 }: {
-  ports: Annotation[];
+  ports: AnnotationResponse[];
   dotColor: string;
   cap?: number;
 }) {

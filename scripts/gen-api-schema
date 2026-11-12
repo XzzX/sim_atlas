@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Regenerate api_schema/ (the TypeScript zod schemas of the REST API) from the
+# backend's Pydantic models (ADR-0027). Run it after changing a model, then commit
+# api_schema/openapi.json and api_schema/src/gen/. CI fails if they are stale.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+echo "==> openapi.json (backend)"
+# The schema comes from the app in-process; no server runs. A placeholder secret
+# keeps settings loading from writing a config file into backend/ (the schema does
+# not depend on any setting). info.version is pinned so that a release, which only
+# bumps the version, does not make the snapshot stale.
+(cd backend && SIM_ATLAS_JWT_SECRET=gen-api-schema-placeholder uv run --locked python -c '
+import json, sys
+from sim_atlas.main import app
+schema = app.openapi()
+schema["info"]["version"] = "0"
+json.dump(schema, sys.stdout, indent=2, sort_keys=True)
+sys.stdout.write("\n")
+') >api_schema/openapi.json
+
+echo "==> zod schemas (api_schema/src/gen)"
+(cd api_schema && npm ci --silent && npm run --silent generate)

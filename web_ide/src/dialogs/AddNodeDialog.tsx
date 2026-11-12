@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { type Filter, type FilterOptions } from "../interfaces/BackendSchema";
+import {
+  ArtifactTypeSchema,
+  type Filter,
+  type FilterOptions,
+} from "sim-atlas-api-schema";
 import type { InputDataElement } from "../nodes/InputNode";
 import type { OutputDataElement } from "../nodes/OutputNode";
 import type { NodeData } from "../nodes/FunctionNode";
@@ -152,12 +156,11 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
               </label>
               <select
                 value={filter.artifact_type?.[0] ?? ""}
-                onChange={(e) =>
-                  setFilter({
-                    ...filter,
-                    artifact_type: e.target.value ? [e.target.value] : null,
-                  })
-                }
+                onChange={(e) => {
+                  // "" is the "All" option
+                  const type = ArtifactTypeSchema.safeParse(e.target.value).data;
+                  setFilter({ ...filter, artifact_type: type ? [type] : null });
+                }}
                 className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
               >
                 <option value="">All</option>

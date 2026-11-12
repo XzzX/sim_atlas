@@ -18,7 +18,7 @@ uv run pyright                          # type-check (strict mode)
 - **Public surface**: everything is defined in `_models.py` and exported from `__init__.py` (`__all__`); consumers import from `sim_atlas_models` only
 - **Wire compatibility**: a change here changes the JSON both sides send and accept. Node ids are content hashes (ADR-0005), so never change what parsers put into `source_code`/`hash` through a model change
 - **Tests**: `tests/test_field_ownership.py` derives the server-owned fields from the models (`set(Response.model_fields) - set(Request.model_fields)`); add a new request/response pair to its `PAIRS` table and new request models to `REQUEST_SAMPLES`
-- **Python floor 3.11** (the toolkit's); do not use 3.12-only syntax such as PEP 695 generics
+- **Python floor 3.12** (shared with backend and toolkit). CI tests every PR against `uv.lock` on 3.12 and 3.14 and against the lower bounds on 3.12; the full 3.12–3.14 × lowest/highest matrix runs nightly and when a `pyproject.toml` or `uv.lock` changes
 - **Versioning**: released in lockstep with backend and toolkit; every dependent pins `sim-atlas-models==<version>` exactly (backend and toolkit); `scripts/release` bumps all three and rewrites every pin
 
 ## Think Before Coding

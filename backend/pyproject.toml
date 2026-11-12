@@ -24,13 +24,16 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "fastmcp>=2.14.0",
+    "fastmcp>=4.0.0",
     "fastapi[standard]>=0.122.0",
-    "numpy>=1.21",
+    "numpy>=1.26.0; python_version < '3.13'",
+    "numpy>=2.1.0; python_version == '3.13'",
+    "numpy>=2.3.2; python_version >= '3.14'",
     "pydantic-settings[toml]>=2.13.1",
     "pyjwt>=2.12.1",
     "sim-atlas-models==0.0.19",
@@ -40,7 +43,11 @@ dependencies = [
 # One extra per embedding provider (semantic search). Install the one you use,
 # e.g. `sim-atlas[fastembed]`; without any, search is keyword-only.
 [project.optional-dependencies]
-fastembed = ["fastembed>=0.4", "huggingface-hub>=0.20"]
+fastembed = [
+    "fastembed>=0.4.0; python_version < '3.13'",
+    "fastembed>=0.6.0; python_version >= '3.13'",
+    "huggingface-hub>=0.20",
+]
 openai = ["openai>=2.8.1"]
 voyageai = ["voyageai>=0.3.7"]
 

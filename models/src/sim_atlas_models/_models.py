@@ -15,7 +15,7 @@ over the annotation and reference types where the two sides differ.
 """
 
 from enum import StrEnum
-from typing import Annotated, Generic, Literal, TypeVar
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Discriminator
 
@@ -159,11 +159,8 @@ class WfDefinition(BaseModel):
 
 # --- Nodes ---
 
-AnnT = TypeVar("AnnT", bound=_AnnotationFields)
-RefT = TypeVar("RefT", bound=_ReferenceFields)
 
-
-class _NodeFields(BaseModel, Generic[AnnT, RefT]):
+class _NodeFields[AnnT: _AnnotationFields, RefT: _ReferenceFields](BaseModel):
     """Every client-owned node field, once."""
 
     artifact_type: ArtifactType

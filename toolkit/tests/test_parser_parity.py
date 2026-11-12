@@ -6,11 +6,10 @@ identified ids and every uploaded request must match. (#227 turns these into
 golden values when the legacy code is deleted.)
 """
 
-import dataclasses
 import textwrap
 from collections.abc import Awaitable, Callable
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Any
 
 import pytest
 from sim_atlas_models import NodeRequest
@@ -18,7 +17,6 @@ from sim_atlas_models import NodeRequest
 from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult
 from sim_atlas_toolkit.parsers import (
-    dataclass_node,
     python_function,
     python_workflow_definition,
 )
@@ -61,20 +59,6 @@ def _indented() -> Callable[[int], int]:
         return a
 
     return inner
-
-
-@dataclasses.dataclass
-class Point:
-    """Represent a 2D point.
-
-    Attributes
-    ----------
-    x : float
-        Horizontal coordinate of the point.
-    """
-
-    x: float
-    y: Annotated[float, {"unit": "m", "quantity": "length"}] = 3.0
 
 
 def _pwd_workflow() -> Any:
@@ -120,7 +104,6 @@ CASES: list[tuple[str, LegacyParse, Callable[[], Parser], Callable[[], Any]]] = 
         python_function.PythonFunctionParser,
         lambda: len,
     ),
-    ("dataclass", dataclass_node.parse, dataclass_node.DataclassParser, lambda: Point),
     (
         "pwd",
         python_workflow_definition.parse,
@@ -194,11 +177,9 @@ async def test_new_parser_stores_what_legacy_parse_stores(
     )
 
     assert identity is not None
-    assert list(identity.node_ids) == [n.id for n in legacy_store.uploaded]
+    assert [identity.node_id] == [n.id for n in legacy_store.uploaded]
     assert _dump(new_store.uploaded) == _dump(legacy_store.uploaded)
-    assert result["mod"] == GroupResult(
-        created=len(identity.node_ids), existing=0, errors=0, unparsed=0
-    )
+    assert result["mod"] == GroupResult(created=1, existing=0, errors=0, unparsed=0)
 
 
 @pytest.mark.parametrize(

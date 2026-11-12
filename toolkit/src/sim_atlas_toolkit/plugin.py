@@ -1,9 +1,9 @@
 """The two-phase parser contract (ADR-0025).
 
-A parser turns one Python object into nodes in two synchronous, pure steps:
-``identify`` (cheap: which nodes would this object yield, and which objects
-does it reference) and ``describe`` (the full node requests, given the
-already-resolved children). All I/O — existence checks, LLM enrichment,
+A parser turns one Python object into at most one node in two synchronous,
+pure steps: ``identify`` (cheap: which node would this object yield, and
+which objects does it reference) and ``describe`` (the full node request,
+given the already-resolved children). All I/O — existence checks, LLM enrichment,
 storing — lives in ``sim_atlas_toolkit.pipeline``.
 """
 
@@ -26,9 +26,10 @@ from sim_atlas_models import (
 class Identity:
     """What ``identify`` knows about an object before describing it."""
 
-    node_ids: tuple[str, ...]
-    """Content hashes (= ids) of the nodes this object yields; ``()`` marks a
-    container that yields no node of its own."""
+    node_id: str | None
+    """Content hash (= id) of the one node this object yields; ``None`` marks
+    a container that yields no node of its own. An object that stands for
+    several nodes is a container whose children are those nodes."""
 
     children: Mapping[str, Any] = field(default_factory=dict[str, Any])
     """Label -> object referenced by this one; processed before it."""
@@ -100,7 +101,9 @@ class NodeDraft:
 class Description:
     """Everything ``describe`` produced for one object."""
 
-    nodes: list[NodeDraft]
+    node: NodeDraft | None
+    """The object's node; ``None`` exactly when ``Identity.node_id`` is."""
+
     execution_results: list[ExecutionResultRequest] = field(
         default_factory=list[ExecutionResultRequest]
     )

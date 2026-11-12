@@ -6,8 +6,8 @@
 2. Build children first: describe, enrich, validate and store each missing
    entry once all its children are finished; independent entries run
    concurrently.
-3. Count every node, children included, in the group of the first seed that
-   reached it.
+3. Count every object, children included, in the group of the first seed
+   that reached it.
 """
 
 import asyncio
@@ -41,7 +41,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class GroupResult:
-    """Per-group outcome of `run_pipeline`; counts nodes, children included."""
+    """Per-group outcome of `run_pipeline`; counts objects, children included.
+
+    A node-yielding object is one ``created`` or ``existing`` node; a failed
+    object of any kind is one error.
+    """
 
     created: int
     existing: int
@@ -59,7 +63,7 @@ class _Counts:
 
 @dataclass(eq=False, slots=True)
 class _Entry:
-    """One identified object (or several objects with identical node ids)."""
+    """One identified object (or several objects with the same node id)."""
 
     obj: Any
     parser: Parser
@@ -71,7 +75,7 @@ class _Entry:
     """Label -> child entry; ``None`` when the child could not be identified."""
     missing: bool = True
     failed: bool = False
-    stored: list[NodeResponse] = field(default_factory=list[NodeResponse])
+    stored: NodeResponse | None = None
     done: asyncio.Event = field(default_factory=asyncio.Event)
 
 
@@ -150,7 +154,7 @@ async def _discover(
 ) -> list[_Entry]:
     """Identify everything reachable through missing entries; return those."""
     by_obj: dict[int, _Entry | None] = {}
-    by_ids: dict[tuple[str, ...], _Entry] = {}
+    by_node_id: dict[str, _Entry] = {}
     # ``by_obj`` is keyed by ``id(obj)``: keep every object alive for the run
     # so an id is never reused by a different object.
     keep_alive: list[Any] = []
@@ -168,20 +172,19 @@ async def _discover(
             else:
                 keep_alive.append(reached.obj)
                 entry = _identify(reached, parsers, counts[reached.group])
-                if entry is not None and entry.identity.node_ids:
-                    if (same := by_ids.get(entry.identity.node_ids)) is not None:
-                        entry = same
-                    else:
-                        by_ids[entry.identity.node_ids] = entry
-                        level.append(entry)
+                node_id = None if entry is None else entry.identity.node_id
+                if node_id is not None and node_id in by_node_id:
+                    entry = by_node_id[node_id]
                 elif entry is not None:
+                    if node_id is not None:
+                        by_node_id[node_id] = entry
                     level.append(entry)
                 by_obj[key] = entry
             if reached.via is not None:
                 reached.via.parent.children[reached.via.label] = entry
 
         frontier = []
-        ids = {i for entry in level for i in entry.identity.node_ids}
+        ids = {e.identity.node_id for e in level if e.identity.node_id is not None}
         try:
             existing = await store.existing_ids(ids) if ids else set[str]()
         except NodeStoreError:
@@ -190,10 +193,10 @@ async def _discover(
                 _fail(entry, counts[entry.group])
             continue
         for entry in level:
-            node_ids = entry.identity.node_ids
-            entry.missing = not node_ids or not existing.issuperset(node_ids)
+            node_id = entry.identity.node_id
+            entry.missing = node_id is None or node_id not in existing
             if not entry.missing:
-                counts[entry.group].existing += len(node_ids)
+                counts[entry.group].existing += 1
                 entry.done.set()
                 continue
             missing.append(entry)
@@ -257,9 +260,9 @@ def _cyclic(entries: list[_Entry]) -> list[_Entry]:
 
 
 def _fail(entry: _Entry, counts: _Counts) -> None:
-    """Mark *entry* failed and count an error for each node it would yield."""
+    """Mark *entry* failed and count its error."""
     entry.failed = True
-    counts.errors += max(1, len(entry.identity.node_ids))
+    counts.errors += 1
     entry.done.set()
 
 
@@ -275,37 +278,38 @@ async def _build(entry: _Entry, ctx: ParseContext, counts: _Counts) -> None:
             children[label] = resolved
 
     description = entry.parser.describe(entry.obj, entry.identity, children)
-    described = [d.request.id for d in description.nodes]
-    if described != list(entry.identity.node_ids):
+    draft = description.node
+    described = None if draft is None else draft.request.id
+    if described != entry.identity.node_id:
         raise ValueError(
-            f"{entry.parser.name}: described ids {described} differ from "
-            f"identified ids {list(entry.identity.node_ids)}"
+            f"{entry.parser.name}: described id {described} differs from "
+            f"identified id {entry.identity.node_id}"
         )
 
-    by_id = {child.id: child for child in children.values()}
-    requests = [await _finish(draft, ctx, by_id) for draft in description.nodes]
-    results = await ctx.store.create_nodes(requests) if requests else []
+    result = None
+    if draft is not None:
+        by_id = {child.id: child for child in children.values()}
+        result = await ctx.store.create_node(await _finish(draft, ctx, by_id))
     for execution_result in description.execution_results:
         await ctx.store.create_execution_result(execution_result)
 
-    entry.stored = [r.node for r in results]
-    created = sum(r.status is NodeStatus.CREATED for r in results)
-    counts.created += created
-    counts.existing += len(results) - created
+    if result is not None:
+        entry.stored = result.node
+        if result.status is NodeStatus.CREATED:
+            counts.created += 1
+        else:
+            counts.existing += 1
 
 
 async def _resolve(child: _Entry, store: NodeStore) -> ResolvedChild | None:
-    """What a parent may know about finished *child*.
-
-    ``None`` unless the child is exactly one node: a container has none, and
-    the children mapping has no room for several.
-    """
-    if len(child.identity.node_ids) != 1:
+    """What a parent may know about finished *child*; ``None`` for a
+    container, which has no node of its own."""
+    node_id = child.identity.node_id
+    if node_id is None:
         return None
-    if child.missing:
-        (node,) = child.stored
-    elif (node := await store.read_node(child.identity.node_ids[0])) is None:
-        logger.warning("Stored node %s vanished", child.identity.node_ids[0])
+    node = child.stored if child.missing else await store.read_node(node_id)
+    if node is None:
+        logger.warning("Stored node %s vanished", node_id)
         return None
     return ResolvedChild.from_response(node)
 

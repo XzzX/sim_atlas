@@ -38,8 +38,8 @@ def _hash(source: str) -> str:
 
 @dataclass(eq=False)
 class Obj:
-    """A fake parseable object: one node per object (none for a container),
-    with named children."""
+    """A fake parseable object: one node (none for a container), with named
+    children."""
 
     source: str
     children: dict[str, Any] = field(default_factory=dict[str, Any])
@@ -65,8 +65,8 @@ class FakeParser:
         if not isinstance(obj, Obj):
             return None
         self.identified[obj.source] += 1
-        node_ids = () if obj.container else (obj.node_id,)
-        return Identity(node_ids=node_ids, children=obj.children)
+        node_id = None if obj.container else obj.node_id
+        return Identity(node_id=node_id, children=obj.children)
 
     def describe(
         self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
@@ -75,7 +75,7 @@ class FakeParser:
         self.described[obj.source] += 1
         self.seen_children[obj.source] = children
         if obj.container:
-            return Description(nodes=[])
+            return Description(node=None)
         request = NodeRequest.model_construct(
             id=obj.node_id,
             hash=obj.node_id,
@@ -92,7 +92,7 @@ class FakeParser:
                 for label, child in children.items()
             ],
         )
-        return Description(nodes=[NodeDraft(request, self.enrichment)])
+        return Description(node=NodeDraft(request, self.enrichment))
 
 
 def _ctx(store: MockNodeStore, **settings: Any) -> ParseContext:
@@ -244,10 +244,10 @@ class LeakyParser(FakeParser):
         self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
     ) -> Description:
         description = super().describe(obj, identity, children)
-        if obj.source == "leaky":
+        if obj.source == "leaky" and description.node is not None:
             # The wrong type on purpose: this is the leak under test.
             leak = [AnnotationResponse(label="x", connections=[])]
-            description.nodes[0].request.inputs = leak  # pyright: ignore[reportAttributeAccessIssue]
+            description.node.request.inputs = leak  # pyright: ignore[reportAttributeAccessIssue]
         return description
 
 
@@ -269,7 +269,8 @@ class MislabellingParser(FakeParser):
         self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
     ) -> Description:
         description = super().describe(obj, identity, children)
-        description.nodes[0].request.id = _hash("something else")
+        if description.node is not None:
+            description.node.request.id = _hash("something else")
         return description
 
 
@@ -340,31 +341,6 @@ async def test_concurrency_bounds_entries_in_flight() -> None:
     await run_pipeline({"mod": seeds}, [FakeParser()], _ctx(store), concurrency=2)
 
     assert store.peak == 2  # noqa: PLR2004
-
-
-class TwoNodeFailingParser(FakeParser):
-    """Identifies two nodes per object, then fails to describe them."""
-
-    def identify(self, obj: Any) -> Identity | None:
-        identity = super().identify(obj)
-        if identity is None:
-            return None
-        return Identity(node_ids=(*identity.node_ids, _hash("twin")))
-
-    def describe(
-        self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
-    ) -> Description:
-        raise RuntimeError("describe failed")
-
-
-async def test_errors_are_counted_per_node() -> None:
-    store = MockNodeStore()
-
-    result = await run_pipeline(
-        {"mod": [Obj("a")]}, [TwoNodeFailingParser()], _ctx(store)
-    )
-
-    assert result == {"mod": GroupResult(created=0, existing=0, errors=2, unparsed=0)}
 
 
 async def test_container_child_is_not_warned_about(

@@ -74,7 +74,7 @@ class PythonWorkflowDefinitionParser:
         if not isinstance(obj, PythonWorkflowDefinitionWorkflow):
             return None
         source_code = obj.model_dump_json(indent=2)
-        return Identity(node_ids=(content_hash(source_code),), data=source_code)
+        return Identity(node_id=content_hash(source_code), data=source_code)
 
     def describe(
         self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
@@ -84,7 +84,7 @@ class PythonWorkflowDefinitionParser:
             PythonWorkflowDefinitionOutputNode,
         )
 
-        (node_id,) = identity.node_ids
+        node_id = identity.node_id
         metadata = NodeRequest.model_construct(
             artifact_type=ArtifactType.FUNCTION,
             id=node_id,
@@ -106,4 +106,4 @@ class PythonWorkflowDefinitionParser:
             docstring="",
             keywords=["python_workflow_definition"],
         )
-        return Description(nodes=[NodeDraft(metadata, Enrichment.NONE)])
+        return Description(node=NodeDraft(metadata, Enrichment.NONE))

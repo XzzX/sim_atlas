@@ -80,12 +80,12 @@ class PythonFunctionParser:
         # The id hashes the dedented source, while the node stores the source
         # as found; keep both exactly as the legacy ``parse`` does.
         dedented = textwrap.dedent(source_code.replace("\\r\\n", ""))
-        return Identity(node_ids=(content_hash(dedented),), data=source_code)
+        return Identity(node_id=content_hash(dedented), data=source_code)
 
     def describe(
         self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
     ) -> Description:
-        (node_id,) = identity.node_ids
+        node_id = identity.node_id
         sig = inspect.signature(obj)
         metadata = NodeRequest.model_construct(
             artifact_type=ArtifactType.FUNCTION,
@@ -102,5 +102,5 @@ class PythonFunctionParser:
         )
         apply_provenance(metadata, obj.__module__)
         return Description(
-            nodes=[NodeDraft(metadata, Enrichment.FUNCTION, source_obj=obj)]
+            node=NodeDraft(metadata, Enrichment.FUNCTION, source_obj=obj)
         )

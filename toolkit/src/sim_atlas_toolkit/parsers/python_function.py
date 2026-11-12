@@ -1,6 +1,7 @@
 import hashlib
 import inspect
 import textwrap
+from collections.abc import Mapping
 from typing import Any
 
 from sim_atlas_models import ArtifactType, NodeRequest
@@ -13,6 +14,13 @@ from sim_atlas_toolkit.parsers.metadata import (
     parse_return_annotation,
     parse_signature,
     self_contain_source,
+)
+from sim_atlas_toolkit.plugin import (
+    Description,
+    Enrichment,
+    Identity,
+    NodeDraft,
+    ResolvedChild,
 )
 from sim_atlas_toolkit.provenance import apply_provenance
 
@@ -54,3 +62,45 @@ async def parse(ctx: ParseContext, obj: Any) -> list[NodeResult]:
     metadata.source_code = self_contain_source(ctx.settings, obj, metadata.source_code)
 
     return await ctx.store.create_nodes([metadata])
+
+
+class PythonFunctionParser:
+    """Two-phase parser for plain Python functions and builtins (ADR-0025)."""
+
+    name = "python_function"
+
+    def identify(self, obj: Any) -> Identity | None:
+        if not (inspect.isfunction(obj) or inspect.isbuiltin(obj)):
+            return None
+        if inspect.isbuiltin(obj):
+            source_code = f"{obj.__name__}{inspect.signature(obj)}"
+        else:
+            source_code = inspect.getsource(obj)
+        # The id hashes the dedented source, while the node stores the source
+        # as found; keep both exactly as the legacy ``parse`` does.
+        dedented = textwrap.dedent(source_code.replace("\\r\\n", ""))
+        node_id = hashlib.sha256(dedented.encode("utf-8")).hexdigest()
+        return Identity(node_ids=(node_id,), data=source_code)
+
+    def describe(
+        self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
+    ) -> Description:
+        (node_id,) = identity.node_ids
+        sig = inspect.signature(obj)
+        metadata = NodeRequest.model_construct(
+            artifact_type=ArtifactType.FUNCTION,
+            id=node_id,
+            hash=node_id,
+            name=f"{obj.__module__}.{obj.__qualname__}",
+            python_import=f"{obj.__module__}.{obj.__qualname__}",
+            category=f"{obj.__module__}".replace(".", ">"),
+            source_code=identity.data,
+            docstring=inspect.getdoc(obj) or "",
+            keywords=["python"],
+            inputs=parse_signature(sig),
+            outputs=parse_return_annotation(sig),
+        )
+        apply_provenance(metadata, obj.__module__)
+        return Description(
+            nodes=[NodeDraft(metadata, Enrichment.FUNCTION, source_obj=obj)]
+        )

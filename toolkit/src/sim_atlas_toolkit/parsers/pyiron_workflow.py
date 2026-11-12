@@ -2,6 +2,7 @@
 
 import hashlib
 import inspect
+from collections.abc import Mapping
 from functools import cache
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
@@ -18,6 +19,13 @@ from sim_atlas_toolkit.parsers.metadata import (
     enrich_from_docstring,
     parse_annotation,
     self_contain_source,
+)
+from sim_atlas_toolkit.plugin import (
+    Description,
+    Enrichment,
+    Identity,
+    NodeDraft,
+    ResolvedChild,
 )
 from sim_atlas_toolkit.provenance import apply_provenance
 
@@ -103,3 +111,71 @@ async def parse(ctx: ParseContext, node: Any) -> list[NodeResult]:
     )
 
     return await ctx.store.create_nodes([metadata])
+
+
+def _legacy_function_class() -> Any | None:
+    """``pyiron_workflow``'s legacy ``Function`` node class, if usable."""
+    if not _legacy_api_available():
+        return None
+    try:
+        from pyiron_workflow.nodes.function import (  # noqa: PLC0415 # pyright: ignore[reportMissingImports]
+            Function,
+        )
+    except ImportError:
+        return None
+    return Function
+
+
+class PyironWorkflowParser:
+    """Two-phase parser for legacy ``pyiron_workflow`` function nodes (ADR-0025)."""
+
+    name = "pyiron_workflow"
+
+    def identify(self, obj: Any) -> Identity | None:
+        if not isinstance(obj, type):
+            return None
+        function_class = _legacy_function_class()
+        if function_class is None or not issubclass(obj, function_class):
+            return None
+        source_code = inspect.getsource(obj.node_function)
+        node_id = hashlib.sha256(source_code.encode("utf-8")).hexdigest()
+        return Identity(node_ids=(node_id,), data=source_code)
+
+    def describe(
+        self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
+    ) -> Description:
+        from pyiron_workflow.api import (  # noqa: PLC0415
+            NOT_DATA,  # pyright: ignore[reportAttributeAccessIssue]
+        )
+
+        (node_id,) = identity.node_ids
+        function = obj.node_function
+        inputs = []
+        for k, v in obj.preview_inputs().items():
+            ann = parse_annotation(v[0])
+            ann.label = k
+            ann.has_default_value = v[1] != NOT_DATA
+            inputs.append(ann)
+        outputs = []
+        for k, v in obj.preview_outputs().items():
+            ann = parse_annotation(v)
+            ann.label = k
+            outputs.append(ann)
+
+        metadata = NodeRequest.model_construct(
+            artifact_type=ArtifactType.FUNCTION,
+            id=node_id,
+            hash=node_id,
+            source_code=identity.data,
+            inputs=inputs,
+            outputs=outputs,
+            name=f"{function.__module__}.{function.__qualname__}",
+            python_import=f"{function.__module__}.{function.__qualname__}",
+            category=f"{function.__module__}".replace(".", ">"),
+            docstring=function.__doc__ or "",
+            keywords=["pyiron_workflow_function"],
+        )
+        apply_provenance(metadata, function.__module__)
+        return Description(
+            nodes=[NodeDraft(metadata, Enrichment.FUNCTION, source_obj=function)]
+        )

@@ -3,7 +3,7 @@ import type { WorkflowNode } from "./nodes/nodes";
 import type { FunctionNodeType } from "./nodes/FunctionNode";
 import type { InputNodeType } from "./nodes/InputNode";
 import type { OutputNodeType } from "./nodes/OutputNode";
-import type { Annotation } from "sim-atlas-api-schema";
+import type { AnnotationResponse } from "sim-atlas-api-schema";
 import type {
   FlowrepAtomicRecipe,
   FlowrepVersionInfo,
@@ -116,7 +116,7 @@ interface PortNames {
 }
 
 function allocatePorts(
-  annotations: Annotation[],
+  annotations: AnnotationResponse[],
   nodeLabel: string,
   fallbackPrefix: string,
   warnings: string[],

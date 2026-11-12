@@ -19,6 +19,17 @@ from typing import Any
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
+from sim_atlas_models import (
+    Annotation,
+    ArtifactType,
+    NodeRequest,
+    Reference,
+    WfDefinition,
+    WfEdge,
+    WfFunctionNode,
+    WfInputNode,
+    WfOutputNode,
+)
 
 from sim_atlas.main import app
 from sim_atlas.security import Creator, get_current_user
@@ -46,46 +57,40 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient]:
     app.dependency_overrides.clear()
 
 
-def _port(label: str) -> dict[str, Any]:
-    return {"label": label, "datatype": "float"}
+def _port(label: str) -> Annotation:
+    return Annotation(label=label, datatype="float")
 
 
-def _function(name: str, inputs: list[str], output: str) -> dict[str, Any]:
-    return {
-        "artifact_type": "function",
-        "author_name": "Fixture Author",
-        "author_email": "author@example.com",
-        "name": f"dummy_module.flowrep.{name}",
-        "category": "dummy_module>flowrep",
-        "keywords": ["flowrep"],
-        "python_import": f"dummy_module.flowrep.{name}",
-        "source_code": f"def {name}({', '.join(inputs)}): ...",
-        "inputs": [_port(i) for i in inputs],
-        "outputs": [_port(output)],
-    }
+def _function(name: str, inputs: list[str], output: str) -> NodeRequest:
+    return NodeRequest(
+        artifact_type=ArtifactType.FUNCTION,
+        author_name="Fixture Author",
+        author_email="author@example.com",
+        name=f"dummy_module.flowrep.{name}",
+        category="dummy_module>flowrep",
+        keywords=["flowrep"],
+        python_import=f"dummy_module.flowrep.{name}",
+        source_code=f"def {name}({', '.join(inputs)}): ...",
+        inputs=[_port(i) for i in inputs],
+        outputs=[_port(output)],
+    )
 
 
 def _call(
     node_id: str, atlas_id: str, inputs: list[str], output: str
-) -> dict[str, Any]:
-    return {
-        "type": "function",
-        "node_id": node_id,
-        "atlas_id": atlas_id,
-        "inputs": [_port(i) for i in inputs],
-        "outputs": [_port(output)],
-    }
+) -> WfFunctionNode:
+    return WfFunctionNode(
+        node_id=node_id,
+        atlas_id=atlas_id,
+        inputs=[_port(i) for i in inputs],
+        outputs=[_port(output)],
+    )
 
 
-def _edge(
-    src: str, src_port: str | None, dst: str, dst_port: str | None
-) -> dict[str, Any]:
-    return {
-        "source_node": src,
-        "source_port": src_port,
-        "target_node": dst,
-        "target_port": dst_port,
-    }
+def _edge(src: str, src_port: str | None, dst: str, dst_port: str | None) -> WfEdge:
+    return WfEdge(
+        source_node=src, source_port=src_port, target_node=dst, target_port=dst_port
+    )
 
 
 def _workflow(
@@ -93,25 +98,27 @@ def _workflow(
     inputs: list[str],
     output: str,
     uses: list[tuple[str, str]],
-    calls: list[dict[str, Any]],
-    edges: list[dict[str, Any]],
-) -> dict[str, Any]:
-    body = _function(name, inputs, output)
-    body["artifact_type"] = "workflow"
-    body["uses"] = [{"label": label, "id": id_, "count": 1} for label, id_ in uses]
-    body["wf_definition"] = {
-        "nodes": [
-            *({"type": "input", "node_id": i, "outputs": [_port(i)]} for i in inputs),
-            *calls,
-            {"type": "output", "node_id": output, "inputs": [_port(output)]},
-        ],
-        "edges": edges,
-    }
-    return body
+    calls: list[WfFunctionNode],
+    edges: list[WfEdge],
+) -> NodeRequest:
+    return _function(name, inputs, output).model_copy(
+        update={
+            "artifact_type": ArtifactType.WORKFLOW,
+            "uses": [Reference(label=label, id=id_, count=1) for label, id_ in uses],
+            "wf_definition": WfDefinition(
+                nodes=[
+                    *(WfInputNode(node_id=i, outputs=[_port(i)]) for i in inputs),
+                    *calls,
+                    WfOutputNode(node_id=output, inputs=[_port(output)]),
+                ],
+                edges=edges,
+            ),
+        }
+    )
 
 
-def _create(client: TestClient, body: dict[str, Any]) -> str:
-    response = client.post("/api/v1/nodes", json=body)
+def _create(client: TestClient, body: NodeRequest) -> str:
+    response = client.post("/api/v1/nodes", json=body.model_dump(mode="json"))
     assert response.status_code == status.HTTP_201_CREATED, response.text
     return response.json()["id"]
 

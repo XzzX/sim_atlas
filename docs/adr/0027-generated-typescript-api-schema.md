@@ -2,7 +2,7 @@
 status: accepted
 date: 2026-11-12
 deciders: Sebastian Eibl
-scope: [backend, frontend, web-ide]
+scope: [backend, toolkit, frontend, web-ide]
 ---
 
 # Generate the TypeScript API schemas from the backend's OpenAPI schema

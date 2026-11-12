@@ -25,6 +25,8 @@ from sim_atlas_toolkit.node_store import (
 
 logger = logging.getLogger(__name__)
 
+_EXISTS_PATH = "/nodes/exists"
+
 
 class _NoBatchEndpointError(Exception):
     """The server predates ``POST /nodes/exists`` (it answered 404 or 405)."""
@@ -130,9 +132,9 @@ class HttpNodeStore(NodeStore):
             return await super().existing_ids(ids)
         chunks = batched(dict.fromkeys(ids), NODE_EXISTS_MAX_IDS)
         results = await asyncio.gather(
-            *(self._existing_chunk(c) for c in chunks), return_exceptions=True
+            *(self._existing_chunk(chunk) for chunk in chunks), return_exceptions=True
         )
-        if any(isinstance(r, _NoBatchEndpointError) for r in results):
+        if any(isinstance(result, _NoBatchEndpointError) for result in results):
             self._has_batch_endpoint = False
             logger.debug(
                 "%s has no POST /nodes/exists; checking node existence per id",
@@ -147,10 +149,10 @@ class HttpNodeStore(NodeStore):
         return found
 
     async def _existing_chunk(self, ids: tuple[str, ...]) -> list[str]:
-        url = f"{self._api_url}/nodes/exists"
+        url = f"{self._api_url}{_EXISTS_PATH}"
         try:
             response = await self._http.post(
-                "/nodes/exists",
+                _EXISTS_PATH,
                 json=NodeExistsRequest(ids=list(ids)).model_dump(),
             )
         except httpx2.HTTPError as e:

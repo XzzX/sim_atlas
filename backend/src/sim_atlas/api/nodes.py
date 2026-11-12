@@ -77,8 +77,7 @@ async def create_node(
         "like `GET /nodes/{node_id}`. The result keeps request order and drops "
         f"duplicates. At most {NODE_EXISTS_MAX_IDS} ids per request (422 above). "
         "Public, like every read route. Lets a client check a whole batch in "
-        "one request "
-        "instead of one `GET /nodes/{node_id}` per id."
+        "one request instead of one `GET /nodes/{node_id}` per id."
     ),
 )
 async def nodes_exist(

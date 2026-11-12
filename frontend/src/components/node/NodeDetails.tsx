@@ -1,19 +1,19 @@
 import React from "react";
-import { type Annotation, type Reference } from "../../types/index";
+import { type AnnotationResponse, type ReferenceResponse } from "sim-atlas-api-schema";
 import { Code, GitBranch, GitFork, Box, Zap, Link2, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TabsContent, TabsList, Tabs, TabsTrigger } from "@/components/ui/tabs";
 
 interface NodeDetailsProps {
-  inputs?: Annotation[];
-  outputs?: Annotation[];
+  inputs?: AnnotationResponse[];
+  outputs?: AnnotationResponse[];
   dependencies?: string[];
   source_code?: string;
   definition?: Record<string, unknown>;
-  see_also?: Reference[];
-  uses?: Reference[];
-  used_by?: Reference[] | null;
+  see_also?: ReferenceResponse[];
+  uses?: ReferenceResponse[];
+  used_by?: ReferenceResponse[] | null;
   onReferenceClick?: (id: string) => void;
 }
 

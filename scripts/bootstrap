@@ -19,7 +19,7 @@ echo "==> uv sync (toolkit)"
 echo "==> uv sync (models)"
 (cd models && uv sync)
 
-for d in frontend web_ide e2e; do
+for d in api_schema frontend web_ide e2e; do
   echo "==> npm ci ($d)"
   (cd "$d" && npm ci)
 done

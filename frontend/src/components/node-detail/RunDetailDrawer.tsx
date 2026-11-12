@@ -5,11 +5,11 @@ import { SheetRoot, SheetPortal, SheetBackdrop, SheetPopup, SheetClose, SheetTit
 import { Button } from "@/components/ui/button";
 import { DatatypeBadge } from "@/components/DatatypeBadge";
 import { formatBytes, formatTimestamp, downloadTextFile } from "@/lib/utils";
-import type { Annotation, ExecutionResultMetadata } from "@/types/index";
+import type { AnnotationResponse, ExecutionResultMetadata } from "sim-atlas-api-schema";
 
 interface RunDetailDrawerProps {
   execution: ExecutionResultMetadata | null;
-  inputs: Annotation[];
+  inputs: AnnotationResponse[];
   onClose: () => void;
   portalContainer: HTMLElement | null;
 }

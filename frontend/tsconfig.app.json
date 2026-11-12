@@ -11,6 +11,9 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
+    /* sim-atlas-api-schema is a symlinked file: dependency shipping .ts sources;
+       resolve it (and its zod import) from this app's node_modules (ADR-0027) */
+    "preserveSymlinks": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "verbatimModuleSyntax": true,

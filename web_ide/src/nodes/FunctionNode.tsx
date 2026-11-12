@@ -13,9 +13,9 @@ import {
   type HandleProps,
 } from "@xyflow/react";
 import type {
-  Annotation,
+  AnnotationResponse,
   NodeResponse,
-} from "../interfaces/BackendSchema";
+} from "sim-atlas-api-schema";
 import { useHighlight } from "@/highlight/useHighlight";
 import {
   checkCompatibility,
@@ -42,7 +42,7 @@ interface InputHandleProps {
   id: string;
   position: Position;
   connectionCount?: number;
-  annotation?: Annotation;
+  annotation?: AnnotationResponse;
   handleClassName?: string;
   className?: string;
 }

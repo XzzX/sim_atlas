@@ -1,4 +1,4 @@
-import type { Annotation } from "@/interfaces/BackendSchema";
+import type { AnnotationResponse } from "sim-atlas-api-schema";
 
 export type CompatibilityResult =
   | "match" // datatypes equal (or both null) — no warning
@@ -116,8 +116,8 @@ function typesCompatible(a: TypeNode, b: TypeNode): boolean {
 // ---------------------------------------------------------------------------
 
 export function checkCompatibility(
-  a: Annotation | null | undefined,
-  b: Annotation | null | undefined,
+  a: AnnotationResponse | null | undefined,
+  b: AnnotationResponse | null | undefined,
 ): CompatibilityResult {
   const ta = a?.datatype ?? null;
   const tb = b?.datatype ?? null;

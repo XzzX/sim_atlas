@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { Annotation } from "@/interfaces/BackendSchema";
+import type { AnnotationResponse } from "sim-atlas-api-schema";
 
 // --- Interaction state ---
 export type InteractionState =
@@ -10,7 +10,7 @@ export type InteractionState =
       fromNodeId: string;
       fromHandleId: string;
       fromHandleType: "source" | "target";
-      fromAnnotation: Annotation | null;
+      fromAnnotation: AnnotationResponse | null;
     };
 
 // --- Derived highlight maps ---

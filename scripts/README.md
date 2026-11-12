@@ -6,11 +6,12 @@ coding agents. Every script can be run from any directory.
 
 | Script | What it does |
 |---|---|
-| `scripts/bootstrap` | Installs or updates all dependencies: `uv sync --all-extras` in `backend/`, `uv sync` in `toolkit/`, `npm ci` in `frontend/`, `web_ide/` and `e2e/`. Safe to re-run; run it after pulling. |
+| `scripts/bootstrap` | Installs or updates all dependencies: `uv sync --all-extras` in `backend/`, `uv sync` in `toolkit/`, `npm ci` in `api_schema/`, `frontend/`, `web_ide/` and `e2e/`. Safe to re-run; run it after pulling. |
 | `scripts/setup` | First-time setup: runs `bootstrap`, then writes `backend/.sim_atlas_config.toml` with a generated JWT secret if no config file exists. |
 | `scripts/server` | Starts the backend on :8000 and the frontend dev server on :5173 (proxies `/api` and `/ide` to the backend). Stops both on Ctrl+C or when either one dies. |
 | `scripts/server --static` | Runs `build`, then serves the API and both web apps from the backend on :8000, as in production. |
 | `scripts/build` | Builds `frontend/` and `web_ide/` into `backend/src/sim_atlas/static/`. Run it before `uv build` so the backend package includes both web apps. |
+| `scripts/gen-api-schema` | Regenerates `api_schema/` (the zod schemas of the REST API used by `frontend/` and `web_ide/`) from the backend's Pydantic models: writes `api_schema/openapi.json` from the app in-process, then runs the generator into `api_schema/src/gen/`. Run it after changing a model and commit the result; CI fails when it is stale (ADR-0027). |
 | `scripts/seed` | Uploads the `e2e/dummy_module` fixture to a running backend through the real toolkit CLI (5 nodes, including a workflow with execution results). Extra arguments go to `sim-atlas-upload`; `SIM_ATLAS_API_URL` overrides the default `http://127.0.0.1:8000/api/v1`. |
 | `scripts/upgrade` | Upgrades all dependencies within the ranges in `pyproject.toml`/`package.json` (`uv lock --upgrade`, `npm update`, `npm audit fix`), reinstalls, then runs `uv audit` and `npm audit`. Exits 1 if vulnerabilities remain; those need a major-version bump, which is left to you. Review the lock files, run the tests, and commit. |
 | `scripts/release <patch\|minor\|major\|X.Y.Z>` | Bumps both Python packages to the same version, commits, tags `vX.Y.Z` and, after you confirm, pushes. The tag triggers [`release.yml`](../.github/workflows/release.yml), which builds and publishes both packages to PyPI and creates a GitHub release. Requires a clean `main` that matches `origin/main`. |

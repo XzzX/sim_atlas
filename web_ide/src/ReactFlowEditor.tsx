@@ -18,7 +18,7 @@ import type {
   ReactFlowInstance,
 } from "@xyflow/react";
 import { type NodeData, type FunctionNodeType } from "./nodes/FunctionNode";
-import { type Annotation, type Filter } from "./interfaces/BackendSchema";
+import { type AnnotationResponse, type Filter } from "sim-atlas-api-schema";
 import { type InputDataElement } from "./nodes/InputNode";
 import { type OutputDataElement } from "./nodes/OutputNode";
 import { AddNodeDialog } from "./dialogs/AddNodeDialog";
@@ -44,7 +44,7 @@ interface PendingConnection {
   nodeId: string;
   handleId: string;
   handleType: "source" | "target";
-  annotation: Annotation | null;
+  annotation: AnnotationResponse | null;
 }
 
 export const ReactFlowEditor = ({
@@ -148,7 +148,7 @@ export const ReactFlowEditor = ({
       if (!nodeId || !handleId || !handleType) return;
       const allNodes = rfInstance?.getNodes() ?? [];
       const srcNode = allNodes.find((n) => n.id === nodeId);
-      let fromAnnotation: Annotation | null = null;
+      let fromAnnotation: AnnotationResponse | null = null;
       if (srcNode?.type === "FunctionNode") {
         const fn = srcNode as FunctionNodeType;
         const ports =
@@ -189,7 +189,7 @@ export const ReactFlowEditor = ({
 
       const allNodes = rfInstance.getNodes();
       const srcNode = allNodes.find((n) => n.id === fromNode.id);
-      let annotation: Annotation | null = null;
+      let annotation: AnnotationResponse | null = null;
       if (srcNode?.type === "FunctionNode") {
         const fnNode = srcNode as FunctionNodeType;
         const ports =
@@ -241,7 +241,7 @@ export const ReactFlowEditor = ({
       setPendingConnection(null);
 
       const pickHandle = (
-        ports: Annotation[],
+        ports: AnnotationResponse[],
         matchDatatype: string | null | undefined,
       ): string | null => {
         if (ports.length === 0) return null;

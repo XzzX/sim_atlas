@@ -1,5 +1,5 @@
 import React from "react";
-import { type NodeResponse } from "../types/index";
+import { type NodeResponse } from "sim-atlas-api-schema";
 import { Card } from "@/components/ui/card";
 import {
   NodeHeader,

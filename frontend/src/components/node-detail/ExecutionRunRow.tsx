@@ -1,7 +1,7 @@
 import React from "react";
 import { DownloadIcon } from "lucide-react";
 import { formatBytes, formatTimestamp, downloadTextFile } from "@/lib/utils";
-import type { ExecutionResultMetadata } from "@/types/index";
+import type { ExecutionResultMetadata } from "sim-atlas-api-schema";
 
 function downloadOutput(execution: ExecutionResultMetadata) {
   downloadTextFile(`${execution.id}-output.txt`, execution.outputs);

@@ -1,5 +1,5 @@
 import React from "react";
-import { ArtifactType } from "../../types/index";
+import { ArtifactType } from "sim-atlas-api-schema";
 import { cn } from "@/lib/utils";
 
 const ACCENT_VAR: Record<ArtifactType, string> = {

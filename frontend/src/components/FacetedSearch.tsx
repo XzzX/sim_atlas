@@ -1,5 +1,5 @@
 import React from "react";
-import type { FilterOptions, Filter } from "../types/index";
+import type { ArtifactType, FilterOptions, Filter } from "sim-atlas-api-schema";
 import { CategoryTree } from "./CategoryTree";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -79,9 +79,9 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
   availableFilterOptions,
   onFilterChange,
 }) => {
-  const selectedTypes = (filters.artifact_type ?? []).map(String);
+  const selectedTypes = filters.artifact_type ?? [];
 
-  const toggleType = (val: string) => {
+  const toggleType = (val: ArtifactType) => {
     const updated = selectedTypes.includes(val)
       ? selectedTypes.filter((t) => t !== val)
       : [...selectedTypes, val];
@@ -124,10 +124,9 @@ export const FacetedSearch: React.FC<FacetedSearchProps> = ({
           {typeBtn("All", selectedTypes.length === 0, () =>
             onFilterChange({ ...filters, artifact_type: [] }),
           )}
-          {availableFilterOptions.artifact_type.map((t) => {
-            const val = String(t);
-            return typeBtn(val, selectedTypes.includes(val), () => toggleType(val));
-          })}
+          {availableFilterOptions.artifact_type.map((t) =>
+            typeBtn(t, selectedTypes.includes(t), () => toggleType(t)),
+          )}
         </div>
       </div>
 

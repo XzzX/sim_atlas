@@ -10,7 +10,7 @@ for d in models backend toolkit; do
   (cd "$d" && uv lock --upgrade)
 done
 
-for d in frontend web_ide e2e; do
+for d in api_schema frontend web_ide e2e; do
   echo "==> npm update + audit fix ($d)"
   # audit fix exits non-zero when some issues are left; those are reported below.
   (cd "$d" && npm update && { npm audit fix || true; })
@@ -25,7 +25,7 @@ for d in models backend toolkit; do
   echo "==> uv audit ($d)"
   (cd "$d" && uv audit --locked --preview-features audit-command) || status=1
 done
-for d in frontend web_ide e2e; do
+for d in api_schema frontend web_ide e2e; do
   echo "==> npm audit ($d)"
   (cd "$d" && npm audit) || status=1
 done

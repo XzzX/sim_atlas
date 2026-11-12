@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route, useLocation } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "../test/msw/server";
 import { linearWorkflow, suggestions } from "../test/fixtures/nodes";
-import type { ScoredSearchResponse } from "../types/index";
+import type { ScoredSearchResponse } from "sim-atlas-api-schema";
 import { SearchPage } from "./SearchPage";
 
 const responseWith = (name: string): ScoredSearchResponse => ({

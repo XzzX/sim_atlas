@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { simAtlasAPI } from "../services/api";
-import type { NodeResponse } from "../types/index";
+import type { NodeResponse } from "sim-atlas-api-schema";
 import { NodeDetailPage } from "../components/node-detail";
 import { Alert } from "@/components/ui/alert";
 import { Toaster } from "@/components/ui/sonner";

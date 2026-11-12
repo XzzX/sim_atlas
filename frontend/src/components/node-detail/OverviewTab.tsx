@@ -7,7 +7,7 @@ import { TypeChip } from "./TypeChip";
 import { ConnectionsPanel, ConnectionsPill } from "./ConnectionsPill";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { cn, formatTimestamp } from "@/lib/utils";
-import type { NodeResponse, Reference } from "@/types/index";
+import type { NodeResponse, ReferenceResponse } from "sim-atlas-api-schema";
 
 const REFERENCE_KIND_STYLE: Record<string, React.CSSProperties> = {
   "See also": { background: "var(--chip-union-bg)", color: "var(--chip-union-fg)" },
@@ -51,7 +51,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ node, executionsCount,
   const uses = node.uses;
 
   const references = useMemo(() => {
-    const items: { kind: string; ref: Reference }[] = [
+    const items: { kind: string; ref: ReferenceResponse }[] = [
       ...(node.see_also ?? []).map((ref) => ({ kind: "See also", ref })),
       ...(usedBy ?? []).map((ref) => ({ kind: "Used by", ref })),
       ...(uses ?? []).map((ref) => ({ kind: "Uses", ref })),

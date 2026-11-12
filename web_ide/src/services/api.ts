@@ -5,9 +5,10 @@ import {
   FilterOptionsSchema,
   type NodeResponse,
   type ScoredSearchResponse,
+  type SearchRequest,
   type Filter,
   type FilterOptions,
-} from "../interfaces/BackendSchema";
+} from "sim-atlas-api-schema";
 
 const API_BASE_URL = "/api/v1";
 
@@ -40,7 +41,7 @@ export const simAtlasAPI = {
       filter: filterOptions,
       page,
       limit,
-    });
+    } satisfies SearchRequest);
     return ScoredSearchResponseSchema.parse(response.data);
   },
 };

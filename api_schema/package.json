@@ -1,0 +1,26 @@
+{
+  "name": "sim-atlas-api-schema",
+  "version": "0.0.0",
+  "description": "zod schemas and types of the sim-atlas REST API, generated from the backend's OpenAPI schema (ADR-0027)",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fixtures/*": "./fixtures/*"
+  },
+  "scripts": {
+    "generate": "openapi-ts -f openapi-ts.config.ts"
+  },
+  "peerDependencies": {
+    "zod": "^4.3.6"
+  },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
+    "typescript": "6.0.3"
+  }
+}

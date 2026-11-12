@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from importlib.metadata import version
 from math import ceil
-from typing import Any, Protocol, cast
+from typing import Any, Protocol, cast, get_args, get_origin
 
 import httpx2
 import numpy as np
@@ -16,21 +16,25 @@ from fastapi import status
 from fastapi.testclient import TestClient
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
-
-from sim_atlas.api.nodes import compose_node
-from sim_atlas.embedding import EmbeddingConfig
-from sim_atlas.main import app, mcp
-from sim_atlas.models import (
-    AnnotationRequest,
+from pydantic import BaseModel
+from sim_atlas_models import (
+    Annotation,
     ArtifactType,
+    ExecutionResultRequest,
+    ExecutionResultResponse,
     NodeRequest,
-    ScoredSearchResponse,
-    SearchResults,
+    NodeResponse,
     WfDefinition,
     WfEdge,
     WfInputNode,
     WfOutputNode,
 )
+
+from sim_atlas.api.execution_results import compose_execution_result
+from sim_atlas.api.nodes import compose_node
+from sim_atlas.embedding import EmbeddingConfig
+from sim_atlas.main import app, mcp
+from sim_atlas.models import ScoredSearchResponse, SearchResults
 from sim_atlas.security import Creator, get_current_user
 from sim_atlas.static_files import is_asset_path
 from sim_atlas.storage.file_system_storage import FileSystemStorage
@@ -88,12 +92,19 @@ def make_workflow_request_body(**kwargs: Any) -> dict[str, Any]:
         "docstring": "A test workflow.",
         "inputs": [{"label": "x"}],
         "outputs": [{"label": "y"}],
-        "definition": {
+        "wf_definition": {
             "nodes": [
-                {"id": "i1", "type": "input", "name": "x"},
-                {"id": "o1", "type": "output", "name": "y"},
+                {"node_id": "i1", "type": "input", "outputs": [{"label": "x"}]},
+                {"node_id": "o1", "type": "output", "inputs": [{"label": "y"}]},
             ],
-            "edges": [{"source": "i1", "target": "o1"}],
+            "edges": [
+                {
+                    "source_node": "i1",
+                    "source_port": "x",
+                    "target_node": "o1",
+                    "target_port": "y",
+                }
+            ],
         },
     }
     defaults.update(kwargs)
@@ -1013,8 +1024,8 @@ def test_compose_node_function_sets_expected_fields() -> None:
 def test_compose_node_workflow_sets_expected_fields() -> None:
     wf_definition = WfDefinition(
         nodes=[
-            WfInputNode(node_id="i1", outputs=[AnnotationRequest(label="i1")]),
-            WfOutputNode(node_id="o1", inputs=[AnnotationRequest(label="o1")]),
+            WfInputNode(node_id="i1", outputs=[Annotation(label="i1")]),
+            WfOutputNode(node_id="o1", inputs=[Annotation(label="o1")]),
         ],
         edges=[WfEdge(source_node="i1", target_node="o1")],
     )
@@ -1025,8 +1036,8 @@ def test_compose_node_workflow_sets_expected_fields() -> None:
         keywords=["wf"],
         source_code=wf_definition.model_dump_json(),
         docstring="A workflow.",
-        inputs=[AnnotationRequest(label="i1")],
-        outputs=[AnnotationRequest(label="o1")],
+        inputs=[Annotation(label="i1")],
+        outputs=[Annotation(label="o1")],
         wf_definition=wf_definition,
     )
     creator = Creator(name="Dev", email="dev@example.com")
@@ -1050,6 +1061,172 @@ def test_create_node_with_invalid_artifact_type_returns_422(
     body = make_function_request_body(artifact_type="not-a-real-type")
     response = client.post("/api/v1/nodes", json=body)
     assert response.status_code == 422  # noqa: PLR2004
+
+
+def _full_node_request() -> NodeRequest:
+    return NodeRequest.model_validate(
+        make_workflow_request_body(
+            id="custom-id",
+            hash="custom-hash",
+            homepage_url="https://home",
+            documentation_url="https://docs",
+            source_url="https://src",
+            python_import="lib.wf",
+            dependencies=["numpy"],
+            packages=[{"ecosystem": "pypi", "name": "lib", "version": "1"}],
+            brief_description="brief",
+            description="long",
+            see_also=[{"label": "a", "id": "a-id", "count": 1}],
+            uses=[{"label": "b", "id": "b-id", "count": 2}],
+        )
+    )
+
+
+def _full_execution_result_request() -> ExecutionResultRequest:
+    return ExecutionResultRequest.model_validate(make_execution_result_request_body())
+
+
+@pytest.mark.parametrize(
+    ("make_request", "compose"),
+    [
+        pytest.param(_full_node_request, compose_node, id="node"),
+        pytest.param(
+            _full_execution_result_request,
+            compose_execution_result,
+            id="execution_result",
+        ),
+    ],
+)
+def test_compose_keeps_every_client_owned_field(
+    make_request: Callable[[], BaseModel],
+    compose: Callable[[Any, Creator], BaseModel],
+) -> None:
+    """Every field a client sends reaches the stored record unchanged (ADR-0024)."""
+    request = make_request()
+    stored = compose(request, TEST_CREATOR).model_dump()
+
+    def client_owned(value: Any, sent: Any) -> Any:
+        """*value* reduced to the keys of *sent* (nested responses add keys)."""
+        if isinstance(sent, list) and sent and isinstance(sent[0], dict):
+            keys = cast(dict[str, Any], sent[0]).keys()
+            return [{k: item[k] for k in keys} for item in value]
+        return value
+
+    for field, sent in request.model_dump().items():
+        assert client_owned(stored[field], sent) == sent, field
+
+
+def _list_item_model(annotation: Any) -> type[BaseModel] | None:
+    """``X`` for an annotation ``list[X]`` where ``X`` is a model, else None."""
+    args = get_args(annotation)
+    if get_origin(annotation) is list and args:
+        item = args[0]
+        if isinstance(item, type) and issubclass(item, BaseModel):
+            return item
+    return None
+
+
+def _server_owned_paths(
+    request: type[BaseModel], response: type[BaseModel]
+) -> list[str]:
+    """Dotted paths of the fields only *response* has, list items included.
+
+    Derived from the models, so a newly added server-owned field is covered
+    without touching the tests (ADR-0024).
+    """
+    paths = sorted(set(response.model_fields) - set(request.model_fields))
+    for name, field in request.model_fields.items():
+        request_item = _list_item_model(field.annotation)
+        response_item = _list_item_model(response.model_fields[name].annotation)
+        if request_item and response_item and request_item is not response_item:
+            paths += [
+                f"{name}.{sub}"
+                for sub in _server_owned_paths(request_item, response_item)
+            ]
+    return paths
+
+
+def _with_server_value(
+    body: dict[str, Any], served: dict[str, Any], path: str
+) -> dict[str, Any]:
+    """*body* plus the value the server returned at *path* (``field`` or
+    ``list_field.item_field``), copied into the request."""
+    field, _, sub = path.partition(".")
+    if not sub:
+        return body | {field: served[field]}
+    request_keys = body[field][0].keys() if body[field] else served[field][0].keys()
+    item = {k: v for k, v in served[field][0].items() if k in request_keys or k == sub}
+    return body | {field: [item]}
+
+
+def _workflow_body_with_references(client: ApiClient) -> dict[str, Any]:
+    fn_id = client.post("/api/v1/nodes", json=make_function_request_body()).json()["id"]
+    ref = {"label": "add_numbers", "id": fn_id, "count": 1}
+    return make_workflow_request_body(uses=[ref], see_also=[ref])
+
+
+_NODE_SERVER_OWNED = _server_owned_paths(NodeRequest, NodeResponse)
+_EXECUTION_RESULT_SERVER_OWNED = _server_owned_paths(
+    ExecutionResultRequest, ExecutionResultResponse
+)
+
+
+def test_server_owned_paths_cover_nested_items() -> None:
+    assert {"used_by", "inputs.connections", "uses.artifact_type"} <= set(
+        _NODE_SERVER_OWNED
+    )
+
+
+@pytest.mark.parametrize("path", _NODE_SERVER_OWNED)
+@pytest.mark.parametrize("method", ["post", "put"])
+def test_node_writes_reject_server_owned_fields(
+    client: ApiClient, method: str, path: str
+) -> None:
+    body = _workflow_body_with_references(client)
+    served = client.post("/api/v1/nodes", json=body).json()
+    url = "/api/v1/nodes" if method == "post" else f"/api/v1/nodes/{served['id']}"
+
+    response = getattr(client, method)(url, json=_with_server_value(body, served, path))
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert response.json()["detail"][0]["type"] == "extra_forbidden"
+
+
+@pytest.mark.parametrize("path", _EXECUTION_RESULT_SERVER_OWNED)
+def test_execution_result_write_rejects_server_owned_fields(
+    client: ApiClient, path: str
+) -> None:
+    body = make_execution_result_request_body()
+    served = client.post("/api/v1/execution_results", json=body).json()
+
+    response = client.post(
+        "/api/v1/execution_results", json=_with_server_value(body, served, path)
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert response.json()["detail"][0]["type"] == "extra_forbidden"
+
+
+def test_every_node_response_fills_artifact_type_of_references(
+    client: ApiClient,
+) -> None:
+    """POST (201 and 409), PUT and GET all return server-derived reference types."""
+    fn_id = client.post("/api/v1/nodes", json=make_function_request_body()).json()["id"]
+    ref = {"label": "add_numbers", "id": fn_id, "count": 1}
+    body = make_workflow_request_body(uses=[ref], see_also=[ref])
+
+    created = client.post("/api/v1/nodes", json=body)
+    wf_id = created.json()["id"]
+    responses = {
+        "POST 201": created,
+        "POST 409": client.post("/api/v1/nodes", json=body),
+        "PUT": client.put(f"/api/v1/nodes/{wf_id}", json=body),
+        "GET": client.get(f"/api/v1/nodes/{wf_id}"),
+    }
+
+    assert responses["POST 409"].status_code == status.HTTP_409_CONFLICT
+    for name, response in responses.items():
+        node = response.json()
+        assert [r["artifact_type"] for r in node["uses"]] == ["function"], name
+        assert [r["artifact_type"] for r in node["see_also"]] == ["function"], name
 
 
 # ---------------------------------------------------------------------------

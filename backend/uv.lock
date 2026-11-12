@@ -3406,6 +3406,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
+    { name = "sim-atlas-models" },
     { name = "tqdm" },
 ]
 
@@ -3439,6 +3440,7 @@ requires-dist = [
     { name = "openai", marker = "extra == 'openai'", specifier = ">=2.8.1" },
     { name = "pydantic-settings", extras = ["toml"], specifier = ">=2.13.1" },
     { name = "pyjwt", specifier = ">=2.12.1" },
+    { name = "sim-atlas-models", editable = "../models" },
     { name = "tqdm", specifier = ">=4.67.3" },
     { name = "voyageai", marker = "extra == 'voyageai'", specifier = ">=0.3.7" },
 ]
@@ -3449,6 +3451,24 @@ dev = [
     { name = "coverage", specifier = ">=7.13.5" },
     { name = "pyright", specifier = ">=1.1.407" },
     { name = "pytest", specifier = ">=9.0.2" },
+    { name = "ruff", specifier = ">=0.14.6" },
+]
+
+[[package]]
+name = "sim-atlas-models"
+version = "0.0.19"
+source = { editable = "../models" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pyright", specifier = ">=1.1.407" },
+    { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.14.6" },
 ]
 

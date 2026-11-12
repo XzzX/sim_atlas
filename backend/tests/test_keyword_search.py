@@ -8,8 +8,9 @@ could never find.
 from __future__ import annotations
 
 import pytest
+from sim_atlas_models import AnnotationResponse
 
-from sim_atlas.models import AnnotationResponse, NodeMetadata
+from sim_atlas.models import NodeMetadata
 from sim_atlas.search import keyword
 
 from .test_storage_interface import make_node

@@ -10,6 +10,7 @@ sim_atlas/
 ├── frontend/   TypeScript: React search/browse UI (sim-atlas-frontend)
 ├── web_ide/    TypeScript: React Flow visual workflow editor (simflow)
 ├── toolkit/    Python: client-side parsers + uploader (sim-atlas-toolkit)
+├── models/     Python: shared REST wire models (sim-atlas-models)
 └── docs/       Architecture docs and ADRs
 ```
 
@@ -18,6 +19,7 @@ sim_atlas/
 - `toolkit` parses locally installed Python packages and pushes metadata to `backend`
 - `frontend` and `web_ide` are built as static assets and served by `backend` at `/` and `/ide` respectively
 - `toolkit` depends on `python-workflow-definition` (shared workflow schema)
+- `models` is the single definition of the wire schema shared by `backend` and `toolkit`, released in lockstep and pinned exactly (`sim-atlas-models==<version>`, path source for development); request models forbid server-owned fields (ADR-0024)
 
 ## Architecture & Design Decisions
 

@@ -24,14 +24,21 @@ class PackageRef(BaseModel):
 
 
 class Reference(BaseModel):
+    """Request-side reference; the backend rejects any other field."""
+
     label: str
     id: str
     count: int
+
+
+class ReferenceResponse(Reference):
+    """Response-side reference; ``artifact_type`` is derived by the server."""
+
     artifact_type: ArtifactType | None = None
 
 
 class Annotation(BaseModel):
-    """Request-side port annotation (backend: ``AnnotationRequest``)."""
+    """Request-side port annotation (``sim_atlas_models.Annotation``)."""
 
     has_default_value: bool = False
     label: str | None = None
@@ -44,11 +51,10 @@ class Annotation(BaseModel):
 class AnnotationResponse(Annotation):
     """Response-side port annotation (backend: ``AnnotationResponse``).
 
-    ``connections`` is populated only by ``GET /nodes/{id}``; nodes returned
-    from ``POST /nodes`` (201 and 409 alike) always carry ``None`` here.
+    ``connections`` is derived by the server from the stored workflows.
     """
 
-    connections: list[Reference] | None = None
+    connections: list[ReferenceResponse] | None = None
 
 
 # --- Workflow internal-structure models ---
@@ -165,9 +171,9 @@ class NodeResponse(BaseModel):
     inputs: list[AnnotationResponse]
     outputs: list[AnnotationResponse]
 
-    see_also: list[Reference] = []
-    uses: list[Reference] = []
-    used_by: list[Reference] | None = None
+    see_also: list[ReferenceResponse] = []
+    uses: list[ReferenceResponse] = []
+    used_by: list[ReferenceResponse] | None = None
 
     wf_definition: WfDefinition = WfDefinition(nodes=[], edges=[])
 

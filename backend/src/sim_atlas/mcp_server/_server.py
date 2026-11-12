@@ -10,10 +10,11 @@ from typing import Annotated, Literal
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
+from sim_atlas_models import ArtifactType
 
 from sim_atlas.dependencies import get_storage
 from sim_atlas.mcp_server import _format
-from sim_atlas.models import ArtifactType, Filter
+from sim_atlas.models import Filter
 
 SERVER_INSTRUCTIONS = """\
 Simulation Atlas is a searchable catalog of real, installable Python functions

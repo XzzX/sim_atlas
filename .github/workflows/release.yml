@@ -22,7 +22,7 @@ jobs:
 
       - name: Check tag matches package versions
         run: |
-          for d in backend toolkit; do
+          for d in models backend toolkit; do
             version=$(cd "$d" && uv version --short)
             if [ "v$version" != "$GITHUB_REF_NAME" ]; then
               echo "$d version $version does not match tag $GITHUB_REF_NAME"
@@ -38,6 +38,7 @@ jobs:
 
       - name: Build packages
         run: |
+          uv build --no-sources models --out-dir dist
           uv build --no-sources backend --out-dir dist
           uv build --no-sources toolkit --out-dir dist
 

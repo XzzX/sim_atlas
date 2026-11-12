@@ -3,14 +3,10 @@ import hashlib
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sim_atlas_models import NodeRequest, NodeResponse
 
 from sim_atlas.dependencies import get_storage
-from sim_atlas.models import (
-    AnnotationResponse,
-    NodeMetadata,
-    NodeRequest,
-    NodeResponse,
-)
+from sim_atlas.models import NodeMetadata
 from sim_atlas.security import Creator, get_current_user
 from sim_atlas.storage.storage_interface import (
     NodeAlreadyExistsError,
@@ -22,36 +18,25 @@ router = APIRouter()
 
 
 def compose_node(request: NodeRequest, creator: Creator) -> NodeMetadata:
+    """The stored node: every client-owned field of *request*, plus server fields.
+
+    Built from the request's dump, so a field added to ``NodeRequest`` reaches
+    storage without touching this function (ADR-0024).
+    """
     # Content-addressable identity for both functions and workflows (ADR-0005):
     # the source hash doubles as the id when the caller doesn't supply one.
     source_hash = hashlib.sha256(request.source_code.encode()).hexdigest()
-    return NodeMetadata(
-        id=request.id or source_hash,
-        hash=request.hash or source_hash,
-        author_name=request.author_name,
-        author_email=request.author_email,
-        creator_name=creator.name,
-        creator_email=creator.email,
-        creation_timestamp=dt.datetime.now(dt.UTC).isoformat(),
-        name=request.name,
-        artifact_type=request.artifact_type,
-        category=request.category,
-        keywords=request.keywords,
-        homepage_url=request.homepage_url,
-        documentation_url=request.documentation_url,
-        source_url=request.source_url,
-        python_import=request.python_import,
-        dependencies=request.dependencies,
-        packages=request.packages,
-        source_code=request.source_code,
-        docstring=request.docstring,
-        brief_description=request.brief_description or "",
-        description=request.description or "",
-        inputs=[AnnotationResponse(**a.model_dump()) for a in request.inputs],
-        outputs=[AnnotationResponse(**a.model_dump()) for a in request.outputs],
-        see_also=request.see_also,
-        uses=request.uses,
-        wf_definition=request.wf_definition,
+    return NodeMetadata.model_validate(
+        request.model_dump()
+        | {
+            "id": request.id or source_hash,
+            "hash": request.hash or source_hash,
+            "creator_name": creator.name,
+            "creator_email": creator.email,
+            "creation_timestamp": dt.datetime.now(dt.UTC).isoformat(),
+            "brief_description": request.brief_description or "",
+            "description": request.description or "",
+        }
     )
 
 

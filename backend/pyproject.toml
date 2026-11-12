@@ -33,6 +33,7 @@ dependencies = [
     "numpy>=1.21",
     "pydantic-settings[toml]>=2.13.1",
     "pyjwt>=2.12.1",
+    "sim-atlas-models==0.0.19",
     "tqdm>=4.67.3",
 ]
 
@@ -97,6 +98,9 @@ reportMissingTypeStubs = false
 
 [pytest]
 strict = true
+
+[tool.uv.sources]
+sim-atlas-models = { path = "../models", editable = true }
 
 [[tool.uv.index]]
 name = "testpypi"

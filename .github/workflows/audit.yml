@@ -56,7 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [backend, toolkit]
+        project: [models, backend, toolkit]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

@@ -11,7 +11,7 @@
 
 Sim Atlas is a search and discovery platform for simulation nodes — Python functions, workflow definitions, and pyiron nodes used in scientific computing. Users parse their locally installed Python packages or modules using the **toolkit** client library, then push the extracted metadata to a central server where it becomes searchable by all users via a **React search frontend**.
 
-The system is structured as a **monorepo** containing four sub-packages: `backend`, `frontend`, `web_ide`, and `toolkit`.
+The system is structured as a **monorepo** containing five sub-packages: `backend`, `frontend`, `web_ide`, `toolkit`, and `models`. `models` (`sim-atlas-models`) holds the Pydantic wire schema that `backend` and `toolkit` share; it is released in lockstep with both and pinned exactly (ADR-0024).
 
 ---
 
@@ -41,6 +41,7 @@ sim_atlas/
 ├── frontend/         React SPA: keyword & semantic search portal
 ├── web_ide/          React SPA: visual workflow composer
 ├── toolkit/          Python package: sim-atlas-toolkit (parser + upload client)
+├── models/           Python package: sim-atlas-models (shared wire models)
 └── docs/             Architecture docs, ADRs
 ```
 

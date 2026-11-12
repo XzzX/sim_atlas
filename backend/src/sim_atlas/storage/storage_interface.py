@@ -68,8 +68,10 @@ class StorageInterface(ABC):
 
         Returns
         -------
-        str
-            The node id.
+        NodeMetadata
+            The stored node with its derived references filled in, as
+            ``read_node`` returns it. The nodes carried by the errors below
+            are hydrated the same way.
 
         Raises
         ------
@@ -89,7 +91,12 @@ class StorageInterface(ABC):
 
     @abstractmethod
     def update_node(self, id: str, value: NodeMetadata) -> NodeMetadata:
-        """Replace an existing node. Raises KeyError if not found."""
+        """Replace an existing node. Raises KeyError if not found.
+
+        Like every node storage hands out, the returned node carries its derived
+        references (``used_by``, port ``connections``, reference
+        ``artifact_type``); they are never stored.
+        """
         pass
 
     @abstractmethod

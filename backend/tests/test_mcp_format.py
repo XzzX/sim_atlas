@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from sim_atlas_models import AnnotationResponse, PackageRef
 
 from sim_atlas.mcp_server import _format
-from sim_atlas.models import AnnotationResponse, PackageRef
 
 from .test_storage_interface import make_node, make_workflow
 

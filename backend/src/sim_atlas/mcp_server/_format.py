@@ -5,14 +5,15 @@ statement; everything else is commented out, so the only line an agent can lift
 into a script is the import. Pure functions only — no storage, no I/O.
 """
 
-from sim_atlas.models import (
+from sim_atlas_models import (
     AnnotationResponse,
     ArtifactType,
     NodeResponse,
     PackageRef,
-    Reference,
-    ScoredSearchResponse,
+    ReferenceResponse,
 )
+
+from sim_atlas.models import ScoredSearchResponse
 from sim_atlas.node_text import short_description
 
 Node = NodeResponse
@@ -222,7 +223,9 @@ def render_results(query: str | None, response: ScoredSearchResponse) -> str:
     return "\n\n".join([header, *blocks, footer])
 
 
-def _render_references(label: str, references: list[Reference] | None) -> list[str]:
+def _render_references(
+    label: str, references: list[ReferenceResponse] | None
+) -> list[str]:
     if not references:
         return []
     shown = references[:MAX_REFERENCES]

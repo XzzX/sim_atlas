@@ -14,6 +14,7 @@ from sim_atlas_models import (
 from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult, NodeStatus
 from sim_atlas_toolkit.parsers.metadata import (
+    content_hash,
     enrich_from_docstring,
     parse_annotation,
 )
@@ -140,18 +141,23 @@ def _virtual_sources(obj: type) -> tuple[str, str] | None:
         raw_source = textwrap.dedent(inspect.getsource(obj).replace("\\r\\n", ""))
     except OSError:
         return None
-    qualname = obj.__qualname__
-    pack_note = (
-        f"# NOTE: This is a virtual PACK node for {qualname}.\n"
-        "# It takes the dataclass fields as individual inputs and constructs the dataclass instance.\n"
-        "# The source code below is shown for reference only.\n"
+
+    def note(kind: str, what: str) -> str:
+        return (
+            f"# NOTE: This is a virtual {kind} node for {obj.__qualname__}.\n"
+            f"# {what}\n"
+            "# The source code below is shown for reference only.\n"
+        )
+
+    pack = note(
+        "PACK",
+        "It takes the dataclass fields as individual inputs and constructs the dataclass instance.",
     )
-    unpack_note = (
-        f"# NOTE: This is a virtual UNPACK node for {qualname}.\n"
-        "# It takes a dataclass instance as input and exposes its fields as individual outputs.\n"
-        "# The source code below is shown for reference only.\n"
+    unpack = note(
+        "UNPACK",
+        "It takes a dataclass instance as input and exposes its fields as individual outputs.",
     )
-    return pack_note + raw_source, unpack_note + raw_source
+    return pack + raw_source, unpack + raw_source
 
 
 class DataclassParser:
@@ -164,7 +170,7 @@ class DataclassParser:
             return None
         if (sources := _virtual_sources(obj)) is None:
             return None
-        node_ids = tuple(hashlib.sha256(s.encode("utf-8")).hexdigest() for s in sources)
+        node_ids = tuple(content_hash(s) for s in sources)
         return Identity(node_ids=node_ids, data=sources)
 
     def describe(

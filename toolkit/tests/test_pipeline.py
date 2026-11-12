@@ -4,7 +4,7 @@ import asyncio
 import contextlib
 import hashlib
 from collections import Counter
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -18,7 +18,7 @@ from sim_atlas_models import (
 
 from sim_atlas_toolkit import pipeline
 from sim_atlas_toolkit.context import ParseContext
-from sim_atlas_toolkit.node_store import NodeResult
+from sim_atlas_toolkit.node_store import NodeResult, NodeStoreError
 from sim_atlas_toolkit.pipeline import GroupResult, run_pipeline
 from sim_atlas_toolkit.plugin import (
     Description,
@@ -38,10 +38,12 @@ def _hash(source: str) -> str:
 
 @dataclass(eq=False)
 class Obj:
-    """A fake parseable object: one node per object, with named children."""
+    """A fake parseable object: one node per object (none for a container),
+    with named children."""
 
     source: str
     children: dict[str, Any] = field(default_factory=dict[str, Any])
+    container: bool = False
 
     @property
     def node_id(self) -> str:
@@ -63,7 +65,8 @@ class FakeParser:
         if not isinstance(obj, Obj):
             return None
         self.identified[obj.source] += 1
-        return Identity(node_ids=(obj.node_id,), children=obj.children)
+        node_ids = () if obj.container else (obj.node_id,)
+        return Identity(node_ids=node_ids, children=obj.children)
 
     def describe(
         self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
@@ -71,6 +74,8 @@ class FakeParser:
         assert isinstance(obj, Obj)
         self.described[obj.source] += 1
         self.seen_children[obj.source] = children
+        if obj.container:
+            return Description(nodes=[])
         request = NodeRequest.model_construct(
             id=obj.node_id,
             hash=obj.node_id,
@@ -335,3 +340,58 @@ async def test_concurrency_bounds_entries_in_flight() -> None:
     await run_pipeline({"mod": seeds}, [FakeParser()], _ctx(store), concurrency=2)
 
     assert store.peak == 2  # noqa: PLR2004
+
+
+class TwoNodeFailingParser(FakeParser):
+    """Identifies two nodes per object, then fails to describe them."""
+
+    def identify(self, obj: Any) -> Identity | None:
+        identity = super().identify(obj)
+        if identity is None:
+            return None
+        return Identity(node_ids=(*identity.node_ids, _hash("twin")))
+
+    def describe(
+        self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]
+    ) -> Description:
+        raise RuntimeError("describe failed")
+
+
+async def test_errors_are_counted_per_node() -> None:
+    store = MockNodeStore()
+
+    result = await run_pipeline(
+        {"mod": [Obj("a")]}, [TwoNodeFailingParser()], _ctx(store)
+    )
+
+    assert result == {"mod": GroupResult(created=0, existing=0, errors=2, unparsed=0)}
+
+
+async def test_container_child_is_not_warned_about(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    store = MockNodeStore()
+    parent = Obj("parent", {"box": Obj("box", {"x": Obj("x")}, container=True)})
+
+    result = await run_pipeline({"mod": [parent]}, [FakeParser()], _ctx(store))
+
+    assert result == {"mod": GroupResult(created=2, existing=0, errors=0, unparsed=0)}
+    assert "unresolved" not in caplog.text
+
+
+class _UnreachableStore(MockNodeStore):
+    async def existing_ids(self, ids: Collection[str]) -> set[str]:
+        raise NodeStoreError("backend unreachable")
+
+
+async def test_store_failure_during_discovery_counts_as_errors() -> None:
+    store = _UnreachableStore()
+    seeds = {"one": [Obj("a", {"c": Obj("child")})], "two": [Obj("b")]}
+
+    result = await run_pipeline(seeds, [FakeParser()], _ctx(store))
+
+    assert store.uploaded == []
+    assert result == {
+        "one": GroupResult(created=0, existing=0, errors=1, unparsed=0),
+        "two": GroupResult(created=0, existing=0, errors=1, unparsed=0),
+    }

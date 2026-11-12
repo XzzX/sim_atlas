@@ -14,12 +14,12 @@ import asyncio
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, NamedTuple
 
 from sim_atlas_models import NodeRequest, NodeResponse
 
 from sim_atlas_toolkit.context import ParseContext
-from sim_atlas_toolkit.node_store import NodeStatus, NodeStore
+from sim_atlas_toolkit.node_store import NodeStatus, NodeStore, NodeStoreError
 from sim_atlas_toolkit.parsers.ai_enrichment import (
     generate_docstring,
     generate_workflow_docstring,
@@ -75,14 +75,20 @@ class _Entry:
     done: asyncio.Event = field(default_factory=asyncio.Event)
 
 
+class _ChildOf(NamedTuple):
+    """The parent entry and the label it references an object by."""
+
+    parent: _Entry
+    label: str
+
+
 @dataclass(frozen=True, slots=True)
 class _Reached:
     """An object reached from a seed list or from a parent's children."""
 
     obj: Any
     group: str
-    via: tuple[_Entry, str] | None = None
-    """The parent entry and the label it references this object by."""
+    via: _ChildOf | None = None
 
 
 async def run_pipeline(
@@ -102,9 +108,7 @@ async def run_pipeline(
     missing = await _discover(seeds, parsers, ctx.store, counts)
     for entry in _cyclic(missing):
         logger.error("%r is part of a reference cycle", entry.obj)
-        entry.failed = True
-        counts[entry.group].errors += 1
-        entry.done.set()
+        _fail(entry, counts[entry.group])
 
     semaphore = asyncio.Semaphore(concurrency)
 
@@ -117,8 +121,7 @@ async def run_pipeline(
                 await _build(entry, ctx, counts[entry.group])
         except Exception:
             logger.exception("Failed to parse %r", entry.obj)
-            entry.failed = True
-            counts[entry.group].errors += 1
+            _fail(entry, counts[entry.group])
         finally:
             entry.done.set()
 
@@ -175,12 +178,17 @@ async def _discover(
                     level.append(entry)
                 by_obj[key] = entry
             if reached.via is not None:
-                parent, label = reached.via
-                parent.children[label] = entry
+                reached.via.parent.children[reached.via.label] = entry
 
-        ids = {i for entry in level for i in entry.identity.node_ids}
-        existing = await store.existing_ids(ids) if ids else set[str]()
         frontier = []
+        ids = {i for entry in level for i in entry.identity.node_ids}
+        try:
+            existing = await store.existing_ids(ids) if ids else set[str]()
+        except NodeStoreError:
+            logger.exception("Failed to check which of %d nodes exist", len(ids))
+            for entry in level:
+                _fail(entry, counts[entry.group])
+            continue
         for entry in level:
             node_ids = entry.identity.node_ids
             entry.missing = not node_ids or not existing.issuperset(node_ids)
@@ -190,7 +198,7 @@ async def _discover(
                 continue
             missing.append(entry)
             frontier.extend(
-                _Reached(child, entry.group, (entry, label))
+                _Reached(child, entry.group, _ChildOf(entry, label))
                 for label, child in entry.identity.children.items()
             )
     return missing
@@ -202,7 +210,7 @@ def _identify(
     where = (
         ""
         if reached.via is None
-        else f" (child {reached.via[1]!r} of {reached.via[0].obj!r})"
+        else f" (child {reached.via.label!r} of {reached.via.parent.obj!r})"
     )
     for parser in parsers:
         try:
@@ -248,17 +256,23 @@ def _cyclic(entries: list[_Entry]) -> list[_Entry]:
     return list(on_cycle.values())
 
 
+def _fail(entry: _Entry, counts: _Counts) -> None:
+    """Mark *entry* failed and count an error for each node it would yield."""
+    entry.failed = True
+    counts.errors += max(1, len(entry.identity.node_ids))
+    entry.done.set()
+
+
 async def _build(entry: _Entry, ctx: ParseContext, counts: _Counts) -> None:
     children: dict[str, ResolvedChild] = {}
     for label, child in entry.children.items():
-        if (resolved := await _resolve(child, ctx.store)) is not None:
-            children[label] = resolved
-        elif child is not None:
+        # An unidentified child (``None``) was already reported in discovery.
+        if child is not None and child.failed:
             logger.warning(
-                "Child %r of %r is unresolved; describing without it",
-                label,
-                entry.obj,
+                "Child %r of %r failed; describing without it", label, entry.obj
             )
+        elif child is not None and (resolved := await _resolve(child, ctx.store)):
+            children[label] = resolved
 
     description = entry.parser.describe(entry.obj, entry.identity, children)
     described = [d.request.id for d in description.nodes]
@@ -280,13 +294,18 @@ async def _build(entry: _Entry, ctx: ParseContext, counts: _Counts) -> None:
     counts.existing += len(results) - created
 
 
-async def _resolve(child: _Entry | None, store: NodeStore) -> ResolvedChild | None:
-    """What a parent may know about *child*; ``None`` unless it is one node."""
-    if child is None or child.failed or len(child.identity.node_ids) != 1:
+async def _resolve(child: _Entry, store: NodeStore) -> ResolvedChild | None:
+    """What a parent may know about finished *child*.
+
+    ``None`` unless the child is exactly one node: a container has none, and
+    the children mapping has no room for several.
+    """
+    if len(child.identity.node_ids) != 1:
         return None
     if child.missing:
         (node,) = child.stored
     elif (node := await store.read_node(child.identity.node_ids[0])) is None:
+        logger.warning("Stored node %s vanished", child.identity.node_ids[0])
         return None
     return ResolvedChild.from_response(node)
 

@@ -1,5 +1,3 @@
-# pyright: basic
-
 import hashlib
 from collections.abc import Mapping
 from typing import Any
@@ -12,6 +10,7 @@ from sim_atlas_models import (
 
 from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult
+from sim_atlas_toolkit.parsers.metadata import content_hash
 from sim_atlas_toolkit.plugin import (
     Description,
     Enrichment,
@@ -75,8 +74,7 @@ class PythonWorkflowDefinitionParser:
         if not isinstance(obj, PythonWorkflowDefinitionWorkflow):
             return None
         source_code = obj.model_dump_json(indent=2)
-        node_id = hashlib.sha256(source_code.encode("utf-8")).hexdigest()
-        return Identity(node_ids=(node_id,), data=source_code)
+        return Identity(node_ids=(content_hash(source_code),), data=source_code)
 
     def describe(
         self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]

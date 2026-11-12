@@ -10,6 +10,7 @@ from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult, NodeStatus
 from sim_atlas_toolkit.parsers.ai_enrichment import generate_docstring
 from sim_atlas_toolkit.parsers.metadata import (
+    content_hash,
     enrich_from_docstring,
     parse_return_annotation,
     parse_signature,
@@ -79,8 +80,7 @@ class PythonFunctionParser:
         # The id hashes the dedented source, while the node stores the source
         # as found; keep both exactly as the legacy ``parse`` does.
         dedented = textwrap.dedent(source_code.replace("\\r\\n", ""))
-        node_id = hashlib.sha256(dedented.encode("utf-8")).hexdigest()
-        return Identity(node_ids=(node_id,), data=source_code)
+        return Identity(node_ids=(content_hash(dedented),), data=source_code)
 
     def describe(
         self, obj: Any, identity: Identity, children: Mapping[str, ResolvedChild]

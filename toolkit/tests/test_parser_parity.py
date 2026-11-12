@@ -19,7 +19,6 @@ from sim_atlas_toolkit.context import ParseContext
 from sim_atlas_toolkit.node_store import NodeResult
 from sim_atlas_toolkit.parsers import (
     dataclass_node,
-    pyiron_workflow,
     python_function,
     python_workflow_definition,
 )
@@ -204,20 +203,9 @@ async def test_new_parser_stores_what_legacy_parse_stores(
 
 @pytest.mark.parametrize(
     "new",
-    [c[2] for c in CASES[::-1]] + [pyiron_workflow.PyironWorkflowParser],
-    ids=[c[0] for c in CASES[::-1]] + ["pyiron_workflow"],
+    [c[2] for c in CASES],
+    ids=[c[0] for c in CASES],
 )
 @pytest.mark.parametrize("obj", [42, "text", None, object()], ids=repr)
 def test_parsers_decline_foreign_objects(new: Callable[[], Parser], obj: Any) -> None:
     assert new().identify(obj) is None
-
-
-def test_pyiron_parser_declines_without_legacy_api(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(pyiron_workflow, "_legacy_api_available", lambda: False)
-
-    class SomeNode:
-        pass
-
-    assert pyiron_workflow.PyironWorkflowParser().identify(SomeNode) is None

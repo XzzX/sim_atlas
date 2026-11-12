@@ -17,7 +17,9 @@ from sim_atlas_models import NodeRequest, NodeResponse
 * **Response models** (`NodeResponse`, `AnnotationResponse`, `ReferenceResponse`,
   `ExecutionResultResponse`) add the fields the server generates or derives
   (`creator_*`, `creation_timestamp`, `used_by`, `connections`,
-  `ReferenceResponse.artifact_type`) and ignore unknown fields (`extra="ignore"`).
+  `ReferenceResponse.artifact_type`) and ignore unknown fields at their own level
+  (`extra="ignore"`). Client-owned models nested inside them (`WfDefinition`, `PackageRef`,
+  `IOValue`, …) stay strict.
 
 See ADR-0024 in the repository for the rationale.
 

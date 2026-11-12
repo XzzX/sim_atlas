@@ -7,7 +7,7 @@ import hashlib
 from collections.abc import Callable, Generator
 from importlib.metadata import version
 from math import ceil
-from typing import Any, Protocol, cast
+from typing import Any, Protocol, cast, get_args, get_origin
 
 import httpx2
 import numpy as np
@@ -21,7 +21,9 @@ from sim_atlas_models import (
     Annotation,
     ArtifactType,
     ExecutionResultRequest,
+    ExecutionResultResponse,
     NodeRequest,
+    NodeResponse,
     WfDefinition,
     WfEdge,
     WfInputNode,
@@ -1114,52 +1116,93 @@ def test_compose_keeps_every_client_owned_field(
         assert client_owned(stored[field], sent) == sent, field
 
 
-# Server-owned values a client might try to send, per place in the payload.
-_SERVER_OWNED_PAYLOADS: list[tuple[str, dict[str, Any]]] = [
-    ("creator_name", {"creator_name": "Mallory"}),
-    ("creator_email", {"creator_email": "mallory@example.com"}),
-    ("creation_timestamp", {"creation_timestamp": "2000-01-01T00:00:00"}),
-    ("used_by", {"used_by": [{"label": "x", "id": "x", "count": 1}]}),
-    (
-        "inputs.connections",
-        {"inputs": [{"label": "x", "connections": []}]},
-    ),
-    (
-        "uses.artifact_type",
-        {"uses": [{"label": "x", "id": "x", "count": 1, "artifact_type": None}]},
-    ),
-    (
-        "see_also.artifact_type",
-        {"see_also": [{"label": "x", "id": "x", "count": 1, "artifact_type": None}]},
-    ),
-]
+def _list_item_model(annotation: Any) -> type[BaseModel] | None:
+    """``X`` for an annotation ``list[X]`` where ``X`` is a model, else None."""
+    args = get_args(annotation)
+    if get_origin(annotation) is list and args:
+        item = args[0]
+        if isinstance(item, type) and issubclass(item, BaseModel):
+            return item
+    return None
 
 
-@pytest.mark.parametrize(
-    "payload",
-    [pytest.param(p, id=name) for name, p in _SERVER_OWNED_PAYLOADS],
+def _server_owned_paths(
+    request: type[BaseModel], response: type[BaseModel]
+) -> list[str]:
+    """Dotted paths of the fields only *response* has, list items included.
+
+    Derived from the models, so a newly added server-owned field is covered
+    without touching the tests (ADR-0024).
+    """
+    paths = sorted(set(response.model_fields) - set(request.model_fields))
+    for name, field in request.model_fields.items():
+        request_item = _list_item_model(field.annotation)
+        response_item = _list_item_model(response.model_fields[name].annotation)
+        if request_item and response_item and request_item is not response_item:
+            paths += [
+                f"{name}.{sub}"
+                for sub in _server_owned_paths(request_item, response_item)
+            ]
+    return paths
+
+
+def _with_server_value(
+    body: dict[str, Any], served: dict[str, Any], path: str
+) -> dict[str, Any]:
+    """*body* plus the value the server returned at *path* (``field`` or
+    ``list_field.item_field``), copied into the request."""
+    field, _, sub = path.partition(".")
+    if not sub:
+        return body | {field: served[field]}
+    request_keys = body[field][0].keys() if body[field] else served[field][0].keys()
+    item = {k: v for k, v in served[field][0].items() if k in request_keys or k == sub}
+    return body | {field: [item]}
+
+
+def _workflow_body_with_references(client: ApiClient) -> dict[str, Any]:
+    fn_id = client.post("/api/v1/nodes", json=make_function_request_body()).json()["id"]
+    ref = {"label": "add_numbers", "id": fn_id, "count": 1}
+    return make_workflow_request_body(uses=[ref], see_also=[ref])
+
+
+_NODE_SERVER_OWNED = _server_owned_paths(NodeRequest, NodeResponse)
+_EXECUTION_RESULT_SERVER_OWNED = _server_owned_paths(
+    ExecutionResultRequest, ExecutionResultResponse
 )
+
+
+def test_server_owned_paths_cover_nested_items() -> None:
+    assert {"used_by", "inputs.connections", "uses.artifact_type"} <= set(
+        _NODE_SERVER_OWNED
+    )
+
+
+@pytest.mark.parametrize("path", _NODE_SERVER_OWNED)
 @pytest.mark.parametrize("method", ["post", "put"])
 def test_node_writes_reject_server_owned_fields(
-    client: ApiClient, method: str, payload: dict[str, Any]
+    client: ApiClient, method: str, path: str
 ) -> None:
-    created = client.post("/api/v1/nodes", json=make_function_request_body())
-    url = (
-        "/api/v1/nodes" if method == "post" else f"/api/v1/nodes/{created.json()['id']}"
-    )
-    body = make_function_request_body(**payload)
-    response = getattr(client, method)(url, json=body)
+    body = _workflow_body_with_references(client)
+    served = client.post("/api/v1/nodes", json=body).json()
+    url = "/api/v1/nodes" if method == "post" else f"/api/v1/nodes/{served['id']}"
+
+    response = getattr(client, method)(url, json=_with_server_value(body, served, path))
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
     assert response.json()["detail"][0]["type"] == "extra_forbidden"
 
 
+@pytest.mark.parametrize("path", _EXECUTION_RESULT_SERVER_OWNED)
 def test_execution_result_write_rejects_server_owned_fields(
-    client: ApiClient,
+    client: ApiClient, path: str
 ) -> None:
-    for field in ("id", "creator_name", "creator_email", "creation_timestamp"):
-        body = make_execution_result_request_body(**{field: "x"})
-        response = client.post("/api/v1/execution_results", json=body)
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, field
+    body = make_execution_result_request_body()
+    served = client.post("/api/v1/execution_results", json=body).json()
+
+    response = client.post(
+        "/api/v1/execution_results", json=_with_server_value(body, served, path)
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert response.json()["detail"][0]["type"] == "extra_forbidden"
 
 
 def test_every_node_response_fills_artifact_type_of_references(

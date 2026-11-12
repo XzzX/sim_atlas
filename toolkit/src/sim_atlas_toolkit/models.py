@@ -38,7 +38,7 @@ class ReferenceResponse(Reference):
 
 
 class Annotation(BaseModel):
-    """Request-side port annotation (backend: ``AnnotationRequest``)."""
+    """Request-side port annotation (``sim_atlas_models.Annotation``)."""
 
     has_default_value: bool = False
     label: str | None = None

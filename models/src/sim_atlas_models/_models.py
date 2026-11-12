@@ -5,7 +5,10 @@ Field ownership is enforced by types:
 * Request models (``extra="forbid"``) contain only client-owned fields, so a
   client cannot send, and the server never trusts, a server-owned value.
 * Response models (``extra="ignore"``) add the server-generated and
-  server-derived fields and tolerate fields a newer server adds.
+  server-derived fields and ignore unknown top-level fields. Client-owned
+  models nested in a response (``WfDefinition`` and its nodes and edges,
+  ``PackageRef``, ``IOValue``, ``Annotation``) keep ``extra="forbid"``, so a
+  new field there needs the lockstep release on both sides.
 
 Shared fields are defined once in private ``_…Fields`` base classes, generic
 over the annotation and reference types where the two sides differ.

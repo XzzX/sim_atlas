@@ -8,7 +8,7 @@ node on the way out of storage, so the stored nodes are never mutated.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 
 from sim_atlas_models import (
     AnnotationResponse,
@@ -99,54 +99,49 @@ class WorkflowGraph:
         return self._connections.get((node_id, port_label, is_output))
 
     def hydrate[N: NodeResponse](self, node: N) -> N:
-        """A copy of *node* with all derived references filled in."""
-        return _with_derived(
-            node,
-            used_by=self.used_by(node.id),
-            artifact_type=self._artifact_types.get,
-            connections=lambda label, is_output: (
-                self.connections(node.id, label, is_output) if label else None
-            ),
+        """A copy of *node* with all derived references filled in.
+
+        This is the single list of derived fields; ``strip_derived`` reuses it.
+        """
+
+        def references(refs: list[ReferenceResponse]) -> list[ReferenceResponse]:
+            return [
+                r.model_copy(update={"artifact_type": self._artifact_types.get(r.id)})
+                for r in refs
+            ]
+
+        def ports(
+            annotations: list[AnnotationResponse], is_output: bool
+        ) -> list[AnnotationResponse]:
+            return [
+                a.model_copy(
+                    update={
+                        "connections": self.connections(node.id, a.label, is_output)
+                        if a.label
+                        else None
+                    }
+                )
+                for a in annotations
+            ]
+
+        return node.model_copy(
+            update={
+                "used_by": self.used_by(node.id),
+                "uses": references(node.uses),
+                "see_also": references(node.see_also),
+                "inputs": ports(node.inputs, is_output=False),
+                "outputs": ports(node.outputs, is_output=True),
+            }
         )
 
 
+_EMPTY_GRAPH = WorkflowGraph({})
+
+
 def strip_derived[N: NodeResponse](node: N) -> N:
-    """A copy of *node* with all derived references cleared, as storage holds it."""
-    return _with_derived(
-        node,
-        used_by=None,
-        artifact_type=lambda _id: None,
-        connections=lambda _label, _is_output: None,
-    )
+    """A copy of *node* with all derived references cleared, as storage holds it.
 
-
-def _with_derived[N: NodeResponse](
-    node: N,
-    used_by: list[ReferenceResponse] | None,
-    artifact_type: Callable[[str], ArtifactType | None],
-    connections: Callable[[str | None, bool], list[ReferenceResponse] | None],
-) -> N:
-    """The single list of derived fields: a copy of *node* with each one set."""
-
-    def references(refs: list[ReferenceResponse]) -> list[ReferenceResponse]:
-        return [
-            r.model_copy(update={"artifact_type": artifact_type(r.id)}) for r in refs
-        ]
-
-    def ports(
-        annotations: list[AnnotationResponse], is_output: bool
-    ) -> list[AnnotationResponse]:
-        return [
-            a.model_copy(update={"connections": connections(a.label, is_output)})
-            for a in annotations
-        ]
-
-    return node.model_copy(
-        update={
-            "used_by": used_by,
-            "uses": references(node.uses),
-            "see_also": references(node.see_also),
-            "inputs": ports(node.inputs, is_output=False),
-            "outputs": ports(node.outputs, is_output=True),
-        }
-    )
+    Hydrating against an empty catalog derives nothing, so every derived field
+    ends up ``None``.
+    """
+    return _EMPTY_GRAPH.hydrate(node)

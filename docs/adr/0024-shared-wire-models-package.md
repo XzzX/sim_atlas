@@ -67,8 +67,12 @@ Types enforce field ownership:
   the client-owned `Wf*`, `PackageRef`, `IOValue`) use `extra="forbid"`. A request that
   contains a server-owned or unknown field is rejected with 422 instead of silently trimmed.
 * **Response models** (`NodeResponse`, `AnnotationResponse`, `ReferenceResponse`,
-  `ExecutionResultResponse`) use `extra="ignore"`. They add the server-owned fields and accept
-  fields a newer server adds.
+  `ExecutionResultResponse`) use `extra="ignore"`. They add the server-owned fields and ignore
+  unknown fields at their own level.
+* Client-owned models are the same type in both directions, so the ones nested inside a
+  response (`WfDefinition` and its nodes and edges, `PackageRef`, `IOValue`, the `Annotation`s
+  in `wf_definition`) stay `extra="forbid"` there too. No separate lenient response variant
+  exists for them.
 * Every shared field is defined once, in a private `_…Fields` base class. The class is generic
   over the annotation and reference type where request and response differ
   (`_NodeFields[AnnT, RefT]`). Redefining fields in subclasses was rejected, because pyright
@@ -97,6 +101,10 @@ Types enforce field ownership:
   Toolkit versions up to 0.0.19 send `uses[].artifact_type` (as `null`), so their workflow
   uploads are rejected by a newer server. The lockstep release covers this only when users
   upgrade the toolkit together with the server.
+* Bad: a field added to a nested client-owned model breaks older clients that read responses,
+  and the backend refuses to load a stored file that has extra keys in those models (for example
+  after a downgrade). Both sides must move together, which the lockstep release and exact pin
+  enforce for our own packages.
 * Neutral: the OpenAPI schema changes in names (`AnnotationRequest` becomes `Annotation`, new
   `ReferenceResponse`), and request schemas gain `additionalProperties: false`. In
   `NodeResponse`, server-owned fields now follow the client-owned ones, and

@@ -177,8 +177,8 @@ describe("python_workflow_definition export", () => {
 
     expect(workflow.nodes.map((n) => n.type === "input" && n.name)).toEqual([
       "x",
-      "x_1",
+      "x_0",
     ]);
-    expect(warnings).toEqual(['Constant "x" was exported as the input "x_1".']);
+    expect(warnings).toEqual(['Constant "x" was exported as the input "x_0".']);
   });
 });

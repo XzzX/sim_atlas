@@ -5,6 +5,7 @@ import type { InputNodeType } from "./nodes/InputNode";
 import type { OutputNodeType } from "./nodes/OutputNode";
 import type { ConstantNodeType } from "./nodes/ConstantNode";
 import { exportedConstant } from "./nodes/constantValue";
+import { createNameAllocator } from "./lib/nameAllocator";
 import type {
   PythonWorkflowDefinitionWorkflow,
   PythonWorkflowDefinitionNode,
@@ -35,18 +36,11 @@ export function toWorkflowDefinition(
   const errors: string[] = [];
   const warnings: string[] = [];
   // Constants are exported as inputs (see below), so their names must not
-  // clash with a real input's or each other's.
-  const usedNames = new Set(
-    nodes.filter((n) => n.type === "InputNode").map((n) => n.data.label),
-  );
-  const uniqueName = (label: string): string => {
-    let name = label;
-    for (let index = 1; usedNames.has(name); index += 1) {
-      name = `${label}_${index.toString()}`;
-    }
-    usedNames.add(name);
-    return name;
-  };
+  // clash with a real input's or each other's. Real inputs keep theirs.
+  const names = createNameAllocator(false);
+  for (const node of nodes) {
+    if (node.type === "InputNode") names.allocate(node.data.label);
+  }
 
   const pwdNodes: PythonWorkflowDefinitionNode[] = nodes
     .map((node): PythonWorkflowDefinitionNode | null => {
@@ -75,7 +69,7 @@ export function toWorkflowDefinition(
       // is its value, the closest PWD can express.
       if (node.type === "ConstantNode") {
         const { label, value } = (node as ConstantNodeType).data;
-        const name = uniqueName(label);
+        const name = names.allocate(label);
         if (name !== label) {
           warnings.push(`Constant "${label}" was exported as the input "${name}".`);
         }

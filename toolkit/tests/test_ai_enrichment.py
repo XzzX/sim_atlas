@@ -194,6 +194,7 @@ async def test_render_wf_graph_no_atlas_id() -> None:
 
     assert "local" in graph
     assert "no description available" in graph
+    assert "Constants:" not in graph
 
 
 async def test_render_wf_graph_shows_constant_values() -> None:

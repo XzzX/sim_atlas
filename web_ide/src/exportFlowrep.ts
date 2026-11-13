@@ -5,6 +5,7 @@ import type { InputNodeType } from "./nodes/InputNode";
 import type { OutputNodeType } from "./nodes/OutputNode";
 import type { ConstantNodeType } from "./nodes/ConstantNode";
 import { exportedConstant } from "./nodes/constantValue";
+import { createNameAllocator, type NameAllocator } from "./lib/nameAllocator";
 import type { AnnotationResponse } from "sim-atlas-api-schema";
 import type {
   FlowrepAtomicRecipe,
@@ -77,38 +78,6 @@ function toLabelBase(raw: string): string | null {
   if (/^[0-9]/.test(label)) label = `_${label}`;
   if (PYTHON_KEYWORDS.has(label) || RESERVED_LABELS.has(label)) label = `${label}_`;
   return label;
-}
-
-interface NameAllocator {
-  allocate: (base: string) => string;
-}
-
-/**
- * Hands out unique labels. With `alwaysIndex` every name gets a numeric suffix,
- * which reproduces flowrep's node-label convention (`mul` -> `mul_0`, see
- * flowrep/parsers/label_helpers.py); without it a base name is used as-is until
- * it collides.
- */
-function createNameAllocator(alwaysIndex: boolean): NameAllocator {
-  const used = new Set<string>();
-  const counters = new Map<string, number>();
-  return {
-    allocate(base: string): string {
-      if (!alwaysIndex && !used.has(base)) {
-        used.add(base);
-        return base;
-      }
-      let index = counters.get(base) ?? 0;
-      let candidate = `${base}_${index}`;
-      while (used.has(candidate)) {
-        index += 1;
-        candidate = `${base}_${index}`;
-      }
-      counters.set(base, index + 1);
-      used.add(candidate);
-      return candidate;
-    },
-  };
 }
 
 interface PortNames {

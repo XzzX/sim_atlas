@@ -209,7 +209,7 @@ async def _render_wf_graph(
 ) -> str:
     """Render a workflow's dataflow graph as text for the LLM prompt.
 
-    Constant nodes are shown with their JSON value. Function nodes are
+    Constant nodes, if any, are shown with their JSON value. Function nodes are
     enriched with their name and description, looked up
     by ``atlas_id`` in *children_by_id* when given, else fetched via
     ``store.read_node``. Nodes that cannot be resolved are rendered with just
@@ -225,11 +225,12 @@ async def _render_wf_graph(
         _format_boundary_node(ann) for node in input_nodes for ann in node.outputs
     )
 
-    lines.append("")
-    lines.append("Constants:")
-    lines.extend(
-        f"- {node.node_id} = {json.dumps(node.value)}" for node in constant_nodes
-    )
+    if constant_nodes:
+        lines.append("")
+        lines.append("Constants:")
+        lines.extend(
+            f"- {node.node_id} = {json.dumps(node.value)}" for node in constant_nodes
+        )
 
     lines.append("")
     lines.append("Function nodes:")

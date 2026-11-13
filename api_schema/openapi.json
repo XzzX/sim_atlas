@@ -559,6 +559,42 @@
         "title": "IOValue",
         "type": "object"
       },
+      "NodeExistsRequest": {
+        "additionalProperties": false,
+        "description": "Which of these node ids are stored? Body of ``POST /nodes/exists``.",
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "NodeExistsRequest",
+        "type": "object"
+      },
+      "NodeExistsResponse": {
+        "description": "The stored subset of the requested ids, in request order, deduplicated.",
+        "properties": {
+          "existing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Existing",
+            "type": "array"
+          }
+        },
+        "required": [
+          "existing"
+        ],
+        "title": "NodeExistsResponse",
+        "type": "object"
+      },
       "NodeRequest": {
         "additionalProperties": false,
         "description": "A node upload, function or workflow alike (ADR-0021).\n\n``id`` and ``hash`` are client-owned; the server defaults both to\n``sha256(source_code)`` when they are omitted (ADR-0005).",
@@ -1902,6 +1938,48 @@
           }
         ],
         "summary": "Create Node",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
+    "/api/v1/nodes/exists": {
+      "post": {
+        "description": "Return the subset of `ids` that are stored, matched on node id exactly like `GET /nodes/{node_id}`. The result keeps request order and drops duplicates. At most 1000 ids per request (422 above). Public, like every read route. Lets a client check a whole batch in one request instead of one `GET /nodes/{node_id}` per id.",
+        "operationId": "nodes_exist_api_v1_nodes_exists_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeExistsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeExistsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check which node ids are stored",
         "tags": [
           "nodes"
         ]

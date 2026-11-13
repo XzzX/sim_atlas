@@ -135,6 +135,28 @@ export const ExecutionResultResponseSchema = z.object({
 export type ExecutionResultResponse = z.infer<typeof ExecutionResultResponseSchema>;
 
 /**
+ * NodeExistsRequest
+ *
+ * Which of these node ids are stored? Body of ``POST /nodes/exists``.
+ */
+export const NodeExistsRequestSchema = z.strictObject({
+    ids: z.array(z.string()).max(1000)
+});
+
+export type NodeExistsRequest = z.infer<typeof NodeExistsRequestSchema>;
+
+/**
+ * NodeExistsResponse
+ *
+ * The stored subset of the requested ids, in request order, deduplicated.
+ */
+export const NodeExistsResponseSchema = z.object({
+    existing: z.array(z.string())
+});
+
+export type NodeExistsResponse = z.infer<typeof NodeExistsResponseSchema>;
+
+/**
  * PackageRef
  *
  * How to install the distribution a node was parsed from.

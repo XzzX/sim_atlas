@@ -696,12 +696,12 @@ class StorageContractTests:
         storage.create_node(
             make_node(
                 name="calc",
-                keywords=["aiflow", "group_node"],
+                keywords=["flowrep", "workflow"],
                 source_code="def a(): pass",
             )
         )
         response = storage.search_substring("calc")
-        assert response.results.data[0].node.keywords == ["aiflow", "group_node"]
+        assert response.results.data[0].node.keywords == ["flowrep", "workflow"]
 
     def test_search_substring_paginates_after_ranking(
         self, storage: StorageInterface

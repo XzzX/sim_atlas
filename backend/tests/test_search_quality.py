@@ -2,7 +2,7 @@
 
 Each case is a query a user would plausibly type and the node it must find in
 the top N. The catalog mixes the shapes the legs disagree on — CamelCase and
-snake_case names, aiflow-style names that are full import paths, an
+snake_case names, names that are full import paths, an
 unenriched node — so a change to a leg or to the fusion weights that trades
 one shape for another fails here. This is what the fusion weights are tuned
 against.
@@ -71,30 +71,30 @@ def _function(name: str, python_import: str, description: str | None) -> NodeMet
     )
 
 
-def _aiflow(python_import: str, description: str) -> NodeMetadata:
-    """aiflow function nodes use the full import path as their name."""
+def _import_path_named(python_import: str, description: str) -> NodeMetadata:
+    """A function node that uses its full import path as its name."""
     return _function(python_import, python_import, description)
 
 
 _CATALOG: dict[str, NodeMetadata] = {
-    "grain_boundary": _aiflow(
+    "grain_boundary": _import_path_named(
         "pyiron_nodes.atomistic.structure.BuildMgGrainBoundary",
         "Build a magnesium grain boundary structure from two tilted crystals.",
     ),
-    "bulk": _aiflow(
+    "bulk": _import_path_named(
         "pyiron_nodes.atomistic.structure.Bulk",
         "Create a bulk crystal lattice of a chemical element.",
     ),
-    "adatoms": _aiflow(
+    "adatoms": _import_path_named(
         "pyiron_nodes.atomistic.structure.AddCationAdatoms",
         "Add cation adatoms onto a surface structure.",
     ),
-    "add": _aiflow("pyiron_nodes.math.Add", "Add two numbers."),
-    "calc_md": _aiflow(
+    "add": _import_path_named("pyiron_nodes.math.Add", "Add two numbers."),
+    "calc_md": _import_path_named(
         "pyiron_nodes.atomistic.calculator.CalcMD",
         "Run a molecular dynamics simulation at a fixed temperature.",
     ),
-    "calc_static": _aiflow(
+    "calc_static": _import_path_named(
         "pyiron_nodes.atomistic.calculator.CalcStatic",
         "Compute the static potential energy of an atomic structure.",
     ),

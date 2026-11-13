@@ -25,11 +25,4 @@ try:
 except ImportError as exc:
     logger.debug("python_workflow_definition parser unavailable: %s", exc)
 
-try:
-    from sim_atlas_toolkit.parsers import aiflow
-
-    register_parser(aiflow.parse)
-except ImportError as exc:
-    logger.debug("aiflow parser unavailable: %s", exc)
-
 __all__ = ["get_metadata"]

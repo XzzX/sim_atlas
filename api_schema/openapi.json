@@ -559,6 +559,7 @@
         "title": "IOValue",
         "type": "object"
       },
+      "JsonValue": {},
       "NodeExistsRequest": {
         "additionalProperties": false,
         "description": "Which of these node ids are stored? Body of ``POST /nodes/exists``.",
@@ -1405,6 +1406,39 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "WfConstantNode": {
+        "additionalProperties": false,
+        "description": "A literal value inside the graph, e.g. the attribute name of a field\naccess; flowrep's ``ConstantRecipe``, whose one output port is\n``constant``.",
+        "properties": {
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/Annotation"
+            },
+            "title": "Outputs",
+            "type": "array"
+          },
+          "type": {
+            "const": "constant",
+            "default": "constant",
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/JsonValue"
+          }
+        },
+        "required": [
+          "node_id",
+          "value",
+          "outputs"
+        ],
+        "title": "WfConstantNode",
+        "type": "object"
+      },
       "WfDefinition": {
         "additionalProperties": false,
         "properties": {
@@ -1550,6 +1584,7 @@
       "WfNode": {
         "discriminator": {
           "mapping": {
+            "constant": "#/components/schemas/WfConstantNode",
             "function": "#/components/schemas/WfFunctionNode",
             "input": "#/components/schemas/WfInputNode",
             "output": "#/components/schemas/WfOutputNode"
@@ -1565,6 +1600,9 @@
           },
           {
             "$ref": "#/components/schemas/WfFunctionNode"
+          },
+          {
+            "$ref": "#/components/schemas/WfConstantNode"
           }
         ]
       },

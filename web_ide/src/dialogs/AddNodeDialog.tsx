@@ -7,6 +7,7 @@ import {
 } from "sim-atlas-api-schema";
 import type { InputDataElement } from "../nodes/InputNode";
 import type { OutputDataElement } from "../nodes/OutputNode";
+import type { ConstantDataElement } from "../nodes/ConstantNode";
 import type { NodeData } from "../nodes/FunctionNode";
 import { simAtlasAPI } from "../services/api";
 import { ArrowDownToLine, ArrowUpDown, ArrowUpFromLine } from "lucide-react";
@@ -32,8 +33,8 @@ interface AddNodeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (
-    type: "InputNode" | "OutputNode" | "FunctionNode",
-    nodeData: InputDataElement | OutputDataElement | NodeData,
+    type: "InputNode" | "OutputNode" | "FunctionNode" | "ConstantNode",
+    nodeData: InputDataElement | OutputDataElement | ConstantDataElement | NodeData,
   ) => void;
   initialSearchQuery?: string;
   initialFilter?: Filter;
@@ -92,8 +93,8 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
   }, [searchTerm, filter, isOpen, runSearch]);
 
   const handleAdd = (
-    type: "InputNode" | "OutputNode" | "FunctionNode",
-    data: InputDataElement | OutputDataElement | NodeData,
+    type: "InputNode" | "OutputNode" | "FunctionNode" | "ConstantNode",
+    data: InputDataElement | OutputDataElement | ConstantDataElement | NodeData,
   ) => {
     const label =
       prompt("Please enter a name for the node", data.label) ?? data.label;
@@ -313,6 +314,21 @@ export const AddNodeDialog: React.FunctionComponent<AddNodeDialogProps> = ({
                     </div>
                     <div className="text-xs text-gray-500">
                       Input node for workflow entry points
+                    </div>
+                  </div>
+                )}
+                {connectingHandleType !== "source" && (
+                  <div
+                    className="px-3 py-3 border-b border-gray-200 cursor-pointer hover:bg-blue-100 transition-colors bg-blue-50"
+                    onClick={() =>
+                      handleAdd("ConstantNode", { label: "constant", value: "" })
+                    }
+                  >
+                    <div className="font-medium text-gray-900 text-sm mb-1">
+                      Constant
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Fixed JSON value, e.g. an attribute name for get_attr
                     </div>
                   </div>
                 )}

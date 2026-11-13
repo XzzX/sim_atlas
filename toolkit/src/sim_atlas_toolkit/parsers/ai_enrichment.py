@@ -1,9 +1,11 @@
+import json
 import logging
 import re
 from collections.abc import Mapping
 
 from sim_atlas_models import (
     Annotation,
+    WfConstantNode,
     WfDefinition,
     WfFunctionNode,
     WfInputNode,
@@ -207,7 +209,8 @@ async def _render_wf_graph(
 ) -> str:
     """Render a workflow's dataflow graph as text for the LLM prompt.
 
-    Function nodes are enriched with their name and description, looked up
+    Constant nodes, if any, are shown with their JSON value. Function nodes are
+    enriched with their name and description, looked up
     by ``atlas_id`` in *children_by_id* when given, else fetched via
     ``store.read_node``. Nodes that cannot be resolved are rendered with just
     their id and I/O labels.
@@ -215,11 +218,19 @@ async def _render_wf_graph(
     input_nodes = [n for n in wf_definition.nodes if isinstance(n, WfInputNode)]
     output_nodes = [n for n in wf_definition.nodes if isinstance(n, WfOutputNode)]
     function_nodes = [n for n in wf_definition.nodes if isinstance(n, WfFunctionNode)]
+    constant_nodes = [n for n in wf_definition.nodes if isinstance(n, WfConstantNode)]
 
     lines = ["Inputs:"]
     lines.extend(
         _format_boundary_node(ann) for node in input_nodes for ann in node.outputs
     )
+
+    if constant_nodes:
+        lines.append("")
+        lines.append("Constants:")
+        lines.extend(
+            f"- {node.node_id} = {json.dumps(node.value)}" for node in constant_nodes
+        )
 
     lines.append("")
     lines.append("Function nodes:")

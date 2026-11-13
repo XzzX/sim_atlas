@@ -63,12 +63,14 @@ export const ExportDialog: React.FunctionComponent<ExportDialogProps> = ({
           warnings: result.warnings,
         };
       }
-      case "python-workflow-definition":
+      case "python-workflow-definition": {
+        const result = toWorkflowDefinition(nodes, edges);
         return {
-          serialized: JSON.stringify(toWorkflowDefinition(nodes, edges), null, 2),
-          errors: [],
-          warnings: [],
+          serialized: JSON.stringify(result.workflow, null, 2),
+          errors: result.errors,
+          warnings: result.warnings,
         };
+      }
     }
   }, [format, nodes, edges, rfObject]);
 
@@ -130,7 +132,7 @@ export const ExportDialog: React.FunctionComponent<ExportDialogProps> = ({
           >
             <p className="text-sm font-medium text-red-800">
               {errors.length === 1 ? "1 problem" : `${errors.length} problems`} — this
-              recipe will be rejected
+              export will not load as is
             </p>
             <ul className="mt-1 list-disc list-inside text-sm text-red-700">
               {errors.map((message, index) => (

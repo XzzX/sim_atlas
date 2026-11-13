@@ -9,6 +9,7 @@ from sim_atlas_models import (  # noqa: E402
     Annotation,
     ArtifactType,
     NodeResponse,
+    WfConstantNode,
     WfDefinition,
     WfEdge,
     WfFunctionNode,
@@ -193,6 +194,27 @@ async def test_render_wf_graph_no_atlas_id() -> None:
 
     assert "local" in graph
     assert "no description available" in graph
+    assert "Constants:" not in graph
+
+
+async def test_render_wf_graph_shows_constant_values() -> None:
+    wf_definition = WfDefinition(
+        nodes=[
+            WfConstantNode(
+                node_id="constant_0", value="x", outputs=[Annotation(label="constant")]
+            ),
+            WfConstantNode(
+                node_id="constant_1",
+                value=[1, 2.5],
+                outputs=[Annotation(label="constant")],
+            ),
+        ],
+        edges=[],
+    )
+
+    graph = await _render_wf_graph(MockNodeStore(), wf_definition)
+
+    assert 'Constants:\n- constant_0 = "x"\n- constant_1 = [1, 2.5]\n' in graph
 
 
 async def test_generate_docstring_disabled_returns_existing(

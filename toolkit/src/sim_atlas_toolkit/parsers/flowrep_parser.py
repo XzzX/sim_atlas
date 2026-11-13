@@ -8,6 +8,7 @@ from typing import Any, cast
 import flowrep as fr
 from flowrep.api.schemas import (
     AtomicRecipe,
+    ConstantRecipe,
     InputSource,
     NotData,
     WorkflowRecipe,
@@ -20,6 +21,7 @@ from sim_atlas_models import (
     IOValue,
     NodeRequest,
     Reference,
+    WfConstantNode,
     WfDefinition,
     WfEdge,
     WfFunctionNode,
@@ -70,6 +72,16 @@ def flowrep_to_wf_definition(
                         inputs=inputs,
                         outputs=outputs,
                         atlas_id=reference_dict.get(node_id),
+                    )
+                )
+            case ConstantRecipe():
+                nodes.append(
+                    WfConstantNode(
+                        node_id=node_id,
+                        # Dumped: pyright cannot resolve flowrep's string-
+                        # forward-referenced ``JSONABLE`` alias.
+                        value=node.model_dump(mode="json")["constant"],
+                        outputs=[Annotation(label=out) for out in node.outputs],
                     )
                 )
             case _:

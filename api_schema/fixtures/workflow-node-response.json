@@ -11,9 +11,9 @@
   "description": "",
   "docstring": null,
   "documentation_url": null,
-  "hash": "76a05c37b71b0bc5518560e22acc4af779e5d2e69f7f94d855ab12eac5937555",
+  "hash": "4591f259db5924226d7036a47fd990d65c4bc23ef177365e5217d33f1da1eb2b",
   "homepage_url": null,
-  "id": "76a05c37b71b0bc5518560e22acc4af779e5d2e69f7f94d855ab12eac5937555",
+  "id": "4591f259db5924226d7036a47fd990d65c4bc23ef177365e5217d33f1da1eb2b",
   "inputs": [
     {
       "connections": null,
@@ -30,15 +30,6 @@
       "description": null,
       "has_default_value": false,
       "label": "slope",
-      "quantity": null,
-      "unit": null
-    },
-    {
-      "connections": null,
-      "datatype": "float",
-      "description": null,
-      "has_default_value": false,
-      "label": "intercept",
       "quantity": null,
       "unit": null
     }
@@ -68,7 +59,7 @@
   "packages": [],
   "python_import": "dummy_module.flowrep.linear",
   "see_also": [],
-  "source_code": "def linear(x, slope, intercept): ...",
+  "source_code": "def linear(x, slope): ...",
   "source_url": null,
   "used_by": [
     {
@@ -113,8 +104,8 @@
         "target_port": "a"
       },
       {
-        "source_node": "intercept",
-        "source_port": null,
+        "source_node": "constant_0",
+        "source_port": "constant",
         "target_node": "add_0",
         "target_port": "b"
       },
@@ -155,18 +146,19 @@
         "type": "input"
       },
       {
-        "node_id": "intercept",
+        "node_id": "constant_0",
         "outputs": [
           {
-            "datatype": "float",
+            "datatype": null,
             "description": null,
             "has_default_value": false,
-            "label": "intercept",
+            "label": "constant",
             "quantity": null,
             "unit": null
           }
         ],
-        "type": "input"
+        "type": "constant",
+        "value": 1.0
       },
       {
         "atlas_id": "f20ab56c3330736884d4ec4e0c968c0610fc09b86083e74108732a7249214cb2",

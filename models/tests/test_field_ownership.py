@@ -24,6 +24,7 @@ from sim_atlas_models import (
     PackageRef,
     Reference,
     ReferenceResponse,
+    WfConstantNode,
     WfDefinition,
     WfEdge,
     WfFunctionNode,
@@ -49,8 +50,18 @@ WF_DEFINITION = WfDefinition(
             node_id="f", inputs=[ANNOTATION], outputs=[ANNOTATION], atlas_id="c" * 64
         ),
         WfOutputNode(node_id="out", inputs=[ANNOTATION]),
+        WfConstantNode(
+            node_id="c",
+            value={"a": [1, "x", None]},
+            outputs=[Annotation(label="constant")],
+        ),
     ],
-    edges=[WfEdge(source_node="in", target_node="f", target_port="x")],
+    edges=[
+        WfEdge(source_node="in", target_node="f", target_port="x"),
+        WfEdge(
+            source_node="c", source_port="constant", target_node="f", target_port="y"
+        ),
+    ],
 )
 NODE_REQUEST = NodeRequest(
     artifact_type=ArtifactType.WORKFLOW,
@@ -208,3 +219,10 @@ def test_node_response_validates_from_request_dump_plus_server_fields() -> None:
             ],
         }
     )
+
+
+def test_wf_constant_node_round_trips_through_json() -> None:
+    parsed = WfDefinition.model_validate_json(WF_DEFINITION.model_dump_json())
+    [constant] = [n for n in parsed.nodes if isinstance(n, WfConstantNode)]
+    assert constant.value == {"a": [1, "x", None]}
+    assert [a.label for a in constant.outputs] == ["constant"]

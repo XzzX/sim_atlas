@@ -629,7 +629,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "flowrep", marker = "extra == 'flowrep'", specifier = ">=0.5.1" },
+    { name = "flowrep", marker = "extra == 'flowrep'", specifier = ">=0.6.0" },
     { name = "griffe", specifier = ">=2" },
     { name = "httpx2", specifier = ">=2.13.0" },
     { name = "openai", marker = "extra == 'ai'", specifier = ">=2.45.0" },

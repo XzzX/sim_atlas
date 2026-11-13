@@ -2,8 +2,8 @@
  * TypeScript mirror of flowrep's prospective recipe models (flowrep >= 0.6.2).
  *
  * Only the subset the IDE can express is modelled: a flat `workflow` recipe
- * whose children are all `atomic`. The flow-control recipes (`for_each`,
- * `while`, `if`, `try`) and `constant` have no counterpart on the canvas.
+ * whose children are `atomic` or `constant`. The flow-control recipes
+ * (`for_each`, `while`, `if`, `try`) have no counterpart on the canvas.
  *
  * Hand-written types rather than zod schemas: this format is write-only here,
  * and flowrep's real constraints — every child input sourced, acyclic edges,
@@ -38,6 +38,16 @@ export interface FlowrepAtomicRecipe {
   reference: FlowrepPythonReference;
 }
 
+/** A literal value; its single output port is always `constant`. */
+export interface FlowrepConstantRecipe {
+  type: "constant";
+  inputs: [];
+  outputs: ["constant"];
+  description: null;
+  /** Any JSON value. */
+  constant: unknown;
+}
+
 /**
  * Handles serialize to dotted `"node.port"` strings, and every edge map is
  * keyed by its *target* — that is how flowrep enforces a single source per
@@ -48,7 +58,7 @@ export interface FlowrepWorkflowRecipe {
   inputs: string[];
   outputs: string[];
   description: string | null;
-  nodes: Record<string, FlowrepAtomicRecipe>;
+  nodes: Record<string, FlowrepAtomicRecipe | FlowrepConstantRecipe>;
   /** `"child.port"` -> `"workflowInput"` */
   input_edges: Record<string, string>;
   /** `"child.port"` -> `"child.port"` */

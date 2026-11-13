@@ -12,13 +12,6 @@ except ImportError as exc:
     logger.debug("flowrep parser unavailable: %s", exc)
 
 try:
-    from sim_atlas_toolkit.parsers import dataclass_node
-
-    register_parser(dataclass_node.parse)
-except ImportError as exc:
-    logger.debug("dataclass_node parser unavailable: %s", exc)
-
-try:
     from sim_atlas_toolkit.parsers import python_function
 
     register_parser(python_function.parse)

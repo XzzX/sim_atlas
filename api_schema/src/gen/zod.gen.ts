@@ -134,6 +134,32 @@ export const ExecutionResultResponseSchema = z.object({
 
 export type ExecutionResultResponse = z.infer<typeof ExecutionResultResponseSchema>;
 
+export const JsonValueSchema = z.unknown();
+
+export type JsonValue = z.infer<typeof JsonValueSchema>;
+
+/**
+ * NodeExistsRequest
+ *
+ * Which of these node ids are stored? Body of ``POST /nodes/exists``.
+ */
+export const NodeExistsRequestSchema = z.strictObject({
+    ids: z.array(z.string()).max(1000)
+});
+
+export type NodeExistsRequest = z.infer<typeof NodeExistsRequestSchema>;
+
+/**
+ * NodeExistsResponse
+ *
+ * The stored subset of the requested ids, in request order, deduplicated.
+ */
+export const NodeExistsResponseSchema = z.object({
+    existing: z.array(z.string())
+});
+
+export type NodeExistsResponse = z.infer<typeof NodeExistsResponseSchema>;
+
 /**
  * PackageRef
  *
@@ -274,6 +300,22 @@ export const HTTPValidationErrorSchema = z.object({
 export type HTTPValidationError = z.infer<typeof HTTPValidationErrorSchema>;
 
 /**
+ * WfConstantNode
+ *
+ * A literal value inside the graph, e.g. the attribute name of a field
+ * access; flowrep's ``ConstantRecipe``, whose one output port is
+ * ``constant``.
+ */
+export const WfConstantNodeSchema = z.strictObject({
+    node_id: z.string(),
+    outputs: z.array(AnnotationSchema),
+    type: z.literal('constant').optional().default('constant'),
+    value: JsonValueSchema
+});
+
+export type WfConstantNode = z.infer<typeof WfConstantNodeSchema>;
+
+/**
  * WfEdge
  */
 export const WfEdgeSchema = z.strictObject({
@@ -323,7 +365,8 @@ export type WfOutputNode = z.infer<typeof WfOutputNodeSchema>;
 export const WfNodeSchema = z.discriminatedUnion('type', [
     WfInputNodeSchema,
     WfOutputNodeSchema,
-    WfFunctionNodeSchema
+    WfFunctionNodeSchema,
+    WfConstantNodeSchema
 ]);
 
 export type WfNode = z.infer<typeof WfNodeSchema>;

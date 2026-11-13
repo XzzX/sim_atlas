@@ -559,6 +559,43 @@
         "title": "IOValue",
         "type": "object"
       },
+      "JsonValue": {},
+      "NodeExistsRequest": {
+        "additionalProperties": false,
+        "description": "Which of these node ids are stored? Body of ``POST /nodes/exists``.",
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "NodeExistsRequest",
+        "type": "object"
+      },
+      "NodeExistsResponse": {
+        "description": "The stored subset of the requested ids, in request order, deduplicated.",
+        "properties": {
+          "existing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Existing",
+            "type": "array"
+          }
+        },
+        "required": [
+          "existing"
+        ],
+        "title": "NodeExistsResponse",
+        "type": "object"
+      },
       "NodeRequest": {
         "additionalProperties": false,
         "description": "A node upload, function or workflow alike (ADR-0021).\n\n``id`` and ``hash`` are client-owned; the server defaults both to\n``sha256(source_code)`` when they are omitted (ADR-0005).",
@@ -1369,6 +1406,39 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "WfConstantNode": {
+        "additionalProperties": false,
+        "description": "A literal value inside the graph, e.g. the attribute name of a field\naccess; flowrep's ``ConstantRecipe``, whose one output port is\n``constant``.",
+        "properties": {
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/Annotation"
+            },
+            "title": "Outputs",
+            "type": "array"
+          },
+          "type": {
+            "const": "constant",
+            "default": "constant",
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/JsonValue"
+          }
+        },
+        "required": [
+          "node_id",
+          "value",
+          "outputs"
+        ],
+        "title": "WfConstantNode",
+        "type": "object"
+      },
       "WfDefinition": {
         "additionalProperties": false,
         "properties": {
@@ -1514,6 +1584,7 @@
       "WfNode": {
         "discriminator": {
           "mapping": {
+            "constant": "#/components/schemas/WfConstantNode",
             "function": "#/components/schemas/WfFunctionNode",
             "input": "#/components/schemas/WfInputNode",
             "output": "#/components/schemas/WfOutputNode"
@@ -1529,6 +1600,9 @@
           },
           {
             "$ref": "#/components/schemas/WfFunctionNode"
+          },
+          {
+            "$ref": "#/components/schemas/WfConstantNode"
           }
         ]
       },
@@ -1902,6 +1976,48 @@
           }
         ],
         "summary": "Create Node",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
+    "/api/v1/nodes/exists": {
+      "post": {
+        "description": "Return the subset of `ids` that are stored, matched on node id exactly like `GET /nodes/{node_id}`. The result keeps request order and drops duplicates. At most 1000 ids per request (422 above). Public, like every read route. Lets a client check a whole batch in one request instead of one `GET /nodes/{node_id}` per id.",
+        "operationId": "nodes_exist_api_v1_nodes_exists_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeExistsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeExistsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check which node ids are stored",
         "tags": [
           "nodes"
         ]

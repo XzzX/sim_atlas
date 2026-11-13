@@ -11,7 +11,7 @@ import type { ArtifactType, WfDefinition } from "sim-atlas-api-schema";
 async function convertToNode(
   n: PythonWorkflowDefinitionNode,
 ): Promise<WorkflowNode | null> {
-  if (n.type === "function" || n.type === "pack" || n.type === "unpack") {
+  if (n.type === "function") {
     const nodeTypeFilter: ArtifactType | undefined = undefined;
 
     // Prefer direct lookup by atlas_node_id; fall back to keyword search
@@ -120,6 +120,14 @@ export async function convertWfDefinition(
             data: { label: n.node_id, value: "" },
             position: { x: Math.random() * 400, y: Math.random() * 400 },
             type: "InputNode",
+          };
+        }
+        if (n.type === "constant") {
+          return {
+            id: n.node_id,
+            data: { label: n.node_id, value: JSON.stringify(n.value) },
+            position: { x: Math.random() * 400, y: Math.random() * 400 },
+            type: "ConstantNode",
           };
         }
         if (n.type === "output") {

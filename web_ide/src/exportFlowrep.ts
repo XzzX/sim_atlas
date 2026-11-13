@@ -3,9 +3,12 @@ import type { WorkflowNode } from "./nodes/nodes";
 import type { FunctionNodeType } from "./nodes/FunctionNode";
 import type { InputNodeType } from "./nodes/InputNode";
 import type { OutputNodeType } from "./nodes/OutputNode";
+import type { ConstantNodeType } from "./nodes/ConstantNode";
+import { exportedConstant } from "./nodes/constantValue";
 import type { AnnotationResponse } from "sim-atlas-api-schema";
 import type {
   FlowrepAtomicRecipe,
+  FlowrepConstantRecipe,
   FlowrepVersionInfo,
   FlowrepWorkflowRecipe,
 } from "./interfaces/FlowrepSchema";
@@ -251,9 +254,40 @@ function isOutputNode(node: WorkflowNode): node is OutputNodeType {
   return node.type === "OutputNode";
 }
 
-/** A resolved edge endpoint: a child handle, or a port of the workflow itself. */
+function isConstantNode(node: WorkflowNode): node is ConstantNodeType {
+  return node.type === "ConstantNode";
+}
+
+interface ConstantChild {
+  label: string;
+  recipe: FlowrepConstantRecipe;
+}
+
+function toConstantChild(
+  node: ConstantNodeType,
+  labels: NameAllocator,
+  errors: string[],
+): ConstantChild {
+  return {
+    // flowrep labels constants `constant_0`, `constant_1`, ...
+    label: labels.allocate("constant"),
+    recipe: {
+      type: "constant",
+      inputs: [],
+      outputs: ["constant"],
+      description: null,
+      constant: exportedConstant(node.data.label, node.data.value, errors),
+    },
+  };
+}
+
+/**
+ * A resolved edge endpoint: a child handle, a constant's output, or a port of
+ * the workflow itself.
+ */
 type Endpoint =
   | { kind: "child"; child: ChildNode; port: string }
+  | { kind: "constant"; constant: ConstantChild }
   | { kind: "workflow"; name: string };
 
 /**
@@ -261,9 +295,10 @@ type Endpoint =
  *
  * Input nodes become workflow inputs (their values are dropped — flowrep stores
  * only the *names* of defaulted parameters, never values) and output nodes
- * become workflow outputs; only function nodes become recipe nodes, all of them
- * `atomic`. The recipe is always returned, even when `errors` is non-empty, so
- * the caller can show what would be emitted alongside what is wrong with it.
+ * become workflow outputs; function nodes become `atomic` recipe nodes and
+ * constant nodes `constant` ones. The recipe is always returned, even when
+ * `errors` is non-empty, so the caller can show what would be emitted
+ * alongside what is wrong with it.
  */
 export function toFlowrepRecipe(
   nodes: WorkflowNode[],
@@ -277,12 +312,17 @@ export function toFlowrepRecipe(
   const outputLabels = createNameAllocator(false);
 
   const children = new Map<string, ChildNode>();
+  const constants = new Map<string, ConstantChild>();
   const workflowInputs = new Map<string, string>();
   const workflowOutputs = new Map<string, string>();
 
   for (const node of nodes) {
     if (isFunctionNode(node)) {
       children.set(node.id, toChildNode(node, nodeLabels, errors, warnings));
+      continue;
+    }
+    if (isConstantNode(node)) {
+      constants.set(node.id, toConstantChild(node, nodeLabels, errors));
       continue;
     }
     if (isInputNode(node)) {
@@ -340,6 +380,16 @@ export function toFlowrepRecipe(
       return { kind: "child", child, port };
     }
 
+    const constant = constants.get(nodeId);
+    if (constant !== undefined) {
+      if (side === "source") return { kind: "constant", constant };
+      errors.push(
+        `"${constant.label}" has no inputs, so it cannot be an edge target; ` +
+          `the edge was dropped.`,
+      );
+      return null;
+    }
+
     const name =
       side === "source" ? workflowInputs.get(nodeId) : workflowOutputs.get(nodeId);
     if (name !== undefined) return { kind: "workflow", name };
@@ -355,10 +405,16 @@ export function toFlowrepRecipe(
     return null;
   };
 
-  const handleOf = (endpoint: Endpoint): string =>
-    endpoint.kind === "child"
-      ? `${endpoint.child.label}.${endpoint.port}`
-      : endpoint.name;
+  const handleOf = (endpoint: Endpoint): string => {
+    switch (endpoint.kind) {
+      case "child":
+        return `${endpoint.child.label}.${endpoint.port}`;
+      case "constant":
+        return `${endpoint.constant.label}.constant`;
+      case "workflow":
+        return endpoint.name;
+    }
+  };
 
   const childSources = new Map<string, { source: string; fromWorkflowInput: boolean }>();
   const outputSources = new Map<string, string>();
@@ -407,7 +463,7 @@ export function toFlowrepRecipe(
     reference: null,
   };
 
-  for (const child of children.values()) {
+  for (const child of [...children.values(), ...constants.values()]) {
     recipe.nodes[child.label] = child.recipe;
   }
 

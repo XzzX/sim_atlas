@@ -17,7 +17,7 @@ over the annotation and reference types where the two sides differ.
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Discriminator, Field
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, JsonValue
 
 _REQUEST = ConfigDict(extra="forbid")
 _RESPONSE = ConfigDict(extra="ignore")
@@ -135,11 +135,24 @@ class WfFunctionNode(BaseModel):
     atlas_id: str | None
 
 
+class WfConstantNode(BaseModel):
+    """A literal value inside the graph, e.g. the attribute name of a field
+    access; flowrep's ``ConstantRecipe``, whose one output port is
+    ``constant``."""
+
+    model_config = _REQUEST
+
+    type: Literal["constant"] = "constant"
+    node_id: str
+    value: JsonValue
+    outputs: list[Annotation]
+
+
 # A `type` alias rather than a plain assignment, so that the JSON Schema names
 # the union: the TypeScript generator emits a tagged union for a named
 # discriminated union but drops the discriminator of an inline one (ADR-0027).
 type WfNode = Annotated[
-    WfInputNode | WfOutputNode | WfFunctionNode,
+    WfInputNode | WfOutputNode | WfFunctionNode | WfConstantNode,
     Discriminator("type"),
 ]
 

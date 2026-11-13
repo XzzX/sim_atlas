@@ -21,6 +21,7 @@ import { type NodeData, type FunctionNodeType } from "./nodes/FunctionNode";
 import { type AnnotationResponse, type Filter } from "sim-atlas-api-schema";
 import { type InputDataElement } from "./nodes/InputNode";
 import { type OutputDataElement } from "./nodes/OutputNode";
+import { type ConstantDataElement } from "./nodes/ConstantNode";
 import { AddNodeDialog } from "./dialogs/AddNodeDialog";
 import { Button } from "./components/ui/button";
 import { ImportDialog } from "./dialogs/ImportDialog";
@@ -218,8 +219,8 @@ export const ReactFlowEditor = ({
   );
 
   const onAddNode = (
-    type: "InputNode" | "OutputNode" | "FunctionNode",
-    data: InputDataElement | OutputDataElement | NodeData,
+    type: "InputNode" | "OutputNode" | "FunctionNode" | "ConstantNode",
+    data: InputDataElement | OutputDataElement | ConstantDataElement | NodeData,
   ) => {
     if (!rfInstance || !contextMenuPos) {
       return;
@@ -269,7 +270,7 @@ export const ReactFlowEditor = ({
           if (!h) return;
           edgeTargetHandle = h;
         } else {
-          return; // InputNode has no target handles
+          return; // InputNode and ConstantNode have no target handles
         }
       } else {
         edgeTarget = nodeId;
@@ -277,6 +278,8 @@ export const ReactFlowEditor = ({
         edgeSource = newId;
         if (type === "InputNode") {
           edgeSourceHandle = "output";
+        } else if (type === "ConstantNode") {
+          edgeSourceHandle = "constant";
         } else if (type === "FunctionNode") {
           const nodeData = data as NodeData;
           const h = pickHandle(nodeData.metadata.outputs, annotation?.datatype);

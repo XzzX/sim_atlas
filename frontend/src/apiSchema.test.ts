@@ -17,11 +17,15 @@ describe("generated API schema", () => {
     expect(node.wf_definition.nodes.map((n) => n.type)).toEqual([
       "input",
       "input",
-      "input",
+      "constant",
       "function",
       "function",
       "output",
     ]);
+    expect(node.wf_definition.nodes.find((n) => n.type === "constant")).toMatchObject({
+      node_id: "constant_0",
+      value: 1,
+    });
   });
 
   it("rejects a server-owned field in a node request", () => {

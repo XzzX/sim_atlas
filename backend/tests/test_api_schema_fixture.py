@@ -24,6 +24,7 @@ from sim_atlas_models import (
     ArtifactType,
     NodeRequest,
     Reference,
+    WfConstantNode,
     WfDefinition,
     WfEdge,
     WfFunctionNode,
@@ -100,6 +101,7 @@ def _workflow(
     uses: list[tuple[str, str]],
     calls: list[WfFunctionNode],
     edges: list[WfEdge],
+    constants: list[WfConstantNode] | None = None,
 ) -> NodeRequest:
     return _function(name, inputs, output).model_copy(
         update={
@@ -108,6 +110,7 @@ def _workflow(
             "wf_definition": WfDefinition(
                 nodes=[
                     *(WfInputNode(node_id=i, outputs=[_port(i)]) for i in inputs),
+                    *(constants or []),
                     *calls,
                     WfOutputNode(node_id=output, inputs=[_port(output)]),
                 ],
@@ -124,16 +127,23 @@ def _create(client: TestClient, body: NodeRequest) -> str:
 
 
 def build_fixture(client: TestClient) -> dict[str, Any]:
-    """``linear`` (y = slope * x + intercept), used by the workflow ``twice``."""
+    """``linear`` (y = slope * x + 1.0), used by the workflow ``twice``."""
     mul = _create(client, _function("mul", ["a", "b"], "product"))
     add = _create(client, _function("add", ["a", "b"], "sum"))
     linear = _create(
         client,
         _workflow(
             "linear",
-            ["x", "slope", "intercept"],
+            ["x", "slope"],
             "result",
             uses=[("mul", mul), ("add", add)],
+            constants=[
+                WfConstantNode(
+                    node_id="constant_0",
+                    value=1.0,
+                    outputs=[Annotation(label="constant")],
+                )
+            ],
             calls=[
                 _call("mul_0", mul, ["a", "b"], "product"),
                 _call("add_0", add, ["a", "b"], "sum"),
@@ -142,7 +152,7 @@ def build_fixture(client: TestClient) -> dict[str, Any]:
                 _edge("x", None, "mul_0", "a"),
                 _edge("slope", None, "mul_0", "b"),
                 _edge("mul_0", "product", "add_0", "a"),
-                _edge("intercept", None, "add_0", "b"),
+                _edge("constant_0", "constant", "add_0", "b"),
                 _edge("add_0", "sum", "result", None),
             ],
         ),
@@ -155,7 +165,7 @@ def build_fixture(client: TestClient) -> dict[str, Any]:
             "y",
             uses=[("linear", linear), ("add", add)],
             calls=[
-                _call("linear_0", linear, ["x", "slope", "intercept"], "result"),
+                _call("linear_0", linear, ["x", "slope"], "result"),
                 _call("add_0", add, ["a", "b"], "sum"),
             ],
             edges=[
@@ -181,6 +191,7 @@ def test_fixture_covers_the_derived_fields(client: TestClient) -> None:
     assert node["used_by"]
     assert any(port["connections"] for port in node["inputs"] + node["outputs"])
     assert node["wf_definition"]["nodes"]
+    assert any(n["type"] == "constant" for n in node["wf_definition"]["nodes"])
 
 
 def test_committed_fixture_matches_the_api(client: TestClient) -> None:
